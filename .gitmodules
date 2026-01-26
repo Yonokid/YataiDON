@@ -1,0 +1,15 @@
+[submodule "vendor/raylib-cpp"]
+	path = vendor/raylib-cpp
+	url = https://github.com/robloach/raylib-cpp
+[submodule "vendor/raylib"]
+	path = vendor/raylib
+	url = https://github.com/raysan5/raylib
+[submodule "vendor/rapidjson"]
+	path = vendor/rapidjson
+	url = https://github.com/Tencent/rapidjson.git
+[submodule "vendor/tomlplusplus"]
+	path = vendor/tomlplusplus
+	url = https://github.com/marzer/tomlplusplus.git
+[submodule "Skins/PyTaikoGreen"]
+	path = Skins/PyTaikoGreen
+	url = https://ese.tjadataba.se/Yonokid/PyTaikoGreen.git

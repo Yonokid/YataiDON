@@ -1,0 +1,80 @@
+[general]
+fps_counter = false
+audio_offset = 0
+visual_offset = 0
+language = "en"
+timer_frozen = true
+judge_counter = false
+nijiiro_notes = false
+log_level = 30
+fake_online = false
+practice_mode_bar_delay = 1
+score_method = "shinuchi"
+
+[nameplate_1p]
+name = 'どんちゃん'
+title = 'ドンだーデビュー！'
+title_bg = 0
+dan = -1
+gold = false
+rainbow = false
+
+[nameplate_2p]
+name = 'かつちゃん'
+title = 'ドンだーデビュー！'
+title_bg = 1
+dan = -1
+gold = false
+rainbow = false
+
+[paths]
+tja_path = ['Songs']
+skin = 'PyTaikoGreen'
+
+[keys]
+exit_key = 'Q'
+borderless_key = 'F10'
+fullscreen_key = 'F11'
+pause_key = "SPACE"
+back_key = 'ESCAPE'
+restart_key = 'F1'
+
+[keys_1p]
+left_kat = ['D']
+left_don = ['F']
+right_don = ['J']
+right_kat = ['K']
+
+[keys_2p]
+left_kat = ["Z"]
+left_don = ["X"]
+right_don = ["C"]
+right_kat = ["V"]
+
+[gamepad]
+left_kat = [10]
+left_don = [16]
+right_don = [17]
+right_kat = [12]
+
+[audio]
+# device_type: 0 = default, this will be set on first launch to the recommended setting
+# Windows users should generally pick 4 (WDM-KS) and Linux users should pick 0 (ALSA)
+device_type = 0
+sample_rate = 44100
+# buffer_size: Size in samples per audio buffer
+# - 0 = let driver choose (may result in very small buffers with ASIO, typically 64)
+buffer_size = 128
+
+[volume]
+sound = 1.0
+music = 1.0
+voice = 1.0
+hitsound = 1.0
+attract_mode = 1.0
+
+[video]
+fullscreen = false
+borderless = false
+target_fps = -1
+vsync = false

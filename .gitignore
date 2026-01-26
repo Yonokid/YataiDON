@@ -1,0 +1,6 @@
+cache
+dev-config.toml
+latest.log
+scores.db
+scores_gen3.db
+*.dll
