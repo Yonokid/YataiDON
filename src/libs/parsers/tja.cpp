@@ -1,5 +1,6 @@
 #include "tja.h"
 #include <iostream>
+#include <math.h>
 
 double get_ms_per_measure(double bpm_val, double time_sig) {
     if (bpm_val == 0) return 0;
