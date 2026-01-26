@@ -1,7 +1,5 @@
 #pragma once
 
-#include <raylib.h>
-
 #include "global_data.h"
 #include "texture.h"
 

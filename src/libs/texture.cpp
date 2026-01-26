@@ -4,7 +4,7 @@ void TextureWrapper::init(const std::string& skin_path) {
     graphics_path = fs::path("Skins") / skin_path / "Graphics";
 
     if (!fs::exists(graphics_path)) {
-        TraceLog(LOG_ERROR, "No skin has been configured");
+        ray::TraceLog(ray::LOG_ERROR, "No skin has been configured");
         return;
     }
 
@@ -95,7 +95,7 @@ void TextureWrapper::unload_textures() {
                     std::string tex_name = subset + "/" + name + "[" + std::to_string(i) + "]";
 
                     if (ids.find(id) != ids.end()) {
-                        TraceLog(LOG_WARNING, "Duplicate texture ID %u: %s and %s",
+                        ray::TraceLog(ray::LOG_WARNING, "Duplicate texture ID %u: %s and %s",
                                id, ids[id].c_str(), tex_name.c_str());
                     } else {
                         ids[id] = tex_name;
@@ -108,7 +108,7 @@ void TextureWrapper::unload_textures() {
                     std::string tex_name = subset + "/" + name;
 
                     if (ids.find(id) != ids.end()) {
-                        TraceLog(LOG_WARNING, "Duplicate texture ID %u: %s and %s",
+                        ray::TraceLog(ray::LOG_WARNING, "Duplicate texture ID %u: %s and %s",
                                id, ids[id].c_str(), tex_name.c_str());
                     } else {
                         ids[id] = tex_name;
@@ -120,7 +120,7 @@ void TextureWrapper::unload_textures() {
 
     textures.clear();
     animations.clear();
-    TraceLog(LOG_INFO, "All textures unloaded");
+    ray::TraceLog(ray::LOG_INFO, "All textures unloaded");
 }
 
 BaseAnimation* TextureWrapper::get_animation(const int id, bool is_copy) {
@@ -172,7 +172,7 @@ void TextureWrapper::read_tex_obj_data(const Value& tex_mapping, TextureObject* 
             if (mapping.HasMember("frame_order") && mapping["frame_order"].IsArray()) {
                 auto* framed = dynamic_cast<FramedTexture*>(tex_obj);
                 if (framed) {
-                    std::vector<Texture2D> reordered;
+                    std::vector<ray::Texture2D> reordered;
                     for (SizeType j = 0; j < mapping["frame_order"].Size(); j++) {
                         int idx = mapping["frame_order"][j].GetInt();
                         reordered.push_back(framed->textures[idx]);
@@ -183,10 +183,10 @@ void TextureWrapper::read_tex_obj_data(const Value& tex_mapping, TextureObject* 
 
             // Handle crop
             if (mapping.HasMember("crop") && mapping["crop"].IsArray()) {
-                std::vector<Rectangle> crops;
+                std::vector<ray::Rectangle> crops;
                 for (SizeType j = 0; j < mapping["crop"].Size(); j++) {
                     const Value& crop = mapping["crop"][j];
-                    crops.push_back(Rectangle{
+                    crops.push_back(ray::Rectangle{
                         crop[0].GetFloat(), crop[1].GetFloat(),
                         crop[2].GetFloat(), crop[3].GetFloat()
                     });
@@ -207,7 +207,7 @@ void TextureWrapper::read_tex_obj_data(const Value& tex_mapping, TextureObject* 
         if (tex_mapping.HasMember("frame_order") && tex_mapping["frame_order"].IsArray()) {
             auto* framed = dynamic_cast<FramedTexture*>(tex_obj);
             if (framed) {
-                std::vector<Texture2D> reordered;
+                std::vector<ray::Texture2D> reordered;
                 for (SizeType j = 0; j < tex_mapping["frame_order"].Size(); j++) {
                     int idx = tex_mapping["frame_order"][j].GetInt();
                     reordered.push_back(framed->textures[idx]);
@@ -218,10 +218,10 @@ void TextureWrapper::read_tex_obj_data(const Value& tex_mapping, TextureObject* 
 
         // Handle crop
         if (tex_mapping.HasMember("crop") && tex_mapping["crop"].IsArray()) {
-            std::vector<Rectangle> crops;
+            std::vector<ray::Rectangle> crops;
             for (SizeType j = 0; j < tex_mapping["crop"].Size(); j++) {
                 const Value& crop = tex_mapping["crop"][j];
-                crops.push_back(Rectangle{
+                crops.push_back(ray::Rectangle{
                     crop[0].GetFloat(), crop[1].GetFloat(),
                     crop[2].GetFloat(), crop[3].GetFloat()
                 });
@@ -247,7 +247,7 @@ void TextureWrapper::load_animations(const std::string& screen_name) {
 
         AnimationParser parser;
         animations = parser.parse_animations(doc);
-        TraceLog(LOG_INFO, "Animations loaded for screen: %s", screen_name.c_str());
+        ray::TraceLog(ray::LOG_INFO, "Animations loaded for screen: %s", screen_name.c_str());
     } else if (parent_graphics_path != graphics_path && fs::exists(parent_anim_file)) {
         std::ifstream ifs(parent_anim_file);
         IStreamWrapper isw(ifs);
@@ -272,7 +272,7 @@ void TextureWrapper::load_animations(const std::string& screen_name) {
 
         AnimationParser parser;
         animations = parser.parse_animations(doc);
-        TraceLog(LOG_INFO, "Animations loaded for screen: %s (from parent)", screen_name.c_str());
+        ray::TraceLog(ray::LOG_INFO, "Animations loaded for screen: %s (from parent)", screen_name.c_str());
     }
 }
 
@@ -318,9 +318,9 @@ void TextureWrapper::load_folder(const std::string& screen_name, const std::stri
                     return std::stoi(a.stem().string()) < std::stoi(b.stem().string());
                 });
 
-                std::vector<Texture2D> loaded_frames;
+                std::vector<ray::Texture2D> loaded_frames;
                 for (const auto& frame : frames) {
-                    loaded_frames.push_back(LoadTexture(frame.string().c_str()));
+                    loaded_frames.push_back(ray::LoadTexture(frame.string().c_str()));
                 }
 
                 auto framed = std::make_shared<FramedTexture>(tex_name, loaded_frames);
@@ -329,21 +329,21 @@ void TextureWrapper::load_folder(const std::string& screen_name, const std::stri
 
             } else if (fs::exists(tex_file)) {
                 // Load single texture
-                Texture2D tex = LoadTexture(tex_file.string().c_str());
+                ray::Texture2D tex = ray::LoadTexture(tex_file.string().c_str());
                 auto single = std::make_shared<SingleTexture>(tex_name, tex);
                 read_tex_obj_data(tex_mapping, single.get());
                 textures[folder.stem().string()][tex_name] = single;
 
             } else {
-                TraceLog(LOG_ERROR, "Texture %s was not found in %s",
+                ray::TraceLog(ray::LOG_ERROR, "Texture %s was not found in %s",
                        tex_name.c_str(), folder.string().c_str());
             }
         }
 
-        TraceLog(LOG_INFO, "Textures loaded from folder: %s", folder.string().c_str());
+        ray::TraceLog(ray::LOG_INFO, "Textures loaded from folder: %s", folder.string().c_str());
 
     } catch (const std::exception& e) {
-        TraceLog(LOG_ERROR, "Failed to load textures from folder %s: %s",
+        ray::TraceLog(ray::LOG_ERROR, "Failed to load textures from folder %s: %s",
                folder.string().c_str(), e.what());
     }
 }
@@ -352,7 +352,7 @@ void TextureWrapper::load_screen_textures(const std::string& screen_name) {
     fs::path screen_path = graphics_path / screen_name;
 
     if (!fs::exists(screen_path)) {
-        TraceLog(LOG_WARNING, "Textures for Screen %s do not exist", screen_name.c_str());
+        ray::TraceLog(ray::LOG_WARNING, "Textures for Screen %s do not exist", screen_name.c_str());
         return;
     }
 
@@ -364,36 +364,36 @@ void TextureWrapper::load_screen_textures(const std::string& screen_name) {
         }
     }
 
-    TraceLog(LOG_INFO, "Screen textures loaded for: %s", screen_name.c_str());
+    ray::TraceLog(ray::LOG_INFO, "Screen textures loaded for: %s", screen_name.c_str());
 }
 
 void TextureWrapper::control(TextureObject* tex_obj, int index) {
-    int distance = IsKeyDown(KEY_LEFT_SHIFT) ? 10 : 1;
+    int distance = ray::IsKeyDown(ray::KEY_LEFT_SHIFT) ? 10 : 1;
 
-    if (IsKeyPressed(KEY_LEFT)) {
+    if (ray::IsKeyPressed(ray::KEY_LEFT)) {
         tex_obj->x[index] -= distance;
         //TraceLog(LOG_INFO, "%s: %d, %d", tex_obj->name.c_str(),
                //tex_obj->x[index], tex_obj->y[index]);
     }
-    if (IsKeyPressed(KEY_RIGHT)) {
+    if (ray::IsKeyPressed(ray::KEY_RIGHT)) {
         tex_obj->x[index] += distance;
         //TraceLog(LOG_INFO, "%s: %d, %d", tex_obj->name.c_str(),
                //tex_obj->x[index], tex_obj->y[index]);
     }
-    if (IsKeyPressed(KEY_UP)) {
+    if (ray::IsKeyPressed(ray::KEY_UP)) {
         tex_obj->y[index] -= distance;
         //TraceLog(LOG_INFO, "%s: %d, %d", tex_obj->name.c_str(),
                //tex_obj->x[index], tex_obj->y[index]);
     }
-    if (IsKeyPressed(KEY_DOWN)) {
+    if (ray::IsKeyPressed(ray::KEY_DOWN)) {
         tex_obj->y[index] += distance;
         //TraceLog(LOG_INFO, "%s: %d, %d", tex_obj->name.c_str(),
                //tex_obj->x[index], tex_obj->y[index]);
     }
 }
 
-void TextureWrapper::clear_screen(const Color& color) {
-    ClearBackground(color);
+void TextureWrapper::clear_screen(const ray::Color& color) {
+    ray::ClearBackground(color);
 }
 
 void TextureWrapper::draw_texture(const std::string& subset, const std::string& texture_name,
@@ -405,31 +405,31 @@ void TextureWrapper::draw_texture(const std::string& subset, const std::string& 
     float mirror_x = (params.mirror == "horizontal") ? -1.0f : 1.0f;
     float mirror_y = (params.mirror == "vertical") ? -1.0f : 1.0f;
 
-    Color final_color = (params.fade != 1.1f) ? Fade(params.color, params.fade) : params.color;
+    ray::Color final_color = (params.fade != 1.1f) ? Fade(params.color, params.fade) : params.color;
 
     TextureObject* tex_obj = textures[subset][texture_name].get();
 
-    Rectangle source_rect;
+    ray::Rectangle source_rect;
     if (params.src.has_value()) {
         source_rect = params.src.value();
     } else if (tex_obj->crop_data.has_value()) {
         source_rect = (*tex_obj->crop_data)[params.frame];
     } else {
-        source_rect = Rectangle{0, 0,
+        source_rect = ray::Rectangle{0, 0,
             static_cast<float>(tex_obj->width) * mirror_x,
             static_cast<float>(tex_obj->height) * mirror_y};
     }
 
-    Rectangle dest_rect;
+    ray::Rectangle dest_rect;
     if (params.center) {
-        dest_rect = Rectangle{
+        dest_rect = ray::Rectangle{
             tex_obj->x[params.index] + (tex_obj->width / 2.0f) - ((tex_obj->width * params.scale) / 2.0f) + params.x,
             tex_obj->y[params.index] + (tex_obj->height / 2.0f) - ((tex_obj->height * params.scale) / 2.0f) + params.y,
             tex_obj->x2[params.index] * params.scale + params.x2,
             tex_obj->y2[params.index] * params.scale + params.y2
         };
     } else {
-        dest_rect = Rectangle{
+        dest_rect = ray::Rectangle{
             static_cast<float>(tex_obj->x[params.index]) + params.x,
             static_cast<float>(tex_obj->y[params.index]) + params.y,
             tex_obj->x2[params.index] * params.scale + params.x2,

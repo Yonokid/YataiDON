@@ -1,14 +1,5 @@
 #pragma once
 
-#include <chrono>
-#include <cmath>
-#include <string>
-#include <vector>
-#include <map>
-#include <memory>
-#include <optional>
-#include <functional>
-#include <stdexcept>
 #include <set>
 
 #include <rapidjson/document.h>

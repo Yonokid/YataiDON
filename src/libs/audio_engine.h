@@ -1,10 +1,10 @@
 #pragma once
 
-#include <string>
+#ifdef _WIN32
+#include <windows.h>
+#endif
+#include <iostream>
 #include <unordered_map>
-#include <filesystem>
-#include <memory>
-#include <optional>
 
 #include "config.h"
 

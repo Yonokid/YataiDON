@@ -1,6 +1,4 @@
 #pragma once
-#include <raylib.h>
-#include <iostream>
 
 #include "../libs/screen.h"
 #include "../libs/utils.h"
@@ -12,7 +10,7 @@
 
 class GameScreen : public Screen {
 private:
-    Shader mask_shader;
+    ray::Shader mask_shader;
     volatile double start_ms;
     volatile double current_ms;
     volatile double end_ms;

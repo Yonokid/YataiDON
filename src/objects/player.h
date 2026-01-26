@@ -30,7 +30,7 @@ public:
 
     void update(double ms_from_start, double current_ms);
 
-    void draw(double ms_from_start, Shader& mask_shader);
+    void draw(double ms_from_start, ray::Shader& mask_shader);
 
 private:
     bool is_2p;

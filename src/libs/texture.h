@@ -1,16 +1,5 @@
 #pragma once
 
-#include <algorithm>
-#include <raylib.h>
-#include <string>
-#include <vector>
-#include <map>
-#include <memory>
-#include <optional>
-#include <fstream>
-#include <filesystem>
-#include <stdexcept>
-#include <rapidjson/document.h>
 #include <rapidjson/istreamwrapper.h>
 
 #include "animation.h"
@@ -20,17 +9,17 @@ namespace fs = std::filesystem;
 using namespace rapidjson;
 
 struct DrawTextureParams {
-    Color color = WHITE;
+    ray::Color color = ray::WHITE;
     int frame = 0;
     float scale = 1.0f;
     bool center = false;
     std::string mirror = "";
     float x = 0, y = 0, x2 = 0, y2 = 0;
-    Vector2 origin = {0, 0};
+    ray::Vector2 origin = {0, 0};
     float rotation = 0;
     float fade = 1.1f;
     int index = 0;
-    std::optional<Rectangle> src = std::nullopt;
+    std::optional<ray::Rectangle> src = std::nullopt;
     bool controllable = false;
 };
 
@@ -57,7 +46,7 @@ struct TextureObject {
     std::vector<int> x2;
     std::vector<int> y2;
     std::vector<bool> controllable;
-    std::optional<std::vector<Rectangle>> crop_data;
+    std::optional<std::vector<ray::Rectangle>> crop_data;
 
     TextureObject(const std::string& name, int width, int height)
         : name(name), width(width), height(height),
@@ -67,13 +56,13 @@ struct TextureObject {
 };
 
 struct SingleTexture : public TextureObject {
-    Texture2D texture;
+    ray::Texture2D texture;
 
-    SingleTexture(const std::string& name, const Texture2D& tex)
+    SingleTexture(const std::string& name, const ray::Texture2D& tex)
         : TextureObject(name, tex.width, tex.height), texture(tex) {
         GenTextureMipmaps(&texture);
-        SetTextureFilter(texture, TEXTURE_FILTER_TRILINEAR);
-        SetTextureWrap(texture, TEXTURE_WRAP_CLAMP);
+        SetTextureFilter(texture, ray::TEXTURE_FILTER_TRILINEAR);
+        SetTextureWrap(texture, ray::TEXTURE_WRAP_CLAMP);
     }
 
     ~SingleTexture() override {
@@ -82,15 +71,15 @@ struct SingleTexture : public TextureObject {
 };
 
 struct FramedTexture : public TextureObject {
-    std::vector<Texture2D> textures;
+    std::vector<ray::Texture2D> textures;
 
-    FramedTexture(const std::string& name, const std::vector<Texture2D>& texs)
+    FramedTexture(const std::string& name, const std::vector<ray::Texture2D>& texs)
         : TextureObject(name, texs.empty() ? 0 : texs[0].width,
                        texs.empty() ? 0 : texs[0].height), textures(texs) {
         for (auto& tex : textures) {
-            GenTextureMipmaps(&const_cast<Texture2D&>(tex));
-            SetTextureFilter(tex, TEXTURE_FILTER_TRILINEAR);
-            SetTextureWrap(tex, TEXTURE_WRAP_CLAMP);
+            GenTextureMipmaps(&const_cast<ray::Texture2D&>(tex));
+            SetTextureFilter(tex, ray::TEXTURE_FILTER_TRILINEAR);
+            SetTextureWrap(tex, ray::TEXTURE_WRAP_CLAMP);
         }
     }
 
@@ -137,7 +126,7 @@ public:
 
     void control(TextureObject* tex_obj, int index = 0);
 
-    void clear_screen(const Color& color);
+    void clear_screen(const ray::Color& color);
 
     void draw_texture(const std::string& subset, const std::string& texture_name, const DrawTextureParams& = {});
 };

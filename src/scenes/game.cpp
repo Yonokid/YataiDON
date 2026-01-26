@@ -2,7 +2,7 @@
 
 void GameScreen::on_screen_start() {
     Screen::on_screen_start();
-    mask_shader = LoadShader("shader/dummy.vs", "shader/mask.fs");
+    mask_shader = ray::LoadShader("shader/dummy.vs", "shader/mask.fs");
     current_ms = 0;
     end_ms = 0;
     start_ms = 0;
@@ -123,7 +123,7 @@ void GameScreen::update_audio(double ms_from_start) {
 }
 
 std::nullopt_t GameScreen::global_keys() {
-    if (IsKeyPressed(global_data.config->keys.restart_key)) {
+    if (ray::IsKeyPressed(global_data.config->keys.restart_key)) {
         if (song_music.has_value()) {
             audio->stopMusicStream(song_music.value());
         }
@@ -132,7 +132,7 @@ std::nullopt_t GameScreen::global_keys() {
         song_started = false;
     }
 
-    if (IsKeyPressed(global_data.config->keys.back_key)) {
+    if (ray::IsKeyPressed(global_data.config->keys.back_key)) {
         if (song_music.has_value()) {
             audio->stopMusicStream(song_music.value());
         }

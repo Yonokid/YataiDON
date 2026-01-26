@@ -1,12 +1,9 @@
 #pragma once
 
-#include "config.h"
-#include <string>
-#include <vector>
 #include <unordered_map>
 #include <unordered_set>
-#include <filesystem>
-#include <raylib.h>
+
+#include "config.h"
 
 namespace fs = std::filesystem;
 
@@ -104,18 +101,18 @@ struct SessionData {
 };
 
 struct CameraConfig {
-    Vector2 offset = {0.0f, 0.0f};
+    ray::Vector2 offset = {0.0f, 0.0f};
     float zoom = 1.0f;
     float h_scale = 1.0f;
     float v_scale = 1.0f;
     float rotation = 0.0f;
-    Color border_color = BLACK;
+    ray::Color border_color = ray::BLACK;
 };
 
 struct GlobalData {
     int songs_played = 0;
     CameraConfig camera;
-    Font font = GetFontDefault();
+    ray::Font font = ray::GetFontDefault();
     std::unordered_set<int> font_codepoints;
     Config* config = nullptr;  // Using pointer, initialize appropriately
     std::unordered_map<std::string, std::vector<std::unordered_map<std::string, std::string>>> song_hashes;  // Hash to metadata

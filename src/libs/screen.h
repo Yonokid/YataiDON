@@ -1,7 +1,5 @@
 #pragma once
 
-#include <string>
-#include <optional>
 #include "texture.h"
 #include "audio_engine.h"
 
@@ -20,7 +18,7 @@ public:
             tex.load_screen_textures(screen_name);
             // logger.info(f"Loaded textures for screen: {screen_name}")
         } catch (const std::exception& e) {
-            TraceLog(LOG_WARNING, "Failed to load textures for screen %s: %s",
+            ray::TraceLog(ray::LOG_WARNING, "Failed to load textures for screen %s: %s",
                      screen_name.c_str(), e.what());
         }
 

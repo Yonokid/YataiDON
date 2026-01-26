@@ -1,5 +1,3 @@
-#include <raylib.h>
-
 #include "config.h"
 #include "global_data.h"
 #include "texture.h"
@@ -8,11 +6,11 @@ bool is_input_key_pressed(const std::vector<int>& keys, const std::vector<int>& 
     if (global_data.input_locked) return false;
 
     for (int key : keys) {
-        if (IsKeyPressed(key)) return true;
+        if (ray::IsKeyPressed(key)) return true;
     }
-    if (IsGamepadAvailable(0)) {
+    if (ray::IsGamepadAvailable(0)) {
         for (int button: gamepad_buttons) {
-            if (IsGamepadButtonPressed(0, button)) return true;
+            if (ray::IsGamepadButtonPressed(0, button)) return true;
         }
     }
     return false;

@@ -1,8 +1,8 @@
 #include <optional>
-#include <raylib.h>
 #include <rlgl.h>
 #include <string>
 #include <filesystem>
+#include "libs/ray.h"
 #include "libs/global_data.h"
 #include "libs/screen.h"
 #include "libs/config.h"
@@ -12,7 +12,7 @@
 
 namespace fs = std::filesystem;
 
-inline bool operator==(const Color& a, const Color& b)
+inline bool operator==(const ray::Color& a, const ray::Color& b)
 {
     return a.r == b.r &&
            a.g == b.g &&
@@ -20,14 +20,14 @@ inline bool operator==(const Color& a, const Color& b)
            a.a == b.a;
 }
 
-inline bool operator!=(const Color& a, const Color& b)
+inline bool operator!=(const ray::Color& a, const ray::Color& b)
 {
     return !(a == b);
 }
 
-void update_camera_for_window_size(Camera2D camera, int virtual_width, int virtual_height) {
-    int screen_width = GetScreenWidth();
-    int screen_height = GetScreenHeight();
+void update_camera_for_window_size(ray::Camera2D camera, int virtual_width, int virtual_height) {
+    int screen_width = ray::GetScreenWidth();
+    int screen_height = ray::GetScreenHeight();
 
     if (screen_width == 0 || screen_height == 0) {
         camera.zoom = 1.0;
@@ -60,7 +60,7 @@ void update_camera_for_window_size(Camera2D camera, int virtual_width, int virtu
 }
 
 void draw_fps(int last_fps) {
-    int curr_fps = GetFPS();
+    int curr_fps = ray::GetFPS();
     float pos = 20.0f * global_tex.screen_scale;
 
     if (curr_fps != 0 && curr_fps != last_fps)
@@ -68,17 +68,17 @@ void draw_fps(int last_fps) {
         last_fps = curr_fps;
     }
 
-    Color color;
-    Font font = global_data.font;
+    ray::Color color;
+    ray::Font font = global_data.font;
 
-    if (last_fps < 30) color = RED;
-    else if (last_fps < 60) color = YELLOW;
-    else color = LIME;
+    if (last_fps < 30) color = ray::RED;
+    else if (last_fps < 60) color = ray::YELLOW;
+    else color = ray::LIME;
 
-    DrawTextEx(font, TextFormat("%d FPS", last_fps), Vector2{ pos, pos }, pos, 1.0f, color);
+    DrawTextEx(font, ray::TextFormat("%d FPS", last_fps), ray::Vector2{ pos, pos }, pos, 1.0f, color);
 }
 
-void draw_outer_border(int screen_width, int screen_height, Color last_color) {
+void draw_outer_border(int screen_width, int screen_height, ray::Color last_color) {
     DrawRectangle(-screen_width, 0, screen_width, screen_height, last_color);
     DrawRectangle(screen_width, 0, screen_width, screen_height, last_color);
     DrawRectangle(0, -screen_height, screen_width, screen_height, last_color);
@@ -105,16 +105,16 @@ void init_audio() {
 
 void set_config_flags() {
     if (global_data.config->video.vsync) {
-        SetConfigFlags(FLAG_VSYNC_HINT);
+        ray::SetConfigFlags(ray::FLAG_VSYNC_HINT);
         //logger.info("VSync enabled")
     }
     if (global_data.config->video.target_fps != -1) {
-        SetTargetFPS(global_data.config->video.target_fps);
+        ray::SetTargetFPS(global_data.config->video.target_fps);
         //logger.info(f"Target FPS set to {global_data.config['video']['target_fps']}")
     }
-    SetConfigFlags(FLAG_MSAA_4X_HINT);
-    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
-    SetTraceLogLevel(LOG_WARNING);
+    ray::SetConfigFlags(ray::FLAG_MSAA_4X_HINT);
+    ray::SetConfigFlags(ray::FLAG_WINDOW_RESIZABLE);
+    ray::SetTraceLogLevel(ray::LOG_WARNING);
 }
 
 std::string check_args(int argc, char* argv[]) {
@@ -212,7 +212,7 @@ int main(int argc, char* argv[]) {
     if (fs::exists(skin_path)) {
         tex.init(global_data.config->paths.skin.string());
     } else {
-        TraceLog(LOG_WARNING, "Skin directory not found, skipping texture initialization");
+        ray::TraceLog(ray::LOG_WARNING, "Skin directory not found, skipping texture initialization");
     }
 
     /*
@@ -224,30 +224,30 @@ int main(int argc, char* argv[]) {
     }
      */
     //setup_logging()
-    TraceLog(LOG_INFO, "Starting CPPTaiko");
+    ray::TraceLog(ray::LOG_INFO, "Starting CPPTaiko");
     //TraceLog(LOG_DEBUG, f"Loaded config: {global_data.config}")
     int screen_width = 1280;//global_tex.screen_width
     int screen_height = 720;//global_tex.screen_height
 
     set_config_flags();
-    InitWindow(screen_width, screen_height, "CPPTaiko");
+    ray::InitWindow(screen_width, screen_height, "CPPTaiko");
 
     //logger.info(f"Window initialized: {screen_width}x{screen_height}")
     if (fs::exists(skin_path)) {
         global_tex.init(global_data.config->paths.skin.string());
     } else {
-        TraceLog(LOG_WARNING, "Skin directory not found, skipping global texture initialization");
+        TraceLog(ray::LOG_WARNING, "Skin directory not found, skipping global texture initialization");
     }
     global_tex.load_screen_textures("global");
     global_tex.load_folder("chara", "chara_0");
     global_tex.load_folder("chara", "chara_1");
     global_tex.load_folder("chara", "chara_4");
     if (global_data.config->video.borderless) {
-        ToggleBorderlessWindowed();
+        ray::ToggleBorderlessWindowed();
         //logger.info("Borderless window enabled")
     }
     if (global_data.config->video.fullscreen) {
-        ToggleFullscreen();
+        ray::ToggleFullscreen();
         //logger.info("Fullscreen enabled")
     }
 
@@ -301,24 +301,24 @@ int main(int argc, char* argv[]) {
     }
      */
 
-    Camera2D camera = Camera2D();
-    camera.target = Vector2{0, 0};
+    ray::Camera2D camera = ray::Camera2D();
+    camera.target = ray::Vector2{0, 0};
     camera.rotation = 0.0;
     update_camera_for_window_size(camera, screen_width, screen_height);
     //logger.info("Camera2D initialized")
 
     rlSetBlendFactorsSeparate(RL_SRC_ALPHA, RL_ONE_MINUS_SRC_ALPHA, RL_ONE, RL_ONE_MINUS_SRC_ALPHA, RL_FUNC_ADD, RL_FUNC_ADD);
-    SetExitKey(global_data.config->keys.exit_key);
+    ray::SetExitKey(global_data.config->keys.exit_key);
 
-    HideCursor();
+    ray::HideCursor();
     //logger.info("Cursor hidden")
     int last_fps = 1;
-    Color last_color = BLACK;
+    ray::Color last_color = ray::BLACK;
     int last_discord_check = 0;
 
     std::unique_ptr<Screen> screen = std::make_unique<GameScreen>();
 
-    while (!WindowShouldClose()) {
+    while (!ray::WindowShouldClose()) {
         //current_time = get_current_ms()
         /*
         if discord_connected and current_time > last_discord_check + 1000:
@@ -326,26 +326,26 @@ int main(int argc, char* argv[]) {
             last_discord_check = current_time
         */
 
-        if (IsKeyPressed(global_data.config->keys.fullscreen_key)) {
-            ToggleFullscreen();
+        if (ray::IsKeyPressed(global_data.config->keys.fullscreen_key)) {
+            ray::ToggleFullscreen();
             //logger.info("Toggled fullscreen")
-        } else if (IsKeyPressed(global_data.config->keys.borderless_key)) {
-            ToggleBorderlessWindowed();
+        } else if (ray::IsKeyPressed(global_data.config->keys.borderless_key)) {
+            ray::ToggleBorderlessWindowed();
             //logger.info("Toggled borderless windowed mode")
         }
 
         update_camera_for_window_size(camera, screen_width, screen_height);
 
-        BeginDrawing();
-        ClearBackground(BLACK); //remove when finished
+        ray::BeginDrawing();
+        ray::ClearBackground(ray::BLACK); //remove when finished
 
         if (global_data.camera.border_color != last_color) {
-            ClearBackground(global_data.camera.border_color);
+            ray::ClearBackground(global_data.camera.border_color);
             last_color = global_data.camera.border_color;
         }
 
         //BeginMode2D(camera);
-        BeginBlendMode(BLEND_CUSTOM_SEPARATE);
+        ray::BeginBlendMode(ray::BLEND_CUSTOM_SEPARATE);
 
         //screen = screen_mapping[current_screen]
 
@@ -367,12 +367,12 @@ int main(int argc, char* argv[]) {
 
         draw_outer_border(screen_width, screen_height, last_color);
 
-        EndBlendMode();
+        ray::EndBlendMode();
         //EndMode2D();
-        EndDrawing();
+        ray::EndDrawing();
     }
 
-    CloseWindow();
+    ray::CloseWindow();
     audio->closeAudioDevice();
     //if discord_connected:
         //RPC.close()

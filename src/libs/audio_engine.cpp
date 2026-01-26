@@ -1,11 +1,5 @@
 #include "audio_engine.h"
 #include "global_data.h"
-#include <iostream>
-#include <algorithm>
-
-#ifdef _WIN32
-#include <windows.h>
-#endif
 
 AudioEngine::AudioEngine(int device_type, float sample_rate, int buffer_size,
                          const VolumeConfig& volume_presets,
@@ -20,7 +14,7 @@ AudioEngine::AudioEngine(int device_type, float sample_rate, int buffer_size,
     if (fs::exists(skin_path)) {
         soundsPath = skin_path;
     } else {
-        TraceLog(LOG_ERROR, "Skin directory not found, skipping audio initialization");
+        ray::TraceLog(ray::LOG_ERROR, "Skin directory not found, skipping audio initialization");
     }
 }
 

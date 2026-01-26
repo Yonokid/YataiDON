@@ -1,6 +1,5 @@
 #pragma once
 
-#include <raylib.h>
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -9,6 +8,8 @@
 #include <fstream>
 #include <stdexcept>
 #include <toml++/toml.h>
+
+#include "ray.h"
 
 namespace fs = std::filesystem;
 

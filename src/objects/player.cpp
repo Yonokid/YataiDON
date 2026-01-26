@@ -131,7 +131,7 @@ void Player::update(double ms_from_start, double current_ms) {
     */
 }
 
-void Player::draw(double ms_from_start, Shader& mask_shader) {
+void Player::draw(double ms_from_start, ray::Shader& mask_shader) {
     //Group 1: Background and lane elements
     tex.draw_texture("lane", "lane_background", {.index = is_2p});
     if (player_num == PlayerNum::AI) tex.draw_texture("lane", "ai_lane_background");
