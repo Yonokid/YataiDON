@@ -149,7 +149,7 @@ FetchContent_MakeAvailable(digestpp)
 ### PortAudio (local prebuilt library)
 # Determine platform-specific library name
 if(WIN32)
-    set(PORTAUDIO_LIB_NAME "libportaudio-windows.a")
+    set(PORTAUDIO_LIB_NAME "libportaudio-win.a")
 elseif(APPLE)
     set(PORTAUDIO_LIB_NAME "libportaudio-macos.a")
 elseif(UNIX)
