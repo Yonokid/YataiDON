@@ -24,7 +24,7 @@ ifeq ($(OS), Windows_NT)
 	# Set Windows macros
 	platform := Windows
 	CXX ?= g++
-	linkFlags += -Wl,--allow-multiple-definition -pthread -lopengl32 -lgdi32 -lwinmm -static -static-libgcc -static-libstdc++
+	linkFlags += -l portaudio -l sndfile -l speexdsp -Wl,--allow-multiple-definition -pthread -lopengl32 -lgdi32 -lwinmm -static -static-libgcc -static-libstdc++
 	THEN := &&
 	PATHSEP := \$(BLANK)
 	MKDIR := -mkdir -p
@@ -37,15 +37,14 @@ else
 		# Set Linux macros
 		platform := Linux
 		CXX ?= g++
-		linkFlags += -l GL -l m -l pthread -l dl -l rt -l X11 -Wl,-rpath,src/libs/audio
+		linkFlags += -l portaudio -l sndfile -l speexdsp -l GL -l m -l pthread -l dl -l rt -l X11 -Wl,-rpath,src/libs/audio
 	endif
 	ifeq ($(UNAMEOS), Darwin)
 		# Set macOS macros
 		platform := macOS
 		CXX ?= clang++
-		linkFlags += -framework CoreVideo -framework IOKit -framework Cocoa -framework GLUT -framework OpenGL
+		linkFlags += -l portaudio -l sndfile -l speexdsp -framework CoreVideo -framework IOKit -framework Cocoa -framework GLUT -framework OpenGL -framework CoreAudio -framework AudioToolbox -framework AudioUnit
 	endif
-
 	# Set UNIX macros
 	THEN := ;
 	PATHSEP := /

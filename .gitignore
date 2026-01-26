@@ -4,3 +4,6 @@ latest.log
 scores.db
 scores_gen3.db
 *.dll
+bin
+include
+lib

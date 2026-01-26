@@ -6,17 +6,16 @@
 // stream to portaudio
 
 #include "portaudio.h"
+#include <mutex>
 #ifdef _WIN32
 #include "pa_asio.h"
 #include <windows.h>
 #endif
-#include <pthread.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sndfile.h>
-//#include <samplerate.h>
 #include <speex/speex_resampler.h>
 #include <string.h>
 #include <unistd.h>
@@ -104,7 +103,7 @@ typedef struct AudioData {
     struct {
         PaStream *stream;           // PortAudio stream
         PaStreamParameters outputParameters;  // Output stream parameters
-        pthread_mutex_t lock;       // Mutex lock for thread synchronization
+        std::mutex lock;       // Mutex lock for thread synchronization
         bool isReady;               // Check if audio device is ready
         double sampleRate;
         size_t pcmBufferSize;       // Pre-allocated buffer size
@@ -192,7 +191,9 @@ static int port_audio_callback(const void *inputBuffer, void *outputBuffer,
 
 // Global audio data
 static AudioData AUDIO = {
-    .System.masterVolume = 1.0f
+    .System = {
+        .masterVolume = 1.0f
+    }
 };
 
 static int port_audio_callback(const void *inputBuffer, void *outputBuffer,
@@ -208,7 +209,7 @@ static int port_audio_callback(const void *inputBuffer, void *outputBuffer,
 
     float *out = (float*)outputBuffer;
 
-    pthread_mutex_lock(&AUDIO.System.lock);
+    AUDIO.System.lock.lock();
 
     // Initialize output buffer with silence
     for (unsigned long i = 0; i < framesPerBuffer * AUDIO_DEVICE_CHANNELS; i++) {
@@ -269,7 +270,7 @@ static int port_audio_callback(const void *inputBuffer, void *outputBuffer,
         out[i] *= AUDIO.System.masterVolume;
     }
 
-    pthread_mutex_unlock(&AUDIO.System.lock);
+    AUDIO.System.lock.unlock();
 
     return paContinue;
 }
@@ -333,16 +334,9 @@ void init_audio_device(PaHostApiIndex host_api, double sample_rate, unsigned lon
         return;
     }
 
-    if (pthread_mutex_init(&AUDIO.System.lock, NULL) != 0) {
-        TRACELOG(LOG_WARNING, "Failed to create mutex for mixing");
-        Pa_Terminate();
-        return;
-    }
-
     AUDIO.System.outputParameters.device = get_best_output_device_for_host_api(host_api);
     if (AUDIO.System.outputParameters.device == paNoDevice) {
         TRACELOG(LOG_WARNING, "No usable output device found");
-        pthread_mutex_destroy(&AUDIO.System.lock);
         Pa_Terminate();
         return;
     }
@@ -402,7 +396,6 @@ void init_audio_device(PaHostApiIndex host_api, double sample_rate, unsigned lon
 
     if (err != paNoError) {
         TRACELOG(LOG_WARNING, "Failed to open audio stream: %s", Pa_GetErrorText(err));
-        pthread_mutex_destroy(&AUDIO.System.lock);
         Pa_Terminate();
         return;
     }
@@ -411,7 +404,6 @@ void init_audio_device(PaHostApiIndex host_api, double sample_rate, unsigned lon
     if (err != paNoError) {
         TRACELOG(LOG_WARNING, "Failed to start audio stream: %s", Pa_GetErrorText(err));
         Pa_CloseStream(AUDIO.System.stream);
-        pthread_mutex_destroy(&AUDIO.System.lock);
         Pa_Terminate();
         return;
     }
@@ -451,7 +443,6 @@ void close_audio_device(void)
             TRACELOG(LOG_WARNING, "Error closing stream: %s", Pa_GetErrorText(err));
         }
 
-        pthread_mutex_destroy(&AUDIO.System.lock);
         Pa_Terminate();
 
         AUDIO.System.isReady = false;
@@ -473,16 +464,16 @@ bool is_audio_device_ready(void)
 
 void set_master_volume(float volume)
 {
-    pthread_mutex_lock(&AUDIO.System.lock);
+    AUDIO.System.lock.lock();
     AUDIO.System.masterVolume = volume;
-    pthread_mutex_unlock(&AUDIO.System.lock);
+    AUDIO.System.lock.unlock();
 }
 
 float get_master_volume(void)
 {
-    pthread_mutex_lock(&AUDIO.System.lock);
+    AUDIO.System.lock.lock();
     float volume = AUDIO.System.masterVolume;
-    pthread_mutex_unlock(&AUDIO.System.lock);
+    AUDIO.System.lock.unlock();
     return volume;
 }
 
@@ -495,7 +486,7 @@ struct audio_buffer *load_audio_buffer(uint32_t channels, uint32_t size_in_frame
         return NULL;
     }
 
-    buffer->data = calloc(size_in_frames*channels*sizeof(float), 1);
+    buffer->data = (unsigned char*)calloc(size_in_frames * channels, sizeof(float));
     if (buffer->data == NULL) {
         TRACELOG(LOG_WARNING, "Failed to allocate memory for buffer data");
         FREE(buffer);
@@ -539,16 +530,16 @@ bool is_audio_buffer_playing(struct audio_buffer *buffer)
 {
     if (buffer == NULL) return false;
 
-    pthread_mutex_lock(&AUDIO.System.lock);
+    AUDIO.System.lock.lock();
     bool result = (buffer->playing && !buffer->paused);
-    pthread_mutex_unlock(&AUDIO.System.lock);
+    AUDIO.System.lock.unlock();
     return result;
 }
 
 void play_audio_buffer(struct audio_buffer *buffer) {
     if (buffer == NULL) return;
 
-    pthread_mutex_lock(&AUDIO.System.lock);
+    AUDIO.System.lock.lock();
     buffer->playing = true;
     buffer->paused = false;
     buffer->frameCursorPos = 0;
@@ -557,52 +548,52 @@ void play_audio_buffer(struct audio_buffer *buffer) {
         buffer->isSubBufferProcessed[0] = false;
         buffer->isSubBufferProcessed[1] = false;
     }
-    pthread_mutex_unlock(&AUDIO.System.lock);
+    AUDIO.System.lock.unlock();
 }
 
 void stop_audio_buffer(struct audio_buffer* buffer) {
     if (buffer == NULL) return;
 
-    pthread_mutex_lock(&AUDIO.System.lock);
+    AUDIO.System.lock.lock();
     buffer->playing = false;
     buffer->paused = false;
     buffer->frameCursorPos = 0;
     buffer->framesProcessed = 0;
     buffer->isSubBufferProcessed[0] = true;
     buffer->isSubBufferProcessed[1] = true;
-    pthread_mutex_unlock(&AUDIO.System.lock);
+    AUDIO.System.lock.unlock();
 }
 
 void pause_audio_buffer(struct audio_buffer* buffer) {
     if (buffer == NULL) return;
 
-    pthread_mutex_lock(&AUDIO.System.lock);
+    AUDIO.System.lock.lock();
     buffer->paused = true;
-    pthread_mutex_unlock(&AUDIO.System.lock);
+    AUDIO.System.lock.unlock();
 }
 
 void resume_audio_buffer(struct audio_buffer* buffer) {
     if (buffer == NULL) return;
 
-    pthread_mutex_lock(&AUDIO.System.lock);
+    AUDIO.System.lock.lock();
     buffer->paused = false;
-    pthread_mutex_unlock(&AUDIO.System.lock);
+    AUDIO.System.lock.unlock();
 }
 
 void set_audio_buffer_volume(struct audio_buffer* buffer, float volume) {
     if (buffer == NULL) return;
 
-    pthread_mutex_lock(&AUDIO.System.lock);
+    AUDIO.System.lock.lock();
     buffer->volume = volume;
-    pthread_mutex_unlock(&AUDIO.System.lock);
+    AUDIO.System.lock.unlock();
 }
 
 void set_audio_buffer_pitch(struct audio_buffer* buffer, float pitch) {
     if ((buffer == NULL) || (pitch < 0.0f)) return;
 
-    pthread_mutex_lock(&AUDIO.System.lock);
+    AUDIO.System.lock.lock();
     buffer->pitch = pitch;
-    pthread_mutex_unlock(&AUDIO.System.lock);
+    AUDIO.System.lock.unlock();
 }
 
 void set_audio_buffer_pan(struct audio_buffer* buffer, float pan) {
@@ -610,28 +601,28 @@ void set_audio_buffer_pan(struct audio_buffer* buffer, float pan) {
     if (pan < 0.0f) pan = 0.0f;
     else if (pan > 1.0f) pan = 1.0f;
 
-    pthread_mutex_lock(&AUDIO.System.lock);
+    AUDIO.System.lock.lock();
     buffer->pan = pan;
-    pthread_mutex_unlock(&AUDIO.System.lock);
+    AUDIO.System.lock.unlock();
 }
 
 void track_audio_buffer(struct audio_buffer* buffer) {
     if (buffer == NULL) return;
 
-    pthread_mutex_lock(&AUDIO.System.lock);
+    AUDIO.System.lock.lock();
     if (AUDIO.Buffer.first == NULL) AUDIO.Buffer.first = buffer;
     else {
         AUDIO.Buffer.last->next = buffer;
         buffer->prev = AUDIO.Buffer.last;
     }
     AUDIO.Buffer.last = buffer;
-    pthread_mutex_unlock(&AUDIO.System.lock);
+    AUDIO.System.lock.unlock();
 }
 
 void untrack_audio_buffer(struct audio_buffer* buffer) {
     if (buffer == NULL) return;
 
-    pthread_mutex_lock(&AUDIO.System.lock);
+    AUDIO.System.lock.lock();
     if (buffer->prev == NULL) AUDIO.Buffer.first = buffer->next;
     else buffer->prev->next = buffer->next;
 
@@ -640,7 +631,7 @@ void untrack_audio_buffer(struct audio_buffer* buffer) {
 
     buffer->prev = NULL;
     buffer->next = NULL;
-    pthread_mutex_unlock(&AUDIO.System.lock);
+    AUDIO.System.lock.unlock();
 }
 
 wave load_wave(const char* filename) {
@@ -685,7 +676,7 @@ wave load_wave(const char* filename) {
         sf_close(snd_file);
         return wave;
     }
-    sf_readf_float(snd_file, wave.data, sf_info.frames);
+    sf_readf_float(snd_file, (float*)wave.data, sf_info.frames);
     sf_close(snd_file);
     return wave;
 }
@@ -743,9 +734,9 @@ sound load_sound_from_wave(wave wave) {
 
         error = speex_resampler_process_interleaved_float(
             resampler,
-            wave.data,
+            (float*)wave.data,
             &in_len,
-            resampled_wave.data,
+            (float*)resampled_wave.data,
             &out_len
         );
 
@@ -918,7 +909,7 @@ void update_audio_stream(audio_stream stream, const void *data, int frame_count)
 {
     if (stream.buffer == NULL || data == NULL) return;
 
-    pthread_mutex_lock(&AUDIO.System.lock);
+    AUDIO.System.lock.lock();
 
     if (stream.buffer->data != NULL) {
         float *buffer_data = (float *)stream.buffer->data;
@@ -936,7 +927,7 @@ void update_audio_stream(audio_stream stream, const void *data, int frame_count)
         stream.buffer->sizeInFrames = frame_count;
     }
 
-    pthread_mutex_unlock(&AUDIO.System.lock);
+    AUDIO.System.lock.unlock();
 }
 
 music load_music_stream(const char* filename) {
@@ -967,7 +958,7 @@ music load_music_stream(const char* filename) {
 #endif
 
     if (snd_file != NULL) {
-        music_ctx *ctx = calloc(1, sizeof(music_ctx));
+        music_ctx *ctx = (music_ctx *)calloc(1, sizeof(music_ctx));
         if (ctx == NULL) {
             TRACELOG(LOG_WARNING, "Failed to allocate memory for music context");
             sf_close(snd_file);
@@ -1057,21 +1048,21 @@ void seek_music_stream(music music, float position) {
     sf_count_t seek_result = sf_seek(sndFile, position_in_frames, SEEK_SET);
     if (seek_result < 0) return; // Seek failed
 
-    pthread_mutex_lock(&AUDIO.System.lock);
+    AUDIO.System.lock.lock();
     music.stream.buffer->framesProcessed = position_in_frames;
     music.stream.buffer->frameCursorPos = 0; // Reset cursor
     music.stream.buffer->isSubBufferProcessed[0] = true;  // Force reload
     music.stream.buffer->isSubBufferProcessed[1] = true;  // Force reload
-    pthread_mutex_unlock(&AUDIO.System.lock);
+    AUDIO.System.lock.unlock();
 }
 
 bool music_stream_needs_update(music music) {
     if (music.stream.buffer == NULL || music.ctxData == NULL) return false;
 
-    pthread_mutex_lock(&AUDIO.System.lock);
+    AUDIO.System.lock.lock();
     bool needs_update = music.stream.buffer->isSubBufferProcessed[0] ||
                         music.stream.buffer->isSubBufferProcessed[1];
-    pthread_mutex_unlock(&AUDIO.System.lock);
+    AUDIO.System.lock.unlock();
 
     return needs_update;
 }
@@ -1084,10 +1075,10 @@ void update_music_stream(music music) {
     if (sndFile == NULL) return;
 
     bool needs_refill[2];
-    pthread_mutex_lock(&AUDIO.System.lock);
+    AUDIO.System.lock.lock();
     needs_refill[0] = music.stream.buffer->isSubBufferProcessed[0];
     needs_refill[1] = music.stream.buffer->isSubBufferProcessed[1];
-    pthread_mutex_unlock(&AUDIO.System.lock);
+    AUDIO.System.lock.unlock();
 
     if (!needs_refill[0] && !needs_refill[1]) return;
 
@@ -1153,10 +1144,10 @@ void update_music_stream(music music) {
         }
     }
 
-    pthread_mutex_lock(&AUDIO.System.lock);
+    AUDIO.System.lock.lock();
     if (needs_refill[0]) music.stream.buffer->isSubBufferProcessed[0] = false;
     if (needs_refill[1]) music.stream.buffer->isSubBufferProcessed[1] = false;
-    pthread_mutex_unlock(&AUDIO.System.lock);
+    AUDIO.System.lock.unlock();
 }
 
 bool is_music_stream_playing(music music) {
@@ -1186,9 +1177,9 @@ float get_music_time_length(music music) {
 float get_music_time_played(music music) {
     float seconds_played = 0.0f;
     if (music.stream.buffer != NULL) {
-        pthread_mutex_lock(&AUDIO.System.lock);
+        AUDIO.System.lock.lock();
         seconds_played = (float)music.stream.buffer->framesProcessed / AUDIO.System.sampleRate;
-        pthread_mutex_unlock(&AUDIO.System.lock);
+        AUDIO.System.lock.unlock();
     }
     return seconds_played;
 }
