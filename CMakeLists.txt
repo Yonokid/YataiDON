@@ -18,16 +18,34 @@ include(FetchContent)
 ### Dependencies
 
 # SDL2
-FetchContent_Declare(
-    SDL2
-    GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
-    GIT_TAG release-2.30.0
-    GIT_SHALLOW TRUE
-)
-set(SDL_SHARED OFF CACHE BOOL "" FORCE)
-set(SDL_STATIC ON CACHE BOOL "" FORCE)
-set(SDL_TEST OFF CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(SDL2)
+find_package(PkgConfig QUIET)
+if(PkgConfig_FOUND)
+    pkg_check_modules(SDL2 QUIET sdl2)
+endif()
+
+if(SDL2_FOUND)
+    message(STATUS "Using system SDL2")
+    add_library(SDL2::SDL2-static INTERFACE IMPORTED)
+    target_include_directories(SDL2::SDL2-static INTERFACE ${SDL2_INCLUDE_DIRS})
+    target_link_libraries(SDL2::SDL2-static INTERFACE ${SDL2_LIBRARIES})
+    target_link_directories(SDL2::SDL2-static INTERFACE ${SDL2_LIBRARY_DIRS})
+
+    # SDL2main is usually part of the same package on MSYS2
+    add_library(SDL2::SDL2main INTERFACE IMPORTED)
+    target_link_libraries(SDL2::SDL2main INTERFACE SDL2::SDL2-static)
+else()
+    message(STATUS "System SDL2 not found, fetching from source")
+    set(SDL_SHARED OFF CACHE BOOL "" FORCE)
+    set(SDL_STATIC ON CACHE BOOL "" FORCE)
+    set(SDL_TEST OFF CACHE BOOL "" FORCE)
+    FetchContent_Declare(
+        SDL2
+        GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
+        GIT_TAG release-2.30.0
+        GIT_SHALLOW TRUE
+    )
+    FetchContent_MakeAvailable(SDL2)
+endif()
 
 # raylib
 FetchContent_Declare(
