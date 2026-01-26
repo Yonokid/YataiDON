@@ -643,7 +643,7 @@ wave load_wave(const char* filename) {
     SF_INFO sf_info;
     memset(&sf_info, 0, sizeof(sf_info));
 
-#ifdef _WIN32
+/*#ifdef _WIN32
     // Convert UTF-8 filename to wide string for Windows
     int wlen = MultiByteToWideChar(CP_UTF8, 0, filename, -1, NULL, 0);
     if (wlen == 0) {
@@ -660,9 +660,9 @@ wave load_wave(const char* filename) {
     MultiByteToWideChar(CP_UTF8, 0, filename, -1, wfilename, wlen);
     snd_file = sf_wchar_open(wfilename, SFM_READ, &sf_info);
     free(wfilename);
-#else
+#else*/
     snd_file = sf_open(filename, SFM_READ, &sf_info);
-#endif
+//#endif
     if (snd_file == NULL) {
         TRACELOG(LOG_ERROR, "Failed to open file '%s'", filename);
         TRACELOG(LOG_ERROR, "libsndfile error: %s", sf_strerror(NULL));
@@ -919,7 +919,7 @@ music load_music_stream(const char* filename) {
     SF_INFO sf_info = { 0 };
     SNDFILE *snd_file;
 
-#ifdef _WIN32
+/*#ifdef _WIN32
     // Convert UTF-8 filename to wide string for Windows
     int wlen = MultiByteToWideChar(CP_UTF8, 0, filename, -1, NULL, 0);
     if (wlen == 0) {
@@ -936,9 +936,9 @@ music load_music_stream(const char* filename) {
     MultiByteToWideChar(CP_UTF8, 0, filename, -1, wfilename, wlen);
     snd_file = sf_wchar_open(wfilename, SFM_READ, &sf_info);
     free(wfilename);
-#else
+#else*/
     snd_file = sf_open(filename, SFM_READ, &sf_info);
-#endif
+//#endif
 
     if (snd_file != NULL) {
         music_ctx *ctx = (music_ctx *)calloc(1, sizeof(music_ctx));

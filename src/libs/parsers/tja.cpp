@@ -1,6 +1,5 @@
 #include "tja.h"
 #include <iostream>
-#include <math.h>
 
 double get_ms_per_measure(double bpm_val, double time_sig) {
     if (bpm_val == 0) return 0;
@@ -735,7 +734,7 @@ float TJAParser::apply_easing(float t, EasingPoint easing_point, EasingFunction 
                 result = t * t * t * t * t;
                 break;
             case EasingFunction::SINUSOIDAL:
-                result = 1.0f - std::cos((t * M_PI) / 2.0f);
+                result = 1.0f - std::cos((t * 3.14) / 2.0f);
                 break;
             case EasingFunction::EXPONENTIAL:
                 result = (t == 0.0f) ? 0.0f : std::pow(2.0f, 10.0f * (t - 1.0f));
