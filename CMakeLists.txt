@@ -64,33 +64,60 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(tomlplusplus)
 
 # libsndfile
-set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-set(ENABLE_EXTERNAL_LIBS ON CACHE BOOL "" FORCE)
-set(ENABLE_MPEG ON CACHE BOOL "" FORCE)
-set(ENABLE_OPUS ON CACHE BOOL "" FORCE)
-set(ENABLE_FLAC ON CACHE BOOL "" FORCE)
-set(ENABLE_VORBIS ON CACHE BOOL "" FORCE)
-set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
-FetchContent_Declare(
-    libsndfile
-    GIT_REPOSITORY https://github.com/libsndfile/libsndfile.git
-    GIT_TAG 1.2.2
-    GIT_SHALLOW TRUE
-)
-FetchContent_MakeAvailable(libsndfile)
+find_package(PkgConfig QUIET)
+if(PkgConfig_FOUND)
+    pkg_check_modules(SNDFILE QUIET sndfile)
+endif()
+
+if(SNDFILE_FOUND)
+    message(STATUS "Using system libsndfile")
+    add_library(sndfile INTERFACE)
+    target_include_directories(sndfile INTERFACE ${SNDFILE_INCLUDE_DIRS})
+    target_link_libraries(sndfile INTERFACE ${SNDFILE_LIBRARIES})
+    target_link_directories(sndfile INTERFACE ${SNDFILE_LIBRARY_DIRS})
+else()
+    message(STATUS "System libsndfile not found, fetching from source")
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+    set(ENABLE_EXTERNAL_LIBS ON CACHE BOOL "" FORCE)
+    set(ENABLE_MPEG ON CACHE BOOL "" FORCE)
+    set(ENABLE_OPUS ON CACHE BOOL "" FORCE)
+    set(ENABLE_FLAC ON CACHE BOOL "" FORCE)
+    set(ENABLE_VORBIS ON CACHE BOOL "" FORCE)
+    set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+    FetchContent_Declare(
+        libsndfile
+        GIT_REPOSITORY https://github.com/libsndfile/libsndfile.git
+        GIT_TAG 1.2.2
+        GIT_SHALLOW TRUE
+    )
+    FetchContent_MakeAvailable(libsndfile)
+endif()
 
 # libsamplerate
-set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-set(LIBSAMPLERATE_EXAMPLES OFF CACHE BOOL "" FORCE)
-set(LIBSAMPLERATE_INSTALL OFF CACHE BOOL "" FORCE)
-set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
-FetchContent_Declare(
-    libsamplerate
-    GIT_REPOSITORY https://github.com/libsndfile/libsamplerate.git
-    GIT_TAG 0.2.2
-    GIT_SHALLOW TRUE
-)
-FetchContent_MakeAvailable(libsamplerate)
+if(PkgConfig_FOUND)
+    pkg_check_modules(SAMPLERATE QUIET samplerate)
+endif()
+
+if(SAMPLERATE_FOUND)
+    message(STATUS "Using system libsamplerate")
+    add_library(samplerate INTERFACE)
+    target_include_directories(samplerate INTERFACE ${SAMPLERATE_INCLUDE_DIRS})
+    target_link_libraries(samplerate INTERFACE ${SAMPLERATE_LIBRARIES})
+    target_link_directories(samplerate INTERFACE ${SAMPLERATE_LIBRARY_DIRS})
+else()
+    message(STATUS "System libsamplerate not found, fetching from source")
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+    set(LIBSAMPLERATE_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(LIBSAMPLERATE_INSTALL OFF CACHE BOOL "" FORCE)
+    set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+    FetchContent_Declare(
+        libsamplerate
+        GIT_REPOSITORY https://github.com/libsndfile/libsamplerate.git
+        GIT_TAG 0.2.2
+        GIT_SHALLOW TRUE
+    )
+    FetchContent_MakeAvailable(libsamplerate)
+endif()
 
 # digestpp
 FetchContent_Declare(
