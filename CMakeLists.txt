@@ -144,6 +144,7 @@ FetchContent_Declare(
     GIT_TAG master
     GIT_SHALLOW TRUE
 )
+set(DIGESTPP_INCLUDE_DIRS ${digestpp_SOURCE_DIR})
 FetchContent_MakeAvailable(digestpp)
 
 ### PortAudio (local prebuilt library)
