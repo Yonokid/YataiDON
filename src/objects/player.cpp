@@ -28,7 +28,6 @@ Player::Player(std::optional<TJAParser>& parser_ref, PlayerNum player_num_param,
     don_hitsound = "hitsound_don_" + std::to_string((int)player_num) + "p";
     kat_hitsound = "hitsound_kat_" + std::to_string((int)player_num) + "p";
 
-    //self.draw_judge_list: list[Judgment] = []
     //self.lane_hit_effect: Optional[LaneHitEffect] = None
     //self.draw_arc_list: list[NoteArc] = []
     //self.draw_drum_hit_list: list[DrumHitEffect] = []
@@ -70,7 +69,14 @@ void Player::update(double ms_from_start, double current_ms) {
     //self.combo_display.update(current_time, self.combo)
     //self.combo_announce.update(current_time)
     //self.drumroll_counter_manager(current_time)
-    //self.animation_manager(self.draw_judge_list, current_time)
+    for (auto it = draw_judge_list.begin(); it != draw_judge_list.end(); ) {
+        it->update(current_ms);
+        if (it->is_finished()) {
+            it = draw_judge_list.erase(it);
+        } else {
+            ++it;
+        }
+    }
     //self.balloon_manager(current_time)
     //if self.gogo_time is not None:
         //self.gogo_time.update(current_time)
@@ -140,8 +146,9 @@ void Player::draw(double ms_from_start, Shader& mask_shader) {
     //Group 2: judgment and hit effects
     //if self.gogo_time is not None:
         //self.gogo_time.draw(self.judge_x, self.judge_y)
-    //for anim in self.draw_judge_list:
-        //anim.draw(self.judge_x, self.judge_y)
+    for (Judgment anim : draw_judge_list) {
+        anim.draw(judge_x, judge_y);
+    }
 
     //Group 3: Notes and bars (game content)
     //self.draw_bars(ms_from_start)
@@ -583,8 +590,9 @@ void Player::check_note(double ms_from_start, DrumType drum_type, double current
 
         bool big = curr_note.type == (int)NoteType::DON_L or curr_note.type == (int)NoteType::KAT_L;
         if ((curr_note.hit_ms - good_window_ms <= ms_from_start) && (ms_from_start <= curr_note.hit_ms + good_window_ms)) {
-            //if len(self.draw_judge_list) < 7:
-                //self.draw_judge_list.append(Judgment(Judgments.GOOD, big, self.is_2p))
+            if (draw_judge_list.size() < 7) {
+                draw_judge_list.push_back(Judgment(Judgments::GOOD, big, is_2p));
+            }
             //self.lane_hit_effect = LaneHitEffect(drum_type, Judgments.GOOD, self.is_2p)
             good_count++;
             score += base_score;
@@ -603,7 +611,7 @@ void Player::check_note(double ms_from_start, DrumType drum_type, double current
                     background.add_chibi(False, 1)*/
 
         } else if ((curr_note.hit_ms - ok_window_ms) <= ms_from_start && ms_from_start <= (curr_note.hit_ms + ok_window_ms)) {
-            //self.draw_judge_list.append(Judgment(Judgments.OK, big, self.is_2p))
+            draw_judge_list.push_back(Judgment(Judgments::OK, big, is_2p));
             //self.lane_hit_effect = LaneHitEffect(drum_type, Judgments.OK, self.is_2p)
             ok_count++;
             score += 10 * std::floor(base_score / 2 / 10);
@@ -623,7 +631,7 @@ void Player::check_note(double ms_from_start, DrumType drum_type, double current
 
         } else if ((curr_note.hit_ms - bad_window_ms) <= ms_from_start && ms_from_start <= (curr_note.hit_ms + bad_window_ms)) {
             //self.input_log[curr_note.index] = 'BAD'
-            //self.draw_judge_list.append(Judgment(Judgments.BAD, big, self.is_2p))
+            draw_judge_list.push_back(Judgment(Judgments::BAD, big, is_2p));
             bad_count++;
             combo = 0;
             Note note;

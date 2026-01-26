@@ -103,7 +103,7 @@ struct FramedTexture : public TextureObject {
 
 class TextureWrapper {
 private:
-    std::map<std::string, std::unique_ptr<BaseAnimation>> animations;
+    std::map<int, std::unique_ptr<BaseAnimation>> animations;
     fs::path graphics_path;
     fs::path parent_graphics_path;
 
@@ -125,7 +125,7 @@ public:
 
     void unload_textures();
 
-    BaseAnimation* get_animation(const std::string& id, bool is_copy = false);
+    BaseAnimation* get_animation(const int id, bool is_copy = false);
 
     void read_tex_obj_data(const Value& tex_mapping, TextureObject* tex_obj);
 

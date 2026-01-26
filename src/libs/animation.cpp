@@ -1,14 +1,16 @@
 #include "animation.h"
 
-double BaseAnimation::easeIn(double progress, const std::string& ease_type) {
-    if (ease_type == "quadratic") {
-        return progress * progress;
-    } else if (ease_type == "cubic") {
-        return progress * progress * progress;
-    } else if (ease_type == "exponential") {
-        return progress == 0 ? 0 : std::pow(2, 10 * (progress - 1));
-    }
-    return progress;
+using std::runtime_error;
+
+double BaseAnimation::easeIn(double progress, const std::string &ease_type) {
+  if (ease_type == "quadratic") {
+    return progress * progress;
+  } else if (ease_type == "cubic") {
+    return progress * progress * progress;
+  } else if (ease_type == "exponential") {
+    return progress == 0 ? 0 : std::pow(2, 10 * (progress - 1));
+  }
+  return progress;
 }
 
 double BaseAnimation::easeOut(double progress, const std::string& ease_type) {
@@ -282,29 +284,29 @@ std::optional<T> AnimationParser::getOptional(const Value& obj, const char* key)
     return std::nullopt;
 }
 
-Value AnimationParser::resolveValue(const Value& ref_obj, std::set<std::string>& visited) {
+Value AnimationParser::resolveValue(const Value& ref_obj, std::set<int>& visited) {
     if (!ref_obj.HasMember("property")) {
         throw std::runtime_error("Reference requires 'property' field");
     }
 
-    std::string ref_id;
+    int ref_id;
     if (ref_obj["reference_id"].IsString()) {
-        ref_id = ref_obj["reference_id"].GetString();
+        ref_id = ref_obj["reference_id"].GetInt();
     } else if (ref_obj["reference_id"].IsInt()) {
-        ref_id = std::to_string(ref_obj["reference_id"].GetInt());
+        ref_id = ref_obj["reference_id"].GetInt();
     } else {
         throw std::runtime_error("reference_id must be string or int");
     }
     std::string ref_property = ref_obj["property"].GetString();
 
     if (raw_anims.find(ref_id) == raw_anims.end()) {
-        throw std::runtime_error("Referenced animation " + ref_id + " not found");
+        throw std::runtime_error("Referenced animation " + std::to_string(ref_id) + " not found");
     }
 
     Value resolved_anim = findRefs(ref_id, visited);
 
     if (!resolved_anim.HasMember(ref_property.c_str())) {
-        throw std::runtime_error("Property '" + ref_property + "' not found in animation " + ref_id);
+        throw std::runtime_error("Property '" + ref_property + "' not found in animation " + std::to_string(ref_id));
     }
 
     Value base_value;
@@ -345,9 +347,10 @@ Value AnimationParser::resolveValue(const Value& ref_obj, std::set<std::string>&
     return base_value;
 }
 
-Value AnimationParser::findRefs(const std::string& anim_id, std::set<std::string>& visited) {
+Value AnimationParser::findRefs(int anim_id, std::set<int>& visited) {
     if (visited.find(anim_id) != visited.end()) {
-        throw std::runtime_error("Circular reference detected involving animation " + anim_id);
+      throw runtime_error(&"Circular reference detected involving animation " [
+                          anim_id]);
     }
 
     visited.insert(anim_id);
@@ -357,7 +360,7 @@ Value AnimationParser::findRefs(const std::string& anim_id, std::set<std::string
 
     for (auto it = animation.MemberBegin(); it != animation.MemberEnd(); ++it) {
         if (it->value.IsObject() && it->value.HasMember("reference_id")) {
-            std::set<std::string> visited_copy = visited;
+            std::set<int> visited_copy = visited;
             Value resolved = resolveValue(it->value, visited_copy);
             it->value.CopyFrom(resolved, *allocator);
         }
@@ -462,7 +465,7 @@ std::unique_ptr<BaseAnimation> AnimationParser::createAnimation(const Value& ani
     }
 }
 
-std::map<std::string, std::unique_ptr<BaseAnimation>> AnimationParser::parse_animations(const Value& animation_json) {
+std::map<int, std::unique_ptr<BaseAnimation>> AnimationParser::parse_animations(const Value& animation_json) {
     if (!animation_json.IsArray()) {
         throw std::runtime_error("Animation JSON must be an array");
     }
@@ -481,16 +484,16 @@ std::map<std::string, std::unique_ptr<BaseAnimation>> AnimationParser::parse_ani
         if (!item.HasMember("type")) {
             throw std::runtime_error("Animation requires type");
         }
-        std::string id = std::to_string(item["id"].GetInt());
+        int id = item["id"].GetInt();
         Value item_copy;
         item_copy.CopyFrom(item, *allocator);
         raw_anims[id] = std::move(item_copy);
     }
 
-    std::map<std::string, std::unique_ptr<BaseAnimation>> anim_dict;
+    std::map<int, std::unique_ptr<BaseAnimation>> anim_dict;
 
     for (auto& [id, _] : raw_anims) {
-        std::set<std::string> visited;
+        std::set<int> visited;
         Value absolute_anim = findRefs(id, visited);
 
         auto anim = createAnimation(absolute_anim);
@@ -500,7 +503,7 @@ std::map<std::string, std::unique_ptr<BaseAnimation>> AnimationParser::parse_ani
     return anim_dict;
 }
 
-std::map<std::string, std::unique_ptr<BaseAnimation>> AnimationParser::parseAnimationsFromString(const std::string& json_str) {
+std::map<int, std::unique_ptr<BaseAnimation>> AnimationParser::parseAnimationsFromString(const std::string& json_str) {
     Document doc;
     doc.Parse(json_str.c_str());
 

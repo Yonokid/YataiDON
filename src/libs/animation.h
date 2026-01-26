@@ -29,7 +29,6 @@ protected:
     double delay;
     double delay_saved;
     double start_ms;
-    bool is_finished;
     bool is_started;
     bool is_reversing;
     bool unlocked;
@@ -45,6 +44,7 @@ protected:
 
 public:
     double attribute;
+    bool is_finished;
 
     BaseAnimation(double duration, double delay = 0.0, bool loop = false, bool lock_input = false)
         : duration(duration), delay(delay), delay_saved(delay),
@@ -210,21 +210,21 @@ using namespace rapidjson;
 
 class AnimationParser {
 private:
-    std::map<std::string, Value> raw_anims;
+    std::map<int, Value> raw_anims;
     Document::AllocatorType* allocator;
 
     // Helper to get a value from a JSON object with type checking
     template<typename T>
     std::optional<T> getOptional(const Value& obj, const char* key);
 
-    Value resolveValue(const Value& ref_obj, std::set<std::string>& visited);
+    Value resolveValue(const Value& ref_obj, std::set<int>& visited);
 
-    Value findRefs(const std::string& anim_id, std::set<std::string>& visited);
+    Value findRefs(int anim_id, std::set<int>& visited);
 
     std::unique_ptr<BaseAnimation> createAnimation(const Value& anim_obj);
 
 public:
-    std::map<std::string, std::unique_ptr<BaseAnimation>> parse_animations(const Value& animation_json);
+    std::map<int, std::unique_ptr<BaseAnimation>> parse_animations(const Value& animation_json);
 
-    std::map<std::string, std::unique_ptr<BaseAnimation>> parseAnimationsFromString(const std::string& json_str);
+    std::map<int, std::unique_ptr<BaseAnimation>> parseAnimationsFromString(const std::string& json_str);
 };

@@ -123,9 +123,9 @@ void TextureWrapper::unload_textures() {
     TraceLog(LOG_INFO, "All textures unloaded");
 }
 
-BaseAnimation* TextureWrapper::get_animation(const std::string& id, bool is_copy) {
+BaseAnimation* TextureWrapper::get_animation(const int id, bool is_copy) {
     if (animations.find(id) == animations.end()) {
-        throw std::runtime_error("Unable to find animation: " + id);
+        throw std::runtime_error(&"Unable to find animation: " [ id]);
     }
 
     if (is_copy) {

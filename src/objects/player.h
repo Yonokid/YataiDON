@@ -5,22 +5,7 @@
 #include "../libs/texture.h"
 #include "../libs/audio_engine.h"
 #include "../libs/utils.h"
-
-enum class DrumType {
-    DON = 1,
-    KAT = 2
-};
-
-enum class Side {
-    LEFT = 1,
-    RIGHT = 2
-};
-
-enum class Judgments {
-    GOOD = 0,
-    OK = 1,
-    BAD = 2
-};
+#include "judgment.h"
 
 namespace JudgePos {
     inline float X = 414 * tex.screen_scale;
@@ -112,6 +97,8 @@ private:
 
     std::string don_hitsound;
     std::string kat_hitsound;
+
+    std::vector<Judgment> draw_judge_list;
 
     void get_load_time(Note& note);
 
