@@ -16,7 +16,7 @@ target := $(buildDir)/$(executable)
 sources := $(call rwildcard,src/,*.cpp)
 objects := $(patsubst src/%, $(buildDir)/%, $(patsubst %.cpp, %.o, $(sources)))
 depends := $(patsubst %.o, %.d, $(objects))
-compileFlags := -O0 -std=c++17 -g -I include -I vendor/rapidjson/include -I vendor/tomlplusplus/include -I src/libs/audio
+compileFlags := -O0 -std=c++17 -g -I include -I vendor/rapidjson/include -I vendor/tomlplusplus/include -I src/libs/audio -I vendor/digestpp
 linkFlags = -L lib/$(platform) -l raylib -L src/libs/audio -l audio
 
 # Check for Windows

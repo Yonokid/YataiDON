@@ -7,8 +7,7 @@
 #include <string>
 #include <sstream>
 #include <iomanip>
-#include <openssl/md5.h>
-#include <openssl/sha.h>
+#include <digestpp/algorithm/md5.hpp>
 #include <vector>
 #include <variant>
 #include <map>
@@ -79,7 +78,6 @@ public:
     int moji;
     std::string branch_params;
     bool is_branch_start;
-
     // Drumroll specific
     std::optional<int> color;
     // Balloon specific
@@ -98,19 +96,15 @@ public:
     bool operator<(const Note& other) const {
         return hit_ms < other.hit_ms;
     }
-
     bool operator<=(const Note& other) const {
         return hit_ms <= other.hit_ms;
     }
-
     bool operator>(const Note& other) const {
         return hit_ms > other.hit_ms;
     }
-
     bool operator>=(const Note& other) const {
         return hit_ms >= other.hit_ms;
     }
-
     bool operator==(const Note& other) const {
         return hit_ms == other.hit_ms;
     }
@@ -118,7 +112,6 @@ public:
     virtual std::string get_hash_data() const {
         std::vector<std::string> hash_fields = {"bpm", "hit_ms", "scroll_x", "scroll_y", "type"};
         std::ostringstream oss;
-
         oss << "[";
         for (const auto& field : hash_fields) {
             oss << "('" << field << "', ";
@@ -130,21 +123,18 @@ public:
             oss << "), ";
         }
         oss << "('__class__', 'Note')]";
-
         return oss.str();
     }
 
     std::string get_hash() const {
         std::string data = get_hash_data();
 
-        unsigned char hash[MD5_DIGEST_LENGTH];
-        MD5(reinterpret_cast<const unsigned char*>(data.c_str()), data.length(), hash);
+        // Use digestpp to compute MD5
+        digestpp::md5 hasher;
+        hasher.absorb(data);
+        std::string hash_hex = hasher.hexdigest();
 
-        std::ostringstream oss;
-        for (int i = 0; i < MD5_DIGEST_LENGTH; i++) {
-            oss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(hash[i]);
-        }
-        return oss.str();
+        return hash_hex;
     }
 
     size_t hash() const {

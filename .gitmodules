@@ -10,6 +10,6 @@
 [submodule "Skins/PyTaikoGreen"]
 	path = Skins/PyTaikoGreen
 	url = https://ese.tjadataba.se/Yonokid/PyTaikoGreen.git
-[submodule "vendor/openssl"]
-	path = vendor/openssl
-	url = https://github.com/openssl/openssl.git
+[submodule "vendor/digestpp"]
+	path = vendor/digestpp
+	url = https://github.com/kerukuro/digestpp
