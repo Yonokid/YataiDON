@@ -11,15 +11,15 @@ void LaneHitEffect::update(double current_ms) {
 }
 
 void LaneHitEffect::draw() {
-    int frame;
     if (type == DrumType::DON) {
-        frame = 0;
+        tex.draw_texture("lane", "lane_hit_effect", {.frame=0, .fade=fade->attribute, .index=is_2p});
     } else if (type == DrumType::KAT) {
-        frame = 1;
-    } else if (judgment == Judgments::GOOD || judgment == Judgments::OK) {
-        frame = 2;
+        tex.draw_texture("lane", "lane_hit_effect", {.frame=1, .fade=fade->attribute, .index=is_2p});
     }
-    tex.draw_texture("lane", "lane_hit_effect", {.frame=frame, .fade=(float)fade->attribute, .index=is_2p});
+    if (judgment == Judgments::GOOD || judgment == Judgments::OK) {
+        tex.draw_texture("lane", "lane_hit_effect", {.frame=2, .fade=fade->attribute, .index=is_2p});
+    }
+
 }
 
 bool LaneHitEffect::is_finished() const {

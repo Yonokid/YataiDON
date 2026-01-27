@@ -29,7 +29,6 @@ Player::Player(std::optional<TJAParser>& parser_ref, PlayerNum player_num_param,
     kat_hitsound = "hitsound_kat_" + std::to_string((int)player_num) + "p";
 
     //self.draw_arc_list: list[NoteArc] = []
-    //self.draw_drum_hit_list: list[DrumHitEffect] = []
     //self.drumroll_counter: Optional[DrumrollCounter] = None
     //self.balloon_anim: Optional[BalloonAnimation] = None
     //self.kusudama_anim: Optional[KusudamaAnimation] = None
@@ -46,10 +45,10 @@ Player::Player(std::optional<TJAParser>& parser_ref, PlayerNum player_num_param,
         self.branch_indicator = BranchIndicator(self.is_2p) if parser and parser.metadata.course_data[self.difficulty].is_branching else None
     }*/
     //self.ending_anim: Optional[FailAnimation | ClearAnimation | FCAnimation] = None
-    //plate_info = global_data.config[f'nameplate_{self.is_2p+1}p']
-    //self.nameplate = Nameplate(plate_info['name'], plate_info['title'], global_data.player_num, plate_info['dan'], plate_info['gold'], plate_info['rainbow'], plate_info['title_bg'])
+    //plate_info = global_data.config[f"nameplate_{self.is_2p+1}p"]
+    //self.nameplate = Nameplate(plate_info["name"], plate_info["title"], global_data.player_num, plate_info["dan"], plate_info["gold"], plate_info["rainbow"], plate_info["title_bg"])
     //self.chara = Chara2D(player_num - 1, self.bpm)
-    /*if global_data.config['general']['judge_counter']:
+    /*if global_data.config["general"]["judge_counter"]:
         self.judge_counter = JudgeCounter()
     else:
         self.judge_counter = None*/
@@ -85,7 +84,14 @@ void Player::update(double ms_from_start, double current_ms) {
             lane_hit_effect.reset();
         }
     }
-    //self.animation_manager(self.draw_drum_hit_list, current_time)
+    for (auto it = draw_drum_hit_list.begin(); it != draw_drum_hit_list.end(); ) {
+        it->update(current_ms);
+        if (it->is_finished()) {
+            it = draw_drum_hit_list.erase(it);
+        } else {
+            ++it;
+        }
+    }
     //self.handle_timeline(ms_from_start)
     /*
     if self.delay_start is not None and self.delay_end is not None:
@@ -160,7 +166,7 @@ void Player::draw(double ms_from_start, ray::Shader& mask_shader) {
     //if dan_transition is not None:
         //dan_transition.draw()
 
-    //self.draw_overlays(mask_shader)
+    draw_overlays(mask_shader);
 }
 
 void Player::get_load_time(Note& note) {
@@ -245,7 +251,6 @@ void Player::reset_chart() {
     timeline = notes.timeline;
     timeline_index = 0; //Range: [0, len(timeline)]
     //current_bars: list[Note] = []
-    //current_notes_draw: list[Note | Drumroll | Balloon] = []
     is_drumroll = false;
     curr_drumroll_count = 0;
     is_balloon = false;
@@ -256,7 +261,7 @@ void Player::reset_chart() {
     branch_condition = "";
     balloon_index = 0;
     bpm = 120;
-    /*if (timeline and hasattr(self.timeline[self.timeline_index], 'bpm'):
+    /*if (timeline and hasattr(self.timeline[self.timeline_index], "bpm"):
         self.bpm = self.timeline[self.timeline_index].bpm*/
 
     Note* last_note = nullptr;
@@ -294,10 +299,10 @@ void Player::reset_chart() {
             return a.load_ms < b.load_ms;
         });
 
-    //Handle HBSCROLL, BMSCROLL (pre-modify hit_ms, so that notes can't be literally hit, but are still visually different) - basically it applies the transformations of #BPMCHANGE and #DELAY to hit_ms, so that notes can't be hit even if its visaulyl
+    //Handle HBSCROLL, BMSCROLL (pre-modify hit_ms, so that notes can"t be literally hit, but are still visually different) - basically it applies the transformations of #BPMCHANGE and #DELAY to hit_ms, so that notes can"t be hit even if its visaulyl
     /*
     for i, o in enumerate(self.timeline):
-        if hasattr(o, 'bpmchange'):
+        if hasattr(o, "bpmchange"):
             hit_ms = o.hit_ms
             bpmchange = o.bpmchange
             for note in chain(self.draw_note_list, self.draw_bar_list):
@@ -305,10 +310,10 @@ void Player::reset_chart() {
                     note.hit_ms = (note.hit_ms - hit_ms) / bpmchange + hit_ms
             for i2 in range(i + 1, len(self.timeline)):
                 o2 = self.timeline[i2]
-                if not hasattr(o2, 'bpmchange'):
+                if not hasattr(o2, "bpmchange"):
                     continue
                 o2.hit_ms = (o2.hit_ms - hit_ms) / bpmchange + hit_ms
-        elif hasattr(o, 'delay'):
+        elif hasattr(o, "delay"):
             hit_ms = o.hit_ms
             delay = o.delay
             for note in chain(self.draw_note_list, self.draw_bar_list):
@@ -316,7 +321,7 @@ void Player::reset_chart() {
                     note.hit_ms += delay
             for i2 in range(i + 1, len(self.timeline)):
                 o2 = self.timeline[i2]
-                if not hasattr(o2, 'delay'):
+                if not hasattr(o2, "delay"):
                     continue
                 o2.hit_ms += delay
      */
@@ -389,11 +394,11 @@ void Player::play_note_manager(double current_ms) {//, background: Optional[Back
             else:
                 background.add_chibi(True, 1)*/
         bad_count++;
-        //self.input_log[self.don_notes[0].index] = 'BAD'
+        //self.input_log[self.don_notes[0].index] = "BAD"
         //if self.gauge is not None:
             //self.gauge.add_bad()
         don_notes.pop_front();
-        //if self.is_branch and self.branch_condition == 'p':
+        //if self.is_branch and self.branch_condition == "p":
             //self.branch_condition_count -= 1
     }
 
@@ -405,11 +410,11 @@ void Player::play_note_manager(double current_ms) {//, background: Optional[Back
             else:
                 background.add_chibi(True, 1)*/
         bad_count++;
-        //self.input_log[self.kat_notes[0].index] = 'BAD'
+        //self.input_log[self.kat_notes[0].index] = "BAD"
         //if self.gauge is not None:
             //self.gauge.add_bad()
         kat_notes.pop_front();
-        //if self.is_branch and self.branch_condition == 'p':
+        //if self.is_branch and self.branch_condition == "p":
             //self.branch_condition_count -= 1
     }
 
@@ -522,7 +527,7 @@ void Player::note_correct(Note note, double current_time) {
     if (note.type < 7) {
         combo++;
         /*if self.combo % 10 == 0:
-            self.chara.set_animation('10_combo')
+            self.chara.set_animation("10_combo")
         if self.combo % 100 == 0:
             self.combo_announce = ComboAnnounce(self.combo, current_time, self.player_num, self.is_2p)
         if self.combo > self.max_combo:
@@ -602,11 +607,11 @@ void Player::check_note(double ms_from_start, DrumType drum_type, double current
             score += base_score;
             //if len(self.base_score_list) < 5:
                 //self.base_score_list.append(ScoreCounterAnimation(self.player_num, self.base_score, self.is_2p))
-            //self.input_log[curr_note.index] = 'GOOD'
+            //self.input_log[curr_note.index] = "GOOD"
             note_correct(curr_note, current_time);
             //if self.gauge is not None:
                 //self.gauge.add_good()
-            //if self.is_branch and self.branch_condition == 'p':
+            //if self.is_branch and self.branch_condition == "p":
                 //self.branch_condition_count += 1
             /*if background is not None:
                 if self.is_2p:
@@ -621,11 +626,11 @@ void Player::check_note(double ms_from_start, DrumType drum_type, double current
             score += 10 * std::floor(base_score / 2 / 10);
             //if len(self.base_score_list) < 5:
                 //self.base_score_list.append(ScoreCounterAnimation(self.player_num, 10 * math.floor(self.base_score / 2 / 10), self.is_2p))
-            //self.input_log[curr_note.index] = 'OK'
+            //self.input_log[curr_note.index] = "OK"
             note_correct(curr_note, current_time);
             //if self.gauge is not None:
                 //self.gauge.add_ok()
-            //if self.is_branch and self.branch_condition == 'p':
+            //if self.is_branch and self.branch_condition == "p":
                 //self.branch_condition_count += 0.5
             /*if background is not None:
                 if self.is_2p:
@@ -634,7 +639,7 @@ void Player::check_note(double ms_from_start, DrumType drum_type, double current
                     background.add_chibi(False, 1)*/
 
         } else if ((curr_note.hit_ms - bad_window_ms) <= ms_from_start && ms_from_start <= (curr_note.hit_ms + bad_window_ms)) {
-            //self.input_log[curr_note.index] = 'BAD'
+            //self.input_log[curr_note.index] = "BAD"
             draw_judge_list.push_back(Judgment(Judgments::BAD, big, is_2p));
             bad_count++;
             combo = 0;
@@ -663,8 +668,9 @@ void Player::check_note(double ms_from_start, DrumType drum_type, double current
 
 void Player::spawn_hit_effects(DrumType drum_type, Side side) {
     lane_hit_effect = LaneHitEffect(drum_type, Judgments::BAD, is_2p); //judgment parameter workaround
-    //if len(self.draw_drum_hit_list) < 4:
-        //self.draw_drum_hit_list.append(DrumHitEffect(drum_type, side, self.is_2p))
+    if (draw_drum_hit_list.size() < 4) {
+        draw_drum_hit_list.push_back(DrumHitEffect(drum_type, side, is_2p));
+    }
 }
 
 void Player::handle_input(double ms_from_start, double current_ms) { //, Background* background) {
@@ -752,4 +758,63 @@ void Player::draw_notes(double current_ms) {
             tex.draw_texture("notes", "moji", {.frame=note.moji, .x=x_position - (tex.textures["notes"]["moji"]->width/2.0f), .y=tex.skin_config["moji"].y + y_position+(is_2p*tex.skin_config["2p_offset"].y)});
         }
     }
+}
+
+void Player::draw_overlays(ray::Shader mask_shader) {
+    //Group 4: Lane covers and UI elements (batch similar textures)
+    tex.draw_texture("lane", std::to_string((int)player_num) + "p_lane_cover", {.index=is_2p});
+    if (is_dan) tex.draw_texture("lane", "dan_lane_cover");
+    tex.draw_texture("lane", "drum", {.index=is_2p});
+    //if self.ending_anim is not None:
+        //self.ending_anim.draw()
+
+    //Group 5: Hit effects and animations
+    for (DrumHitEffect anim : draw_drum_hit_list) {
+        anim.draw();
+    }
+    //for anim in self.draw_arc_list:
+        //anim.draw(mask_shader)
+    //for anim in self.gauge_hit_effect:
+        //anim.draw()
+
+    //Group 6: UI overlays
+    //self.combo_display.draw()
+    //self.combo_announce.draw()
+    if (is_2p) {
+        tex.draw_texture("lane", "lane_score_cover", {.mirror="vertical", .index=is_2p});
+    } else {
+        tex.draw_texture("lane", "lane_score_cover", {.index=is_2p});
+    }
+    tex.draw_texture("lane", std::to_string((int)player_num) + "p_icon", {.index=is_2p});
+    if (is_dan) {
+        tex.draw_texture("lane", "lane_difficulty", {.frame=6});
+    } else {
+        tex.draw_texture("lane", "lane_difficulty", {.frame=difficulty, .index=is_2p});
+    }
+    //if self.judge_counter is not None:
+        //self.judge_counter.draw()
+
+    // Group 7: Player-specific elements
+    if (modifiers.auto_play) {
+        tex.draw_texture("lane", "auto_icon", {.index=is_2p});
+    } else {
+        if (is_2p) {
+            //self.nameplate.draw(tex.skin_config["game_nameplate_1p"].x, tex.skin_config["game_nameplate_1p"].y)
+        } else {
+            //self.nameplate.draw(tex.skin_config["game_nameplate_2p"].x, tex.skin_config["game_nameplate_2p"].y)
+        }
+    }
+    //self.draw_modifiers()
+    //self.chara.draw(y=(self.is_2p*tex.skin_config["game_2p_offset"].y))
+
+    // Group 8: Special animations and counters
+    //if self.drumroll_counter is not None:
+        //self.drumroll_counter.draw()
+    //if self.balloon_anim is not None:
+        //self.balloon_anim.draw()
+    //if self.kusudama_anim is not None:
+        //self.kusudama_anim.draw()
+    //self.score_counter.draw()
+    //for anim in self.base_score_list:
+        //anim.draw()
 }

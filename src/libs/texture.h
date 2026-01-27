@@ -17,7 +17,7 @@ struct DrawTextureParams {
     float x = 0, y = 0, x2 = 0, y2 = 0;
     ray::Vector2 origin = {0, 0};
     float rotation = 0;
-    float fade = 1.1f;
+    double fade = 1.1f;
     int index = 0;
     std::optional<ray::Rectangle> src = std::nullopt;
     bool controllable = false;
