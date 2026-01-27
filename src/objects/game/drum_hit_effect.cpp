@@ -1,4 +1,4 @@
-#include "drumhiteffect.h"
+#include "drum_hit_effect.h"
 
 DrumHitEffect::DrumHitEffect(DrumType type, Side side, bool is_2p)
             : type(type), side(side), is_2p(is_2p) {

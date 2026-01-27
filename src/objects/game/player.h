@@ -1,13 +1,13 @@
 #pragma once
 
-#include "../libs/parsers/tja.h"
-#include "../libs/global_data.h"
-#include "../libs/texture.h"
-#include "../libs/audio_engine.h"
-#include "../libs/utils.h"
+#include "../../libs/parsers/tja.h"
+#include "../../libs/global_data.h"
+#include "../../libs/texture.h"
+#include "../../libs/audio_engine.h"
+#include "../../libs/utils.h"
 #include "judgment.h"
-#include "lanehiteffect.h"
-#include "drumhiteffect.h"
+#include "lane_hit_effect.h"
+#include "drum_hit_effect.h"
 
 namespace JudgePos {
     inline float X = 414 * tex.screen_scale;

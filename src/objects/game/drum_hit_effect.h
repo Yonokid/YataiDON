@@ -1,6 +1,6 @@
-#include "enums.h"
-#include "../libs/animation.h"
-#include "../libs/texture.h"
+#include "../enums.h"
+#include "../../libs/animation.h"
+#include "../../libs/texture.h"
 
 class DrumHitEffect {
 private:

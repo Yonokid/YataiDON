@@ -1,4 +1,4 @@
-#include "lanehiteffect.h"
+#include "lane_hit_effect.h"
 
 LaneHitEffect::LaneHitEffect(DrumType type, Judgments judgment, bool is_2p)
             : type(type), judgment(judgment), is_2p(is_2p) {
