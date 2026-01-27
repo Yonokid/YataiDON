@@ -7,7 +7,11 @@
 #include <string>
 #include <sstream>
 #include <iomanip>
+#ifdef _WIN32
 #include <algorithm/md5.hpp>
+#else
+#include <digestpp/algorithm/md5.hpp>
+#endif
 #include <vector>
 #include <variant>
 #include <map>
