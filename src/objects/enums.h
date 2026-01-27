@@ -1,3 +1,5 @@
+#pragma once
+
 enum class DrumType {
     DON = 1,
     KAT = 2

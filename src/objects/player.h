@@ -6,6 +6,7 @@
 #include "../libs/audio_engine.h"
 #include "../libs/utils.h"
 #include "judgment.h"
+#include "lanehiteffect.h"
 
 namespace JudgePos {
     inline float X = 414 * tex.screen_scale;
@@ -99,6 +100,7 @@ private:
     std::string kat_hitsound;
 
     std::vector<Judgment> draw_judge_list;
+    std::optional<LaneHitEffect> lane_hit_effect;
 
     void get_load_time(Note& note);
 
@@ -119,6 +121,8 @@ private:
     void note_correct(Note note, double current_time);
 
     void check_note(double ms_from_start, DrumType drum_type, double current_time);
+
+    void spawn_hit_effects(DrumType drum_type, Side side);
 
     void handle_input(double ms_from_start, double current_ms);
 

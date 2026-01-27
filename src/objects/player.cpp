@@ -28,7 +28,6 @@ Player::Player(std::optional<TJAParser>& parser_ref, PlayerNum player_num_param,
     don_hitsound = "hitsound_don_" + std::to_string((int)player_num) + "p";
     kat_hitsound = "hitsound_kat_" + std::to_string((int)player_num) + "p";
 
-    //self.lane_hit_effect: Optional[LaneHitEffect] = None
     //self.draw_arc_list: list[NoteArc] = []
     //self.draw_drum_hit_list: list[DrumHitEffect] = []
     //self.drumroll_counter: Optional[DrumrollCounter] = None
@@ -80,8 +79,12 @@ void Player::update(double ms_from_start, double current_ms) {
     //self.balloon_manager(current_time)
     //if self.gogo_time is not None:
         //self.gogo_time.update(current_time)
-    //if self.lane_hit_effect is not None:
-        //self.lane_hit_effect.update(current_time)
+    if (lane_hit_effect != std::nullopt) {
+        lane_hit_effect->update(current_ms);
+        if (lane_hit_effect->is_finished()) {
+            lane_hit_effect.reset();
+        }
+    }
     //self.animation_manager(self.draw_drum_hit_list, current_time)
     //self.handle_timeline(ms_from_start)
     /*
@@ -139,8 +142,9 @@ void Player::draw(double ms_from_start, ray::Shader& mask_shader) {
         //self.branch_indicator.draw()
     //if self.gauge is not None:
         //self.gauge.draw()
-    //if self.lane_hit_effect is not None:
-        //self.lane_hit_effect.draw()
+    if (lane_hit_effect != std::nullopt) {
+        lane_hit_effect->draw();
+    }
     tex.draw_texture("lane", "lane_hit_circle", {.x =  judge_x, .y =  judge_y, .index = is_2p});
 
     //Group 2: judgment and hit effects
@@ -593,7 +597,7 @@ void Player::check_note(double ms_from_start, DrumType drum_type, double current
             if (draw_judge_list.size() < 7) {
                 draw_judge_list.push_back(Judgment(Judgments::GOOD, big, is_2p));
             }
-            //self.lane_hit_effect = LaneHitEffect(drum_type, Judgments.GOOD, self.is_2p)
+            lane_hit_effect = LaneHitEffect(drum_type, Judgments::GOOD, is_2p);
             good_count++;
             score += base_score;
             //if len(self.base_score_list) < 5:
@@ -612,7 +616,7 @@ void Player::check_note(double ms_from_start, DrumType drum_type, double current
 
         } else if ((curr_note.hit_ms - ok_window_ms) <= ms_from_start && ms_from_start <= (curr_note.hit_ms + ok_window_ms)) {
             draw_judge_list.push_back(Judgment(Judgments::OK, big, is_2p));
-            //self.lane_hit_effect = LaneHitEffect(drum_type, Judgments.OK, self.is_2p)
+            lane_hit_effect = LaneHitEffect(drum_type, Judgments::OK, is_2p);
             ok_count++;
             score += 10 * std::floor(base_score / 2 / 10);
             //if len(self.base_score_list) < 5:
@@ -657,6 +661,12 @@ void Player::check_note(double ms_from_start, DrumType drum_type, double current
     }
 }
 
+void Player::spawn_hit_effects(DrumType drum_type, Side side) {
+    lane_hit_effect = LaneHitEffect(drum_type, Judgments::BAD, is_2p); //judgment parameter workaround
+    //if len(self.draw_drum_hit_list) < 4:
+        //self.draw_drum_hit_list.append(DrumHitEffect(drum_type, side, self.is_2p))
+}
+
 void Player::handle_input(double ms_from_start, double current_ms) { //, Background* background) {
     struct InputCheck {
         bool (*check_func)(PlayerNum);
@@ -674,7 +684,7 @@ void Player::handle_input(double ms_from_start, double current_ms) { //, Backgro
 
     for (const auto& input : input_checks) {
         if (input.check_func(player_num)) {
-            //spawnHitEffects(input.drum_type, input.side);
+            spawn_hit_effects(input.drum_type, input.side);
             audio->playSound(input.sound, "hitsound");
             check_note(ms_from_start, input.drum_type, current_ms);//, background);
         }
