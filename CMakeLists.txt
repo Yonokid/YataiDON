@@ -220,7 +220,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/src/libs/audio
     ${PORTAUDIO_INCLUDE_DIR}
     ${rapidjson_SOURCE_DIR}/include
-    ${digestpp_SOURCE_DIR}
+    ${digestpp_SOURCE_DIR}/..
     ${tomlplusplus_SOURCE_DIR}/include
 )
 
