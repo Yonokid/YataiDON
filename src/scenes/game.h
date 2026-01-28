@@ -6,7 +6,7 @@
 #include "../libs/global_data.h"
 #include "../libs/animation.h"
 
-#include "../objects/player.h"
+#include "../objects/game/player.h"
 
 class GameScreen : public Screen {
 private:

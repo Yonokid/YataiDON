@@ -213,14 +213,11 @@ int main(int argc, char* argv[]) {
         ray::TraceLog(ray::LOG_WARNING, "Skin directory not found, skipping texture initialization");
     }
 
-    /*
-    switch (global_data.config->general.score_method) {
-        case ScoreMethod.GEN3:
-            global_data.score_db = 'scores_gen3.db';
-        case ScoreMethod.SHINUCHI:
-            global_data.score_db = 'scores.db';
+    if (global_data.config->general.score_method == ScoreMethod::GEN3) {
+        global_data.score_db = "scores_gen3.db";
+    } else {
+        global_data.score_db = "scores.db";
     }
-     */
     //setup_logging()
     ray::TraceLog(ray::LOG_INFO, "Starting CPPTaiko");
     //TraceLog(LOG_DEBUG, f"Loaded config: {global_data.config}")
