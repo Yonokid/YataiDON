@@ -23,6 +23,7 @@ Player::Player(std::optional<TJAParser>& parser_ref, PlayerNum player_num_param,
     , is_gogo_time(false)
     , autoplay_hit_side(Side::LEFT)
     , last_subdivision(-1)
+    , combo_display(combo, 0, is_2p)
 {
     reset_chart();
     don_hitsound = "hitsound_don_" + std::to_string((int)player_num) + "p";
@@ -32,7 +33,6 @@ Player::Player(std::optional<TJAParser>& parser_ref, PlayerNum player_num_param,
     //self.balloon_anim: Optional[BalloonAnimation] = None
     //self.kusudama_anim: Optional[KusudamaAnimation] = None
     //self.base_score_list: list[ScoreCounterAnimation] = []
-    //self.combo_display = Combo(self.combo, 0, self.is_2p)
     //self.score_counter = ScoreCounter(self.score, self.is_2p)
     //self.gogo_time: Optional[GogoTime] = None
     //self.delay_start: Optional[float] = None
@@ -62,7 +62,7 @@ Player::Player(std::optional<TJAParser>& parser_ref, PlayerNum player_num_param,
 
 void Player::update(double ms_from_start, double current_ms) {
     note_manager(ms_from_start);//, background);
-    //self.combo_display.update(current_time, self.combo)
+    combo_display.update(current_ms, combo);
     //self.combo_announce.update(current_time)
     //self.drumroll_counter_manager(current_time)
     for (auto it = draw_judge_list.begin(); it != draw_judge_list.end(); ) {
@@ -788,7 +788,7 @@ void Player::draw_overlays(ray::Shader mask_shader) {
     }
 
     //Group 6: UI overlays
-    //self.combo_display.draw()
+    combo_display.draw();
     //self.combo_announce.draw()
     if (is_2p) {
         tex.draw_texture("lane", "lane_score_cover", {.mirror="vertical", .index=is_2p});

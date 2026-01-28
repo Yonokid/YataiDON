@@ -10,6 +10,7 @@
 #include "drum_hit_effect.h"
 #include "gauge_hit_effect.h"
 #include "note_arc.h"
+#include "combo.h"
 
 namespace JudgePos {
     inline float X = 414 * tex.screen_scale;
@@ -107,6 +108,7 @@ private:
     std::vector<DrumHitEffect> draw_drum_hit_list;
     std::vector<GaugeHitEffect> gauge_hit_effect;
     std::vector<NoteArc> draw_arc_list;
+    Combo combo_display;
 
     void get_load_time(Note& note);
 
