@@ -25,6 +25,54 @@ inline bool operator!=(const ray::Color& a, const ray::Color& b)
     return !(a == b);
 }
 
+class FPSCounter {
+private:
+    static const int SAMPLE_SIZE = 60;
+    float frameTimes[SAMPLE_SIZE];
+    int currentFrame = 0;
+    long lastTime;
+
+public:
+    FPSCounter() {
+        lastTime = get_current_ms();
+        for (int i = 0; i < SAMPLE_SIZE; i++) {
+            frameTimes[i] = 16.67f;
+        }
+    }
+
+    void update() {
+        long currentTime = get_current_ms();
+        float deltaTime = currentTime - lastTime;
+        lastTime = currentTime;
+
+        frameTimes[currentFrame % SAMPLE_SIZE] = deltaTime;
+        currentFrame++;
+    }
+
+    float get_fps() {
+        float sum = 0;
+        for (int i = 0; i < SAMPLE_SIZE; i++) {
+            sum += frameTimes[i];
+        }
+        float avgFrameTime = sum / SAMPLE_SIZE;
+        return 1000.0f / avgFrameTime;
+    }
+
+    void draw() {
+        int curr_fps = get_fps();
+        float pos = 20.0f * global_tex.screen_scale;
+
+        ray::Color color;
+        ray::Font font = global_data.font;
+
+        if (curr_fps < 30) color = ray::RED;
+        else if (curr_fps < 60) color = ray::YELLOW;
+        else color = ray::LIME;
+
+        DrawTextEx(font, ray::TextFormat("%d FPS", curr_fps), ray::Vector2{ pos, pos }, pos, 1.0f, color);
+    }
+};
+
 void update_camera_for_window_size(ray::Camera2D& camera, int virtual_width, int virtual_height) {
     int screen_width = ray::GetScreenWidth();
     int screen_height = ray::GetScreenHeight();
@@ -57,25 +105,6 @@ void update_camera_for_window_size(ray::Camera2D& camera, int virtual_width, int
     camera.offset.y = base_offset_y - zoom_offset_y - v_scale_offset_y + (global_data.camera.offset.y * scale);
 
     camera.rotation = global_data.camera.rotation;
-}
-
-void draw_fps(int last_fps) {
-    int curr_fps = ray::GetFPS();
-    float pos = 20.0f * global_tex.screen_scale;
-
-    if (curr_fps != 0 && curr_fps != last_fps)
-    {
-        last_fps = curr_fps;
-    }
-
-    ray::Color color;
-    ray::Font font = global_data.font;
-
-    if (last_fps < 30) color = ray::RED;
-    else if (last_fps < 60) color = ray::YELLOW;
-    else color = ray::LIME;
-
-    DrawTextEx(font, ray::TextFormat("%d FPS", last_fps), ray::Vector2{ pos, pos }, pos, 1.0f, color);
 }
 
 void draw_outer_border(int screen_width, int screen_height, ray::Color last_color) {
@@ -305,7 +334,7 @@ int main(int argc, char* argv[]) {
 
     ray::HideCursor();
     //logger.info("Cursor hidden")
-    int last_fps = 1;
+    FPSCounter fps_counter = FPSCounter();
     ray::Color last_color = ray::BLACK;
     int last_discord_check = 0;
 
@@ -355,7 +384,8 @@ int main(int argc, char* argv[]) {
         }
 
         if (global_data.config->general.fps_counter) {
-            draw_fps(last_fps);
+            fps_counter.update();
+            fps_counter.draw();
         }
 
         draw_outer_border(screen_width, screen_height, last_color);

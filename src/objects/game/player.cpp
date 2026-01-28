@@ -186,11 +186,7 @@ void Player::get_load_time(Note& note) {
     }
     float normal_travel_ms = (travel_distance + note_half_w) / base_pixels_per_ms;
 
-    note.load_ms = note.hit_ms - normal_travel_ms;
-    note.unload_ms = note.hit_ms + normal_travel_ms;
-    return;
-
-    /*if (!note.sudden_appear_ms.has_value() ||
+    if (!note.sudden_appear_ms.has_value() ||
         !note.sudden_moving_ms.has_value() ||
         *note.sudden_appear_ms == std::numeric_limits<float>::infinity()) {
         note.load_ms = note.hit_ms - normal_travel_ms;
@@ -204,7 +200,7 @@ void Player::get_load_time(Note& note) {
     }
     float sudden_pixels_per_ms = travel_distance / movement_duration;
     float unload_offset = travel_distance / sudden_pixels_per_ms;
-    note.unload_ms = note.hit_ms + unload_offset;*/
+    note.unload_ms = note.hit_ms + unload_offset;
 }
 
 void Player::reset_chart() {

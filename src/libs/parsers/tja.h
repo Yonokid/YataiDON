@@ -87,7 +87,7 @@ public:
 
     Note() : type(0), hit_ms(0.0f), load_ms(0.0f), unload_ms(0.0f),
              bpm(0.0f), scroll_x(0.0f), scroll_y(0.0f),
-             sudden_appear_ms(0.0f), sudden_moving_ms(0.0f),
+             sudden_appear_ms(std::nullopt), sudden_moving_ms(std::nullopt),
              display(true), index(0), moji(0),
              branch_params(""), is_branch_start(false) {}
 
@@ -257,8 +257,8 @@ struct ParserState {
     double balloon_index = 0;
     std::optional<Note> prev_note;
     bool barline_added = false;
-    double sudden_appear;
-    double sudden_moving;
+    double sudden_appear = 0.0f;
+    double sudden_moving = 0.0f;
     double judge_pos_x = 0.0f;
     double judge_pos_y = 0.0f;
     double delay_current = 0.0f;

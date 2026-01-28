@@ -114,6 +114,10 @@ private:
 
     void reset_chart();
 
+    void merge_branch_section(NoteList branch_section, double current_ms);
+
+    std::tuple<int> get_result_score();
+
     float get_position_x(Note note, double current_ms);
 
     float get_position_y(Note note, double current_ms);
