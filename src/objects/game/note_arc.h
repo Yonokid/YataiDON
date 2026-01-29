@@ -1,3 +1,5 @@
+#pragma once
+
 #include "../../libs/animation.h"
 #include "../../libs/texture.h"
 

@@ -1,3 +1,5 @@
+#pragma once
+
 #include "../enums.h"
 #include "../../libs/animation.h"
 #include "../../libs/texture.h"
