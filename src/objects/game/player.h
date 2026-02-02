@@ -13,6 +13,7 @@
 #include "note_arc.h"
 #include "combo.h"
 #include "drumroll_counter.h"
+#include "kusudama_counter.h"
 
 namespace JudgePos {
     inline float X = 414 * tex.screen_scale;
@@ -113,6 +114,7 @@ private:
     Combo combo_display;
     std::optional<DrumrollCounter> drumroll_counter;
     std::optional<BalloonCounter> balloon_counter;
+    std::optional<KusudamaCounter> kusudama_counter;
 
     void get_load_time(Note& note);
 

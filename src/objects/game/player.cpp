@@ -24,13 +24,11 @@ Player::Player(std::optional<TJAParser>& parser_ref, PlayerNum player_num_param,
     , autoplay_hit_side(Side::LEFT)
     , last_subdivision(-1)
     , combo_display(combo, 0, is_2p)
-    , drumroll_counter(std::nullopt)
 {
     reset_chart();
     don_hitsound = "hitsound_don_" + std::to_string((int)player_num) + "p";
     kat_hitsound = "hitsound_kat_" + std::to_string((int)player_num) + "p";
 
-    //self.kusudama_anim: Optional[KusudamaAnimation] = None
     //self.base_score_list: list[ScoreCounterAnimation] = []
     //self.score_counter = ScoreCounter(self.score, self.is_2p)
     //self.gogo_time: Optional[GogoTime] = None
@@ -694,13 +692,13 @@ void Player::balloon_counter_manager(double current_ms) {
             balloon_counter.reset();
             //chara.set_animation("balloon_pop");
         }
-    /*
-    if self.kusudama_anim is not None:
-        self.kusudama_anim.update(current_time, not self.is_balloon)
-        self.kusudama_anim.update_count(self.curr_balloon_count)
-        if self.kusudama_anim.is_finished:
-            self.kusudama_anim = None
-     */
+    if (kusudama_counter != std::nullopt) {
+        kusudama_counter->update(current_ms, !is_balloon);
+        kusudama_counter->update_count(curr_balloon_count);
+        if (kusudama_counter->is_finished()) {
+            kusudama_counter.reset();
+            }
+        }
     }
 }
 
@@ -853,8 +851,9 @@ void Player::draw_overlays(ray::Shader mask_shader) {
     if (balloon_counter != std::nullopt) {
         balloon_counter->draw();
     }
-    //if self.kusudama_anim is not None:
-        //self.kusudama_anim.draw()
+    if (kusudama_counter != std::nullopt) {
+        kusudama_counter->draw();
+    }
     //self.score_counter.draw()
     //for anim in self.base_score_list:
         //anim.draw()

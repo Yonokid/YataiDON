@@ -38,7 +38,7 @@ void BalloonCounter::draw() {
         int total_width = counter.length() * tex.skin_config["drumroll_counter_margin"].x;
         for (int i = 0; i < counter.size(); i++) {
             char digit = counter[i];
-            tex.draw_texture("balloon", "counter", {.frame=int(digit), .x=-(total_width / 2.0f) + (i * tex.skin_config["drumroll_counter_margin"].x), .y=-(float)stretch->attribute+(is_2p*435), .y2=(float)stretch->attribute, .fade=fade->attribute});
+            tex.draw_texture("balloon", "counter", {.frame=digit - '0', .x=-(total_width / 2.0f) + (i * tex.skin_config["drumroll_counter_margin"].x), .y=-(float)stretch->attribute+(is_2p*435), .y2=(float)stretch->attribute, .fade=fade->attribute});
         }
     }
 }
