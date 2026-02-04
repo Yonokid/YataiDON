@@ -102,7 +102,7 @@ private:
     int balloon_index;
 
     bool is_branch;
-    std::vector<std::string> curr_branch_reqs;
+    std::tuple<float, float, double, int> curr_branch_reqs;
     int branch_condition_count;
     std::string branch_condition;
 
@@ -134,6 +134,12 @@ private:
 
     void reset_chart();
 
+    void handle_timeline(double ms_from_start);
+
+    void autoplay_manager(double ms_from_start, double current_ms);
+
+    void evaluate_branch(double current_ms);
+
     void merge_branch_section(NoteList branch_section, double current_ms);
 
     std::tuple<int> get_result_score();
@@ -141,6 +147,8 @@ private:
     float get_position_x(Note note, double current_ms);
 
     float get_position_y(Note note, double current_ms);
+
+    void bar_manager(double current_ms);
 
     void play_note_manager(double current_ms);
 
@@ -152,6 +160,12 @@ private:
 
     void note_correct(Note note, double current_ms);
 
+    void check_drumroll(double current_ms, DrumType drum_type);
+
+    void check_balloon(double current_ms, DrumType drum_type, Note balloon);
+
+    void check_kusudama(double current_ms, Note balloon);
+
     void check_note(double ms_from_start, DrumType drum_type, double current_ms);
 
     void drumroll_counter_manager(double current_ms);
@@ -162,7 +176,15 @@ private:
 
     void handle_input(double ms_from_start, double current_ms);
 
+    void draw_bars(double current_ms);
+
+    void draw_drumroll(double current_ms, Note head, int current_eighth);
+
+    void draw_balloon(double current_ms, Note head, int current_eighth);
+
     void draw_notes(double current_ms);
+
+    void draw_modifiers();
 
     void draw_overlays(ray::Shader mask_shader);
 };

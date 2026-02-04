@@ -17,6 +17,8 @@
 #include <sstream>
 #include <algorithm>
 #include <regex>
+#include "../global_data.h"
+#include <random>
 
 namespace fs = std::filesystem;
 
@@ -48,7 +50,7 @@ struct TimelineObject {
     double delta_x;
     double delta_y;
 
-    double bpm;
+    std::optional<double> bpm;
     double bpmchange;
     double delay;
     bool gogo_time;
@@ -76,7 +78,7 @@ public:
     bool display;
     int index;
     int moji;
-    std::string branch_params;
+    std::optional<std::string> branch_params;
     bool is_branch_start;
     // Drumroll specific
     std::optional<int> color;
@@ -87,7 +89,6 @@ public:
 
     Note() : type(0), hit_ms(0.0f), load_ms(0.0f), unload_ms(0.0f),
              bpm(0.0f), scroll_x(0.0f), scroll_y(0.0f),
-             sudden_appear_ms(std::nullopt), sudden_moving_ms(std::nullopt),
              display(true), index(0), moji(0),
              branch_params(""), is_branch_start(false) {}
 
@@ -368,3 +369,9 @@ double get_ms_per_measure(double bpm_val, double time_sig);
 int calculate_base_score(const NoteList& notes);
 std::string test_encodings(const std::filesystem::path& file_path);
 std::string strip_comments(const std::string& code);
+
+std::pair<std::vector<Note>, std::vector<Note>> modifier_speed(const NoteList& notes, float value);
+std::vector<Note> modifier_display(const NoteList& notes);
+std::vector<Note> modifier_inverse(const NoteList& notes);
+std::vector<Note> modifier_random(const NoteList& notes, int value);
+std::tuple<std::vector<Note>, std::vector<Note>, std::vector<Note>> apply_modifiers(const NoteList& notes, const Modifiers& modifiers);

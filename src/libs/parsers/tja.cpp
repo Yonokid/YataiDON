@@ -1,5 +1,4 @@
 #include "tja.h"
-#include <iostream>
 
 double get_ms_per_measure(double bpm_val, double time_sig) {
     if (bpm_val == 0) return 0;
@@ -1190,8 +1189,8 @@ Note TJAParser::add_note(const std::string& item, ParserState& state) {
     note.scroll_y = state.scroll_y_modifier;
 
     if (state.sudden_appear > 0 || state.sudden_moving > 0) {
-        note.sudden_appear_ms = state.sudden_appear;
-        note.sudden_moving_ms = state.sudden_moving;
+        note.sudden_appear_ms.value() = state.sudden_appear;
+        note.sudden_moving_ms.value() = state.sudden_moving;
     }
 
     if (note.type == 5 || note.type == 6) {
@@ -1223,3 +1222,100 @@ const std::map<int, std::string> TJAParser::DIFFS = {
     {5, "tower"},
     {6, "dan"}
 };
+
+std::pair<std::vector<Note>, std::vector<Note>> modifier_speed(const NoteList& notes, float value) {
+    std::vector<Note> modded_notes = notes.draw_notes;
+    std::vector<Note> modded_bars = notes.bars;
+
+    for (auto& note : modded_notes) {
+        note.scroll_x *= value;
+    }
+    for (auto& bar : modded_bars) {
+        bar.scroll_x *= value;
+    }
+
+    return {modded_notes, modded_bars};
+}
+
+std::vector<Note> modifier_display(const NoteList& notes) {
+    std::vector<Note> modded_notes = notes.draw_notes;
+
+    for (auto& note : modded_notes) {
+        note.display = false;
+    }
+
+    return modded_notes;
+}
+
+std::vector<Note> modifier_inverse(const NoteList& notes) {
+    std::vector<Note> modded_notes = notes.play_notes;
+    std::map<int, int> type_mapping = {{1, 2}, {2, 1}, {3, 4}, {4, 3}};
+
+    for (auto& note : modded_notes) {
+        auto it = type_mapping.find(note.type);
+        if (it != type_mapping.end()) {
+            note.type = it->second;
+        }
+    }
+
+    return modded_notes;
+}
+
+std::vector<Note> modifier_random(const NoteList& notes, int value) {
+    // value: 1 == kimagure, 2 == detarame
+    std::vector<Note> modded_notes = notes.play_notes;
+
+    if (value == 0 || modded_notes.empty()) {
+        return modded_notes;
+    }
+
+    int percentage = (modded_notes.size() / 5) * value;
+    percentage = std::min(percentage, static_cast<int>(modded_notes.size()));
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+
+    std::vector<int> indices(modded_notes.size());
+    std::iota(indices.begin(), indices.end(), 0);
+    std::shuffle(indices.begin(), indices.end(), gen);
+
+    std::vector<int> selected_notes(indices.begin(), indices.begin() + percentage);
+
+    std::map<int, int> type_mapping = {{1, 2}, {2, 1}, {3, 4}, {4, 3}};
+
+    for (int i : selected_notes) {
+        auto it = type_mapping.find(modded_notes[i].type);
+        if (it != type_mapping.end()) {
+            modded_notes[i].type = it->second;
+        }
+    }
+
+    return modded_notes;
+}
+
+std::tuple<std::vector<Note>, std::vector<Note>, std::vector<Note>> apply_modifiers(const NoteList& notes, const Modifiers& modifiers) {
+    std::vector<Note> play_notes = notes.play_notes;
+    std::vector<Note> draw_notes = notes.draw_notes;
+    std::vector<Note> bars = notes.bars;
+
+    if (modifiers.display) {
+        draw_notes = modifier_display(notes);
+    }
+
+    if (modifiers.inverse) {
+        play_notes = modifier_inverse(notes);
+    }
+
+    if (modifiers.random > 0) {
+        play_notes = modifier_random(notes, modifiers.random);
+    }
+
+    auto [speed_notes, speed_bars] = modifier_speed(notes, modifiers.speed);
+    draw_notes = speed_notes;
+    bars = speed_bars;
+
+    // play_notes = modifier_difficulty(notes, modifiers.subdiff);
+    // draw_notes = modifier_difficulty(notes, modifiers.subdiff);
+
+    return {play_notes, draw_notes, bars};
+}

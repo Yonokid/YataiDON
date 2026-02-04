@@ -13,7 +13,7 @@ private:
     TextStretchAnimation* stretch;
     FadeAnimation* fade;
 public:
-    BalloonCounter(bool is_2p);
+    BalloonCounter(int count, PlayerNum player_num, bool is_2p);
 
     void update_count(int count);
 

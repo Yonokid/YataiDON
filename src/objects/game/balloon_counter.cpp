@@ -1,8 +1,7 @@
 #include "balloon_counter.h"
 
-BalloonCounter::BalloonCounter(bool is_2p)
- : is_2p(is_2p) {
-     balloon_count = 0;
+BalloonCounter::BalloonCounter(int count, PlayerNum player_num, bool is_2p)
+ : balloon_count(count), is_2p(is_2p), player_num(player_num) {
      fade = (FadeAnimation*)tex.get_animation(8);
      stretch = (TextStretchAnimation*)tex.get_animation(9);
 }
