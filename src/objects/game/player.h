@@ -6,6 +6,11 @@
 #include "../../libs/audio_engine.h"
 #include "../../libs/utils.h"
 #include "balloon_counter.h"
+#include "branch_indicator.h"
+#include "combo_announce.h"
+#include "gauge.h"
+#include "gogo_time.h"
+#include "judge_counter.h"
 #include "judgment.h"
 #include "lane_hit_effect.h"
 #include "drum_hit_effect.h"
@@ -14,6 +19,8 @@
 #include "combo.h"
 #include "drumroll_counter.h"
 #include "kusudama_counter.h"
+#include "score_counter.h"
+#include "score_counter_animation.h"
 
 namespace JudgePos {
     inline float X = 414 * tex.screen_scale;
@@ -31,8 +38,6 @@ namespace Timing {
 
 class Player {
 public:
-    Player() = default;
-
     Player(std::optional<TJAParser>& parser_ref, PlayerNum player_num_param, int difficulty_param,
            bool is_2p_param, const Modifiers& modifiers_param);
 
@@ -115,6 +120,15 @@ private:
     std::optional<DrumrollCounter> drumroll_counter;
     std::optional<BalloonCounter> balloon_counter;
     std::optional<KusudamaCounter> kusudama_counter;
+    ScoreCounter score_counter;
+    std::vector<ScoreCounterAnimation> base_score_list;
+    std::optional<GogoTime> gogo_time;
+    std::optional<double> delay_start;
+    std::optional<double> delay_end;
+    std::optional<ComboAnnounce> combo_announce;
+    std::optional<BranchIndicator> branch_indicator;
+    std::optional<JudgeCounter> judge_counter;
+    std::optional<Gauge> gauge;
 
     void get_load_time(Note& note);
 

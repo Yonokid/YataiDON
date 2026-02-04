@@ -25,7 +25,7 @@ private:
     std::optional<std::string> song_music;
     std::optional<TJAParser> parser;
     std::string scene_preset;
-    Player player_1;
+    std::optional<Player> player_1;
 
 
 public:

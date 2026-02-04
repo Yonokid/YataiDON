@@ -95,7 +95,7 @@ void GameScreen::init_tja(fs::path song) {
         song_music = audio->loadMusicStream(parser->metadata.wave, "song");
     }
 
-    player_1 = Player(parser, global_data.player_num, global_data.session_data[(int)global_data.player_num].selected_difficulty, false, global_data.modifiers[(int)global_data.player_num]);
+    player_1.emplace(parser, global_data.player_num, global_data.session_data[(int)global_data.player_num].selected_difficulty, false, global_data.modifiers[(int)global_data.player_num]);
     start_ms = get_current_ms() - parser->metadata.offset*1000;
     //self.precise_start = time.time() - self.parser.metadata.offset
 }
@@ -161,7 +161,9 @@ std::optional<std::string> GameScreen::update() {
 
     update_audio(current_ms);
 
-    player_1.update(current_ms, current_time);//, background)
+    if (player_1.has_value()) {
+        player_1->update(current_ms, current_time);//, background)
+    }
     /*
     self.song_info.update(current_time)
     self.result_transition.update(current_time)
@@ -204,6 +206,8 @@ void GameScreen::draw() {
         self.movie.draw()
     elif self.background is not None:
     self.background.draw()*/
-    player_1.draw(current_ms, mask_shader);
+    if (player_1.has_value()) {
+        player_1->draw(current_ms, mask_shader);
+    }
     draw_overlay();
 }

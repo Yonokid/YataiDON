@@ -20,7 +20,6 @@ protected:
     double delay;
     double delay_saved;
     double start_ms;
-    bool is_started;
     bool is_reversing;
     bool unlocked;
     bool loop;
@@ -36,6 +35,7 @@ protected:
 public:
     double attribute;
     bool is_finished;
+    bool is_started;
 
     BaseAnimation(double duration, double delay = 0.0, bool loop = false, bool lock_input = false);
 

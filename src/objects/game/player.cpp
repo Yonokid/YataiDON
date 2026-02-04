@@ -24,43 +24,32 @@ Player::Player(std::optional<TJAParser>& parser_ref, PlayerNum player_num_param,
     , autoplay_hit_side(Side::LEFT)
     , last_subdivision(-1)
     , combo_display(combo, 0, is_2p)
+    , score_counter(is_2p, 0)
 {
     reset_chart();
     don_hitsound = "hitsound_don_" + std::to_string((int)player_num) + "p";
     kat_hitsound = "hitsound_kat_" + std::to_string((int)player_num) + "p";
 
-    //self.base_score_list: list[ScoreCounterAnimation] = []
-    //self.score_counter = ScoreCounter(self.score, self.is_2p)
-    //self.gogo_time: Optional[GogoTime] = None
-    //self.delay_start: Optional[float] = None
-    //self.delay_end: Optional[float] = None
-    //self.combo_announce = ComboAnnounce(self.combo, 0, player_num, self.is_2p)
-    /*if (!parser->metadata.course_data) {
-        self.branch_indicator = None
-    } else {
-        self.branch_indicator = BranchIndicator(self.is_2p) if parser and parser.metadata.course_data[self.difficulty].is_branching else None
-    }*/
+    if (parser != std::nullopt && !parser->metadata.course_data.empty()) {
+        if (parser->metadata.course_data[difficulty].is_branching) {
+        branch_indicator = BranchIndicator(is_2p);
+        }
+    }
     //self.ending_anim: Optional[FailAnimation | ClearAnimation | FCAnimation] = None
     //plate_info = global_data.config[f"nameplate_{self.is_2p+1}p"]
     //self.nameplate = Nameplate(plate_info["name"], plate_info["title"], global_data.player_num, plate_info["dan"], plate_info["gold"], plate_info["rainbow"], plate_info["title_bg"])
     //self.chara = Chara2D(player_num - 1, self.bpm)
-    /*if global_data.config["general"]["judge_counter"]:
-        self.judge_counter = JudgeCounter()
-    else:
-        self.judge_counter = None*/
-
-    //self.input_log: dict[float, str] = dict()
-    /*if not parser.metadata.course_data:
-        stars = 10
-    else:
-        stars = parser.metadata.course_data[self.difficulty].level
-    self.gauge = Gauge(self.player_num, self.difficulty, stars, self.total_notes, self.is_2p)*/
+    if (global_data.config->general.judge_counter) {
+        judge_counter = JudgeCounter();
+    }
 }
 
 void Player::update(double ms_from_start, double current_ms) {
     note_manager(ms_from_start);//, background);
     combo_display.update(current_ms, combo);
-    //self.combo_announce.update(current_time)
+    if (combo_announce != std::nullopt) {
+        combo_announce->update(current_ms);
+    }
     drumroll_counter_manager(current_ms);
     balloon_counter_manager(current_ms);
     for (auto it = draw_judge_list.begin(); it != draw_judge_list.end(); ) {
@@ -71,8 +60,9 @@ void Player::update(double ms_from_start, double current_ms) {
             ++it;
         }
     }
-    //if self.gogo_time is not None:
-        //self.gogo_time.update(current_time)
+    if (gogo_time != std::nullopt) {
+        gogo_time->update(current_ms);
+    }
     if (lane_hit_effect != std::nullopt) {
         lane_hit_effect->update(current_ms);
         if (lane_hit_effect->is_finished()) {
@@ -88,17 +78,18 @@ void Player::update(double ms_from_start, double current_ms) {
         }
     }
     //self.handle_timeline(ms_from_start)
-    /*
-    if self.delay_start is not None and self.delay_end is not None:
-        # Currently, a delay is active: notes should be frozen at ms = delay_start
-        # Check if it ended
-        if ms_from_start >= self.delay_end:
-            delay = self.delay_end - self.delay_start
-            for note in chain(self.don_notes, self.kat_notes, self.other_notes, self.current_bars, self.draw_bar_list):
-                note.load_ms += delay
-            self.delay_start = None
-            self.delay_end = None
-     */
+    if (delay_start != std::nullopt && delay_end != std::nullopt) {
+        if (ms_from_start >= delay_end.value()) {
+            double delay = delay_end.value() - delay_start.value();
+            for (auto& note : don_notes) note.load_ms += delay;
+            for (auto& note : kat_notes) note.load_ms += delay;
+            for (auto& note : other_notes) note.load_ms += delay;
+            for (auto& note : current_bars) note.load_ms += delay;
+            for (auto& note : draw_bar_list) note.load_ms += delay;
+            delay_start.reset();
+            delay_end.reset();
+        }
+    }
 
     for (auto it = draw_arc_list.begin(); it != draw_arc_list.end(); ) {
         it->update(current_ms);
@@ -120,17 +111,27 @@ void Player::update(double ms_from_start, double current_ms) {
             ++it;
         }
     }
-    //self.animation_manager(self.base_score_list, current_time)
-    //self.score_counter.update(current_time, self.score)
+    for (auto it = base_score_list.begin(); it != base_score_list.end(); ) {
+        it->update(current_ms);
+        if (it->is_finished()) {
+            it = base_score_list.erase(it);
+        } else {
+            ++it;
+        }
+    }
+    score_counter.update(current_ms, score);
     //self.autoplay_manager(ms_from_start, current_time, background)
     handle_input(ms_from_start, current_ms);//, background);
     //self.nameplate.update(current_time)
-    //if self.gauge is not None:
-        //self.gauge.update(current_time)
-    //if self.judge_counter is not None:
-        //self.judge_counter.update(self.good_count, self.ok_count, self.bad_count, self.total_drumroll)
-    //if self.branch_indicator is not None:
-        //self.branch_indicator.update(current_time)
+    if (gauge != std::nullopt) {
+        gauge->update(current_ms);
+    }
+    if (judge_counter != std::nullopt) {
+        judge_counter->update(good_count, ok_count, bad_count, total_drumroll);
+    }
+    if (branch_indicator != std::nullopt) {
+        branch_indicator->update(current_ms);
+    }
     //if self.ending_anim is not None:
         //self.ending_anim.update(current_time)
 
@@ -148,18 +149,21 @@ void Player::draw(double ms_from_start, ray::Shader& mask_shader) {
     //Group 1: Background and lane elements
     tex.draw_texture("lane", "lane_background", {.index = is_2p});
     if (player_num == PlayerNum::AI) tex.draw_texture("lane", "ai_lane_background");
-    //if self.branch_indicator is not None:
-        //self.branch_indicator.draw()
-    //if self.gauge is not None:
-        //self.gauge.draw()
+    if (branch_indicator != std::nullopt) {
+        branch_indicator->draw();
+    }
+    if (gauge != std::nullopt) {
+        gauge->draw();
+    }
     if (lane_hit_effect != std::nullopt) {
         lane_hit_effect->draw();
     }
     tex.draw_texture("lane", "lane_hit_circle", {.x =  judge_x, .y =  judge_y, .index = is_2p});
 
     //Group 2: judgment and hit effects
-    //if self.gogo_time is not None:
-        //self.gogo_time.draw(self.judge_x, self.judge_y)
+    if (gogo_time != std::nullopt) {
+        gogo_time->draw(judge_x, judge_y);
+    }
     for (Judgment anim : draw_judge_list) {
         anim.draw(judge_x, judge_y);
     }
@@ -328,6 +332,13 @@ void Player::reset_chart() {
 
     //Decide end_time after all transforms have been applied
     end_time = !notes.play_notes.empty() ? notes.play_notes.back().hit_ms : 0;
+    int stars;
+    if (parser->metadata.course_data.empty()) {
+        stars = 10;
+    } else {
+        stars = parser->metadata.course_data[difficulty].level;
+    }
+    gauge = Gauge(player_num, difficulty, stars, total_notes, is_2p);
 
     /*std::vector<std::reference_wrapper<std::vector<Section>>> branches = {
         std::ref(branch_m),
@@ -372,15 +383,17 @@ void Player::reset_chart() {
 }
 
 float Player::get_position_x(Note note, double current_ms) {
-    /*if self.delay_start:
-        current_ms = self.delay_start*/
+    if (delay_start != std::nullopt) {
+        current_ms = delay_start.value();
+    }
     float speedx = note.bpm / 240000 * note.scroll_x * (tex.screen_width - JudgePos::X);
     return JudgePos::X + (note.hit_ms - current_ms) * speedx;
 }
 
 float Player::get_position_y(Note note, double current_ms) {
-    /*if self.delay_start:
-        current_ms = self.delay_start*/
+    if (delay_start != std::nullopt) {
+        current_ms = delay_start.value();
+    }
     float speedy = note.bpm / 240000 * note.scroll_y * ((tex.screen_width - JudgePos::X)/tex.screen_width) * tex.screen_width;
     return (note.hit_ms - current_ms) * speedy;
 }
@@ -394,9 +407,9 @@ void Player::play_note_manager(double current_ms) {//, background: Optional[Back
             else:
                 background.add_chibi(True, 1)*/
         bad_count++;
-        //self.input_log[self.don_notes[0].index] = "BAD"
-        //if self.gauge is not None:
-            //self.gauge.add_bad()
+        if (gauge != std::nullopt) {
+            gauge->add_bad();
+        }
         don_notes.pop_front();
         //if self.is_branch and self.branch_condition == "p":
             //self.branch_condition_count -= 1
@@ -410,9 +423,9 @@ void Player::play_note_manager(double current_ms) {//, background: Optional[Back
             else:
                 background.add_chibi(True, 1)*/
         bad_count++;
-        //self.input_log[self.kat_notes[0].index] = "BAD"
-        //if self.gauge is not None:
-            //self.gauge.add_bad()
+        if (gauge != std::nullopt) {
+            gauge->add_bad();
+        }
         kat_notes.pop_front();
         //if self.is_branch and self.branch_condition == "p":
             //self.branch_condition_count -= 1
@@ -526,15 +539,19 @@ void Player::note_correct(Note note, double current_time) {
 
     if (note.type < 7) {
         combo++;
-        /*if self.combo % 10 == 0:
-            self.chara.set_animation("10_combo")
-        if self.combo % 100 == 0:
-            self.combo_announce = ComboAnnounce(self.combo, current_time, self.player_num, self.is_2p)
-        if self.combo > self.max_combo:
-            self.max_combo = self.combo
-        if self.combo % 100 == 0 and self.score_method == ScoreMethod.GEN3:
-            self.score += 10000
-            self.base_score_list.append(ScoreCounterAnimation(self.player_num, 10000, self.is_2p))*/
+        if (combo % 10 == 0) {
+            //chara.set_animation("10_combo")
+        }
+        if (combo % 100 == 0) {
+            combo_announce = ComboAnnounce(combo, current_time, player_num, is_2p);
+        }
+        if (combo > max_combo) {
+            max_combo = combo;
+        }
+        if (combo % 100 == 0 && score_method == ScoreMethod::GEN3) {
+            score += 10000;
+            base_score_list.push_back(ScoreCounterAnimation(player_num, 10000, is_2p));
+        }
     }
 
     if (note.type != (int)NoteType::KUSUDAMA) {
@@ -563,18 +580,18 @@ void Player::check_note(double ms_from_start, DrumType drum_type, double current
         ok_window_ms = Timing::OK;
         bad_window_ms = Timing::BAD;
     }
-    /*
-    if self.score_method == ScoreMethod.GEN3:
-        self.base_score = self.score_init
-        if 9 < self.combo and self.combo < 30:
-            self.base_score = math.floor(self.score_init + 1 * self.score_diff)
-        elif 29 < self.combo and self.combo < 50:
-            self.base_score = math.floor(self.score_init + 2 * self.score_diff)
-        elif 49 < self.combo and self.combo < 100:
-            self.base_score = math.floor(self.score_init + 4 * self.score_diff)
-        elif 99 < self.combo:
-            self.base_score = math.floor(self.score_init + 8 * self.score_diff)
-     */
+    if (score_method == ScoreMethod::GEN3) {
+        base_score = score_init;
+        if (9 < combo && combo < 30) {
+            base_score = std::floor(score_init + 1 * score_diff);
+        } else if (29 < combo && combo < 50) {
+            base_score = std::floor(score_init + 2 * score_diff);
+        } else if (49 < combo && combo < 100) {
+            base_score = std::floor(score_init + 4 * score_diff);
+        } else if (99 < combo) {
+            base_score = std::floor(score_init + 8 * score_diff);
+        }
+    }
 
     if (is_drumroll && !other_notes.empty()) {
         //self.check_drumroll(drum_type, background, current_time);
@@ -605,12 +622,13 @@ void Player::check_note(double ms_from_start, DrumType drum_type, double current
             lane_hit_effect = LaneHitEffect(drum_type, Judgments::GOOD, is_2p);
             good_count++;
             score += base_score;
-            //if len(self.base_score_list) < 5:
-                //self.base_score_list.append(ScoreCounterAnimation(self.player_num, self.base_score, self.is_2p))
-            //self.input_log[curr_note.index] = "GOOD"
+            if (base_score_list.size() < 5) {
+                base_score_list.push_back(ScoreCounterAnimation(player_num, base_score, is_2p));
+            }
             note_correct(curr_note, current_time);
-            //if self.gauge is not None:
-                //self.gauge.add_good()
+            if (gauge != std::nullopt) {
+                gauge->add_good();
+            }
             //if self.is_branch and self.branch_condition == "p":
                 //self.branch_condition_count += 1
             /*if background is not None:
@@ -624,12 +642,13 @@ void Player::check_note(double ms_from_start, DrumType drum_type, double current
             lane_hit_effect = LaneHitEffect(drum_type, Judgments::OK, is_2p);
             ok_count++;
             score += 10 * std::floor(base_score / 2 / 10);
-            //if len(self.base_score_list) < 5:
-                //self.base_score_list.append(ScoreCounterAnimation(self.player_num, 10 * math.floor(self.base_score / 2 / 10), self.is_2p))
-            //self.input_log[curr_note.index] = "OK"
+            if (base_score_list.size() < 5) {
+                base_score_list.push_back(ScoreCounterAnimation(player_num, 10 * std::floor(base_score / 2 / 10), is_2p));
+            }
             note_correct(curr_note, current_time);
-            //if self.gauge is not None:
-                //self.gauge.add_ok()
+            if (gauge != std::nullopt) {
+                gauge->add_ok();
+            }
             //if self.is_branch and self.branch_condition == "p":
                 //self.branch_condition_count += 0.5
             /*if background is not None:
@@ -639,7 +658,6 @@ void Player::check_note(double ms_from_start, DrumType drum_type, double current
                     background.add_chibi(False, 1)*/
 
         } else if ((curr_note.hit_ms - bad_window_ms) <= ms_from_start && ms_from_start <= (curr_note.hit_ms + bad_window_ms)) {
-            //self.input_log[curr_note.index] = "BAD"
             draw_judge_list.push_back(Judgment(Judgments::BAD, big, is_2p));
             bad_count++;
             combo = 0;
@@ -655,9 +673,10 @@ void Player::check_note(double ms_from_start, DrumType drum_type, double current
                 std::remove(current_notes_draw.begin(), current_notes_draw.end(), note),
                 current_notes_draw.end()
             );
-            /*if self.gauge is not None:
-                self.gauge.add_bad()
-            if background is not None:
+            if (gauge != std::nullopt) {
+                gauge->add_bad();
+            }
+            /*if background is not None:
                 if self.is_2p:
                     background.add_chibi(True, 2)
                 else:
@@ -687,7 +706,7 @@ void Player::balloon_counter_manager(double current_ms) {
         if (balloon_counter->is_finished()) {
             if (score_method == ScoreMethod::GEN3) {
                 score += 5000;
-                //base_score_list.append(ScoreCounterAnimation(self.player_num, 5000, self.is_2p))
+                base_score_list.push_back(ScoreCounterAnimation(player_num, 5000, is_2p));
             }
             balloon_counter.reset();
             //chara.set_animation("balloon_pop");
@@ -757,10 +776,9 @@ void Player::draw_notes(double current_ms) {
         }
 
         float x_position, y_position;
-        /*
-        if (has_sudden) {
-            double appear_ms = std::visit([](auto&& n) { return n.hit_ms - n.sudden_appear_ms; }, note);
-            double moving_start_ms = std::visit([](auto&& n) { return n.hit_ms - n.sudden_moving_ms; }, note);
+        if (note.sudden_appear_ms.has_value() && note.sudden_moving_ms.has_value()) {
+            double appear_ms = note.hit_ms - note.sudden_appear_ms.value();
+            double moving_start_ms = note.hit_ms - note.sudden_moving_ms.value();
 
             if (current_ms < appear_ms) {
                 continue;
@@ -771,10 +789,9 @@ void Player::draw_notes(double current_ms) {
             x_position = get_position_x(note, effective_ms);
             y_position = get_position_y(note, current_ms);
         } else {
-         */
             x_position = get_position_x(note, current_ms);
             y_position = get_position_y(note, current_ms);
-        //}
+        }
 
         x_position += judge_x;
         y_position += judge_y;
@@ -816,7 +833,9 @@ void Player::draw_overlays(ray::Shader mask_shader) {
 
     //Group 6: UI overlays
     combo_display.draw();
-    //self.combo_announce.draw()
+    if (combo_announce != std::nullopt) {
+        combo_announce->draw();
+    }
     if (is_2p) {
         tex.draw_texture("lane", "lane_score_cover", {.mirror="vertical", .index=is_2p});
     } else {
@@ -828,8 +847,9 @@ void Player::draw_overlays(ray::Shader mask_shader) {
     } else {
         tex.draw_texture("lane", "lane_difficulty", {.frame=difficulty, .index=is_2p});
     }
-    //if self.judge_counter is not None:
-        //self.judge_counter.draw()
+    if (judge_counter != std::nullopt) {
+        judge_counter->draw();
+    }
 
     // Group 7: Player-specific elements
     if (modifiers.auto_play) {
@@ -854,7 +874,8 @@ void Player::draw_overlays(ray::Shader mask_shader) {
     if (kusudama_counter != std::nullopt) {
         kusudama_counter->draw();
     }
-    //self.score_counter.draw()
-    //for anim in self.base_score_list:
-        //anim.draw()
+    score_counter.draw();
+    for (ScoreCounterAnimation anim : base_score_list) {
+        anim.draw();
+    }
 }
