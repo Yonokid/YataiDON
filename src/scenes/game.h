@@ -42,8 +42,6 @@ public:
 
     void start_song(double ms_from_start);
 
-    void update_audio(double ms_from_start);
-
     std::nullopt_t global_keys();
 
     std::optional<std::string> update() override;

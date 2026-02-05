@@ -1,5 +1,4 @@
 #include "combo_announce.h"
-#include "../../libs/audio_engine.h"
 
 ComboAnnounce::ComboAnnounce(int combo, double current_ms, PlayerNum player_num, bool is_2p)
     : combo(combo), wait(current_ms), player_num(player_num), is_2p(is_2p),
@@ -19,7 +18,7 @@ void ComboAnnounce::update(double current_ms) {
 
     if (!audio_played && combo >= 100) {
         std::string sound_name = "combo_" + std::to_string(combo) + "_" + std::to_string(static_cast<int>(player_num)) + "p";
-        audio->playSound(sound_name, "voice");
+        audio->play_sound(sound_name, "voice");
         audio_played = true;
     }
 }

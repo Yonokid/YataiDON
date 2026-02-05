@@ -3,7 +3,7 @@
 #include "../../libs/parsers/tja.h"
 #include "../../libs/global_data.h"
 #include "../../libs/texture.h"
-#include "../../libs/audio_engine.h"
+#include "../../libs/audio.h"
 #include "../../libs/utils.h"
 #include "balloon_counter.h"
 #include "branch_indicator.h"

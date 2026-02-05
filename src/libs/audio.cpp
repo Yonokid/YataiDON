@@ -1,1169 +1,748 @@
+#include "audio.h"
 
-// Thank you raysan for data structures
-// https://github.com/raysan5/raylib/blob/master/src/raudio.c
-// This could be cleaned up significantly. I do not think
-// the audio stream structure is necessary after converting the music
-// stream to portaudio
-
-#include "audio/portaudio.h"
-#include <mutex>
-#ifdef _WIN32
-#include "pa_asio.h"
-#include <windows.h>
-#endif
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include "sndfile.h"
-#include <string.h>
-#include "samplerate.h"
-#include <unistd.h>
-#include <math.h>
-
-#define LOG_INFO 0
-#define LOG_WARNING 1
-#define LOG_ERROR 2
-
-static int CURRENT_LOG_LEVEL = LOG_INFO;
-
-extern "C" {
-void set_log_level(int level) {
-    CURRENT_LOG_LEVEL = level;
-}
-} // extern "C"
-
-#define TRACELOG(level, ...) do { \
-    if (level >= CURRENT_LOG_LEVEL) { \
-        const char* level_str = (level == LOG_INFO) ? "INFO" : \
-                               (level == LOG_WARNING) ? "WARNING" : "ERROR"; \
-        printf("[%s] AUDIO: ", level_str); \
-        printf(__VA_ARGS__); \
-        printf("\n"); \
-        fflush(stdout); \
-    } \
-} while(0)
-
-#define FREE(ptr) do { if (ptr) { free(ptr); (ptr) = NULL; } } while(0)
-
-#define AUDIO_DEVICE_CHANNELS              2    // Device output channels: stereo
-
-struct audio_buffer;
-
-typedef struct wave {
-    unsigned int frameCount;    // Total number of frames (considering channels)
-    unsigned int sampleRate;    // Frequency (samples per second)
-    unsigned int sampleSize;    // Bit depth (bits per sample): 8, 16, 32 (24 not supported)
-    unsigned int channels;      // Number of channels (1-mono, 2-stereo, ...)
-    void *data;                 // Buffer data pointer
-} wave;
-
-typedef struct audio_stream {
-    struct audio_buffer *buffer;       // Pointer to internal data used by the audio system
-
-    unsigned int sampleRate;    // Frequency (samples per second)
-    unsigned int sampleSize;    // Bit depth (bits per sample): 8, 16, 32 (24 not supported)
-    unsigned int channels;      // Number of channels (1-mono, 2-stereo, ...)
-} audio_stream;
-
-typedef struct sound {
-    audio_stream stream;         // Audio stream
-    unsigned int frameCount;    // Total number of frames (considering channels)
-} sound;
-
-//anything longer than ~10 seconds should be streamed
-typedef struct music {
-    audio_stream stream;         // Audio stream
-    unsigned int frameCount;    // Total number of frames (considering channels)
-    void *ctxData;
-} music;
-
-// Music context data, required for music streaming
-typedef struct music_ctx {
-    SNDFILE *snd_file;
-    SRC_STATE *resampler;
-    double src_ratio;
-} music_ctx;
-
-struct audio_buffer {
-    float volume;                   // Audio buffer volume
-    float pitch;                    // Audio buffer pitch
-    float pan;                      // Audio buffer pan (0.0f to 1.0f)
-    bool playing;                   // Audio buffer state: AUDIO_PLAYING
-    bool paused;
-    bool isStreaming;    // Audio buffer state: AUDIO_PAUSED
-    bool isSubBufferProcessed[2];   // SubBuffer processed (virtual double buffer)
-    unsigned int sizeInFrames;      // Total buffer size in frames
-    unsigned int frameCursorPos;    // Frame cursor position
-    unsigned int framesProcessed;   // Total frames processed in this buffer (required for play timing)
-    unsigned char *data;            // Data buffer, on music stream keeps filling
-    struct audio_buffer *next;             // Next audio buffer on the list
-    struct audio_buffer *prev;             // Previous audio buffer on the list
-};
-
-typedef struct AudioData {
-    struct {
-        PaStream *stream;           // PortAudio stream
-        PaStreamParameters outputParameters;  // Output stream parameters
-        std::mutex lock;       // Mutex lock for thread synchronization
-        bool isReady;               // Check if audio device is ready
-        double sampleRate;
-        size_t pcmBufferSize;       // Pre-allocated buffer size
-        void *pcmBuffer;            // Pre-allocated buffer to read audio data from file/memory
-        float masterVolume;         // Master volume control
-    } System;
-    struct {
-        struct audio_buffer *first;         // Pointer to first audio_buffer in the list
-        struct audio_buffer *last;          // Pointer to last audio_buffer in the list
-    } Buffer;
-} AudioData;
-
-extern "C" {
-
-void list_host_apis(void);
-const char* get_host_api_name(PaHostApiIndex hostApi);
-void init_audio_device(PaHostApiIndex host_api, double sample_rate, unsigned long buffer_size);
-void close_audio_device(void);
-bool is_audio_device_ready(void);
-void set_master_volume(float volume);
-float get_master_volume(void);
-
-struct audio_buffer *load_audio_buffer(uint32_t channels, uint32_t size_in_frames, int usage);
-void unload_audio_buffer(struct audio_buffer *buffer);
-bool is_audio_buffer_playing(struct audio_buffer *buffer);
-void play_audio_buffer(struct audio_buffer *buffer);
-void stop_audio_buffer(struct audio_buffer *buffer);
-void pause_audio_buffer(struct audio_buffer *buffer);
-void resume_audio_buffer(struct audio_buffer *buffer);
-void set_audio_buffer_volume(struct audio_buffer *buffer, float volume);
-void set_audio_buffer_pitch(struct audio_buffer *buffer, float pitch);
-void set_audio_buffer_pan(struct audio_buffer *buffer, float pan);
-void track_audio_buffer(struct audio_buffer *buffer);
-void untrack_audio_buffer(struct audio_buffer *buffer);
-
-wave load_wave(const char* filename);
-bool is_wave_valid(wave wave);
-void unload_wave(wave wave);
-
-sound load_sound_from_wave(wave wave);
-sound load_sound(const char* filename);
-bool is_sound_valid(sound sound);
-void unload_sound(sound sound);
-void play_sound(sound sound);
-void pause_sound(sound sound);
-void resume_sound(sound sound);
-void stop_sound(sound sound);
-bool is_sound_playing(sound sound);
-void set_sound_volume(sound sound, float volume);
-void set_sound_pitch(sound sound, float pitch);
-void set_sound_pan(sound sound, float pan);
-
-audio_stream load_audio_stream(unsigned int sample_rate, unsigned int sample_size, unsigned int channels);
-void unload_audio_stream(audio_stream stream);
-void play_audio_stream(audio_stream stream);
-void pause_audio_stream(audio_stream stream);
-void resume_audio_stream(audio_stream stream);
-bool is_audio_stream_playing(audio_stream stream);
-void stop_audio_stream(audio_stream stream);
-void set_audio_stream_volume(audio_stream stream, float volume);
-void set_audio_stream_pitch(audio_stream stream, float pitch);
-void set_audio_stream_pan(audio_stream stream, float pan);
-void update_audio_stream(audio_stream stream, const void *data, int frame_count);
-
-music load_music_stream(const char* filename);
-bool is_music_valid(music music);
-void unload_music_stream(music music);
-void play_music_stream(music music);
-void pause_music_stream(music music);
-void resume_music_stream(music music);
-void stop_music_stream(music music);
-void seek_music_stream(music music, float position);
-bool music_stream_needs_update(music music);
-void update_music_stream(music music);
-bool is_music_stream_playing(music music);
-void set_music_volume(music music, float volume);
-void set_music_pitch(music music, float pitch);
-void set_music_pan(music music, float pan);
-float get_music_time_length(music music);
-float get_music_time_played(music music);
-
-} // extern "C"
-
-// Global audio data (uses C++ std::mutex, so must be outside extern "C")
-static AudioData AUDIO = {
-    .System = {
-        .masterVolume = 1.0f
-    }
-};
-
-// Callback function (uses C++ features, so must have C++ linkage)
-static int port_audio_callback(const void *inputBuffer, void *outputBuffer,
-                            unsigned long framesPerBuffer,
-                            const PaStreamCallbackTimeInfo* timeInfo,
-                            PaStreamCallbackFlags statusFlags,
-                            void *userData)
+AudioEngine::AudioEngine(int host_api_index, float sample_rate, unsigned long buffer_size, const VolumeConfig& volume_presets)
+    : host_api_index(std::max(host_api_index, 0))
+    , target_sample_rate(sample_rate < 0 ? 44100.0f : sample_rate)
+    , buffer_size(buffer_size)
+    , volume_presets(volume_presets)
+    , is_ready(false)
+    , master_volume(1.0f)
+    , stream(nullptr)
 {
-    (void) inputBuffer;
-    (void) timeInfo;
-    (void) statusFlags;
-    (void) userData;
+    fs::path skin_path = fs::path("Skins") / global_data.config->paths.skin / "Sounds";
+    if (fs::exists(skin_path)) {
+        sounds_path = skin_path;
+    } else {
+        spdlog::error("Skin directory not found, skipping audio initialization");
+    }
+}
 
-    float *out = (float*)outputBuffer;
+int AudioEngine::port_audio_callback(const void *inputBuffer, void *outputBuffer,
+                        unsigned long framesPerBuffer,
+                        const PaStreamCallbackTimeInfo* timeInfo,
+                        PaStreamCallbackFlags statusFlags,
+                        void *userData) {
 
-    AUDIO.System.lock.lock();
+    float* out = static_cast<float*>(outputBuffer);
+
+    AudioEngine* engine = static_cast<AudioEngine*>(userData);
+
+    if (!engine) {
+        std::memset(out, 0, framesPerBuffer * 2 * sizeof(float));
+        return paContinue;
+    }
+
+    engine->lock.lock();
 
     // Initialize output buffer with silence
-    for (unsigned long i = 0; i < framesPerBuffer * AUDIO_DEVICE_CHANNELS; i++) {
-        out[i] = 0.0f;
-    }
+    std::memset(out, 0, framesPerBuffer * 2 * sizeof(float));
 
-    struct audio_buffer *audio_buffer = AUDIO.Buffer.first;
-    while (audio_buffer != NULL) {
-        if (audio_buffer->playing && !audio_buffer->paused && audio_buffer->data != NULL) {
-            unsigned int subBufferSizeFrames = audio_buffer->sizeInFrames / 2;
-            unsigned long framesToMix = framesPerBuffer;
-            float *buffer_data = (float *)audio_buffer->data;
+    for (auto& [name, snd] : engine->sounds) {
+        if (!snd.is_playing) continue;
 
-            while (framesToMix > 0) {
-                unsigned int currentSubBufferIndex = (audio_buffer->frameCursorPos / subBufferSizeFrames) % 2;
-                unsigned int frameOffsetInSubBuffer = audio_buffer->frameCursorPos % subBufferSizeFrames;
-                unsigned int framesLeftInSubBuffer = subBufferSizeFrames - frameOffsetInSubBuffer;
-                unsigned int framesThisPass = (framesToMix < framesLeftInSubBuffer) ? framesToMix : framesLeftInSubBuffer;
+        unsigned long frames_to_process = framesPerBuffer;
+        unsigned long output_index = 0;
 
-                if (audio_buffer->isSubBufferProcessed[currentSubBufferIndex]) {
-                    // This part of the buffer is not ready, output silence
+        while (frames_to_process > 0 && snd.is_playing) {
+            if (snd.current_frame >= snd.frame_count) {
+                if (snd.loop) {
+                    snd.current_frame = 0;
                 } else {
-                    // Calculate pan gains (0.0 = full left, 0.5 = center, 1.0 = full right)
-                    float left_gain = sqrtf(1.0f - audio_buffer->pan);
-                    float right_gain = sqrtf(audio_buffer->pan);
-
-                    for (unsigned long i = 0; i < framesThisPass; i++) {
-                        unsigned long buffer_pos = ((audio_buffer->frameCursorPos + i) % audio_buffer->sizeInFrames) * AUDIO_DEVICE_CHANNELS;
-                        unsigned long output_pos = (framesPerBuffer - framesToMix + i) * AUDIO_DEVICE_CHANNELS;
-
-                        for (int ch = 0; ch < AUDIO_DEVICE_CHANNELS; ch++) {
-                            float sample = buffer_data[buffer_pos + ch] * audio_buffer->volume;
-                            float gain = (ch == 0) ? left_gain : right_gain;
-                            out[output_pos + ch] += sample * gain;
-                        }
-                    }
-                }
-
-                audio_buffer->frameCursorPos += framesThisPass;
-                audio_buffer->framesProcessed += framesThisPass;
-                framesToMix -= framesThisPass;
-
-                unsigned int newSubBufferIndex = (audio_buffer->frameCursorPos / subBufferSizeFrames) % 2;
-                if (newSubBufferIndex != currentSubBufferIndex) {
-                    audio_buffer->isSubBufferProcessed[currentSubBufferIndex] = true;
-                }
-
-                if (!audio_buffer->isStreaming && audio_buffer->frameCursorPos >= audio_buffer->sizeInFrames) {
-                    audio_buffer->playing = false;
+                    snd.is_playing = false;
                     break;
                 }
             }
+
+            unsigned long frames_available = snd.frame_count - snd.current_frame;
+            unsigned long frames_to_read = (frames_to_process < frames_available) ? frames_to_process : frames_available;
+
+            for (unsigned long i = 0; i < frames_to_read; i++) {
+                unsigned long src_index = (snd.current_frame + i) * snd.channels;
+                unsigned long dst_index = (output_index + i) * 2;  // Stereo output
+
+                float left, right;
+
+                if (snd.channels == 1) {
+                    // Mono source - apply pan
+                    float sample = snd.data[src_index];
+                    left = sample * (1.0f - snd.pan);
+                    right = sample * snd.pan;
+                } else {
+                    // Stereo source - apply pan as balance
+                    left = snd.data[src_index];
+                    right = snd.data[src_index + 1];
+
+                    if (snd.pan < 0.5f) {
+                        right *= (snd.pan * 2.0f);
+                    } else if (snd.pan > 0.5f) {
+                        left *= ((1.0f - snd.pan) * 2.0f);
+                    }
+                }
+
+                out[dst_index] += left * snd.volume;
+                out[dst_index + 1] += right * snd.volume;
+            }
+
+            snd.current_frame += frames_to_read;
+            output_index += frames_to_read;
+            frames_to_process -= frames_to_read;
         }
-        audio_buffer = audio_buffer->next;
     }
 
-    for (unsigned long i = 0; i < framesPerBuffer * AUDIO_DEVICE_CHANNELS; i++) {
-        out[i] *= AUDIO.System.masterVolume;
+    for (auto& [name, mus] : engine->music_streams) {
+        if (!mus.is_playing) continue;
+
+        unsigned long frames_to_process = framesPerBuffer;
+        unsigned long output_index = 0;
+
+        while (frames_to_process > 0 && mus.is_playing) {
+            if (mus.buffer_position >= mus.frames_in_buffer) {
+                if (mus.file_handle) {
+                    sf_count_t frames_read = sf_readf_float(mus.file_handle, mus.stream_buffer, mus.buffer_size);
+                    mus.frames_in_buffer = frames_read;
+                    mus.buffer_position = 0;
+
+                    if (frames_read == 0) {
+                        if (mus.loop) {
+                            sf_seek(mus.file_handle, 0, SEEK_SET);
+                            frames_read = sf_readf_float(mus.file_handle, mus.stream_buffer, mus.buffer_size);
+                            mus.frames_in_buffer = frames_read;
+                        } else {
+                            mus.is_playing = false;
+                            break;
+                        }
+                    }
+                } else {
+                    mus.is_playing = false;
+                    break;
+                }
+            }
+
+            unsigned long frames_available = mus.frames_in_buffer - mus.buffer_position;
+            unsigned long frames_to_read = (frames_to_process < frames_available) ? frames_to_process : frames_available;
+
+            unsigned int channels = mus.file_info.channels;
+            for (unsigned long i = 0; i < frames_to_read; i++) {
+                unsigned long src_index = (mus.buffer_position + i) * channels;
+                unsigned long dst_index = (output_index + i) * 2;  // Stereo output
+
+                float left, right;
+
+                if (channels == 1) {
+                    // Mono source - apply pan
+                    float sample = mus.stream_buffer[src_index];
+                    left = sample * (1.0f - mus.pan);
+                    right = sample * mus.pan;
+                } else {
+                    // Stereo source - apply pan as balance
+                    left = mus.stream_buffer[src_index];
+                    right = mus.stream_buffer[src_index + 1];
+
+                    if (mus.pan < 0.5f) {
+                        right *= (mus.pan * 2.0f);
+                    } else if (mus.pan > 0.5f) {
+                        left *= ((1.0f - mus.pan) * 2.0f);
+                    }
+                }
+
+                out[dst_index] += left * mus.volume;
+                out[dst_index + 1] += right * mus.volume;
+            }
+
+            mus.buffer_position += frames_to_read;
+            mus.current_frame += frames_to_read;
+            output_index += frames_to_read;
+            frames_to_process -= frames_to_read;
+        }
     }
 
-    AUDIO.System.lock.unlock();
+    float master_vol = engine->master_volume;
+    for (unsigned long i = 0; i < framesPerBuffer * 2; i++) {
+        out[i] *= master_vol;
+
+        if (out[i] > 1.0f) out[i] = 1.0f;
+        if (out[i] < -1.0f) out[i] = -1.0f;
+    }
+
+    engine->lock.unlock();
 
     return paContinue;
 }
 
-extern "C" {
 
-void list_host_apis(void)
-{
-    PaHostApiIndex hostApiCount = Pa_GetHostApiCount();
-    if (hostApiCount < 0) {
-        TRACELOG(LOG_WARNING, "Failed to get host API count: %s", Pa_GetErrorText(hostApiCount));
-        return;
-    }
-
-    TRACELOG(LOG_INFO, "Available host APIs:");
-    for (PaHostApiIndex i = 0; i < hostApiCount; i++) {
-        const PaHostApiInfo *info = Pa_GetHostApiInfo(i);
-        if (info) {
-            TRACELOG(LOG_INFO, "    [%d] %s (%d devices)", i, info->name, info->deviceCount);
-        }
-    }
-}
-
-const char* get_host_api_name(PaHostApiIndex hostApi)
-{
-    const PaHostApiInfo *hostApiInfo = Pa_GetHostApiInfo(hostApi);
-    if (!hostApiInfo) {
-        return NULL;
-    }
-
-    return hostApiInfo->name;
-}
-
-PaDeviceIndex get_best_output_device_for_host_api(PaHostApiIndex hostApi)
-{
-    const PaHostApiInfo *hostApiInfo = Pa_GetHostApiInfo(hostApi);
-    if (!hostApiInfo) {
-        return paNoDevice;
-    }
-
-    if (hostApiInfo->defaultOutputDevice != paNoDevice) {
-        return hostApiInfo->defaultOutputDevice;
-    }
-
-    for (int i = 0; i < hostApiInfo->deviceCount; i++) {
-        PaDeviceIndex deviceIndex = Pa_HostApiDeviceIndexToDeviceIndex(hostApi, i);
-        if (deviceIndex >= 0) {
-            const PaDeviceInfo *deviceInfo = Pa_GetDeviceInfo(deviceIndex);
-            if (deviceInfo && deviceInfo->maxOutputChannels > 0) {
-                return deviceIndex;
-            }
-        }
-    }
-
-    return paNoDevice;
-}
-
-void init_audio_device(PaHostApiIndex host_api, double sample_rate, unsigned long buffer_size)
-{
-    PaError err = Pa_Initialize();
-    if (err != paNoError) {
-        TRACELOG(LOG_WARNING, "Failed to initialize PortAudio: %s", Pa_GetErrorText(err));
-        return;
-    }
-
-    AUDIO.System.outputParameters.device = get_best_output_device_for_host_api(host_api);
-    if (AUDIO.System.outputParameters.device == paNoDevice) {
-        TRACELOG(LOG_WARNING, "No usable output device found");
-        Pa_Terminate();
-        return;
-    }
-
-    AUDIO.System.outputParameters.channelCount = AUDIO_DEVICE_CHANNELS;
-    AUDIO.System.outputParameters.sampleFormat = paFloat32; // Using float format like miniaudio version
-    AUDIO.System.outputParameters.suggestedLatency = Pa_GetDeviceInfo(AUDIO.System.outputParameters.device)->defaultLowOutputLatency;
-    AUDIO.System.outputParameters.hostApiSpecificStreamInfo = NULL;
-    AUDIO.System.sampleRate = sample_rate;
-
-    const PaDeviceInfo *deviceInfo = Pa_GetDeviceInfo(AUDIO.System.outputParameters.device);
-    const PaHostApiInfo *hostApiInfo = Pa_GetHostApiInfo(deviceInfo->hostApi);
-
-#ifdef _WIN32
-    if (hostApiInfo->type == paASIO) {
-        long minSize, maxSize, preferredSize, granularity;
-        PaError asioErr = PaAsio_GetAvailableBufferSizes(AUDIO.System.outputParameters.device,
-                                                          &minSize, &maxSize, &preferredSize, &granularity);
-
-        if (asioErr == paNoError) {
-            TRACELOG(LOG_INFO, "ASIO buffer size constraints:");
-            TRACELOG(LOG_INFO, "    > Minimum:       %ld samples", minSize);
-            TRACELOG(LOG_INFO, "    > Maximum:       %ld samples", maxSize);
-            TRACELOG(LOG_INFO, "    > Preferred:     %ld samples", preferredSize);
-            if (granularity == -1) {
-                TRACELOG(LOG_INFO, "    > Granularity:   Powers of 2 only");
-            } else if (granularity == 0) {
-                TRACELOG(LOG_INFO, "    > Granularity:   Fixed size (min=max=preferred)");
-            } else {
-                TRACELOG(LOG_INFO, "    > Granularity:   %ld samples", granularity);
-            }
-
-            // Warn if requested buffer size is out of range
-            if (buffer_size > 0 && buffer_size < minSize) {
-                TRACELOG(LOG_WARNING, "Requested buffer size (%lu) is below ASIO minimum (%ld)", buffer_size, minSize);
-                TRACELOG(LOG_WARNING, "Driver will use %ld samples instead", minSize);
-            } else if (buffer_size > maxSize) {
-                TRACELOG(LOG_WARNING, "Requested buffer size (%lu) exceeds ASIO maximum (%ld)", buffer_size, maxSize);
-                TRACELOG(LOG_WARNING, "Driver will use %ld samples instead", maxSize);
-            } else if (buffer_size == 0) {
-                TRACELOG(LOG_INFO, "Buffer size not specified, driver will choose (likely %ld samples)", preferredSize);
-            }
-        } else {
-            TRACELOG(LOG_WARNING, "Failed to query ASIO buffer sizes: %s", Pa_GetErrorText(asioErr));
-        }
-    }
-#endif
-
-    err = Pa_OpenStream(&AUDIO.System.stream,
-                        NULL,                               // No input
-                        &AUDIO.System.outputParameters,     // Output parameters
-                        sample_rate,          // Sample rate
-                        buffer_size,      // Frames per buffer
-                        paNoFlag,                         // No clipping
-                        port_audio_callback,                 // Callback function
-                        NULL);                             // User data
-
-    if (err != paNoError) {
-        TRACELOG(LOG_WARNING, "Failed to open audio stream: %s", Pa_GetErrorText(err));
-        Pa_Terminate();
-        return;
-    }
-
-    err = Pa_StartStream(AUDIO.System.stream);
-    if (err != paNoError) {
-        TRACELOG(LOG_WARNING, "Failed to start audio stream: %s", Pa_GetErrorText(err));
-        Pa_CloseStream(AUDIO.System.stream);
-        Pa_Terminate();
-        return;
-    }
-
-    AUDIO.System.isReady = true;
-
-    TRACELOG(LOG_INFO, "Device initialized successfully");
-    TRACELOG(LOG_INFO, "    > Backend:       PortAudio | %s", hostApiInfo->name);
-    TRACELOG(LOG_INFO, "    > Device:        %s", deviceInfo->name);
-    TRACELOG(LOG_INFO, "    > Format:        %s", "Float32");
-    const PaStreamInfo *streamInfo = Pa_GetStreamInfo(AUDIO.System.stream);
-    TRACELOG(LOG_INFO, "    > Channels:      %d", AUDIO_DEVICE_CHANNELS);
-    TRACELOG(LOG_INFO, "    > Sample rate:   %f", AUDIO.System.sampleRate);
-    TRACELOG(LOG_INFO, "    > Buffer size:   %lu (requested)", buffer_size);
-    TRACELOG(LOG_INFO, "    > Latency:       %f ms", streamInfo->outputLatency * 1000.0);
-#ifdef _WIN32
-    if (hostApiInfo->type == paASIO) {
-        unsigned long estimatedBufferSize = (unsigned long)(streamInfo->outputLatency * AUDIO.System.sampleRate);
-        TRACELOG(LOG_INFO, "    > Estimated actual buffer: ~%lu samples (based on latency)", estimatedBufferSize);
-        if (buffer_size > 0 && estimatedBufferSize != buffer_size) {
-            TRACELOG(LOG_INFO, "    > Note:          ASIO driver adjusted buffer size to meet its constraints");
-        }
-    }
-#endif
-}
-
-void close_audio_device(void)
-{
-    if (AUDIO.System.isReady) {
-        PaError err = Pa_StopStream(AUDIO.System.stream);
+bool AudioEngine::init_audio_device() {
+    try {
+        PaError err = Pa_Initialize();
         if (err != paNoError) {
-            TRACELOG(LOG_WARNING, "Error stopping stream: %s", Pa_GetErrorText(err));
+            spdlog::error("Failed to initialize PortAudio: {}", Pa_GetErrorText(err));
+            return false;
         }
 
-        err = Pa_CloseStream(AUDIO.System.stream);
+        const PaHostApiInfo *host_api_info = Pa_GetHostApiInfo(host_api_index);
+        if (!host_api_info) {
+            spdlog::error("Failed to get host API info for index {}", host_api_index);
+            Pa_Terminate();
+            return false;
+        }
+
+        PaDeviceIndex device_index = host_api_info->defaultOutputDevice;
+        if (device_index == paNoDevice) {
+            spdlog::error("No default output device found for host API {}", host_api_info->name);
+            Pa_Terminate();
+            return false;
+        }
+
+        const PaDeviceInfo *device_info = Pa_GetDeviceInfo(device_index);
+        if (!device_info) {
+            spdlog::error("Failed to get device info for device {}", device_index);
+            Pa_Terminate();
+            return false;
+        }
+
+        output_parameters.device = device_index;
+        output_parameters.channelCount = std::min(2, device_info->maxOutputChannels);
+        output_parameters.sampleFormat = paFloat32;
+        output_parameters.suggestedLatency = device_info->defaultLowOutputLatency;
+        output_parameters.hostApiSpecificStreamInfo = NULL;
+
+
+        err = Pa_OpenStream(&stream, NULL, &output_parameters, target_sample_rate, buffer_size, paNoFlag, port_audio_callback, this);
         if (err != paNoError) {
-            TRACELOG(LOG_WARNING, "Error closing stream: %s", Pa_GetErrorText(err));
+            spdlog::error("Failed to open audio stream: {}", Pa_GetErrorText(err));
+            Pa_Terminate();
+            return false;
         }
 
+        err = Pa_StartStream(stream);
+        if (err != paNoError) {
+            spdlog::error("Failed to start audio stream: {}", Pa_GetErrorText(err));
+            Pa_CloseStream(stream);
+            Pa_Terminate();
+            stream = nullptr;
+            return false;
+        }
+
+        is_ready = true;
+
+        std::string don_path = path_to_string(sounds_path / "don.wav");
+        don = load_sound(don_path.c_str(), "sound");
+
+        std::string kat_path = path_to_string(sounds_path / "ka.wav");
+        kat = load_sound(kat_path.c_str(), "sound");
+
+        spdlog::info("Audio Device initialized successfully");
+        spdlog::info("    > Backend:       PortAudio | {}", host_api_info->name);
+        spdlog::info("    > Device:        {}", device_info->name);
+        spdlog::info("    > Format:        {}", "Float32");
+        const PaStreamInfo *streamInfo = Pa_GetStreamInfo(stream);
+        spdlog::info("    > Channels:      {}", output_parameters.channelCount);
+        spdlog::info("    > Sample rate:   {}", target_sample_rate);
+        spdlog::info("    > Buffer size:   {} (requested)", buffer_size);
+        spdlog::info("    > Latency:       {} ms", streamInfo->outputLatency * 1000.0);
+
+        return is_ready;
+    } catch (const std::exception& e) {
+        spdlog::error("Failed to initialize audio device: {}", e.what());
+        return false;
+    }
+}
+
+void AudioEngine::close_audio_device() {
+    try {
+        unload_all_sounds();
+        unload_all_music();
+
+        if (stream != nullptr) {
+            Pa_StopStream(stream);
+            Pa_CloseStream(stream);
+            stream = nullptr;
+        }
         Pa_Terminate();
+        is_ready = false;
 
-        AUDIO.System.isReady = false;
-        FREE(AUDIO.System.pcmBuffer);
-        AUDIO.System.pcmBuffer = NULL;
-        AUDIO.System.pcmBufferSize = 0;
-
-        TRACELOG(LOG_INFO, "Device closed successfully");
-    }
-    else {
-        TRACELOG(LOG_WARNING, "Device could not be closed, not currently initialized");
+        spdlog::info("Audio device closed");
+    } catch (const std::exception& e) {
+        spdlog::error("Error closing audio device: {}", e.what());
     }
 }
 
-bool is_audio_device_ready(void)
-{
-    return AUDIO.System.isReady;
+bool AudioEngine::is_audio_device_ready() const {
+    return is_ready;
 }
 
-void set_master_volume(float volume)
-{
-    AUDIO.System.lock.lock();
-    AUDIO.System.masterVolume = volume;
-    AUDIO.System.lock.unlock();
+void AudioEngine::set_master_volume(float volume) {
+    lock.lock();
+    master_volume = std::clamp(volume, 0.0f, 1.0f);
+    lock.unlock();
 }
 
-float get_master_volume(void)
-{
-    AUDIO.System.lock.lock();
-    float volume = AUDIO.System.masterVolume;
-    AUDIO.System.lock.unlock();
+float AudioEngine::get_master_volume() {
+    lock.lock();
+    float volume = master_volume;
+    lock.unlock();
     return volume;
 }
 
-struct audio_buffer *load_audio_buffer(uint32_t channels, uint32_t size_in_frames, int usage)
-{
-    struct audio_buffer *buffer = (struct audio_buffer*)calloc(1, sizeof(struct audio_buffer));
-
-    if (buffer == NULL) {
-        TRACELOG(LOG_WARNING, "Failed to allocate memory for buffer");
-        return NULL;
+std::string AudioEngine::path_to_string(const fs::path& path) const {
+#ifdef _WIN32
+    // Convert to ANSI codepage for Windows (CP932 for Japanese)
+    std::wstring wpath = path.wstring();
+    int size = WideCharToMultiByte(932, 0, wpath.c_str(), -1, nullptr, 0, nullptr, nullptr);
+    if (size > 0) {
+        std::string result(size - 1, '\0');
+        WideCharToMultiByte(932, 0, wpath.c_str(), -1, &result[0], size, nullptr, nullptr);
+        return result;
     }
-
-    buffer->data = (unsigned char*)calloc(size_in_frames * channels, sizeof(float));
-    if (buffer->data == NULL) {
-        TRACELOG(LOG_WARNING, "Failed to allocate memory for buffer data");
-        FREE(buffer);
-        return NULL;
-    }
-
-    buffer->volume = 1.0f;
-    buffer->pitch = 1.0f;
-    buffer->pan = 0.5f;
-    buffer->playing = false;
-    buffer->paused = false;
-    buffer->frameCursorPos = 0;
-    buffer->framesProcessed = 0;
-    buffer->sizeInFrames = size_in_frames;
-    if (usage == 0) { // Static buffer
-        buffer->isSubBufferProcessed[0] = false;
-        buffer->isSubBufferProcessed[1] = false;
-    } else { // Streaming buffer
-        buffer->isSubBufferProcessed[0] = true;
-        buffer->isSubBufferProcessed[1] = true;
-    }
-
-    buffer->isStreaming = (usage == 1); //1 means streaming
-
-    track_audio_buffer(buffer);
-
-    return buffer;
+#endif
+    return path.string();
 }
 
-void unload_audio_buffer(struct audio_buffer *buffer)
-{
-    if (buffer == NULL) return;
+std::string AudioEngine::load_sound(const fs::path& file_path, const std::string& name) {
+    try {
+        std::string path_str = path_to_string(file_path);
 
-    untrack_audio_buffer(buffer);
+        SF_INFO file_info;
+        std::memset(&file_info, 0, sizeof(SF_INFO));
 
-    FREE(buffer->data);
-    FREE(buffer);
-}
+        SNDFILE* file = sf_open(path_str.c_str(), SFM_READ, &file_info);
 
-bool is_audio_buffer_playing(struct audio_buffer *buffer)
-{
-    if (buffer == NULL) return false;
-
-    AUDIO.System.lock.lock();
-    bool result = (buffer->playing && !buffer->paused);
-    AUDIO.System.lock.unlock();
-    return result;
-}
-
-void play_audio_buffer(struct audio_buffer *buffer) {
-    if (buffer == NULL) return;
-
-    AUDIO.System.lock.lock();
-    buffer->playing = true;
-    buffer->paused = false;
-    buffer->frameCursorPos = 0;
-    buffer->framesProcessed = 0;
-    if (!buffer->isStreaming) {
-        buffer->isSubBufferProcessed[0] = false;
-        buffer->isSubBufferProcessed[1] = false;
-    }
-    AUDIO.System.lock.unlock();
-}
-
-void stop_audio_buffer(struct audio_buffer* buffer) {
-    if (buffer == NULL) return;
-
-    AUDIO.System.lock.lock();
-    buffer->playing = false;
-    buffer->paused = false;
-    buffer->frameCursorPos = 0;
-    buffer->framesProcessed = 0;
-    buffer->isSubBufferProcessed[0] = true;
-    buffer->isSubBufferProcessed[1] = true;
-    AUDIO.System.lock.unlock();
-}
-
-void pause_audio_buffer(struct audio_buffer* buffer) {
-    if (buffer == NULL) return;
-
-    AUDIO.System.lock.lock();
-    buffer->paused = true;
-    AUDIO.System.lock.unlock();
-}
-
-void resume_audio_buffer(struct audio_buffer* buffer) {
-    if (buffer == NULL) return;
-
-    AUDIO.System.lock.lock();
-    buffer->paused = false;
-    AUDIO.System.lock.unlock();
-}
-
-void set_audio_buffer_volume(struct audio_buffer* buffer, float volume) {
-    if (buffer == NULL) return;
-
-    AUDIO.System.lock.lock();
-    buffer->volume = volume;
-    AUDIO.System.lock.unlock();
-}
-
-void set_audio_buffer_pitch(struct audio_buffer* buffer, float pitch) {
-    if ((buffer == NULL) || (pitch < 0.0f)) return;
-
-    AUDIO.System.lock.lock();
-    buffer->pitch = pitch;
-    AUDIO.System.lock.unlock();
-}
-
-void set_audio_buffer_pan(struct audio_buffer* buffer, float pan) {
-    if (buffer == NULL) return;
-    if (pan < 0.0f) pan = 0.0f;
-    else if (pan > 1.0f) pan = 1.0f;
-
-    AUDIO.System.lock.lock();
-    buffer->pan = pan;
-    AUDIO.System.lock.unlock();
-}
-
-void track_audio_buffer(struct audio_buffer* buffer) {
-    if (buffer == NULL) return;
-
-    AUDIO.System.lock.lock();
-    if (AUDIO.Buffer.first == NULL) AUDIO.Buffer.first = buffer;
-    else {
-        AUDIO.Buffer.last->next = buffer;
-        buffer->prev = AUDIO.Buffer.last;
-    }
-    AUDIO.Buffer.last = buffer;
-    AUDIO.System.lock.unlock();
-}
-
-void untrack_audio_buffer(struct audio_buffer* buffer) {
-    if (buffer == NULL) return;
-
-    AUDIO.System.lock.lock();
-    if (buffer->prev == NULL) AUDIO.Buffer.first = buffer->next;
-    else buffer->prev->next = buffer->next;
-
-    if (buffer->next == NULL) AUDIO.Buffer.last = buffer->prev;
-    else buffer->next->prev = buffer->prev;
-
-    buffer->prev = NULL;
-    buffer->next = NULL;
-    AUDIO.System.lock.unlock();
-}
-
-wave load_wave(const char* filename) {
-    wave wave = { 0 };
-    SNDFILE *snd_file;
-    SF_INFO sf_info;
-    memset(&sf_info, 0, sizeof(sf_info));
-
-/*#ifdef _WIN32
-    // Convert UTF-8 filename to wide string for Windows
-    int wlen = MultiByteToWideChar(CP_UTF8, 0, filename, -1, NULL, 0);
-    if (wlen == 0) {
-        TRACELOG(LOG_ERROR, "Failed to convert filename to wide string: '%s'\n", filename);
-        return wave;
-    }
-
-    wchar_t *wfilename = new wchar_t[wlen];
-    if (wfilename == NULL) {
-        TRACELOG(LOG_ERROR, "Failed to allocate memory for wide filename");
-        return wave;
-    }
-
-    MultiByteToWideChar(CP_UTF8, 0, filename, -1, wfilename, wlen);
-    snd_file = sf_wchar_open(wfilename, SFM_READ, &sf_info);
-    free(wfilename);
-#else*/
-    snd_file = sf_open(filename, SFM_READ, &sf_info);
-//#endif
-    if (snd_file == NULL) {
-        TRACELOG(LOG_ERROR, "Failed to open file '%s'", filename);
-        TRACELOG(LOG_ERROR, "libsndfile error: %s", sf_strerror(NULL));
-        return wave;
-    }
-    wave.frameCount = (unsigned int)sf_info.frames;
-    wave.sampleRate = (unsigned int)sf_info.samplerate;
-    wave.channels = (unsigned int)sf_info.channels;
-    wave.sampleSize = 32; // Using 32-bit float samples
-
-    size_t total_samples = sf_info.frames * sf_info.channels;
-    wave.data = malloc(total_samples * sizeof(float));
-    if (wave.data == NULL) {
-        TRACELOG(LOG_ERROR, "Failed to allocate memory for wave data");
-        sf_close(snd_file);
-        return wave;
-    }
-    sf_readf_float(snd_file, (float*)wave.data, sf_info.frames);
-    sf_close(snd_file);
-    return wave;
-}
-
-bool is_wave_valid(wave wave) {
-    bool result = false;
-    if ((wave.data != NULL) &&      // Validate wave data available
-        (wave.frameCount > 0) &&    // Validate frame count
-        (wave.sampleRate > 0) &&    // Validate sample rate is supported
-        (wave.sampleSize > 0) &&    // Validate sample size is supported
-        (wave.channels > 0)) result = true; // Validate number of channels supported
-
-    return result;
-}
-
-void unload_wave(wave wave) {
-    FREE(wave.data);
-}
-
-sound load_sound_from_wave(wave wave) {
-    sound sound = { 0 };
-    if (wave.data == NULL) return sound;
-    struct wave resampled_wave = { 0 };
-    bool is_resampled = false;
-
-    if (wave.sampleRate != AUDIO.System.sampleRate) {
-        TRACELOG(LOG_INFO, "Resampling wave from %d Hz to %f Hz", wave.sampleRate, AUDIO.System.sampleRate);
-
-        double src_ratio = AUDIO.System.sampleRate / (double)wave.sampleRate;
-        long output_frames = (long)(wave.frameCount * src_ratio) + 10;
-
-        resampled_wave.data = calloc(output_frames * wave.channels, sizeof(float));
-        if (resampled_wave.data == NULL) {
-            TRACELOG(LOG_WARNING, "Failed to allocate memory for resampling");
-            return sound;
+        if (!file) {
+            // Try UTF-8 encoding as fallback
+            path_str = file_path.string();
+            file = sf_open(path_str.c_str(), SFM_READ, &file_info);
         }
 
-        SRC_DATA src_data;
-        src_data.data_in = (float*)wave.data;
-        src_data.data_out = (float*)resampled_wave.data;
-        src_data.input_frames = wave.frameCount;
-        src_data.output_frames = output_frames;
-        src_data.src_ratio = src_ratio;
-
-        int error = src_simple(&src_data, SRC_SINC_FASTEST, wave.channels);
-
-        if (error) {
-            TRACELOG(LOG_WARNING, "Resampling failed: %s", src_strerror(error));
-            FREE(resampled_wave.data);
-            return sound;
+        if (!file) {
+            spdlog::error("Failed to open sound file: {} - {}", file_path.string(), sf_strerror(NULL));
+            return "";
         }
 
-        resampled_wave.frameCount = src_data.output_frames_gen;
-        resampled_wave.sampleRate = (int)AUDIO.System.sampleRate;
-        resampled_wave.channels = wave.channels;
-        resampled_wave.sampleSize = wave.sampleSize;
-        is_resampled = true;
-    }
+        unsigned int total_frames = file_info.frames;
+        unsigned int channels = file_info.channels;
+        float* data = new float[total_frames * channels];
 
-    struct wave *wave_to_load = is_resampled ? &resampled_wave : &wave;
-    struct audio_buffer *buffer = load_audio_buffer(AUDIO_DEVICE_CHANNELS, wave_to_load->frameCount, 0);
+        sf_count_t frames_read = sf_readf_float(file, data, total_frames);
+        sf_close(file);
 
-    if (buffer != NULL && buffer->data != NULL) {
-        size_t samples_to_copy = wave_to_load->frameCount * wave_to_load->channels;
-        size_t buffer_samples = wave_to_load->frameCount * AUDIO_DEVICE_CHANNELS;
-        float *wave_data = (float *)wave_to_load->data;
-        float *buffer_data = (float *)buffer->data;
-
-        if (wave_to_load->channels == 1 && AUDIO_DEVICE_CHANNELS == 2) {
-            for (unsigned int i = 0; i < wave_to_load->frameCount; i++) {
-                buffer_data[i * 2] = wave_data[i];     // Left channel
-                buffer_data[i * 2 + 1] = wave_data[i]; // Right channel
-            }
-        } else if (wave_to_load->channels == 2 && AUDIO_DEVICE_CHANNELS == 2) {
-            memcpy(buffer_data, wave_data, samples_to_copy * sizeof(float));
-        } else {
-            size_t min_samples = (samples_to_copy < buffer_samples) ? samples_to_copy : buffer_samples;
-            memcpy(buffer_data, wave_data, min_samples * sizeof(float));
-        }
-    }
-
-    sound.frameCount = wave_to_load->frameCount;
-    sound.stream.sampleRate = wave_to_load->sampleRate;
-    sound.stream.sampleSize = wave_to_load->sampleSize;
-    sound.stream.channels = wave_to_load->channels;
-    sound.stream.buffer = buffer;
-
-    if (is_resampled) {
-        FREE(resampled_wave.data);
-    }
-
-    return sound;
-}
-
-sound load_sound(const char* filename) {
-    wave wave = load_wave(filename);
-
-    sound sound = load_sound_from_wave(wave);
-
-    unload_wave(wave);
-    return sound;
-}
-
-bool is_sound_valid(sound sound) {
-    bool result = false;
-    if ((sound.stream.buffer != NULL) &&      // Validate wave data available
-        (sound.frameCount > 0) &&    // Validate frame count
-        (sound.stream.sampleRate > 0) &&    // Validate sample rate is supported
-        (sound.stream.sampleSize > 0) &&    // Validate sample size is supported
-        (sound.stream.channels > 0)) result = true; // Validate number of channels supported
-
-    return result;
-}
-
-void unload_sound(sound sound) {
-    unload_audio_buffer(sound.stream.buffer);
-}
-
-void play_sound(sound sound) {
-    play_audio_buffer(sound.stream.buffer);
-}
-
-void pause_sound(sound sound) {
-    pause_audio_buffer(sound.stream.buffer);
-}
-
-void resume_sound(sound sound) {
-    resume_audio_buffer(sound.stream.buffer);
-}
-
-void stop_sound(sound sound) {
-    stop_audio_buffer(sound.stream.buffer);
-}
-
-bool is_sound_playing(sound sound) {
-    return is_audio_buffer_playing(sound.stream.buffer);
-}
-
-void set_sound_volume(sound sound, float volume) {
-    set_audio_buffer_volume(sound.stream.buffer, volume);
-}
-
-void set_sound_pitch(sound sound, float pitch) {
-    set_audio_buffer_pitch(sound.stream.buffer, pitch);
-}
-
-void set_sound_pan(sound sound, float pan) {
-    set_audio_buffer_pan(sound.stream.buffer, pan);
-}
-
-audio_stream load_audio_stream(unsigned int sample_rate, unsigned int sample_size, unsigned int channels)
-{
-    audio_stream stream = { 0 };
-
-    stream.sampleRate = sample_rate;
-    stream.sampleSize = sample_size;
-    stream.channels = channels;
-
-    stream.buffer = load_audio_buffer(AUDIO_DEVICE_CHANNELS, AUDIO.System.sampleRate, 1);
-    return stream;
-}
-
-void unload_audio_stream(audio_stream stream)
-{
-    unload_audio_buffer(stream.buffer);
-}
-
-void play_audio_stream(audio_stream stream)
-{
-    play_audio_buffer(stream.buffer);
-}
-
-void pause_audio_stream(audio_stream stream)
-{
-    pause_audio_buffer(stream.buffer);
-}
-
-void resume_audio_stream(audio_stream stream)
-{
-    resume_audio_buffer(stream.buffer);
-}
-
-bool is_audio_stream_playing(audio_stream stream)
-{
-    return is_audio_buffer_playing(stream.buffer);
-}
-
-void stop_audio_stream(audio_stream stream)
-{
-    stop_audio_buffer(stream.buffer);
-}
-
-void set_audio_stream_volume(audio_stream stream, float volume)
-{
-    set_audio_buffer_volume(stream.buffer, volume);
-}
-
-void set_audio_stream_pitch(audio_stream stream, float pitch)
-{
-    set_audio_buffer_pitch(stream.buffer, pitch);
-}
-
-void set_audio_stream_pan(audio_stream stream, float pan)
-{
-    set_audio_buffer_pan(stream.buffer, pan);
-}
-
-void update_audio_stream(audio_stream stream, const void *data, int frame_count)
-{
-    if (stream.buffer == NULL || data == NULL) return;
-
-    AUDIO.System.lock.lock();
-
-    if (stream.buffer->data != NULL) {
-        float *buffer_data = (float *)stream.buffer->data;
-        const float *input_data = (const float *)data;
-
-        unsigned int samples_to_copy = frame_count * AUDIO_DEVICE_CHANNELS;
-        unsigned int max_samples = stream.buffer->sizeInFrames * AUDIO_DEVICE_CHANNELS;
-
-        if (samples_to_copy > max_samples) {
-            samples_to_copy = max_samples;
+        if (frames_read != total_frames) {
+            spdlog::warn("Read {} frames, expected {} for sound: {}", frames_read, total_frames, file_path.string());
         }
 
-        memcpy(buffer_data, input_data, samples_to_copy * sizeof(float));
+        sound snd;
+        snd.data = data;
+        snd.frame_count = frames_read;
+        snd.sample_rate = file_info.samplerate;
+        snd.channels = channels;
+        snd.is_playing = false;
+        snd.current_frame = 0;
+        snd.loop = false;
+        snd.volume = 1.0f;
+        snd.pan = 0.5f;
+        snd.pitch = 1.0f;
 
-        stream.buffer->sizeInFrames = frame_count;
-    }
-
-    AUDIO.System.lock.unlock();
-}
-
-music load_music_stream(const char* filename) {
-    music music = { 0 };
-    bool music_loaded = false;
-    SF_INFO sf_info = { 0 };
-    SNDFILE *snd_file;
-
-/*#ifdef _WIN32
-    // Convert UTF-8 filename to wide string for Windows
-    int wlen = MultiByteToWideChar(CP_UTF8, 0, filename, -1, NULL, 0);
-    if (wlen == 0) {
-        TRACELOG(LOG_WARNING, "FILEIO: [%s] Failed to convert filename to wide string", filename);
-        return music;
-    }
-
-    wchar_t *wfilename = new wchar_t[wlen];
-    if (wfilename == NULL) {
-        TRACELOG(LOG_WARNING, "FILEIO: Failed to allocate memory for wide filename");
-        return music;
-    }
-
-    MultiByteToWideChar(CP_UTF8, 0, filename, -1, wfilename, wlen);
-    snd_file = sf_wchar_open(wfilename, SFM_READ, &sf_info);
-    free(wfilename);
-#else*/
-    snd_file = sf_open(filename, SFM_READ, &sf_info);
-//#endif
-
-    if (snd_file != NULL) {
-        music_ctx *ctx = (music_ctx *)calloc(1, sizeof(music_ctx));
-        if (ctx == NULL) {
-            TRACELOG(LOG_WARNING, "Failed to allocate memory for music context");
-            sf_close(snd_file);
-            return music;
-        }
-        ctx->snd_file = snd_file;
-        if (sf_info.samplerate != AUDIO.System.sampleRate) {
-            TRACELOG(LOG_INFO, "Resampling music from %d Hz to %f Hz", sf_info.samplerate, AUDIO.System.sampleRate);
-
+        if (snd.sample_rate != target_sample_rate) {
             int error;
-            ctx->resampler = src_new(SRC_SINC_FASTEST, sf_info.channels, &error);
-            if (ctx->resampler == NULL) {
-                TRACELOG(LOG_WARNING, "Failed to create resampler: %s", src_strerror(error));
-                free(ctx);
-                sf_close(snd_file);
-                return music;
+            snd.resampler = src_new(SRC_SINC_FASTEST, channels, &error);
+            if (!snd.resampler) {
+                spdlog::error("Failed to create resampler for sound: {} - {}", file_path.string(), src_strerror(error));
+                delete[] data;
+                return "";
             }
-            ctx->src_ratio = AUDIO.System.sampleRate / (double)sf_info.samplerate;
+            snd.resample_buffer = new float[buffer_size * channels * 2];
         } else {
-            ctx->resampler = NULL;
-            ctx->src_ratio = 1.0;
+            snd.resampler = nullptr;
+            snd.resample_buffer = nullptr;
         }
-        music.ctxData = ctx;
-        int sample_size = 32;
-        music.stream = load_audio_stream(AUDIO.System.sampleRate, sample_size, sf_info.channels);
-        music.frameCount = (unsigned int)(sf_info.frames * ctx->src_ratio);
-        music_loaded = true;
+
+        lock.lock();
+        sounds[name] = snd;
+        lock.unlock();
+
+        spdlog::info("Loaded sound: {} ({} frames, {} Hz, {} channels)",
+                     name, snd.frame_count, snd.sample_rate, snd.channels);
+
+        return name;
+
+    } catch (const std::exception& e) {
+        spdlog::error("Error loading sound {}: {}", file_path.string(), e.what());
+        return "";
     }
-    if (!music_loaded)
-    {
-        TRACELOG(LOG_WARNING, "FILEIO: [%s] Music file could not be opened", filename);
-        if (snd_file) sf_close(snd_file);
+}
+
+void AudioEngine::unload_sound(const std::string& name) {
+    lock.lock();
+    auto it = sounds.find(name);
+    if (it != sounds.end()) {
+        sound& snd = it->second;
+
+        snd.is_playing = false;
+
+        if (snd.data) {
+            delete[] snd.data;
+            snd.data = nullptr;
+        }
+
+        if (snd.resampler) {
+            src_delete(snd.resampler);
+            snd.resampler = nullptr;
+        }
+
+        if (snd.resample_buffer) {
+            delete[] snd.resample_buffer;
+            snd.resample_buffer = nullptr;
+        }
+
+        sounds.erase(it);
+    } else {
+        spdlog::warn("Sound {} not found", name);
     }
-    else
-    {
-        TRACELOG(LOG_INFO, "FILEIO: [%s] Music file loaded successfully", filename);
-        TRACELOG(LOG_INFO, "    > Sample rate:   %i Hz", music.stream.sampleRate);
-        TRACELOG(LOG_INFO, "    > Sample size:   %i bits", music.stream.sampleSize);
-        TRACELOG(LOG_INFO, "    > Channels:      %i (%s)", music.stream.channels,
-                    (music.stream.channels == 1) ? "Mono" :
-                    (music.stream.channels == 2) ? "Stereo" : "Multi");
-        TRACELOG(LOG_INFO, "    > Total frames:  %i", music.frameCount);
-    }
-    return music;
+    lock.unlock();
 }
 
-bool is_music_valid(music music)
-{
-    return ((music.frameCount > 0) &&           // Validate audio frame count
-            (music.stream.sampleRate > 0) &&    // Validate sample rate is supported
-            (music.stream.sampleSize > 0) &&    // Validate sample size is supported
-            (music.stream.channels > 0));       // Validate number of channels supported
-}
+void AudioEngine::unload_all_sounds() {
+    lock.lock();
+    auto sound_names = sounds;
+    lock.unlock();
 
-void unload_music_stream(music music) {
-    if (music.ctxData) {
-        music_ctx *ctx = (music_ctx *)music.ctxData;
-        if (ctx->snd_file) sf_close(ctx->snd_file);
-        if (ctx->resampler) src_delete(ctx->resampler);
-        free(ctx);
-    }
-    unload_audio_stream(music.stream);
-}
-
-void play_music_stream(music music) {
-    play_audio_stream(music.stream);
-}
-
-void pause_music_stream(music music) {
-    pause_audio_stream(music.stream);
-}
-
-void resume_music_stream(music music) {
-    resume_audio_stream(music.stream);
-}
-
-void stop_music_stream(music music) {
-    stop_audio_stream(music.stream);
-}
-
-void seek_music_stream(music music, float position) {
-    if (music.stream.buffer == NULL || music.ctxData == NULL) return;
-
-    music_ctx *ctx = (music_ctx *)music.ctxData;
-    SNDFILE *sndFile = ctx->snd_file;
-    unsigned int position_in_frames = (unsigned int)(position * music.stream.sampleRate / ctx->src_ratio);
-
-    sf_count_t seek_result = sf_seek(sndFile, position_in_frames, SEEK_SET);
-    if (seek_result < 0) return; // Seek failed
-
-    AUDIO.System.lock.lock();
-    music.stream.buffer->framesProcessed = position_in_frames;
-    music.stream.buffer->frameCursorPos = 0; // Reset cursor
-    music.stream.buffer->isSubBufferProcessed[0] = true;  // Force reload
-    music.stream.buffer->isSubBufferProcessed[1] = true;  // Force reload
-    AUDIO.System.lock.unlock();
-}
-
-bool music_stream_needs_update(music music) {
-    if (music.stream.buffer == NULL || music.ctxData == NULL) return false;
-
-    AUDIO.System.lock.lock();
-    bool needs_update = music.stream.buffer->isSubBufferProcessed[0] ||
-                        music.stream.buffer->isSubBufferProcessed[1];
-    AUDIO.System.lock.unlock();
-
-    return needs_update;
-}
-
-void update_music_stream(music music) {
-    if (music.stream.buffer == NULL || music.ctxData == NULL) return;
-
-    music_ctx *ctx = (music_ctx *)music.ctxData;
-    SNDFILE *sndFile = ctx->snd_file;
-    if (sndFile == NULL) return;
-
-    bool needs_refill[2];
-    AUDIO.System.lock.lock();
-    needs_refill[0] = music.stream.buffer->isSubBufferProcessed[0];
-    needs_refill[1] = music.stream.buffer->isSubBufferProcessed[1];
-    AUDIO.System.lock.unlock();
-
-    if (!needs_refill[0] && !needs_refill[1]) return;
-
-    unsigned int subBufferSizeFrames = music.stream.buffer->sizeInFrames / 2;
-    float *buffer_data = (float *)music.stream.buffer->data;
-    bool needs_resampling = (ctx->resampler != NULL);
-    bool needs_mono_to_stereo = (music.stream.channels == 1 && AUDIO_DEVICE_CHANNELS == 2);
-
-    unsigned int frames_to_read = subBufferSizeFrames;
-    if (needs_resampling) {
-        frames_to_read = (unsigned int)(subBufferSizeFrames / ctx->src_ratio) + 1;
+    for (const auto& [name, _] : sound_names) {
+        unload_sound(name);
     }
 
-    size_t required_size = frames_to_read * music.stream.channels * sizeof(float);
-    if (AUDIO.System.pcmBufferSize < required_size) {
-        FREE(AUDIO.System.pcmBuffer);
-        AUDIO.System.pcmBuffer = calloc(1, required_size);
-        AUDIO.System.pcmBufferSize = required_size;
+    spdlog::info("All sounds unloaded");
+}
+
+void AudioEngine::load_screen_sounds(const std::string& screen_name) {
+    fs::path path = sounds_path / screen_name;
+    if (!fs::exists(path)) {
+        spdlog::warn("Sounds for screen {} not found", screen_name);
+        return;
     }
 
-    for (int i = 0; i < 2; i++) {
-        if (!needs_refill[i]) continue;
-
-        sf_count_t frames_read = sf_readf_float(sndFile, (float*)AUDIO.System.pcmBuffer, frames_to_read);
-
-        unsigned int subBufferOffset = i * subBufferSizeFrames * AUDIO_DEVICE_CHANNELS;
-        float *input_ptr = (float *)AUDIO.System.pcmBuffer;
-        sf_count_t frames_written = 0;
-
-        if (needs_resampling) {
-            SRC_DATA src_data;
-            src_data.data_in = input_ptr;
-            src_data.data_out = buffer_data + subBufferOffset;
-            src_data.input_frames = frames_read;
-            src_data.output_frames = subBufferSizeFrames;
-            src_data.src_ratio = ctx->src_ratio;
-            src_data.end_of_input = 0;  // Set to 1 on the last chunk if needed
-
-            int error = src_process(ctx->resampler, &src_data);
-            if (error) {
-                TRACELOG(LOG_WARNING, "Resampling failed: %s", src_strerror(error));
+    for (const auto& entry : fs::directory_iterator(path)) {
+        if (entry.is_directory()) {
+            for (const auto& file : fs::directory_iterator(entry.path())) {
+                load_sound(file.path(), entry.path().stem().string() + "_" + file.path().stem().string());
             }
+        } else if (entry.is_regular_file()) {
+            load_sound(entry.path(), entry.path().stem().string());
+        }
+    }
 
-            frames_written = src_data.output_frames_gen;
-        } else {
-            if (needs_mono_to_stereo) {
-                for (int j = 0; j < frames_read; j++) {
-                    buffer_data[subBufferOffset + j*2] = input_ptr[j];
-                    buffer_data[subBufferOffset + j*2 + 1] = input_ptr[j];
+    fs::path global_path = sounds_path / "global";
+    if (fs::exists(global_path)) {
+        for (const auto& entry : fs::directory_iterator(global_path)) {
+            if (entry.is_directory()) {
+                for (const auto& file : fs::directory_iterator(entry.path())) {
+                    load_sound(file.path(), entry.path().stem().string() + "_" + file.path().stem().string());
                 }
-            } else {
-                memcpy(buffer_data + subBufferOffset, input_ptr, frames_read * music.stream.channels * sizeof(float));
+            } else if (entry.is_regular_file()) {
+                load_sound(entry.path(), entry.path().stem().string());
             }
-            frames_written = frames_read;
-        }
-
-        if (frames_written < subBufferSizeFrames) {
-            unsigned int offset = subBufferOffset + (frames_written * AUDIO_DEVICE_CHANNELS);
-            unsigned int size = (subBufferSizeFrames - frames_written) * AUDIO_DEVICE_CHANNELS * sizeof(float);
-            memset(buffer_data + offset, 0, size);
         }
     }
-
-    AUDIO.System.lock.lock();
-    if (needs_refill[0]) music.stream.buffer->isSubBufferProcessed[0] = false;
-    if (needs_refill[1]) music.stream.buffer->isSubBufferProcessed[1] = false;
-    AUDIO.System.lock.unlock();
 }
+void AudioEngine::play_sound(const std::string& name, const std::string& volume_preset) {
+    lock.lock();
+    auto it = sounds.find(name);
+    if (it != sounds.end()) {
+        sound& snd = it->second;
 
-bool is_music_stream_playing(music music) {
-    return is_audio_stream_playing(music.stream);
-}
+        if (!volume_preset.empty()) {
+            float volume = 1.0f;
+            if (volume_preset == "sound") volume = volume_presets.sound;
+            else if (volume_preset == "music") volume = volume_presets.music;
+            else if (volume_preset == "voice") volume = volume_presets.voice;
+            else if (volume_preset == "hitsound") volume = volume_presets.hitsound;
+            else if (volume_preset == "attract_mode") volume = volume_presets.attract_mode;
+            snd.volume = volume;
+        }
 
-void set_music_volume(music music, float volume) {
-    set_audio_stream_volume(music.stream, volume);
-}
-
-void set_music_pitch(music music, float pitch) {
-    set_audio_buffer_pitch(music.stream.buffer, pitch);
-}
-
-void set_music_pan(music music, float pan) {
-    set_audio_buffer_pan(music.stream.buffer, pan);
-}
-
-float get_music_time_length(music music) {
-    float total_seconds = 0.0f;
-
-    total_seconds = (float)music.frameCount/AUDIO.System.sampleRate;
-
-    return total_seconds;
-}
-
-float get_music_time_played(music music) {
-    float seconds_played = 0.0f;
-    if (music.stream.buffer != NULL) {
-        AUDIO.System.lock.lock();
-        seconds_played = (float)music.stream.buffer->framesProcessed / AUDIO.System.sampleRate;
-        AUDIO.System.lock.unlock();
+        snd.current_frame = 0;
+        snd.is_playing = true;
+    } else {
+        spdlog::warn("Sound {} not found", name);
     }
-    return seconds_played;
+    lock.unlock();
 }
 
-} // extern "C"
+void AudioEngine::stop_sound(const std::string& name) {
+    lock.lock();
+    auto it = sounds.find(name);
+    if (it != sounds.end()) {
+        it->second.is_playing = false;
+        it->second.current_frame = 0;
+    } else {
+        spdlog::warn("Sound {} not found", name);
+    }
+    lock.unlock();
+}
+
+bool AudioEngine::is_sound_playing(const std::string& name) {
+    lock.lock();
+    auto it = sounds.find(name);
+    bool playing = false;
+    if (it != sounds.end()) {
+        playing = it->second.is_playing;
+    } else {
+        spdlog::warn("Sound {} not found", name);
+    }
+    lock.unlock();
+    return playing;
+}
+
+void AudioEngine::set_sound_volume(const std::string& name, float volume) {
+    lock.lock();
+    auto it = sounds.find(name);
+    if (it != sounds.end()) {
+        it->second.volume = std::clamp(volume, 0.0f, 1.0f);
+    } else {
+        spdlog::warn("Sound {} not found", name);
+    }
+    lock.unlock();
+}
+
+void AudioEngine::set_sound_pan(const std::string& name, float pan) {
+    lock.lock();
+    auto it = sounds.find(name);
+    if (it != sounds.end()) {
+        it->second.pan = std::clamp(pan, 0.0f, 1.0f);
+    } else {
+        spdlog::warn("Sound {} not found", name);
+    }
+    lock.unlock();
+}
+
+std::string AudioEngine::load_music_stream(const fs::path& file_path, const std::string& name) {
+    try {
+        std::string path_str = path_to_string(file_path);
+
+        SF_INFO file_info;
+        std::memset(&file_info, 0, sizeof(SF_INFO));
+
+        SNDFILE* file = sf_open(path_str.c_str(), SFM_READ, &file_info);
+
+        if (!file) {
+            // Try UTF-8 encoding as fallback
+            path_str = file_path.string();
+            file = sf_open(path_str.c_str(), SFM_READ, &file_info);
+        }
+
+        if (!file) {
+            spdlog::error("Failed to open music file: {} - {}", file_path.string(), sf_strerror(NULL));
+            return "";
+        }
+
+        music mus;
+        mus.file_handle = file;
+        mus.file_info = file_info;
+        mus.file_path = file_path.string();
+
+        mus.buffer_size = 4096; //arbitrary buffer size?
+        mus.stream_buffer = new float[mus.buffer_size * file_info.channels];
+        mus.buffer_position = 0;
+        mus.frames_in_buffer = 0;
+
+        mus.is_playing = false;
+        mus.current_frame = 0;
+        mus.loop = false;
+        mus.volume = 1.0f;
+        mus.pan = 0.5f;
+        mus.pitch = 1.0f;
+
+        if (file_info.samplerate != target_sample_rate) {
+            int error;
+            mus.resampler = src_new(SRC_SINC_FASTEST, file_info.channels, &error);
+            if (!mus.resampler) {
+                spdlog::error("Failed to create resampler for music: {} - {}", file_path.string(), src_strerror(error));
+                delete[] mus.stream_buffer;
+                sf_close(file);
+                return "";
+            }
+            mus.resample_buffer = new float[buffer_size * file_info.channels * 2];
+        } else {
+            mus.resampler = nullptr;
+            mus.resample_buffer = nullptr;
+        }
+
+        lock.lock();
+        music_streams[name] = mus;
+        lock.unlock();
+
+        spdlog::info("Loaded music stream: {} ({} frames, {} Hz, {} channels)",
+                     name, file_info.frames, file_info.samplerate, file_info.channels);
+
+        return name;
+
+    } catch (const std::exception& e) {
+        spdlog::error("Error loading music stream {}: {}", file_path.string(), e.what());
+        return "";
+    }
+}
+
+void AudioEngine::play_music_stream(const std::string& name, const std::string& volume_preset) {
+    lock.lock();
+    auto it = music_streams.find(name);
+    if (it != music_streams.end()) {
+        music& mus = it->second;
+
+        if (!volume_preset.empty()) {
+            float volume = 1.0f;
+            if (volume_preset == "sound") volume = volume_presets.sound;
+            else if (volume_preset == "music") volume = volume_presets.music;
+            else if (volume_preset == "voice") volume = volume_presets.voice;
+            else if (volume_preset == "hitsound") volume = volume_presets.hitsound;
+            else if (volume_preset == "attract_mode") volume = volume_presets.attract_mode;
+            mus.volume = volume;
+        }
+
+        mus.current_frame = 0;
+        mus.is_playing = true;
+    } else {
+        spdlog::warn("Sound {} not found", name);
+    }
+    lock.unlock();
+}
+
+float AudioEngine::get_music_time_length(const std::string& name) const {
+    lock.lock();
+    auto it = music_streams.find(name);
+    float length = 0.0f;
+    if (it != music_streams.end()) {
+        const music& mus = it->second;
+        length = static_cast<float>(mus.file_info.frames) / static_cast<float>(mus.file_info.samplerate);
+    } else {
+        spdlog::warn("Music stream {} not found", name);
+    }
+    lock.unlock();
+    return length;
+}
+
+float AudioEngine::get_music_time_played(const std::string& name) const {
+    lock.lock();
+    auto it = music_streams.find(name);
+    float time = 0.0f;
+    if (it != music_streams.end()) {
+        const music& mus = it->second;
+        time = static_cast<float>(mus.current_frame) / static_cast<float>(mus.file_info.samplerate);
+    } else {
+        spdlog::warn("Music stream {} not found", name);
+    }
+    lock.unlock();
+    return time;
+}
+
+void AudioEngine::set_music_volume(const std::string& name, float volume) {
+    lock.lock();
+    auto it = music_streams.find(name);
+    if (it != music_streams.end()) {
+        it->second.volume = std::clamp(volume, 0.0f, 1.0f);
+    } else {
+        spdlog::warn("Sound {} not found", name);
+    }
+    lock.unlock();
+}
+
+bool AudioEngine::is_music_stream_playing(const std::string& name) const {
+    lock.lock();
+    auto it = music_streams.find(name);
+    bool playing = false;
+    if (it != music_streams.end()) {
+        playing = it->second.is_playing;
+    } else {
+        spdlog::warn("Sound {} not found", name);
+    }
+    lock.unlock();
+    return playing;
+}
+
+void AudioEngine::stop_music_stream(const std::string& name) {
+    lock.lock();
+    auto it = music_streams.find(name);
+    if (it != music_streams.end()) {
+        it->second.is_playing = false;
+        it->second.current_frame = 0;
+        it->second.buffer_position = 0;
+        it->second.frames_in_buffer = 0;
+
+        if (it->second.file_handle) {
+            sf_seek(it->second.file_handle, 0, SEEK_SET);
+        }
+    } else {
+        spdlog::warn("Music stream {} not found", name);
+    }
+    lock.unlock();
+}
+
+void AudioEngine::unload_music_stream(const std::string& name) {
+    lock.lock();
+    auto it = music_streams.find(name);
+    if (it != music_streams.end()) {
+        music& mus = it->second;
+
+        mus.is_playing = false;
+
+        if (mus.file_handle) {
+            sf_close(mus.file_handle);
+            mus.file_handle = nullptr;
+        }
+
+        if (mus.stream_buffer) {
+            delete[] mus.stream_buffer;
+            mus.stream_buffer = nullptr;
+        }
+
+        if (mus.resampler) {
+            src_delete(mus.resampler);
+            mus.resampler = nullptr;
+        }
+
+        if (mus.resample_buffer) {
+            delete[] mus.resample_buffer;
+            mus.resample_buffer = nullptr;
+        }
+
+        music_streams.erase(it);
+        spdlog::info("Unloaded music stream: {}", name);
+    } else {
+        spdlog::warn("Music stream {} not found", name);
+    }
+    lock.unlock();
+}
+
+void AudioEngine::unload_all_music() {
+    lock.lock();
+    auto music_names = music_streams;
+    lock.unlock();
+
+    for (const auto& [name, _] : music_names) {
+        unload_music_stream(name);
+    }
+
+    spdlog::info("All music streams unloaded");
+}
+
+void AudioEngine::seek_music_stream(const std::string& name, float position) {
+    lock.lock();
+    auto it = music_streams.find(name);
+    if (it != music_streams.end()) {
+        music& mus = it->second;
+
+        if (mus.file_handle) {
+            sf_count_t frame_position = static_cast<sf_count_t>(position * mus.file_info.samplerate);
+
+            if (frame_position < 0) frame_position = 0;
+            if (frame_position >= mus.file_info.frames) frame_position = mus.file_info.frames - 1;
+
+            sf_seek(mus.file_handle, frame_position, SEEK_SET);
+
+            mus.buffer_position = 0;
+            mus.frames_in_buffer = 0;
+            mus.current_frame = frame_position;
+        }
+    } else {
+        spdlog::warn("Music stream {} not found", name);
+    }
+    lock.unlock();
+}
+
+std::unique_ptr<AudioEngine> audio;

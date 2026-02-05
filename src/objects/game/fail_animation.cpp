@@ -1,5 +1,4 @@
 #include "fail_animation.h"
-#include "../../libs/audio_engine.h"
 
 FailAnimation::FailAnimation(bool is_2p)
     : is_2p(is_2p), name("in"), frame(0) {
@@ -24,7 +23,7 @@ FailAnimation::FailAnimation(bool is_2p)
     bachio_up->start();
     bachio_down->start();
 
-    audio->playSound("fail", "sound");
+    audio->play_sound("fail", "sound");
 }
 
 void FailAnimation::update(double current_ms) {

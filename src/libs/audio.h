@@ -1,497 +1,118 @@
-#ifndef AUDIO_H
-#define AUDIO_H
+#pragma once
 
-#include <stdbool.h>
-#include <stdint.h>
+#include <mutex>
+#include <unordered_map>
+
+#include "config.h"
 #include "audio/portaudio.h"
+#include "global_data.h"
+
+#include "audio/sndfile.h"
+#include "audio/samplerate.h"
+#include "spdlog/spdlog.h"
+
+namespace fs = std::filesystem;
+
+struct sound {
+    float* data;                    // Audio sample data (interleaved stereo or mono)
+    unsigned int frame_count;       // Total number of frames in the sound
+    unsigned int sample_rate;       // Original sample rate of the audio
+    unsigned int channels;          // Number of channels (1 = mono, 2 = stereo)
+
+    bool is_playing;                // Whether the sound is currently playing
+    unsigned int current_frame;     // Current playback position in frames
+    bool loop;                      // Whether to loop the sound
+
+    float volume;                   // Volume multiplier (0.0 to 1.0+)
+    float pan;                      // Stereo pan (0.0 = left, 0.5 = center, 1.0 = right)
+    float pitch;                    // Pitch/speed multiplier (1.0 = normal)
+
+    SRC_STATE* resampler;           // libsamplerate state (if needed)
+    float* resample_buffer;         // Buffer for resampled audio
+};
+
+struct music {
+    SNDFILE* file_handle;           // libsndfile file handle for streaming
+    SF_INFO file_info;              // Audio file information
+
+    float* stream_buffer;           // Buffer for reading from file
+    unsigned int buffer_size;       // Size of stream buffer in frames
+    unsigned int buffer_position;   // Current position in stream buffer
+    unsigned int frames_in_buffer;  // Number of valid frames currently in buffer
+
+    bool is_playing;                // Whether the music is currently playing
+    unsigned long long current_frame; // Current playback position in frames
+    bool loop;                      // Whether to loop the music
+
+    float volume;                   // Volume multiplier (0.0 to 1.0+)
+    float pan;                      // Stereo pan (0.0 = left, 0.5 = center, 1.0 = right)
+    float pitch;                    // Pitch/speed multiplier (1.0 = normal)
+
+    SRC_STATE* resampler;           // libsamplerate state (if needed)
+    float* resample_buffer;         // Buffer for resampled audio
+
+    std::string file_path;          // Path to the audio file
+};
+
+
+class AudioEngine {
+public:
+    AudioEngine(int device_type, float sample_rate, unsigned long buffer_size, const VolumeConfig& volume_presets);
+
+    fs::path sounds_path;
+
+    bool init_audio_device();
+    void close_audio_device();
+    bool is_audio_device_ready() const;
+    void set_master_volume(float volume);
+    float get_master_volume();
+
+    std::string load_sound(const fs::path& file_path, const std::string& name);
+    void unload_sound(const std::string& name);
+    void load_screen_sounds(const std::string& screen_name);
+    void unload_all_sounds();
+    void play_sound(const std::string& name, const std::string& volume_preset = "");
+    void stop_sound(const std::string& name);
+    bool is_sound_playing(const std::string& name);
+    void set_sound_volume(const std::string& name, float volume);
+    void set_sound_pan(const std::string& name, float pan);
+
+    std::string load_music_stream(const fs::path& file_path, const std::string& name);
+    void play_music_stream(const std::string& name, const std::string& volume_preset = "");
+    float get_music_time_length(const std::string& name) const;
+    float get_music_time_played(const std::string& name) const;
+    void set_music_volume(const std::string& name, float volume);
+    bool is_music_stream_playing(const std::string& name) const;
+    void stop_music_stream(const std::string& name);
+    void unload_music_stream(const std::string& name);
+    void unload_all_music();
+    void seek_music_stream(const std::string& name, float position);
+
+private:
+    int host_api_index;
+    double target_sample_rate;
+    unsigned long buffer_size;
+    VolumeConfig volume_presets;
+    bool is_ready;
+    mutable std::mutex lock;
+    float master_volume;
+
+    PaStream* stream;
+    PaStreamParameters output_parameters;
+
+    std::unordered_map<std::string, sound> sounds;
+    std::unordered_map<std::string, music> music_streams;
+
+    std::string don;
+    std::string kat;
+
+    static int port_audio_callback(const void *inputBuffer, void *outputBuffer,
+                                unsigned long framesPerBuffer,
+                                const PaStreamCallbackTimeInfo* timeInfo,
+                                PaStreamCallbackFlags statusFlags,
+                                void *userData);
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-// =============================================================================
-// CONSTANTS AND CONFIGURATION
-// =============================================================================
-
-#define AUDIO_DEVICE_CHANNELS        2      // Device output channels: stereo
-#define AUDIO_DEVICE_SAMPLE_RATE     44100  // Device output sample rate
-
-// Audio buffer usage types
-#define AUDIO_BUFFER_USAGE_STATIC    0      // Static audio buffer (for sounds)
-#define AUDIO_BUFFER_USAGE_STREAM    1      // Streaming audio buffer (for music/streams)
-
-// =============================================================================
-// TYPE DEFINITIONS
-// =============================================================================
-
-// Forward declaration of internal audio buffer structure
-struct audio_buffer;
-
-/**
- * Wave structure - represents audio data loaded from a file
- */
-typedef struct wave {
-    unsigned int frameCount;    // Total number of frames (considering channels)
-    unsigned int sampleRate;    // Frequency (samples per second)
-    unsigned int sampleSize;    // Bit depth (bits per sample): 8, 16, 32 (24 not supported)
-    unsigned int channels;      // Number of channels (1-mono, 2-stereo, ...)
-    void *data;                 // Buffer data pointer
-} wave;
-
-/**
- * AudioStream - custom audio stream for real-time audio processing
- */
-typedef struct audio_stream {
-    struct audio_buffer *buffer;    // Pointer to internal data used by the audio system
-    unsigned int sampleRate;        // Frequency (samples per second)
-    unsigned int sampleSize;        // Bit depth (bits per sample): 8, 16, 32 (24 not supported)
-    unsigned int channels;          // Number of channels (1-mono, 2-stereo, ...)
-} audio_stream;
-
-/**
- * Sound - represents a short audio clip loaded into memory
- * Suitable for sound effects and short audio clips (~10 seconds or less)
- */
-typedef struct sound {
-    audio_stream stream;         // Audio stream
-    unsigned int frameCount;     // Total number of frames (considering channels)
-} sound;
-
-/**
- * Music - represents a streaming audio source
- * Suitable for background music and longer audio files
- */
-typedef struct music {
-    audio_stream stream;         // Audio stream
-    unsigned int frameCount;     // Total number of frames (considering channels)
-    void *ctxData;              // Internal context data (file handle, decoder state, etc.)
-} music;
-
-void set_log_level(int level);
-
-// =============================================================================
-// DEVICE MANAGEMENT
-// =============================================================================
-
-/**
- * Print available host APIs to the console
- */
-void list_host_apis(void);
-/**
- * Get the name of a host API by index
- */
-const char* get_host_api_name(PaHostApiIndex hostApi);
-/**
- * Initialize the audio device and system
- * Must be called before using any other audio functions
- */
-void init_audio_device(PaHostApiIndex host_api, double sample_rate, unsigned long buffer_size);
-
-/**
- * Close the audio device and cleanup resources
- * Should be called when done using audio functionality
- */
-void close_audio_device(void);
-
-/**
- * Check if the audio device is ready and initialized
- * @return true if audio device is ready, false otherwise
- */
-bool is_audio_device_ready(void);
-
-/**
- * Set the master volume for all audio output
- * @param volume Volume level (0.0f = silent, 1.0f = full volume)
- */
-void set_master_volume(float volume);
-
-/**
- * Get the current master volume
- * @return Current master volume (0.0f to 1.0f)
- */
-float get_master_volume(void);
-
-// =============================================================================
-// AUDIO BUFFER MANAGEMENT (Internal/Advanced)
-// =============================================================================
-
-/**
- * Load an audio buffer with specified parameters
- * @param channels Number of channels
- * @param sampleRate Sample rate in Hz
- * @param size_in_frames Size of buffer in frames
- * @param usage Buffer usage type (AUDIO_BUFFER_USAGE_STATIC or AUDIO_BUFFER_USAGE_STREAM)
- * @return Pointer to audio buffer, or NULL on failure
- */
-struct audio_buffer *load_audio_buffer(uint32_t channels, uint32_t sampleRate, uint32_t size_in_frames, int usage);
-
-/**
- * Unload and free an audio buffer
- * @param buffer Pointer to audio buffer to unload
- */
-void unload_audio_buffer(struct audio_buffer *buffer);
-
-/**
- * Check if an audio buffer is currently playing
- * @param buffer Pointer to audio buffer
- * @return true if playing, false otherwise
- */
-bool is_audio_buffer_playing(struct audio_buffer *buffer);
-
-/**
- * Start playing an audio buffer
- * @param buffer Pointer to audio buffer
- */
-void play_audio_buffer(struct audio_buffer *buffer);
-
-/**
- * Stop playing an audio buffer
- * @param buffer Pointer to audio buffer
- */
-void stop_audio_buffer(struct audio_buffer *buffer);
-
-/**
- * Pause an audio buffer
- * @param buffer Pointer to audio buffer
- */
-void pause_audio_buffer(struct audio_buffer *buffer);
-
-/**
- * Resume a paused audio buffer
- * @param buffer Pointer to audio buffer
- */
-void resume_audio_buffer(struct audio_buffer *buffer);
-
-/**
- * Set the volume of an audio buffer
- * @param buffer Pointer to audio buffer
- * @param volume Volume level (0.0f = silent, 1.0f = full volume)
- */
-void set_audio_buffer_volume(struct audio_buffer *buffer, float volume);
-
-/**
- * Set the pitch of an audio buffer
- * @param buffer Pointer to audio buffer
- * @param pitch Pitch multiplier (1.0f = normal, 2.0f = double speed/octave higher)
- */
-void set_audio_buffer_pitch(struct audio_buffer *buffer, float pitch);
-
-/**
- * Set the pan (stereo positioning) of an audio buffer
- * @param buffer Pointer to audio buffer
- * @param pan Pan position (0.0f = full left, 0.5f = center, 1.0f = full right)
- */
-void set_audio_buffer_pan(struct audio_buffer *buffer, float pan);
-
-/**
- * Add an audio buffer to the internal tracking system
- * @param buffer Pointer to audio buffer
- */
-void track_audio_buffer(struct audio_buffer *buffer);
-
-/**
- * Remove an audio buffer from the internal tracking system
- * @param buffer Pointer to audio buffer
- */
-void untrack_audio_buffer(struct audio_buffer *buffer);
-
-// =============================================================================
-// WAVE MANAGEMENT
-// =============================================================================
-
-/**
- * Load wave data from file
- * Supports WAV, OGG, FLAC and other formats supported by libsndfile
- * @param filename Path to audio file
- * @return Wave structure containing audio data
- */
-wave load_wave(const char* filename);
-
-/**
- * Check if a wave structure contains valid audio data
- * @param wave Wave structure to validate
- * @return true if wave is valid, false otherwise
- */
-bool is_wave_valid(wave wave);
-
-/**
- * Unload wave data and free memory
- * @param wave Wave structure to unload
- */
-void unload_wave(wave wave);
-
-// =============================================================================
-// SOUND MANAGEMENT
-// =============================================================================
-
-/**
- * Create a sound from existing wave data
- * @param wave Wave data to create sound from
- * @return Sound structure
- */
-sound load_sound_from_wave(wave wave);
-
-/**
- * Load a sound directly from file
- * Suitable for sound effects and short audio clips
- * @param filename Path to audio file
- * @return Sound structure
- */
-sound load_sound(const char* filename);
-
-/**
- * Check if a sound structure is valid
- * @param sound Sound structure to validate
- * @return true if sound is valid, false otherwise
- */
-bool is_sound_valid(sound sound);
-
-/**
- * Unload sound and free resources
- * @param sound Sound structure to unload
- */
-void unload_sound(sound sound);
-
-/**
- * Play a sound
- * @param sound Sound to play
- */
-void play_sound(sound sound);
-
-/**
- * Pause a sound
- * @param sound Sound to pause
- */
-void pause_sound(sound sound);
-
-/**
- * Resume a paused sound
- * @param sound Sound to resume
- */
-void resume_sound(sound sound);
-
-/**
- * Stop a sound
- * @param sound Sound to stop
- */
-void stop_sound(sound sound);
-
-/**
- * Check if a sound is currently playing
- * @param sound Sound to check
- * @return true if playing, false otherwise
- */
-bool is_sound_playing(sound sound);
-
-/**
- * Set the volume of a sound
- * @param sound Sound to modify
- * @param volume Volume level (0.0f = silent, 1.0f = full volume)
- */
-void set_sound_volume(sound sound, float volume);
-
-/**
- * Set the pitch of a sound
- * @param sound Sound to modify
- * @param pitch Pitch multiplier (1.0f = normal, 2.0f = double speed/octave higher)
- */
-void set_sound_pitch(sound sound, float pitch);
-
-/**
- * Set the pan (stereo positioning) of a sound
- * @param sound Sound to modify
- * @param pan Pan position (0.0f = full left, 0.5f = center, 1.0f = full right)
- */
-void set_sound_pan(sound sound, float pan);
-
-// =============================================================================
-// AUDIO STREAM MANAGEMENT
-// =============================================================================
-
-/**
- * Create an audio stream for real-time audio processing
- * @param sample_rate Sample rate in Hz
- * @param sample_size Sample size in bits (8, 16, or 32)
- * @param channels Number of channels (1 = mono, 2 = stereo)
- * @return Audio stream structure
- */
-audio_stream load_audio_stream(unsigned int sample_rate, unsigned int sample_size, unsigned int channels);
-
-/**
- * Unload an audio stream and free resources
- * @param stream Audio stream to unload
- */
-void unload_audio_stream(audio_stream stream);
-
-/**
- * Start playing an audio stream
- * @param stream Audio stream to play
- */
-void play_audio_stream(audio_stream stream);
-
-/**
- * Pause an audio stream
- * @param stream Audio stream to pause
- */
-void pause_audio_stream(audio_stream stream);
-
-/**
- * Resume a paused audio stream
- * @param stream Audio stream to resume
- */
-void resume_audio_stream(audio_stream stream);
-
-/**
- * Check if an audio stream is currently playing
- * @param stream Audio stream to check
- * @return true if playing, false otherwise
- */
-bool is_audio_stream_playing(audio_stream stream);
-
-/**
- * Stop an audio stream
- * @param stream Audio stream to stop
- */
-void stop_audio_stream(audio_stream stream);
-
-/**
- * Set the volume of an audio stream
- * @param stream Audio stream to modify
- * @param volume Volume level (0.0f = silent, 1.0f = full volume)
- */
-void set_audio_stream_volume(audio_stream stream, float volume);
-
-/**
- * Set the pitch of an audio stream
- * @param stream Audio stream to modify
- * @param pitch Pitch multiplier (1.0f = normal, 2.0f = double speed/octave higher)
- */
-void set_audio_stream_pitch(audio_stream stream, float pitch);
-
-/**
- * Set the pan (stereo positioning) of an audio stream
- * @param stream Audio stream to modify
- * @param pan Pan position (0.0f = full left, 0.5f = center, 1.0f = full right)
- */
-void set_audio_stream_pan(audio_stream stream, float pan);
-
-/**
- * Update an audio stream with new audio data
- * Used for real-time audio processing and procedural audio
- * @param stream Audio stream to update
- * @param data Pointer to audio data (format should match stream parameters)
- * @param frame_count Number of frames to update
- */
-void update_audio_stream(audio_stream stream, const void *data, int frame_count);
-
-// =============================================================================
-// MUSIC MANAGEMENT
-// =============================================================================
-
-/**
- * Load a music stream from file
- * Suitable for background music and longer audio files
- * Music is streamed from disk to save memory
- * @param filename Path to audio file
- * @return Music structure
- */
-music load_music_stream(const char* filename);
-
-/**
- * Check if a music structure is valid
- * @param music Music structure to validate
- * @return true if music is valid, false otherwise
- */
-bool is_music_valid(music music);
-
-/**
- * Unload music stream and free resources
- * @param music Music structure to unload
- */
-void unload_music_stream(music music);
-
-/**
- * Start playing music
- * @param music Music to play
- */
-void play_music_stream(music music);
-
-/**
- * Pause music playback
- * @param music Music to pause
- */
-void pause_music_stream(music music);
-
-/**
- * Resume paused music
- * @param music Music to resume
- */
-void resume_music_stream(music music);
-
-/**
- * Stop music playback
- * @param music Music to stop
- */
-void stop_music_stream(music music);
-
-/**
- * Seek to a specific position in music
- * @param music Music to seek
- * @param position Position in seconds to seek to
- */
-void seek_music_stream(music music, float position);
-
-/**
- * Update music stream buffers
- * Must be called regularly when playing music to maintain continuous playback
- * @param music Music stream to update
- */
-void update_music_stream(music music);
-
-/**
- * Check if music is currently playing
- * @param music Music to check
- * @return true if playing, false otherwise
- */
-bool is_music_stream_playing(music music);
-
-/**
- * Set the volume of music
- * @param music Music to modify
- * @param volume Volume level (0.0f = silent, 1.0f = full volume)
- */
-void set_music_volume(music music, float volume);
-
-/**
- * Set the pitch of music
- * @param music Music to modify
- * @param pitch Pitch multiplier (1.0f = normal, 2.0f = double speed/octave higher)
- */
-void set_music_pitch(music music, float pitch);
-
-/**
- * Set the pan (stereo positioning) of music
- * @param music Music to modify
- * @param pan Pan position (0.0f = full left, 0.5f = center, 1.0f = full right)
- */
-void set_music_pan(music music, float pan);
-
-/**
- * Get the total length of music in seconds
- * @param music Music to query
- * @return Total length in seconds
- */
-float get_music_time_length(music music);
-
-/**
- * Get the current playback position in seconds
- * @param music Music to query
- * @return Current position in seconds
- */
-float get_music_time_played(music music);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif // AUDIO_H
+    std::string path_to_string(const fs::path& path) const;
+};
+
+extern std::unique_ptr<AudioEngine> audio;

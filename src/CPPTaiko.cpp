@@ -8,7 +8,7 @@
 #include "libs/config.h"
 #include "scenes/game.h"
 #include "libs/utils.h"
-#include "libs/audio_engine.h"
+#include "libs/audio.h"
 #include "libs/logging.h"
 
 namespace fs = std::filesystem;
@@ -122,25 +122,18 @@ void init_audio() {
         global_data.config->audio.buffer_size,
         global_data.config->volume
     );
-    audio->setLogLevel(2);
-    //old_stderr = os.dup(2)
-    //devnull = os.open(os.devnull, os.O_WRONLY)
-    //os.dup2(devnull, 2)
-    //os.close(devnull)
-    audio->initAudioDevice();
-    //os.dup2(old_stderr, 2)
-    //os.close(old_stderr)
+    audio->init_audio_device();
     spdlog::info("Audio device initialized");
 }
 
 void set_config_flags() {
     if (global_data.config->video.vsync) {
         ray::SetConfigFlags(ray::FLAG_VSYNC_HINT);
-        //logger.info("VSync enabled")
+        spdlog::info("VSync enabled");
     }
     if (global_data.config->video.target_fps != -1) {
         ray::SetTargetFPS(global_data.config->video.target_fps);
-        //logger.info(f"Target FPS set to {global_data.config['video']['target_fps']}")
+        spdlog::info("Target FPS set to {}", global_data.config->video.target_fps);
     }
     ray::SetConfigFlags(ray::FLAG_MSAA_4X_HINT);
     ray::SetConfigFlags(ray::FLAG_WINDOW_RESIZABLE);
@@ -240,7 +233,7 @@ int main(int argc, char* argv[]) {
     if (fs::exists(skin_path)) {
         tex.init(global_data.config->paths.skin.string());
     } else {
-        ray::TraceLog(ray::LOG_WARNING, "Skin directory not found, skipping texture initialization");
+        spdlog::warn("Skin directory not found, skipping texture initialization");
     }
 
     if (global_data.config->general.score_method == ScoreMethod::GEN3) {
@@ -248,20 +241,18 @@ int main(int argc, char* argv[]) {
     } else {
         global_data.score_db = "scores.db";
     }
-    //setup_logging()
-    ray::TraceLog(ray::LOG_INFO, "Starting CPPTaiko");
-    //TraceLog(LOG_DEBUG, f"Loaded config: {global_data.config}")
+    spdlog::info("Starting CPPTaiko");
     int screen_width = 1280;//global_tex.screen_width
     int screen_height = 720;//global_tex.screen_height
 
     set_config_flags();
     ray::InitWindow(screen_width, screen_height, "CPPTaiko");
 
-    //logger.info(f"Window initialized: {screen_width}x{screen_height}")
+    spdlog::info("Window initialized: " + std::to_string(screen_width) + "x" + std::to_string(screen_height));
     if (fs::exists(skin_path)) {
         global_tex.init(global_data.config->paths.skin.string());
     } else {
-        TraceLog(ray::LOG_WARNING, "Skin directory not found, skipping global texture initialization");
+        spdlog::warn("Skin directory not found, skipping global texture initialization");
     }
     global_tex.load_screen_textures("global");
     global_tex.load_folder("chara", "chara_0");
@@ -269,18 +260,18 @@ int main(int argc, char* argv[]) {
     global_tex.load_folder("chara", "chara_4");
     if (global_data.config->video.borderless) {
         ray::ToggleBorderlessWindowed();
-        //logger.info("Borderless window enabled")
+        spdlog::info("Borderless window enabled");
     }
     if (global_data.config->video.fullscreen) {
         ray::ToggleFullscreen();
-        //logger.info("Fullscreen enabled")
+        spdlog::info("Fullscreen enabled");
     }
 
     init_audio();
 
     std::string current_screen = check_args(argc, argv);
 
-    //logger.info(f"Initial screen: {current_screen}")
+    spdlog::info("Initial screen: " + current_screen);
 
     //create_song_db()
 
@@ -328,13 +319,13 @@ int main(int argc, char* argv[]) {
 
     ray::Camera2D camera = ray::Camera2D();
     update_camera_for_window_size(camera, screen_width, screen_height);
-    //logger.info("Camera2D initialized")
+    spdlog::info("Camera2D initialized");
 
     rlSetBlendFactorsSeparate(RL_SRC_ALPHA, RL_ONE_MINUS_SRC_ALPHA, RL_ONE, RL_ONE_MINUS_SRC_ALPHA, RL_FUNC_ADD, RL_FUNC_ADD);
     ray::SetExitKey(global_data.config->keys.exit_key);
 
     ray::HideCursor();
-    //logger.info("Cursor hidden")
+    spdlog::info("Cursor hidden");
     FPSCounter fps_counter = FPSCounter();
     ray::Color last_color = ray::BLACK;
     int last_discord_check = 0;
@@ -351,10 +342,10 @@ int main(int argc, char* argv[]) {
 
         if (ray::IsKeyPressed(global_data.config->keys.fullscreen_key)) {
             ray::ToggleFullscreen();
-            //logger.info("Toggled fullscreen")
+            spdlog::info("Toggled fullscreen");
         } else if (ray::IsKeyPressed(global_data.config->keys.borderless_key)) {
             ray::ToggleBorderlessWindowed();
-            //logger.info("Toggled borderless windowed mode")
+            spdlog::info("Toggled borderless windowed mode");
         }
 
         update_camera_for_window_size(camera, screen_width, screen_height);
@@ -379,7 +370,7 @@ int main(int argc, char* argv[]) {
         }
 
         if (next_screen.has_value()) {
-            //logger.info(f"Screen changed from {current_screen} to {next_screen}")
+            spdlog::info("Screen changed from {} to {}", current_screen, next_screen.value());
             current_screen = next_screen.value();
             global_data.input_locked = 0;
         }
@@ -397,10 +388,10 @@ int main(int argc, char* argv[]) {
     }
 
     ray::CloseWindow();
-    audio->closeAudioDevice();
+    audio->close_audio_device();
     //if discord_connected:
         //RPC.close()
     global_tex.unload_textures();
     //screen_mapping[current_screen].on_screen_end("LOADING")
-    //logger.info("Window closed and audio device shut down")
+    spdlog::info("Window closed and audio device shut down");
 }
