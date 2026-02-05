@@ -23,7 +23,7 @@ struct GeneralConfig {
     bool timer_frozen;
     bool judge_counter;
     bool nijiiro_notes;
-    int log_level;
+    std::string log_level;
     bool fake_online;
     int practice_mode_bar_delay;
     std::string score_method;

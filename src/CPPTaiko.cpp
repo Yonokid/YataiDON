@@ -9,6 +9,7 @@
 #include "scenes/game.h"
 #include "libs/utils.h"
 #include "libs/audio_engine.h"
+#include "libs/logging.h"
 
 namespace fs = std::filesystem;
 
@@ -129,7 +130,7 @@ void init_audio() {
     audio->initAudioDevice();
     //os.dup2(old_stderr, 2)
     //os.close(old_stderr)
-    //logger.info("Audio device initialized")
+    spdlog::info("Audio device initialized");
 }
 
 void set_config_flags() {
@@ -231,8 +232,8 @@ std::string check_args(int argc, char* argv[]) {
 
 int main(int argc, char* argv[]) {
     //force_dedicated_gpu()
-
     global_data.config = new Config(get_config());
+    setup_logging(global_data.config->general.log_level);
 
     // Initialize texture wrapper with skin path from config (if skin exists)
     fs::path skin_path = fs::path("Skins") / global_data.config->paths.skin / "Graphics";

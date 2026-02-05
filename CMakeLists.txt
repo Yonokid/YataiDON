@@ -81,6 +81,15 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(tomlplusplus)
 
+# spdlog
+FetchContent_Declare(
+    spdlog
+    GIT_REPOSITORY https://github.com/gabime/spdlog.git
+    GIT_TAG v1.13.0
+    GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(spdlog)
+
 # libsndfile
 if(WIN32)
     message(STATUS "Using local libsndfile on Windows")
@@ -232,6 +241,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     portaudio
     digestpp
     tomlplusplus::tomlplusplus
+    spdlog::spdlog
 )
 
 # Platform specific (Thanks GPT)
