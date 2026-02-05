@@ -48,6 +48,7 @@ void GameScreen::on_screen_start() {
 std::string GameScreen::on_screen_end(const std::string& next_screen) {
     song_started = false;
     end_ms = 0;
+    ray::UnloadShader(mask_shader);
     /*
     if self.movie is not None:
         self.movie.stop()

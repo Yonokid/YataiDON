@@ -93,6 +93,7 @@ struct FramedTexture : public TextureObject {
 class TextureWrapper {
 private:
     std::map<int, std::unique_ptr<BaseAnimation>> animations;
+    std::vector<std::unique_ptr<BaseAnimation>> copied_animations;
     fs::path graphics_path;
     fs::path parent_graphics_path;
 

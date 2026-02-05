@@ -116,6 +116,7 @@ void TextureWrapper::unload_textures() {
 
     textures.clear();
     animations.clear();
+    copied_animations.clear();
     ray::TraceLog(ray::LOG_INFO, "All textures unloaded");
 }
 
@@ -130,7 +131,8 @@ BaseAnimation* TextureWrapper::get_animation(const int id, bool is_copy) {
             new_anim->start();
         }
         // Note: Returning raw pointer from unique_ptr requires careful management
-        return new_anim.release();
+        copied_animations.push_back(std::move(new_anim));
+        return copied_animations.back().get();
     }
 
     if (animations[id]->isStarted()) {
