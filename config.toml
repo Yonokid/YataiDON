@@ -68,7 +68,7 @@ buffer_size = 128
 
 [volume]
 sound = 1.0
-music = 1.0
+music = 0.8
 voice = 1.0
 hitsound = 1.0
 attract_mode = 1.0

@@ -99,19 +99,44 @@ int AudioEngine::port_audio_callback(const void *inputBuffer, void *outputBuffer
             if (mus.buffer_position >= mus.frames_in_buffer) {
                 if (mus.file_handle) {
                     sf_count_t frames_read = sf_readf_float(mus.file_handle, mus.stream_buffer, mus.buffer_size);
-                    mus.frames_in_buffer = frames_read;
-                    mus.buffer_position = 0;
 
                     if (frames_read == 0) {
                         if (mus.loop) {
                             sf_seek(mus.file_handle, 0, SEEK_SET);
                             frames_read = sf_readf_float(mus.file_handle, mus.stream_buffer, mus.buffer_size);
-                            mus.frames_in_buffer = frames_read;
+                            if (mus.resampler) {
+                                src_reset(mus.resampler);
+                            }
                         } else {
                             mus.is_playing = false;
                             break;
                         }
                     }
+
+                    if (mus.resampler && frames_read > 0) {
+                        double ratio = engine->target_sample_rate / (double)mus.file_info.samplerate;
+
+                        SRC_DATA src_data;
+                        src_data.data_in = mus.stream_buffer;
+                        src_data.input_frames = frames_read;
+                        src_data.data_out = mus.resample_buffer;
+                        src_data.output_frames = (long)(frames_read * ratio) + 256;
+                        src_data.src_ratio = ratio;
+                        src_data.end_of_input = 0;
+
+                        int error = src_process(mus.resampler, &src_data);
+                        if (error) {
+                            spdlog::error("Resampling error for music stream {}: {}", name, src_strerror(error));
+                            mus.is_playing = false;
+                            break;
+                        }
+
+                        mus.frames_in_buffer = src_data.output_frames_gen;
+                    } else {
+                        mus.frames_in_buffer = frames_read;
+                    }
+
+                    mus.buffer_position = 0;
                 } else {
                     mus.is_playing = false;
                     break;
@@ -122,6 +147,8 @@ int AudioEngine::port_audio_callback(const void *inputBuffer, void *outputBuffer
             unsigned long frames_to_read = (frames_to_process < frames_available) ? frames_to_process : frames_available;
 
             unsigned int channels = mus.file_info.channels;
+            float* source_buffer = mus.resampler ? mus.resample_buffer : mus.stream_buffer;
+
             for (unsigned long i = 0; i < frames_to_read; i++) {
                 unsigned long src_index = (mus.buffer_position + i) * channels;
                 unsigned long dst_index = (output_index + i) * 2;  // Stereo output
@@ -130,13 +157,13 @@ int AudioEngine::port_audio_callback(const void *inputBuffer, void *outputBuffer
 
                 if (channels == 1) {
                     // Mono source - apply pan
-                    float sample = mus.stream_buffer[src_index];
+                    float sample = source_buffer[src_index];
                     left = sample * (1.0f - mus.pan);
                     right = sample * mus.pan;
                 } else {
                     // Stereo source - apply pan as balance
-                    left = mus.stream_buffer[src_index];
-                    right = mus.stream_buffer[src_index + 1];
+                    left = source_buffer[src_index];
+                    right = source_buffer[src_index + 1];
 
                     if (mus.pan < 0.5f) {
                         right *= (mus.pan * 2.0f);
@@ -341,18 +368,34 @@ std::string AudioEngine::load_sound(const fs::path& file_path, const std::string
         snd.pitch = 1.0f;
 
         if (snd.sample_rate != target_sample_rate) {
-            int error;
-            snd.resampler = src_new(SRC_SINC_FASTEST, channels, &error);
-            if (!snd.resampler) {
-                spdlog::error("Failed to create resampler for sound: {} - {}", file_path.string(), src_strerror(error));
+            double ratio = target_sample_rate / (double)snd.sample_rate;
+            long output_frames = (long)(frames_read * ratio) + 1;
+            float* resampled_data = new float[output_frames * channels];
+
+            SRC_DATA src_data;
+            src_data.data_in = data;
+            src_data.input_frames = frames_read;
+            src_data.data_out = resampled_data;
+            src_data.output_frames = output_frames;
+            src_data.src_ratio = ratio;
+            src_data.end_of_input = 1;
+
+            int error = src_simple(&src_data, SRC_SINC_FASTEST, channels);
+            if (error) {
+                spdlog::error("Failed to resample sound: {} - {}", file_path.string(), src_strerror(error));
                 delete[] data;
+                delete[] resampled_data;
                 return "";
             }
-            snd.resample_buffer = new float[buffer_size * channels * 2];
-        } else {
-            snd.resampler = nullptr;
-            snd.resample_buffer = nullptr;
+
+            delete[] data;
+            snd.data = resampled_data;
+            snd.frame_count = src_data.output_frames_gen;
+            snd.sample_rate = target_sample_rate;
         }
+
+        snd.resampler = nullptr;
+        snd.resample_buffer = nullptr;
 
         lock.lock();
         sounds[name] = snd;
@@ -553,12 +596,18 @@ std::string AudioEngine::load_music_stream(const fs::path& file_path, const std:
             int error;
             mus.resampler = src_new(SRC_SINC_FASTEST, file_info.channels, &error);
             if (!mus.resampler) {
-                spdlog::error("Failed to create resampler for music: {} - {}", file_path.string(), src_strerror(error));
-                delete[] mus.stream_buffer;
+                spdlog::error("Failed to create resampler for music stream {}: {}", name, src_strerror(error));
                 sf_close(file);
+                delete[] mus.stream_buffer;
                 return "";
             }
-            mus.resample_buffer = new float[buffer_size * file_info.channels * 2];
+
+            double ratio = target_sample_rate / (double)file_info.samplerate;
+            unsigned int resample_buffer_size = (unsigned int)(mus.buffer_size * ratio) + 256;
+            mus.resample_buffer = new float[resample_buffer_size * file_info.channels];
+
+            spdlog::info("Music stream {} will be resampled from {} Hz to {} Hz",
+                        name, file_info.samplerate, target_sample_rate);
         } else {
             mus.resampler = nullptr;
             mus.resample_buffer = nullptr;
