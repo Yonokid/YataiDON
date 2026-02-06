@@ -430,7 +430,6 @@ TJAParser::notes_to_position(int diff) {
                 current_ms += increment;
                 state.curr_note_list->push_back(note);
                 state.curr_draw_list->push_back(note);
-                get_moji(state.curr_note_list, ms_per_measure);
                 state.index += 1;
 
                 // Update previous note
@@ -608,99 +607,6 @@ std::vector<std::vector<std::string>> TJAParser::data_to_notes(int diff) {
 
         return notes;
 }
-
-void TJAParser::get_moji(std::vector<Note>* play_note_list, double ms_per_measure) {
-        static const std::map<int, int> se_notes = {
-            {1, 0}, {2, 3}, {3, 5}, {4, 6},
-            {5, 7}, {6, 8}, {7, 9}, {8, 10}, {9, 11}
-        };
-
-        if (play_note_list->size() <= 1) {
-            return;
-        }
-
-        size_t last_idx = play_note_list->size() - 1;
-
-        // Get current note (last element)
-        Note* current_note = &play_note_list->at(last_idx);
-        if (!current_note) return;
-
-        // Set moji for current note
-        if (current_note->type == 1) {
-            current_note->moji = 0;
-        } else if (current_note->type == 2) {
-            current_note->moji = 3;
-        } else {
-            auto it = se_notes.find(current_note->type);
-            if (it != se_notes.end()) {
-                current_note->moji = it->second;
-            }
-        }
-
-        // Get previous note (second to last)
-        Note* prev_note = &play_note_list->at(last_idx - 1);
-        if (!prev_note) return;
-
-        // Set moji for previous note
-        if (prev_note->type == 1) {
-            double timing_threshold = ms_per_measure / 8.0f - 1.0f;
-            if (current_note->hit_ms - prev_note->hit_ms <= timing_threshold) {
-                prev_note->moji = 1;
-            } else {
-                prev_note->moji = 0;
-            }
-        } else if (prev_note->type == 2) {
-            double timing_threshold = ms_per_measure / 8.0f - 1.0f;
-            if (current_note->hit_ms - prev_note->hit_ms <= timing_threshold) {
-                prev_note->moji = 4;
-            } else {
-                prev_note->moji = 3;
-            }
-        } else {
-            auto it = se_notes.find(prev_note->type);
-            if (it != se_notes.end()) {
-                prev_note->moji = it->second;
-            }
-        }
-
-        // Check for consecutive ones pattern
-        if (play_note_list->size() > 3) {
-            Note* notes_minus_4 = &play_note_list->at(last_idx - 3);
-            Note* notes_minus_3 = &play_note_list->at(last_idx - 2);
-            Note* notes_minus_2 = &play_note_list->at(last_idx - 1);
-
-            if (!notes_minus_4 || !notes_minus_3 || !notes_minus_2) return;
-
-            bool consecutive_ones = (
-                notes_minus_4->type == 1 &&
-                notes_minus_3->type == 1 &&
-                notes_minus_2->type == 1
-            );
-
-            if (consecutive_ones) {
-                bool rapid_timing = (
-                    notes_minus_3->hit_ms - notes_minus_4->hit_ms < (ms_per_measure / 8.0f) &&
-                    notes_minus_2->hit_ms - notes_minus_3->hit_ms < (ms_per_measure / 8.0f)
-                );
-
-                if (rapid_timing) {
-                    if (play_note_list->size() > 5) {
-                        Note* notes_minus_5 = &play_note_list->at(last_idx - 4);
-                        if (!notes_minus_5) return;
-
-                        bool spacing_before = notes_minus_4->hit_ms - notes_minus_5->hit_ms >= (ms_per_measure / 8.0f);
-                        bool spacing_after = current_note->hit_ms - notes_minus_2->hit_ms >= (ms_per_measure / 8.0f);
-
-                        if (spacing_before && spacing_after) {
-                            notes_minus_3->moji = 2;
-                        }
-                    } else {
-                        notes_minus_3->moji = 2;
-                    }
-                }
-            }
-        }
-    }
 
 float TJAParser::apply_easing(float t, EasingPoint easing_point, EasingFunction easing_function) {
         switch (easing_point) {
@@ -1293,6 +1199,42 @@ std::vector<Note> modifier_random(const NoteList& notes, int value) {
     return modded_notes;
 }
 
+std::vector<Note> modifier_moji(const NoteList& notes) {
+    static const std::map<int, int> se_notes = {
+        {1, 0}, {2, 3}, {3, 5}, {4, 6},
+        {5, 7}, {6, 8}, {7, 9}, {8, 10}, {9, 11}
+    };
+
+    std::vector<Note> modded_notes = notes.draw_notes;
+
+    if (modded_notes.empty()) return modded_notes;
+
+    for (Note& note : modded_notes) {
+        auto it = se_notes.find(note.type);
+        if (it != se_notes.end()) {
+            note.moji = it->second;
+        }
+    }
+
+    auto streams = find_streams(notes.play_notes, Interval::SIXTEENTH);
+    for (const auto& [start, length] : streams) {
+        for (int i = start; i < start + length - 1; ++i) {
+            if (modded_notes[i].type == 1) {
+                modded_notes[i].moji = 1;
+            } else if (modded_notes[i].type == 2) {
+                modded_notes[i].moji = 4;
+            }
+        }
+
+        if (length == 3) {
+            if (modded_notes[start + 1].type == 1) modded_notes[start + 1].moji = 2;
+        }
+
+    }
+
+    return modded_notes;
+}
+
 std::tuple<std::vector<Note>, std::vector<Note>, std::vector<Note>> apply_modifiers(const NoteList& notes, const Modifiers& modifiers) {
     std::vector<Note> play_notes = notes.play_notes;
     std::vector<Note> draw_notes = notes.draw_notes;
@@ -1314,8 +1256,82 @@ std::tuple<std::vector<Note>, std::vector<Note>, std::vector<Note>> apply_modifi
     draw_notes = speed_notes;
     bars = speed_bars;
 
+    draw_notes = modifier_moji(notes);
+
     // play_notes = modifier_difficulty(notes, modifiers.subdiff);
     // draw_notes = modifier_difficulty(notes, modifiers.subdiff);
 
     return {play_notes, draw_notes, bars};
+}
+
+Interval get_note_interval_type(double interval_ms, double bpm, double time_sig) {
+    if (bpm == 0) {
+        return Interval::UNKNOWN;
+    }
+
+    double ms_per_measure = get_ms_per_measure(bpm, time_sig) / time_sig;
+    double tolerance = 15.0;  // ms tolerance for timing classification
+
+    double eighth_note = ms_per_measure / 8.0;
+    double sixteenth_note = ms_per_measure / 16.0;
+    double twelfth_note = ms_per_measure / 12.0;
+    double twentyfourth_note = ms_per_measure / 24.0;
+    double thirtysecond_note = ms_per_measure / 32.0;
+    double quarter_note = ms_per_measure / 4.0;
+
+    if (std::abs(interval_ms - eighth_note) < tolerance) {
+        return Interval::EIGHTH;
+    } else if (std::abs(interval_ms - sixteenth_note) < tolerance) {
+        return Interval::SIXTEENTH;
+    } else if (std::abs(interval_ms - twelfth_note) < tolerance) {
+        return Interval::TWELFTH;
+    } else if (std::abs(interval_ms - twentyfourth_note) < tolerance) {
+        return Interval::TWENTYFOURTH;
+    } else if (std::abs(interval_ms - thirtysecond_note) < tolerance) {
+        return Interval::THIRTYSECOND;
+    } else if (std::abs(interval_ms - quarter_note) < tolerance) {
+        return Interval::QUARTER;
+    }
+    return Interval::UNKNOWN;
+}
+
+std::vector<std::pair<int, int>> find_streams(const std::vector<Note>& modded_notes, Interval interval_type) {
+    std::vector<std::pair<int, int>> streams;
+    size_t i = 0;
+
+    while (i < modded_notes.size() - 1) {
+        if (modded_notes[i].type == 5 || modded_notes[i].type == 6 ||
+            modded_notes[i].type == 7 || modded_notes[i].type == 9) {
+            i++;
+            continue;
+        }
+
+        int stream_start = i;
+        int stream_length = 1;
+
+        while (i < modded_notes.size() - 1) {
+            if (modded_notes[i + 1].type == 5 || modded_notes[i + 1].type == 6 ||
+                modded_notes[i + 1].type == 7 || modded_notes[i + 1].type == 9) {
+                break;
+            }
+
+            double interval = modded_notes[i + 1].hit_ms - modded_notes[i].hit_ms;
+            Interval note_type = get_note_interval_type(interval, modded_notes[i].bpm);
+
+            if (note_type == interval_type) {
+                stream_length++;
+                i++;
+            } else {
+                break;
+            }
+        }
+
+        if (stream_length >= 2) {
+            streams.push_back({stream_start, stream_length});
+        }
+
+        i++;
+    }
+
+    return streams;
 }

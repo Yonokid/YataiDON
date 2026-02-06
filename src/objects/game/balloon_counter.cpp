@@ -1,5 +1,4 @@
 #include "balloon_counter.h"
-#include <spdlog/spdlog.h>
 
 BalloonCounter::BalloonCounter(int count, PlayerNum player_num, bool is_2p)
  : balloon_count(count), balloon_total(count), is_popped(false), is_2p(is_2p), player_num(player_num) {

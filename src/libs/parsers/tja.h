@@ -276,6 +276,16 @@ struct ParserState {
     std::optional<Note> section_bar;
 };
 
+enum class Interval {
+    UNKNOWN = 0,
+    QUARTER = 1,
+    EIGHTH = 2,
+    TWELFTH = 3,
+    SIXTEENTH = 4,
+    TWENTYFOURTH = 6,
+    THIRTYSECOND = 8
+};
+
 class TJAParser {
 public:
     static const std::map<int, std::string> DIFFS;
@@ -312,8 +322,6 @@ private:
     static std::vector<int> parse_balloon_data(const std::string& data);
 
     std::vector<std::vector<std::string>> data_to_notes(int diff);
-
-    void get_moji(std::vector<Note>* play_note_list, double ms_per_measure);
 
     Note* get_note_ptr(Note& variant);
 
@@ -370,6 +378,9 @@ int calculate_base_score(const NoteList& notes);
 std::string test_encodings(const std::filesystem::path& file_path);
 std::string strip_comments(const std::string& code);
 
+Interval get_note_interval_type(double interval_ms, double bpm, double time_sig = 4.0);
+std::vector<std::pair<int, int>> find_streams(const std::vector<Note>& modded_notes, Interval interval_type);
+std::vector<Note> modifier_moji(const NoteList& notes);
 std::pair<std::vector<Note>, std::vector<Note>> modifier_speed(const NoteList& notes, float value);
 std::vector<Note> modifier_display(const NoteList& notes);
 std::vector<Note> modifier_inverse(const NoteList& notes);
