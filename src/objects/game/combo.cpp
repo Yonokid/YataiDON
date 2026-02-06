@@ -30,7 +30,7 @@ void Combo::update(double current_ms, int curr_combo) {
     for (size_t i = 0; i < 3; i++) {
         double elapsed_time = current_ms - start_times[i];
         if (elapsed_time > cycle_time) {
-            double cycles_completed = elapsed_time / cycle_time;
+            double cycles_completed = std::floor(elapsed_time / cycle_time);
             start_times[i] += cycles_completed * cycle_time;
             elapsed_time = current_ms - start_times[i];
         }

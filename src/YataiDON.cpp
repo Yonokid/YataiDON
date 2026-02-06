@@ -10,69 +10,9 @@
 #include "libs/utils.h"
 #include "libs/audio.h"
 #include "libs/logging.h"
+#include "objects/fps_counter.h"
 
 namespace fs = std::filesystem;
-
-inline bool operator==(const ray::Color& a, const ray::Color& b)
-{
-    return a.r == b.r &&
-           a.g == b.g &&
-           a.b == b.b &&
-           a.a == b.a;
-}
-
-inline bool operator!=(const ray::Color& a, const ray::Color& b)
-{
-    return !(a == b);
-}
-
-class FPSCounter {
-private:
-    static const int SAMPLE_SIZE = 60;
-    float frameTimes[SAMPLE_SIZE];
-    int currentFrame = 0;
-    long lastTime;
-
-public:
-    FPSCounter() {
-        lastTime = get_current_ms();
-        for (int i = 0; i < SAMPLE_SIZE; i++) {
-            frameTimes[i] = 16.67f;
-        }
-    }
-
-    void update() {
-        long currentTime = get_current_ms();
-        float deltaTime = currentTime - lastTime;
-        lastTime = currentTime;
-
-        frameTimes[currentFrame % SAMPLE_SIZE] = deltaTime;
-        currentFrame++;
-    }
-
-    float get_fps() {
-        float sum = 0;
-        for (int i = 0; i < SAMPLE_SIZE; i++) {
-            sum += frameTimes[i];
-        }
-        float avgFrameTime = sum / SAMPLE_SIZE;
-        return 1000.0f / avgFrameTime;
-    }
-
-    void draw() {
-        int curr_fps = get_fps();
-        float pos = 20.0f * global_tex.screen_scale;
-
-        ray::Color color;
-        ray::Font font = global_data.font;
-
-        if (curr_fps < 30) color = ray::RED;
-        else if (curr_fps < 60) color = ray::YELLOW;
-        else color = ray::LIME;
-
-        DrawTextEx(font, ray::TextFormat("%d FPS", curr_fps), ray::Vector2{ pos, pos }, pos, 1.0f, color);
-    }
-};
 
 void update_camera_for_window_size(ray::Camera2D& camera, int virtual_width, int virtual_height) {
     int screen_width = ray::GetScreenWidth();
@@ -228,7 +168,6 @@ int main(int argc, char* argv[]) {
     global_data.config = new Config(get_config());
     setup_logging(global_data.config->general.log_level);
 
-    // Initialize texture wrapper with skin path from config (if skin exists)
     fs::path skin_path = fs::path("Skins") / global_data.config->paths.skin / "Graphics";
     if (fs::exists(skin_path)) {
         tex.init(global_data.config->paths.skin.string());
@@ -241,12 +180,12 @@ int main(int argc, char* argv[]) {
     } else {
         global_data.score_db = "scores.db";
     }
-    spdlog::info("Starting CPPTaiko");
+    spdlog::info("Starting YataiDON");
     int screen_width = 1280;//global_tex.screen_width
     int screen_height = 720;//global_tex.screen_height
 
     set_config_flags();
-    ray::InitWindow(screen_width, screen_height, "CPPTaiko");
+    ray::InitWindow(screen_width, screen_height, "YataiDON");
 
     spdlog::info("Window initialized: " + std::to_string(screen_width) + "x" + std::to_string(screen_height));
     if (fs::exists(skin_path)) {
@@ -328,17 +267,10 @@ int main(int argc, char* argv[]) {
     spdlog::info("Cursor hidden");
     FPSCounter fps_counter = FPSCounter();
     ray::Color last_color = ray::BLACK;
-    int last_discord_check = 0;
 
     std::unique_ptr<Screen> screen = std::make_unique<GameScreen>();
 
     while (!ray::WindowShouldClose()) {
-        //current_time = get_current_ms()
-        /*
-        if discord_connected and current_time > last_discord_check + 1000:
-            check_discord_heartbeat(current_screen)
-            last_discord_check = current_time
-        */
 
         if (ray::IsKeyPressed(global_data.config->keys.fullscreen_key)) {
             ray::ToggleFullscreen();
@@ -389,8 +321,6 @@ int main(int argc, char* argv[]) {
 
     ray::CloseWindow();
     audio->close_audio_device();
-    //if discord_connected:
-        //RPC.close()
     global_tex.unload_textures();
     //screen_mapping[current_screen].on_screen_end("LOADING")
     spdlog::info("Window closed and audio device shut down");
