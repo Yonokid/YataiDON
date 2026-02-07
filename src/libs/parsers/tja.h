@@ -274,6 +274,7 @@ struct ParserState {
     bool start_branch_barline = false;
     double branch_balloon_index = 0;
     std::optional<Note> section_bar;
+    std::string pending_branch_params;
 };
 
 enum class Interval {
@@ -375,6 +376,7 @@ private:
 
 double get_ms_per_measure(double bpm_val, double time_sig);
 int calculate_base_score(const NoteList& notes);
+int calculate_base_score(const NoteList& notes, const std::vector<NoteList>& branch_m);
 std::string test_encodings(const std::filesystem::path& file_path);
 std::string strip_comments(const std::string& code);
 

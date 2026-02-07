@@ -36,6 +36,57 @@ int calculate_base_score(const NoteList& notes) {
     return static_cast<int>(std::ceil(calculation)) * 10;
 }
 
+int calculate_base_score(const NoteList& notes, const std::vector<NoteList>& branch_m) {
+    int total_notes = 0;
+    int balloon_count = 0;
+    double drumroll_msec = 0.0f;
+
+    for (size_t i = 0; i < notes.play_notes.size(); i++) {
+        Note note = notes.play_notes[i];
+
+        Note next_note = *((i < notes.play_notes.size() - 1)
+            ? &notes.play_notes[i + 1]
+            : &notes.play_notes[notes.play_notes.size() - 1]);
+
+        if (note.color.has_value()) { //is drumroll
+            drumroll_msec += (next_note.hit_ms - note.hit_ms);
+        } else if (note.count.has_value()) { //is balloon
+            balloon_count += std::min(100, note.count.value());
+        } else {
+            if (note.type == 8) {
+                continue;
+            }
+            total_notes += 1;
+        }
+    }
+
+    for (const auto& branch_section : branch_m) {
+        for (size_t i = 0; i < branch_section.play_notes.size(); i++) {
+            Note note = branch_section.play_notes[i];
+
+            Note next_note = *((i < branch_section.play_notes.size() - 1)
+                ? &branch_section.play_notes[i + 1]
+                : &branch_section.play_notes[branch_section.play_notes.size() - 1]);
+
+            if (note.color.has_value()) { //is drumroll
+                drumroll_msec += (next_note.hit_ms - note.hit_ms);
+            } else if (note.count.has_value()) { //is balloon
+                balloon_count += std::min(100, note.count.value());
+            } else {
+                if (note.type == 8) {
+                    continue;
+                }
+                total_notes += 1;
+            }
+        }
+    }
+
+    if (total_notes == 0) return 1000000;
+
+    double calculation = (1000000.0f - (balloon_count * 100.0f) - (16.920079999994086f * drumroll_msec / 1000.0f * 100.0f)) / total_notes / 10.0f;
+    return static_cast<int>(std::ceil(calculation)) * 10;
+}
+
 
 std::string test_encodings(const std::filesystem::path& file_path) {
     std::ifstream file(file_path, std::ios::binary);
@@ -846,39 +897,32 @@ void TJAParser::handle_BRANCHSTART(const std::string& value, ParserState& state)
     state.start_branch_barline = state.barline_display;
     state.branch_balloon_index = state.balloon_index;
 
-    std::string branch_params = std::to_string(state.start_branch_ms) + "," + value;
+    std::string branch_params = value;
 
-    auto convert_bars = [](const std::vector<Note>& notes) {
-        std::vector<Note> variants;
-        for (const auto& note : notes) {
-            variants.push_back(note);
-        }
-        return variants;
-    };
+    state.pending_branch_params = branch_params;
 
     if (!this->master_notes.bars.empty()) {
-        auto bars_variants = convert_bars(this->master_notes.bars);
-        set_branch_params(bars_variants, branch_params, state.section_bar);
-    }
-    if (!this->branch_m.empty() && !this->branch_m.back().bars.empty()) {
-        auto bars_variants = convert_bars(this->branch_m.back().bars);
-        set_branch_params(bars_variants, branch_params, state.section_bar);
-    }
-    if (!this->branch_e.empty() && !this->branch_e.back().bars.empty()) {
-        auto bars_variants = convert_bars(this->branch_e.back().bars);
-        set_branch_params(bars_variants, branch_params, state.section_bar);
-    }
-    if (!this->branch_n.empty() && !this->branch_n.back().bars.empty()) {
-        auto bars_variants = convert_bars(this->branch_n.back().bars);
-        set_branch_params(bars_variants, branch_params, state.section_bar);
-    }
-
-    if (state.section_bar) {
-        state.section_bar.reset();
+        set_branch_params(this->master_notes.bars, branch_params, state.section_bar);
     }
 }
 
 void TJAParser::handle_BRANCHEND(const std::string& value, ParserState& state) {
+    if (!state.pending_branch_params.empty()) {
+        if (!this->branch_m.empty() && !this->branch_m.back().bars.empty()) {
+            set_branch_params(this->branch_m.back().bars, state.pending_branch_params, state.section_bar);
+        }
+        if (!this->branch_e.empty() && !this->branch_e.back().bars.empty()) {
+            set_branch_params(this->branch_e.back().bars, state.pending_branch_params, state.section_bar);
+        }
+        if (!this->branch_n.empty() && !this->branch_n.back().bars.empty()) {
+            set_branch_params(this->branch_n.back().bars, state.pending_branch_params, state.section_bar);
+        }
+        state.pending_branch_params.clear();
+        if (state.section_bar) {
+            state.section_bar.reset();
+        }
+    }
+
     state.curr_note_list->clear();
     state.curr_note_list->insert(state.curr_note_list->end(),
                                 master_notes.play_notes.begin(),

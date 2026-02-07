@@ -171,13 +171,15 @@ void Player::evaluate_branch(double current_ms) {
             //logger.info(f"Branch set to {self.branch_indicator.difficulty} based on conditions {self.branch_condition_count}, {e_req, m_req}")
         }
         if (branch_condition_count >= e_req && branch_condition_count < m_req && e_req >= 0) {
-            merge_branch_section(branch_e.front(), current_ms);
-            branch_e.erase(branch_e.begin());
-            if (branch_indicator.has_value() and branch_indicator->difficulty != BranchDifficulty::EXPERT) {
-                if (branch_indicator->difficulty == BranchDifficulty::MASTER) {
-                    branch_indicator->level_down(BranchDifficulty::EXPERT);
-                } else {
-                    branch_indicator->level_up(BranchDifficulty::EXPERT);
+            if (!branch_e.empty()) {
+                merge_branch_section(branch_e.front(), current_ms);
+                branch_e.erase(branch_e.begin());
+                if (branch_indicator.has_value() and branch_indicator->difficulty != BranchDifficulty::EXPERT) {
+                    if (branch_indicator->difficulty == BranchDifficulty::MASTER) {
+                        branch_indicator->level_down(BranchDifficulty::EXPERT);
+                    } else {
+                        branch_indicator->level_up(BranchDifficulty::EXPERT);
+                    }
                 }
             }
             if (!branch_m.empty()) {
@@ -187,28 +189,32 @@ void Player::evaluate_branch(double current_ms) {
                 branch_n.erase(branch_n.begin());
             }
         } else if (branch_condition_count >= m_req) {
-            merge_branch_section(branch_m.front(), current_ms);
-            branch_m.erase(branch_m.begin());
-            if (branch_indicator.has_value() and branch_indicator->difficulty != BranchDifficulty::MASTER) {
-                branch_indicator->level_up(BranchDifficulty::MASTER);
+            if (!branch_m.empty()) {
+                merge_branch_section(branch_m.front(), current_ms);
+                branch_m.erase(branch_m.begin());
+                if (branch_indicator.has_value() and branch_indicator->difficulty != BranchDifficulty::MASTER) {
+                    branch_indicator->level_up(BranchDifficulty::MASTER);
+                }
             }
             if (!branch_n.empty()) {
-                branch_n.erase(branch_m.begin());
+                branch_n.erase(branch_n.begin());
             }
             if (!branch_e.empty()) {
-                branch_e.erase(branch_m.begin());
+                branch_e.erase(branch_e.begin());
             }
         } else {
-            merge_branch_section(branch_n.front(), current_ms);
-            branch_n.erase(branch_n.begin());
-            if (branch_indicator.has_value() and branch_indicator->difficulty != BranchDifficulty::NORMAL) {
-                branch_indicator->level_down(BranchDifficulty::NORMAL);
+            if (!branch_n.empty()) {
+                merge_branch_section(branch_n.front(), current_ms);
+                branch_n.erase(branch_n.begin());
+                if (branch_indicator.has_value() and branch_indicator->difficulty != BranchDifficulty::NORMAL) {
+                    branch_indicator->level_down(BranchDifficulty::NORMAL);
+                }
             }
             if (!branch_m.empty()) {
                 branch_m.erase(branch_m.begin());
             }
             if (!branch_e.empty()) {
-                branch_e.erase(branch_m.begin());
+                branch_e.erase(branch_e.begin());
             }
         }
         branch_condition_count = 0;
@@ -374,7 +380,10 @@ void Player::get_load_time(Note& note) {
 }
 
 void Player::reset_chart() {
-    auto [notes, branch_m, branch_e, branch_n] = parser->notes_to_position(difficulty);
+    auto [notes, branch_m_temp, branch_e_temp, branch_n_temp] = parser->notes_to_position(difficulty);
+    this->branch_m = branch_m_temp;
+    this->branch_e = branch_e_temp;
+    this->branch_n = branch_n_temp;
     auto [play_notes, draw_notes_temp, draw_bars_temp] = apply_modifiers(notes, modifiers);
 
     this->draw_note_list = draw_notes_temp;
@@ -393,11 +402,18 @@ void Player::reset_chart() {
         [](const Note& note) {
             return note.type > 0 && note.type < 5;
         });
+
+    for (const auto& branch_section : this->branch_m) {
+        total_notes += std::count_if(branch_section.play_notes.begin(), branch_section.play_notes.end(),
+            [](const Note& note) {
+                return note.type > 0 && note.type < 5;
+            });
+    }
     base_score = 0;
     score_init = 0;
     score_diff = 0;
     if (score_method == ScoreMethod::SHINUCHI) {
-        base_score = calculate_base_score(notes);
+        base_score = calculate_base_score(notes, this->branch_m);
     } else if (score_method == ScoreMethod::GEN3) {
         score_diff = parser->metadata.course_data[difficulty].scorediff;
         if (score_diff <= 0) {
@@ -408,7 +424,7 @@ void Player::reset_chart() {
         std::vector<int> score_init_list = parser->metadata.course_data[difficulty].scoreinit;
         if (score_init_list.size() <= 0) {
             //logger.warning("Error: No scoreinit specified or scoreinit less than 0 | Using shinuchi scoring method instead")
-            score_init = calculate_base_score(notes);
+            score_init = calculate_base_score(notes, this->branch_m);
             score_diff = 0;
         } else {
             score_init = score_init_list[0];
@@ -435,8 +451,9 @@ void Player::reset_chart() {
 
     if (!draw_note_list.empty()) {
         last_note = &draw_note_list[0];
-    } else if (!branch_m.empty() && !branch_m[0].draw_notes.empty()) {
-        last_note = &branch_m[0].draw_notes[0];
+    }
+    if (!this->branch_m.empty() && !this->branch_m[0].draw_notes.empty()) {
+        last_note = &this->branch_m[0].draw_notes[0];
     }
 
     for (Note& note : this->draw_note_list) {
@@ -491,9 +508,9 @@ void Player::reset_chart() {
     gauge = Gauge(player_num, difficulty, stars, total_notes, is_2p);
 
     std::vector<std::reference_wrapper<std::vector<NoteList>>> branches = {
-        std::ref(branch_m),
-        std::ref(branch_e),
-        std::ref(branch_n)
+        std::ref(this->branch_m),
+        std::ref(this->branch_e),
+        std::ref(this->branch_n)
     };
 
     for (auto& branch_ref : branches) {
@@ -549,6 +566,8 @@ float Player::get_position_y(Note note, double current_ms) {
 }
 
 void Player::bar_manager(double current_ms) {
+    Note* inserted_bar = nullptr;
+
     if (!draw_bar_list.empty() && current_ms >= draw_bar_list[0].load_ms) {
         Note bar_to_insert = draw_bar_list[0];
         draw_bar_list.erase(draw_bar_list.begin());
@@ -557,19 +576,15 @@ void Player::bar_manager(double current_ms) {
             [](const Note& a, const Note& b) {
                 return a.load_ms < b.load_ms;
             });
-        current_bars.insert(insert_pos, bar_to_insert);
+        auto inserted_it = current_bars.insert(insert_pos, bar_to_insert);
+        inserted_bar = &(*inserted_it);
     }
 
     if (current_bars.empty()) return;
 
-    Note& first_bar = current_bars[0];
-    if (current_ms >= first_bar.unload_ms) {
-        current_bars.erase(current_bars.begin());
-    }
-
-    if (!current_bars.empty() && current_bars.back().branch_params.has_value()) {
-        std::string params = current_bars.back().branch_params.value();
-        current_bars.back().branch_params.reset();
+    if (inserted_bar && inserted_bar->branch_params.has_value()) {
+        std::string params = inserted_bar->branch_params.value();
+        inserted_bar->branch_params.reset();
 
         std::vector<std::string> parts;
         std::stringstream ss(params);
@@ -583,22 +598,31 @@ void Player::bar_manager(double current_ms) {
             float e_req = std::stof(parts[1]);
             float m_req = std::stof(parts[2]);
 
-            //logger.info(f'branch condition measures started with conditions {branch_cond}, {e_req}, {m_req}, {current_bars.back().hit_ms}')
+            spdlog::info("branch condition measures started with conditions {}, {}, {}, {}", branch_cond, e_req, m_req, current_bars.back().hit_ms);
 
             if (!is_branch) {
                 is_branch = true;
+                branch_condition = branch_cond;
 
                 if (branch_cond == "r") {
-                    double end_time = 0.0;
+                    double end_time = std::numeric_limits<double>::max();
                     if (!branch_m.empty() && !branch_m[0].bars.empty()) {
                         end_time = branch_m[0].bars[0].load_ms;
+                    } else if (!branch_e.empty() && !branch_e[0].bars.empty()) {
+                        end_time = branch_e[0].bars[0].load_ms;
+                    } else if (!branch_n.empty() && !branch_n[0].bars.empty()) {
+                        end_time = branch_n[0].bars[0].load_ms;
                     }
                     curr_branch_reqs = std::make_tuple(e_req, m_req, end_time, 1);
                 } else if (branch_cond == "p") {
                     double start_time = !current_bars.empty() ? current_bars[0].hit_ms : current_bars.back().hit_ms;
-                    double branch_start_time = 0.0;
+                    double branch_start_time = std::numeric_limits<double>::max();
                     if (!branch_m.empty() && !branch_m[0].bars.empty()) {
                         branch_start_time = branch_m[0].bars[0].load_ms;
+                    } else if (!branch_e.empty() && !branch_e[0].bars.empty()) {
+                        branch_start_time = branch_e[0].bars[0].load_ms;
+                    } else if (!branch_n.empty() && !branch_n[0].bars.empty()) {
+                        branch_start_time = branch_n[0].bars[0].load_ms;
                     }
 
                     std::vector<std::vector<Note>*> note_lists;
@@ -631,6 +655,11 @@ void Player::bar_manager(double current_ms) {
                 }
             }
         }
+    }
+
+    Note& first_bar = current_bars[0];
+    if (current_ms >= first_bar.unload_ms) {
+        current_bars.erase(current_bars.begin());
     }
 }
 
