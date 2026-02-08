@@ -138,19 +138,19 @@ private:
 
     void evaluate_branch(double current_ms);
 
-    void merge_branch_section(NoteList branch_section, double current_ms);
+    void merge_branch_section(const NoteList& branch_section, double current_ms);
 
     std::tuple<int> get_result_score();
 
-    float get_position_x(Note note, double current_ms);
+    float get_position_x(const Note& note, double current_ms);
 
-    float get_position_y(Note note, double current_ms);
+    float get_position_y(const Note& note, double current_ms);
 
-    void handle_scroll_type_commands(double ms_from_start, TimelineObject timeline_object, int buffer_index);
-    void handle_gogotime(double ms_from_start, TimelineObject timeline_object, int buffer_index);
-    void handle_judgeposition(double ms_from_start, TimelineObject timeline_object, int buffer_index);
-    void handle_bpmchange(double ms_from_start, TimelineObject timeline_object, int buffer_index);
-    void handle_branch_param(double ms_from_start, TimelineObject timeline_object, int buffer_index);
+    void handle_scroll_type_commands(double ms_from_start, const TimelineObject& timeline_object, int buffer_index);
+    void handle_gogotime(double ms_from_start, const TimelineObject& timeline_object, int buffer_index);
+    void handle_judgeposition(double ms_from_start, const TimelineObject& timeline_object, int buffer_index);
+    void handle_bpmchange(double ms_from_start, const TimelineObject& timeline_object, int buffer_index);
+    void handle_branch_param(double ms_from_start, const TimelineObject& timeline_object, int buffer_index);
 
     void play_note_manager(double current_ms);
 
@@ -160,13 +160,13 @@ private:
 
     void note_manager(double current_ms);
 
-    void note_correct(Note note, double current_ms);
+    void note_correct(const Note& note, double current_ms);
 
     void check_drumroll(double current_ms, DrumType drum_type);
 
-    void check_balloon(double current_ms, DrumType drum_type, Note balloon);
+    void check_balloon(double current_ms, DrumType drum_type, const Note& balloon);
 
-    void check_kusudama(double current_ms, Note balloon);
+    void check_kusudama(double current_ms, const Note& balloon);
 
     void check_note(double ms_from_start, DrumType drum_type, double current_ms);
 
@@ -178,15 +178,15 @@ private:
 
     void handle_input(double ms_from_start, double current_ms);
 
-    void draw_bar(double current_ms, Note bar);
+    void draw_bar(double current_ms, const Note& bar);
 
-    void draw_drumroll(double current_ms, Note head, int current_eighth);
+    void draw_drumroll(double current_ms, const Note& head, int current_eighth);
 
-    void draw_balloon(double current_ms, Note head, int current_eighth);
+    void draw_balloon(double current_ms, const Note& head, int current_eighth);
 
     void draw_notes(double current_ms);
 
     void draw_modifiers();
 
-    void draw_overlays(ray::Shader mask_shader);
+    void draw_overlays(const ray::Shader& mask_shader);
 };

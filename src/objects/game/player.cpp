@@ -79,7 +79,7 @@ void Player::autoplay_manager(double ms_from_start, double current_ms) {// Backg
             hit_type = DrumType::DON;
             autoplay_hit_side = autoplay_hit_side == Side::LEFT ? Side::RIGHT : Side::LEFT;
             spawn_hit_effects(hit_type, autoplay_hit_side);
-            audio->play_sound("hitsound_don_" + std::to_string((int)player_num) + "p", "hitsound");
+            audio->play_sound(don_hitsound, "hitsound");
             check_note(ms_from_start, hit_type, current_ms);//, background);
         }
     } else {
@@ -87,7 +87,7 @@ void Player::autoplay_manager(double ms_from_start, double current_ms) {// Backg
             hit_type = DrumType::DON;
             autoplay_hit_side = autoplay_hit_side == Side::LEFT ? Side::RIGHT : Side::LEFT;
             spawn_hit_effects(hit_type, autoplay_hit_side);
-            audio->play_sound("hitsound_don_" + std::to_string((int)player_num) + "p", "hitsound");
+            audio->play_sound(don_hitsound, "hitsound");
             check_note(ms_from_start, hit_type, current_ms);//, background);
         }
 
@@ -95,13 +95,13 @@ void Player::autoplay_manager(double ms_from_start, double current_ms) {// Backg
             hit_type = DrumType::KAT;
             autoplay_hit_side = autoplay_hit_side == Side::LEFT ? Side::RIGHT : Side::LEFT;
             spawn_hit_effects(hit_type, autoplay_hit_side);
-            audio->play_sound("hitsound_kat_" + std::to_string((int)player_num) + "p", "hitsound");
+            audio->play_sound(kat_hitsound, "hitsound");
             check_note(ms_from_start, hit_type, current_ms);//, background);
         }
     }
 }
 
-void Player::merge_branch_section(NoteList branch_section, double current_ms) {
+void Player::merge_branch_section(const NoteList& branch_section, double current_ms) {
     draw_note_list.insert(draw_note_list.end(),
                           branch_section.notes.begin(),
                           branch_section.notes.end());
@@ -444,7 +444,7 @@ void Player::reset_chart() {
         stars = parser->metadata.course_data[difficulty].level;
     }
     int gauge_total_notes = 0;
-    for (Note note : total_notes.notes) {
+    for (Note& note : total_notes.notes) {
         if (note.type > 0 && note.type < 5) {
             gauge_total_notes++;
         }
@@ -475,7 +475,7 @@ void Player::reset_chart() {
     }
 }
 
-float Player::get_position_x(Note note, double current_ms) {
+float Player::get_position_x(const Note& note, double current_ms) {
     if (delay_start.has_value()) {
         current_ms = delay_start.value();
     }
@@ -483,7 +483,7 @@ float Player::get_position_x(Note note, double current_ms) {
     return JudgePos::X + (note.hit_ms - current_ms) * speedx;
 }
 
-float Player::get_position_y(Note note, double current_ms) {
+float Player::get_position_y(const Note& note, double current_ms) {
     if (delay_start.has_value()) {
         current_ms = delay_start.value();
     }
@@ -491,13 +491,13 @@ float Player::get_position_y(Note note, double current_ms) {
     return (note.hit_ms - current_ms) * speedy;
 }
 
-void Player::handle_scroll_type_commands(double ms_from_start, TimelineObject timeline_object, int buffer_index) {
+void Player::handle_scroll_type_commands(double ms_from_start, const TimelineObject& timeline_object, int buffer_index) {
     if (timeline_object.start_time > ms_from_start) return;
     if (timeline_object.bpmchange.has_value()) {
-        for (Note note : draw_note_list) {
+        for (Note& note : draw_note_list) {
             note.bpm *= timeline_object.bpmchange.value();
         }
-        for (Note note : draw_note_buffer) {
+        for (Note& note : draw_note_buffer) {
             note.bpm *= timeline_object.bpmchange.value();
         }
 
@@ -518,7 +518,7 @@ void Player::handle_scroll_type_commands(double ms_from_start, TimelineObject ti
     }
 }
 
-void Player::handle_gogotime(double ms_from_start, TimelineObject timeline_object, int buffer_index) {
+void Player::handle_gogotime(double ms_from_start, const TimelineObject& timeline_object, int buffer_index) {
     if (timeline_object.start_time > ms_from_start) return;
     if (!timeline_object.gogo_time.has_value()) return;
 
@@ -535,7 +535,7 @@ void Player::handle_gogotime(double ms_from_start, TimelineObject timeline_objec
     timeline_buffer.erase(timeline_buffer.begin() + buffer_index);
 }
 
-void Player::handle_judgeposition(double ms_from_start, TimelineObject timeline_object, int buffer_index) {
+void Player::handle_judgeposition(double ms_from_start, const TimelineObject& timeline_object, int buffer_index) {
     if (timeline_object.start_time > ms_from_start) return;
     if (!timeline_object.judge_pos_x.has_value()) return;
     if (!timeline_object.judge_pos_y.has_value()) return;
@@ -561,7 +561,7 @@ void Player::handle_judgeposition(double ms_from_start, TimelineObject timeline_
     }
 }
 
-void Player::handle_bpmchange(double ms_from_start, TimelineObject timeline_object, int buffer_index) {
+void Player::handle_bpmchange(double ms_from_start, const TimelineObject& timeline_object, int buffer_index) {
     if (timeline_object.start_time > ms_from_start) return;
     if (!timeline_object.bpm.has_value()) return;
 
@@ -570,7 +570,7 @@ void Player::handle_bpmchange(double ms_from_start, TimelineObject timeline_obje
     timeline_buffer.erase(timeline_buffer.begin() + buffer_index);
 }
 
-void Player::handle_branch_param(double ms_from_start, TimelineObject timeline_object, int buffer_index) {
+void Player::handle_branch_param(double ms_from_start, const TimelineObject& timeline_object, int buffer_index) {
     if (timeline_object.start_time > ms_from_start) return;
     if (!timeline_object.branch_params.has_value()) return;
 
@@ -608,7 +608,7 @@ void Player::handle_branch_param(double ms_from_start, TimelineObject timeline_o
             } else if (branch_cond == "p") {
                 branch_condition_count = 0;
                 int note_count = 0;
-                for (Note note : draw_note_buffer) {
+                for (Note& note : draw_note_buffer) {
                     if ((1 <= note.type && note.type <= 4) && timeline_object.start_time <= note.hit_ms && note.hit_ms <= branch_condition_end_time) note_count++;
                 }
                 curr_branch_reqs = std::make_tuple(e_req, m_req, branch_condition_end_time, note_count);
@@ -654,7 +654,7 @@ void Player::play_note_manager(double current_ms) {//, background: Optional[Back
 
     if (other_notes.empty()) return;
 
-    Note note = other_notes.front();
+    Note& note = other_notes.front();
     if (note.hit_ms <= current_ms) {
         if (note.type == (int)NoteType::ROLL_HEAD || note.type == (int)NoteType::ROLL_HEAD_L) {
             is_drumroll = true;
@@ -668,7 +668,7 @@ void Player::play_note_manager(double current_ms) {//, background: Optional[Back
             curr_balloon_count = 0;
             return;
         }
-        Note tail = other_notes[1];
+        Note& tail = other_notes[1];
         if (tail.hit_ms <= current_ms) {
             other_notes.pop_front();
             other_notes.pop_front();
@@ -741,7 +741,7 @@ void Player::note_manager(double current_ms) {//, background: Optional[Backgroun
     draw_note_manager(current_ms);
 }
 
-void Player::note_correct(Note note, double current_ms) {
+void Player::note_correct(const Note& note, double current_ms) {
     if (!don_notes.empty() && don_notes[0] == note) {
         don_notes.pop_front();
     } else if (!kat_notes.empty() && kat_notes[0] == note) {
@@ -812,7 +812,7 @@ void Player::check_drumroll(double current_ms, DrumType drum_type) { //backgroun
     }
 }
 
-void Player::check_balloon(double current_ms, DrumType drum_type, Note balloon) {
+void Player::check_balloon(double current_ms, DrumType drum_type, const Note& balloon) {
     if (drum_type != DrumType::DON) return;
     if (balloon.is_kusudama.value()) {
         check_kusudama(current_ms, balloon);
@@ -836,7 +836,7 @@ void Player::check_balloon(double current_ms, DrumType drum_type, Note balloon) 
     }
 }
 
-void Player::check_kusudama(double current_ms, Note balloon) {
+void Player::check_kusudama(double current_ms, const Note& balloon) {
     if (!kusudama_counter.has_value()) {
         kusudama_counter = KusudamaCounter(balloon.count.value());
     }
@@ -847,7 +847,6 @@ void Player::check_kusudama(double current_ms, Note balloon) {
     if (curr_balloon_count == balloon.count) {
         audio->play_sound("kusudama_pop", "hitsound");
         is_balloon = false;
-        balloon.popped = true;
         kusudama_counter->update(current_ms, balloon.popped.value());
         curr_balloon_count = 0;
     }
@@ -1044,7 +1043,7 @@ void Player::handle_input(double ms_from_start, double current_ms) { //, Backgro
     }
 }
 
-void Player::draw_bar(double current_ms, Note bar) {
+void Player::draw_bar(double current_ms, const Note& bar) {
     if (!bar.display) return;
     float x_position = get_position_x(bar, current_ms) + judge_x;
     float y_position = get_position_y(bar, current_ms) + judge_y;
@@ -1057,7 +1056,7 @@ void Player::draw_bar(double current_ms, Note bar) {
     tex.draw_texture("notes", "0", {.frame=bar.is_branch_start, .x=x_position+tex.skin_config["moji_drumroll"].x - (tex.textures["notes"]["1"]->width/2.0f), .y=y_position+tex.skin_config["moji_drumroll"].y+(is_2p*tex.skin_config["2p_offset"].y), .rotation=angle});
 }
 
-void Player::draw_drumroll(double current_ms, Note head, int current_eighth) {
+void Player::draw_drumroll(double current_ms, const Note& head, int current_eighth) {
     if (head.sudden_appear_ms.has_value() && head.sudden_moving_ms.has_value()) {
         double appear_ms = head.hit_ms - head.sudden_appear_ms.value();
         double moving_start_ms = head.hit_ms - head.sudden_moving_ms.value();
@@ -1096,7 +1095,7 @@ void Player::draw_drumroll(double current_ms, Note head, int current_eighth) {
     tex.draw_texture("notes", "moji", {.frame=tail.moji, .x=end_position - (tex.textures["notes"]["moji"]->width/2.0f), .y=moji_y+(is_2p*tex.skin_config["2p_offset"].y)+judge_y});
 }
 
-void Player::draw_balloon(double current_ms, Note head, int current_eighth) {
+void Player::draw_balloon(double current_ms, const Note& head, int current_eighth) {
     float offset = tex.skin_config["balloon_offset"].x;
     if (head.sudden_appear_ms.has_value() && head.sudden_moving_ms.has_value()) {
         double appear_ms = head.hit_ms - head.sudden_appear_ms.value();
@@ -1137,6 +1136,9 @@ void Player::draw_balloon(double current_ms, Note head, int current_eighth) {
 void Player::draw_notes(double current_ms) {
     if (draw_note_buffer.empty()) return;
 
+    double eighth_in_ms = (bpm == 0) ? 0 : (60000.0 * 4.0 / bpm) / 8.0;
+    int current_eighth = 0;
+
     for (auto it = draw_note_buffer.rbegin(); it != draw_note_buffer.rend(); ++it) {
         auto& note = *it;
 
@@ -1159,9 +1161,6 @@ void Player::draw_notes(double current_ms) {
         if (note.type == 0) {
             continue;
         }
-
-        double eighth_in_ms = (bpm == 0) ? 0 : (60000.0 * 4.0 / bpm) / 8.0;
-        int current_eighth = 0;
 
         if (combo >= 50 && eighth_in_ms != 0) {
             current_eighth = static_cast<int>(current_ms / eighth_in_ms);
@@ -1226,7 +1225,7 @@ void Player::draw_modifiers() {
     }
 }
 
-void Player::draw_overlays(ray::Shader mask_shader) {
+void Player::draw_overlays(const ray::Shader& mask_shader) {
     tex.draw_texture("lane", std::to_string((int)player_num) + "p_lane_cover", {.index=is_2p});
     if (is_dan) tex.draw_texture("lane", "dan_lane_cover");
     tex.draw_texture("lane", "drum", {.index=is_2p});
