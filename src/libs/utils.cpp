@@ -12,10 +12,10 @@ bool is_input_key_pressed(const std::vector<int>& keys, const std::vector<int>& 
     for (int key : keys) {
         if (check_key_pressed(key)) return true;
     }
-    if (ray::IsGamepadAvailable(0)) {
-        for (int button: gamepad_buttons) {
-            if (ray::IsGamepadButtonPressed(0, button)) return true;
-        }
+
+    // Check gamepad buttons (offset by 10000)
+    for (int button : gamepad_buttons) {
+        if (check_key_pressed(10000 + button)) return true;
     }
     return false;
 }
@@ -112,10 +112,20 @@ void input_polling_thread() {
             }
         }
 
-        // Update shared state with mutex
+        // Check gamepad buttons (use offset 10000 to differentiate from keyboard)
+        if (ray::IsGamepadAvailable(0)) {
+            for (int button = 0; button < 32; button++) {
+                if (ray::IsGamepadButtonPressed(0, button)) {
+                    local_pressed.push_back(10000 + button);
+                }
+                if (ray::IsGamepadButtonReleased(0, button)) {
+                    local_released.push_back(10000 + button);
+                }
+            }
+        }
+
         if (!local_pressed.empty() || !local_released.empty()) {
             std::lock_guard<std::mutex> lock(input_mutex);
-            ray::PollInputEvents();
             pressed_keys.insert(pressed_keys.end(), local_pressed.begin(), local_pressed.end());
             released_keys.insert(released_keys.end(), local_released.begin(), local_released.end());
         }

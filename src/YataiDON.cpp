@@ -325,11 +325,11 @@ int main(int argc, char* argv[]) {
         ray::SwapScreenBuffer();
     }
 
-    ray::CloseWindow();
     input_thread_running = false;
     if (input_thread.joinable()) {
         input_thread.join();
     }
+    ray::CloseWindow();
     audio->close_audio_device();
     global_tex.unload_textures();
     //screen_mapping[current_screen].on_screen_end("LOADING")

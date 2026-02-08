@@ -952,7 +952,8 @@ void Player::handle_input(double ms_from_start, double current_ms) { //, Backgro
     };
 
     for (const auto& input : input_checks) {
-        if (input.check_func(player_num)) {
+
+        while (input.check_func(player_num)) {
             spawn_hit_effects(input.drum_type, input.side);
             audio->play_sound(input.sound, "hitsound");
             check_note(ms_from_start, input.drum_type, current_ms);//, background);
