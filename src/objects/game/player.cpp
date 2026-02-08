@@ -53,6 +53,7 @@ void Player::handle_timeline(double ms_from_start) {
     //self.handle_bpmchange(current_ms, timeline_object)
     //self.handle_judgeposition(current_ms, timeline_object)
     //self.handle_gogotime(current_ms, timeline_object)
+    //spdlog::info("{}, {}, {}", timeline_object.load_ms, timeline_object.hit_ms, ms_from_start);
     handle_branch_param(ms_from_start, timeline_object);
 }
 
@@ -134,6 +135,8 @@ void Player::evaluate_branch(double current_ms) {
         is_branch = false;
         if (branch_condition == "p") {
             branch_condition_count = std::max(std::min((branch_condition_count/total_notes)*100, 100), 0);
+        } else if (branch_condition == "r") {
+            branch_condition_count = std::max(curr_drumroll_count, branch_condition_count);
         }
         if (branch_indicator.has_value()) {
             spdlog::info("Branch set to {} based on conditions {}, {}, {}", branch_diff_to_string(branch_indicator->difficulty), branch_condition_count, e_req, m_req);

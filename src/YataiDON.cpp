@@ -163,6 +163,7 @@ std::string check_args(int argc, char* argv[]) {
     return "GAME"; //current_screen
 }
 
+
 int main(int argc, char* argv[]) {
     //force_dedicated_gpu()
     global_data.config = new Config(get_config());
@@ -270,12 +271,16 @@ int main(int argc, char* argv[]) {
 
     std::unique_ptr<Screen> screen = std::make_unique<GameScreen>();
 
+    input_thread = std::thread(input_polling_thread);
+    spdlog::info("Input polling thread started");
+
+
     while (!ray::WindowShouldClose()) {
 
-        if (ray::IsKeyPressed(global_data.config->keys.fullscreen_key)) {
+        if (check_key_pressed(global_data.config->keys.fullscreen_key)) {
             ray::ToggleFullscreen();
             spdlog::info("Toggled fullscreen");
-        } else if (ray::IsKeyPressed(global_data.config->keys.borderless_key)) {
+        } else if (check_key_pressed(global_data.config->keys.borderless_key)) {
             ray::ToggleBorderlessWindowed();
             spdlog::info("Toggled borderless windowed mode");
         }
@@ -317,9 +322,14 @@ int main(int argc, char* argv[]) {
         ray::EndBlendMode();
         ray::EndMode2D();
         ray::EndDrawing();
+        ray::SwapScreenBuffer();
     }
 
     ray::CloseWindow();
+    input_thread_running = false;
+    if (input_thread.joinable()) {
+        input_thread.join();
+    }
     audio->close_audio_device();
     global_tex.unload_textures();
     //screen_mapping[current_screen].on_screen_end("LOADING")

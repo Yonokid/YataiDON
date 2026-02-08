@@ -1,12 +1,16 @@
-#include "config.h"
-#include "global_data.h"
-#include "texture.h"
+#include "utils.h"
+
+std::atomic<bool> input_thread_running{true};
+std::thread input_thread;
+std::mutex input_mutex;
+std::vector<int> pressed_keys;
+std::vector<int> released_keys;
 
 bool is_input_key_pressed(const std::vector<int>& keys, const std::vector<int>& gamepad_buttons) {
     if (global_data.input_locked) return false;
 
     for (int key : keys) {
-        if (ray::IsKeyPressed(key)) return true;
+        if (check_key_pressed(key)) return true;
     }
     if (ray::IsGamepadAvailable(0)) {
         for (int button: gamepad_buttons) {
@@ -16,7 +20,7 @@ bool is_input_key_pressed(const std::vector<int>& keys, const std::vector<int>& 
     return false;
 }
 
-bool is_l_don_pressed(PlayerNum player_num = PlayerNum::ALL) {
+bool is_l_don_pressed(PlayerNum player_num) {
     std::vector<int> keys;
     if (player_num == PlayerNum::ALL) {
         keys = global_data.config->keys_1p.left_don;
@@ -34,7 +38,7 @@ bool is_l_don_pressed(PlayerNum player_num = PlayerNum::ALL) {
     return is_input_key_pressed(keys, gamepad_buttons);
 }
 
-bool is_r_don_pressed(PlayerNum player_num = PlayerNum::ALL) {
+bool is_r_don_pressed(PlayerNum player_num) {
     std::vector<int> keys;
     if (player_num == PlayerNum::ALL) {
         keys = global_data.config->keys_1p.right_don;
@@ -52,7 +56,7 @@ bool is_r_don_pressed(PlayerNum player_num = PlayerNum::ALL) {
     return is_input_key_pressed(keys, gamepad_buttons);
 }
 
-bool is_l_kat_pressed(PlayerNum player_num = PlayerNum::ALL) {
+bool is_l_kat_pressed(PlayerNum player_num) {
     std::vector<int> keys;
     if (player_num == PlayerNum::ALL) {
         keys = global_data.config->keys_1p.left_kat;
@@ -70,7 +74,7 @@ bool is_l_kat_pressed(PlayerNum player_num = PlayerNum::ALL) {
     return is_input_key_pressed(keys, gamepad_buttons);
 }
 
-bool is_r_kat_pressed(PlayerNum player_num = PlayerNum::ALL) {
+bool is_r_kat_pressed(PlayerNum player_num) {
     std::vector<int> keys;
     if (player_num == PlayerNum::ALL) {
         keys = global_data.config->keys_1p.right_kat;
@@ -86,6 +90,65 @@ bool is_r_kat_pressed(PlayerNum player_num = PlayerNum::ALL) {
 
     std::vector<int> gamepad_buttons = global_data.config->gamepad.right_kat;
     return is_input_key_pressed(keys, gamepad_buttons);
+}
+
+void input_polling_thread() {
+    std::vector<int> local_pressed;
+    std::vector<int> local_released;
+
+    while (input_thread_running) {
+        {
+        ray::PollInputEvents();
+
+        local_pressed.clear();
+        local_released.clear();
+
+        for (int key = 32; key < 349; key++) {
+            if (ray::IsKeyPressed(key)) {
+                local_pressed.push_back(key);
+            }
+            if (ray::IsKeyReleased(key)) {
+                local_released.push_back(key);
+            }
+        }
+
+        // Update shared state with mutex
+        if (!local_pressed.empty() || !local_released.empty()) {
+            std::lock_guard<std::mutex> lock(input_mutex);
+            ray::PollInputEvents();
+            pressed_keys.insert(pressed_keys.end(), local_pressed.begin(), local_pressed.end());
+            released_keys.insert(released_keys.end(), local_released.begin(), local_released.end());
+        }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+    }
+}
+
+bool check_key_pressed(int key) {
+    std::lock_guard<std::mutex> lock(input_mutex);
+    auto it = std::find(pressed_keys.begin(), pressed_keys.end(), key);
+    if (it != pressed_keys.end()) {
+        pressed_keys.erase(it);
+        return true;
+    }
+    return false;
+}
+
+bool check_key_released(int key) {
+    std::lock_guard<std::mutex> lock(input_mutex);
+    auto it = std::find(released_keys.begin(), released_keys.end(), key);
+    if (it != released_keys.end()) {
+        released_keys.erase(it);
+        return true;
+    }
+    return false;
+}
+
+void clear_input_buffers() {
+    std::lock_guard<std::mutex> lock(input_mutex);
+    pressed_keys.clear();
+    released_keys.clear();
 }
 
 TextureWrapper global_tex;
