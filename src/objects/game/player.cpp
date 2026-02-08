@@ -48,12 +48,19 @@ Player::Player(std::optional<TJAParser>& parser_ref, PlayerNum player_num_param,
 void Player::handle_timeline(double ms_from_start) {
     if (timeline.empty()) return;
     TimelineObject timeline_object = timeline.front();
+    if (ms_from_start > timeline_object.start_time) {
+        timeline.pop_front();
+        timeline_buffer.push_back(timeline_object);
+    }
 
-    //self.handle_scroll_type_commands(current_ms, timeline_object)
-    handle_bpmchange(ms_from_start, timeline_object);
-    handle_judgeposition(ms_from_start, timeline_object);
-    handle_gogotime(ms_from_start, timeline_object);
-    handle_branch_param(ms_from_start, timeline_object);
+    for (int i = timeline_buffer.size() - 1; i >= 0; i--) {
+        auto& timeline_object = timeline_buffer[i];
+        //self.handle_scroll_type_commands(current_ms, timeline_object)
+        handle_bpmchange(ms_from_start, timeline_object, i);
+        handle_judgeposition(ms_from_start, timeline_object, i);
+        handle_gogotime(ms_from_start, timeline_object, i);
+        handle_branch_param(ms_from_start, timeline_object, i);
+    }
 }
 
 void Player::autoplay_manager(double ms_from_start, double current_ms) {// Background background) {
@@ -65,7 +72,7 @@ void Player::autoplay_manager(double ms_from_start, double current_ms) {// Backg
         if (bpm == 0) {
             subdivision_in_ms = 0;
         } else {
-            subdivision_in_ms = ms_from_start / ((60000 * 4 / bpm) / 24);
+            subdivision_in_ms = static_cast<int>(ms_from_start / ((240000.0 / bpm) / 24.0));
         }
         if (subdivision_in_ms > last_subdivision) {
             last_subdivision = subdivision_in_ms;
@@ -74,8 +81,9 @@ void Player::autoplay_manager(double ms_from_start, double current_ms) {// Backg
             spawn_hit_effects(hit_type, autoplay_hit_side);
             audio->play_sound("hitsound_don_" + std::to_string((int)player_num) + "p", "hitsound");
             check_note(ms_from_start, hit_type, current_ms);//, background);
+        }
     } else {
-        while (!don_notes.empty() && ms_from_start >= don_notes[0].hit_ms) {
+        while (!don_notes.empty() && ms_from_start >= don_notes.front().hit_ms) {
             hit_type = DrumType::DON;
             autoplay_hit_side = autoplay_hit_side == Side::LEFT ? Side::RIGHT : Side::LEFT;
             spawn_hit_effects(hit_type, autoplay_hit_side);
@@ -83,13 +91,12 @@ void Player::autoplay_manager(double ms_from_start, double current_ms) {// Backg
             check_note(ms_from_start, hit_type, current_ms);//, background);
         }
 
-        while (!kat_notes.empty() && ms_from_start >= kat_notes[0].hit_ms) {
+        while (!kat_notes.empty() && ms_from_start >= kat_notes.front().hit_ms) {
             hit_type = DrumType::KAT;
             autoplay_hit_side = autoplay_hit_side == Side::LEFT ? Side::RIGHT : Side::LEFT;
             spawn_hit_effects(hit_type, autoplay_hit_side);
-            audio->play_sound("hitsound_don_" + std::to_string((int)player_num) + "p", "hitsound");
+            audio->play_sound("hitsound_kat_" + std::to_string((int)player_num) + "p", "hitsound");
             check_note(ms_from_start, hit_type, current_ms);//, background);
-        }
         }
     }
 }
@@ -484,28 +491,47 @@ float Player::get_position_y(Note note, double current_ms) {
     return (note.hit_ms - current_ms) * speedy;
 }
 
-void Player::handle_gogotime(double ms_from_start, TimelineObject timeline_object) {
+void Player::handle_gogotime(double ms_from_start, TimelineObject timeline_object, int buffer_index) {
     if (timeline_object.start_time > ms_from_start) return;
     if (!timeline_object.gogo_time.has_value()) return;
 
-    timeline.pop_front();
+    timeline_buffer.erase(timeline_buffer.begin() + buffer_index);
 }
 
-void Player::handle_judgeposition(double ms_from_start, TimelineObject timeline_object) {
+void Player::handle_judgeposition(double ms_from_start, TimelineObject timeline_object, int buffer_index) {
     if (timeline_object.start_time > ms_from_start) return;
     if (!timeline_object.judge_pos_x.has_value()) return;
+    if (!timeline_object.judge_pos_y.has_value()) return;
+    if (!timeline_object.delta_x.has_value()) return;
+    if (!timeline_object.delta_y.has_value()) return;
 
-    timeline.pop_front();
+    if (timeline_object.start_time <= ms_from_start && ms_from_start <= timeline_object.end_time) {
+        double duration = timeline_object.end_time - timeline_object.start_time;
+        if (duration > 0) {
+            double t = (ms_from_start - timeline_object.start_time) / duration;
+            t = std::max(0.0, std::min(1.0, t));
+
+            judge_x = (timeline_object.judge_pos_x.value() + (timeline_object.delta_x.value() * t)) * tex.screen_scale;
+            judge_y = (timeline_object.judge_pos_y.value() + (timeline_object.delta_y.value() * t)) * tex.screen_scale;
+        } else {
+            judge_x = (timeline_object.judge_pos_x.value() + timeline_object.delta_x.value()) * tex.screen_scale;
+            judge_y = (timeline_object.judge_pos_y.value() + timeline_object.delta_y.value()) * tex.screen_scale;
+        }
+    }
+
+    if (ms_from_start > timeline_object.end_time) {
+        timeline_buffer.erase(timeline_buffer.begin() + buffer_index);
+    }
 }
 
-void Player::handle_bpmchange(double ms_from_start, TimelineObject timeline_object) {
+void Player::handle_bpmchange(double ms_from_start, TimelineObject timeline_object, int buffer_index) {
     if (timeline_object.start_time > ms_from_start) return;
     if (!timeline_object.bpm.has_value()) return;
 
-    timeline.pop_front();
+    timeline_buffer.erase(timeline_buffer.begin() + buffer_index);
 }
 
-void Player::handle_branch_param(double ms_from_start, TimelineObject timeline_object) {
+void Player::handle_branch_param(double ms_from_start, TimelineObject timeline_object, int buffer_index) {
     if (timeline_object.start_time > ms_from_start) return;
     if (!timeline_object.branch_params.has_value()) return;
 
@@ -551,7 +577,7 @@ void Player::handle_branch_param(double ms_from_start, TimelineObject timeline_o
             spdlog::info("branch condition measures started with conditions {}, {}, {}, starting at {} and ending at {}", branch_cond, e_req, m_req, timeline_object.start_time, branch_condition_end_time);
         }
     }
-    timeline.pop_front();
+    timeline_buffer.erase(timeline_buffer.begin() + buffer_index);
 }
 
 void Player::play_note_manager(double current_ms) {//, background: Optional[Background]):

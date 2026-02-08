@@ -701,38 +701,41 @@ void TJAParser::handle_MEASURE(const std::string& value, ParserState& state) {
 }
 
 void TJAParser::handle_SCROLL(const std::string& value, ParserState& state) {
-    if (state.scroll_type != ScrollType::BMSCROLL) {
-        if (value.find('i') != std::string::npos) {
-            std::string normalized = value;
-            replace_all(normalized, ".i", "j");
-            replace_all(normalized, "i", "j");
-            replace_all(normalized, ",", "");
+    if (state.scroll_type == ScrollType::BMSCROLL) return;
 
-            std::regex complex_regex(R"(([+-]?[0-9]*\.?[0-9]+)?([+-]?[0-9]*\.?[0-9]+)?j?)");
-            std::smatch match;
+    if (value.find('i') != std::string::npos) {
+        std::string normalized = value;
+        replace_all(normalized, ".i", "j");
+        replace_all(normalized, "i", "j");
+        replace_all(normalized, ",", "");
 
-            if (std::regex_match(normalized, match, complex_regex)) {
-                double real = 0.0f;
-                double imag = 0.0f;
+        std::regex complex_regex(R"(([+-]?[0-9]*\.?[0-9]+)?([+-][0-9]*\.?[0-9]+)?j?)");
+        std::smatch match;
 
-                if (match[1].length() > 0) {
-                    real = std::stof(match[1]);
-                }
-                if (match[2].length() > 0) {
-                    std::string imag_str = match[2];
-                    imag = std::stof(imag_str);
-                }
+        if (std::regex_match(normalized, match, complex_regex)) {
+            double real = 0.0f;
+            double imag = 0.0f;
 
-                state.scroll_x_modifier = real;
-                state.scroll_y_modifier = imag;
-            } else {
-                state.scroll_x_modifier = 1.0f;
-                state.scroll_y_modifier = 0.0f;
+            if (match[1].length() > 0 && match[1].str().back() != 'j') {
+                real = std::stof(match[1]);
             }
+            if (match[2].length() > 0) {
+                std::string imag_str = match[2];
+                imag = std::stof(imag_str);
+            } else if (match[1].length() > 0 && normalized.back() == 'j') {
+                // Purely imaginary number
+                imag = std::stof(match[1]);
+                real = 0.0f;
+            }
+            state.scroll_x_modifier = real;
+            state.scroll_y_modifier = imag;
         } else {
-            state.scroll_x_modifier = std::stof(value);
+            state.scroll_x_modifier = 1.0f;
             state.scroll_y_modifier = 0.0f;
         }
+    } else {
+        state.scroll_x_modifier = std::stof(value);
+        state.scroll_y_modifier = 0.0f;
     }
 }
 
@@ -862,15 +865,19 @@ void TJAParser::handle_JPOSSCROLL(const std::string& part, ParserState& state) {
         replace_all(normalized, "i", "j");
         replace_all(normalized, ",", "");
 
-        std::regex complex_regex(R"(([+-]?[0-9]*\.?[0-9]+)?([+-]?[0-9]*\.?[0-9]+)?j?)");
+        std::regex complex_regex(R"(([+-]?[0-9]*\.?[0-9]+)?([+-][0-9]*\.?[0-9]+)?j?)");
         std::smatch match;
-
         if (std::regex_match(normalized, match, complex_regex)) {
-            if (match[1].length() > 0) {
+            if (match[1].length() > 0 && match[1].str().back() != 'j') {
                 delta_x = std::stof(match[1]);
             }
             if (match[2].length() > 0) {
-                delta_y = std::stof(match[2]);
+                std::string imag_str = match[2];
+                delta_y = std::stof(imag_str);
+            } else if (match[1].length() > 0 && normalized.back() == 'j') {
+                // Purely imaginary number
+                delta_y = std::stof(match[1]);
+                delta_x = 0.0f;
             }
         }
     } else {
@@ -887,9 +894,8 @@ void TJAParser::handle_JPOSSCROLL(const std::string& part, ParserState& state) {
     // Iterate in reverse through curr_timeline
     for (auto it = state.curr_timeline->rbegin(); it != state.curr_timeline->rend(); ++it) {
         TimelineObject& obj = *it;
-
-        // Check if object has delta_x and delta_y (all TimelineObjects should have these)
-        if (obj.end_time > this->current_ms) {
+        if (!obj.delta_x.has_value() || !obj.delta_y.has_value()) continue;
+        if (obj.start_time > this->current_ms) {
             float available_time = this->current_ms - obj.start_time;
             float total_duration = obj.end_time - obj.start_time;
             double ratio = (total_duration > 0) ? std::min(1.0f, available_time / total_duration) : 1.0f;

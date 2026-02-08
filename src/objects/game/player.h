@@ -86,6 +86,7 @@ private:
     std::deque<NoteList> branch_n;
 
     std::deque<TimelineObject> timeline;
+    std::vector<TimelineObject> timeline_buffer;
 
     int base_score;
     int score_init;
@@ -145,10 +146,10 @@ private:
 
     float get_position_y(Note note, double current_ms);
 
-    void handle_gogotime(double ms_from_start, TimelineObject timeline_object);
-    void handle_judgeposition(double ms_from_start, TimelineObject timeline_object);
-    void handle_bpmchange(double ms_from_start, TimelineObject timeline_object);
-    void handle_branch_param(double ms_from_start, TimelineObject timeline_object);
+    void handle_gogotime(double ms_from_start, TimelineObject timeline_object, int buffer_index);
+    void handle_judgeposition(double ms_from_start, TimelineObject timeline_object, int buffer_index);
+    void handle_bpmchange(double ms_from_start, TimelineObject timeline_object, int buffer_index);
+    void handle_branch_param(double ms_from_start, TimelineObject timeline_object, int buffer_index);
 
     void play_note_manager(double current_ms);
 
