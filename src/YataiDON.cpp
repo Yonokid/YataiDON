@@ -11,8 +11,32 @@
 #include "libs/audio.h"
 #include "libs/logging.h"
 #include "objects/fps_counter.h"
+#ifdef _WIN32
+    #include <windows.h>
+#endif
 
 namespace fs = std::filesystem;
+
+void set_working_directory_to_executable() {
+    #ifdef _WIN32
+        wchar_t buffer[MAX_PATH];
+        GetModuleFileNameW(NULL, buffer, MAX_PATH);
+        std::filesystem::path exe_path(buffer);
+    #else
+        char buffer[PATH_MAX];
+        ssize_t len = readlink("/proc/self/exe", buffer, sizeof(buffer) - 1);
+        if (len == -1) {
+            spdlog::error("Failed to get executable path");
+            return;
+        }
+        buffer[len] = '\0';
+        std::filesystem::path exe_path(buffer);
+    #endif
+
+    std::filesystem::path exe_dir = exe_path.parent_path();
+    std::filesystem::current_path(exe_dir);
+    spdlog::info("Working directory set to: {}", exe_dir.string());
+}
 
 void update_camera_for_window_size(ray::Camera2D& camera, int virtual_width, int virtual_height) {
     int screen_width = ray::GetScreenWidth();
@@ -166,6 +190,7 @@ std::string check_args(int argc, char* argv[]) {
 
 int main(int argc, char* argv[]) {
     //force_dedicated_gpu()
+    set_working_directory_to_executable();
     global_data.config = new Config(get_config());
     setup_logging(global_data.config->general.log_level);
 
