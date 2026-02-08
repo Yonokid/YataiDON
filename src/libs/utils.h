@@ -15,6 +15,9 @@ extern std::vector<int> released_keys;
 // Start the input polling thread (called automatically in main)
 void input_polling_thread();
 
+// Windows only
+void poll_gamepad_events();
+
 // Check if a key was pressed since the last check
 // This consumes the key press event
 bool check_key_pressed(int key);

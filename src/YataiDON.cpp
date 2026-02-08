@@ -276,6 +276,10 @@ int main(int argc, char* argv[]) {
 
 
     while (!ray::WindowShouldClose()) {
+        #ifdef _WIN32
+        ray::PollInputEvents();
+        poll_gamepad_events();
+        #endif
 
         if (check_key_pressed(global_data.config->keys.fullscreen_key)) {
             ray::ToggleFullscreen();
