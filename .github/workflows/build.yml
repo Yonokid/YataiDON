@@ -1,4 +1,4 @@
-name: Build CPPTaiko
+name: Build YataiDON
 
 on:
   workflow_dispatch:
@@ -45,18 +45,18 @@ jobs:
 
       - name: Prepare release package
         run: |
-          mkdir -p release/CPPTaiko-Linux
-          cp build/bin/CPPTaiko release/CPPTaiko-Linux/
-          cp -r Skins release/CPPTaiko-Linux/
-          cp -r shader release/CPPTaiko-Linux/
-          cp config.toml release/CPPTaiko-Linux/
-          chmod +x release/CPPTaiko-Linux/CPPTaiko
+          mkdir -p release/YataiDON-Linux
+          cp build/bin/YataiDON release/YataiDON-Linux/
+          cp -r Skins release/YataiDON-Linux/
+          cp -r shader release/YataiDON-Linux/
+          cp config.toml release/YataiDON-Linux/
+          chmod +x release/YataiDON-Linux/YataiDON
 
       - name: Upload Linux package
         uses: actions/upload-artifact@v4
         with:
-          name: CPPTaiko-Linux
-          path: release/CPPTaiko-Linux/
+          name: YataiDON-Linux
+          path: release/YataiDON-Linux/
           if-no-files-found: error
 
   build-windows:
@@ -101,17 +101,17 @@ jobs:
 
       - name: Prepare release package
         run: |
-          mkdir -p release/CPPTaiko-Windows
-          cp build/bin/CPPTaiko.exe release/CPPTaiko-Windows/
-          cp -r Skins release/CPPTaiko-Windows/
-          cp -r shader release/CPPTaiko-Windows/
-          cp config.toml release/CPPTaiko-Windows/
+          mkdir -p release/YataiDON-Windows
+          cp build/bin/YataiDON.exe release/YataiDON-Windows/
+          cp -r Skins release/YataiDON-Windows/
+          cp -r shader release/YataiDON-Windows/
+          cp config.toml release/YataiDON-Windows/
 
       - name: Upload Windows package
         uses: actions/upload-artifact@v4
         with:
-          name: CPPTaiko-Windows
-          path: release/CPPTaiko-Windows/
+          name: YataiDON-Windows
+          path: release/YataiDON-Windows/
           if-no-files-found: error
 
   build-summary:

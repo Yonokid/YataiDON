@@ -163,8 +163,8 @@ struct CompareNotes {
 };
 
 struct NoteList {
-    std::vector<Note> notes;
-    std::vector<TimelineObject> timeline;
+    std::deque<Note> notes;
+    std::deque<TimelineObject> timeline;
 
     NoteList operator+(const NoteList& other) const {
         NoteList result;
@@ -231,8 +231,8 @@ struct ParserState {
     double scroll_y_modifier = 0.0f;
     ScrollType scroll_type = ScrollType::NMSCROLL;
     bool barline_display = true;
-    std::vector<Note>* curr_note_list;
-    std::vector<TimelineObject>* curr_timeline;
+    std::deque<Note>* curr_note_list;
+    std::deque<TimelineObject>* curr_timeline;
     double index = 0;
     std::vector<int> balloons;
     double balloon_index = 0;
@@ -280,16 +280,16 @@ public:
 
     using CommandHandler = std::function<void(const std::string&, ParserState&)>;
 
-    std::tuple<NoteList, std::vector<NoteList>, std::vector<NoteList>, std::vector<NoteList>>
+    std::tuple<NoteList, std::deque<NoteList>, std::deque<NoteList>, std::deque<NoteList>>
     notes_to_position(int diff);
 
 private:
     volatile double current_ms;
     NoteList master_notes;
     std::vector<std::string> data;
-    std::vector<NoteList> branch_m;
-    std::vector<NoteList> branch_e;
-    std::vector<NoteList> branch_n;
+    std::deque<NoteList> branch_m;
+    std::deque<NoteList> branch_e;
+    std::deque<NoteList> branch_n;
 
     std::vector<std::string> read_file_lines(const std::filesystem::path& path,
                                              const std::string& encoding);
@@ -359,7 +359,7 @@ std::string test_encodings(const std::filesystem::path& file_path);
 std::string strip_comments(const std::string& code);
 
 Interval get_note_interval_type(double interval_ms, double bpm, double time_sig = 4.0);
-std::vector<std::pair<int, int>> find_streams(const std::vector<Note>& modded_notes, Interval interval_type);
+std::vector<std::pair<int, int>> find_streams(const std::deque<Note>& modded_notes, Interval interval_type);
 void modifier_moji(NoteList& notes);
 void modifier_speed(NoteList& notes, float value);
 void modifier_display(NoteList& notes);

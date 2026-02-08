@@ -81,12 +81,11 @@ private:
     std::vector<Note> draw_note_list;
     std::vector<Note> draw_note_buffer;
 
-    std::vector<NoteList> branch_m;
-    std::vector<NoteList> branch_e;
-    std::vector<NoteList> branch_n;
+    std::deque<NoteList> branch_m;
+    std::deque<NoteList> branch_e;
+    std::deque<NoteList> branch_n;
 
-    std::vector<TimelineObject> timeline;
-    int timeline_index;
+    std::deque<TimelineObject> timeline;
 
     int base_score;
     int score_init;

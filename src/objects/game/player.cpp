@@ -46,8 +46,7 @@ Player::Player(std::optional<TJAParser>& parser_ref, PlayerNum player_num_param,
 }
 
 void Player::handle_timeline(double ms_from_start) {
-    if (timeline.empty() || timeline_index >= timeline.size()) return;
-    TimelineObject timeline_object = timeline[timeline_index];
+    TimelineObject timeline_object = timeline.front();
 
     //self.handle_scroll_type_commands(current_ms, timeline_object)
     //self.handle_bpmchange(current_ms, timeline_object)
@@ -144,7 +143,7 @@ void Player::evaluate_branch(double current_ms) {
         if (branch_condition_count >= e_req && branch_condition_count < m_req && e_req >= 0) {
             if (!branch_e.empty()) {
                 merge_branch_section(branch_e.front(), current_ms);
-                branch_e.erase(branch_e.begin());
+                branch_e.pop_front();
                 if (branch_indicator.has_value() and branch_indicator->difficulty != BranchDifficulty::EXPERT) {
                     if (branch_indicator->difficulty == BranchDifficulty::MASTER) {
                         branch_indicator->level_down(BranchDifficulty::EXPERT);
@@ -154,24 +153,24 @@ void Player::evaluate_branch(double current_ms) {
                 }
             }
             if (!branch_m.empty()) {
-                branch_m.erase(branch_m.begin());
+                branch_m.pop_front();
             }
             if (!branch_n.empty()) {
-                branch_n.erase(branch_n.begin());
+                branch_n.pop_front();
             }
         } else if (branch_condition_count >= m_req) {
             if (!branch_m.empty()) {
                 merge_branch_section(branch_m.front(), current_ms);
-                branch_m.erase(branch_m.begin());
+                branch_m.pop_front();
                 if (branch_indicator.has_value() and branch_indicator->difficulty != BranchDifficulty::MASTER) {
                     branch_indicator->level_up(BranchDifficulty::MASTER);
                 }
             }
             if (!branch_n.empty()) {
-                branch_n.erase(branch_n.begin());
+                branch_n.pop_front();
             }
             if (!branch_e.empty()) {
-                branch_e.erase(branch_e.begin());
+                branch_e.pop_front();
             }
         } else {
             if (!branch_n.empty()) {
@@ -182,13 +181,12 @@ void Player::evaluate_branch(double current_ms) {
                 }
             }
             if (!branch_m.empty()) {
-                branch_m.erase(branch_m.begin());
+                branch_m.pop_front();
             }
             if (!branch_e.empty()) {
-                branch_e.erase(branch_e.begin());
+                branch_e.pop_front();
             }
         }
-        branch_condition_count = 0;
     }
 }
 
@@ -381,14 +379,14 @@ void Player::reset_chart() {
     this->branch_m = branch_m_temp;
     this->branch_e = branch_e_temp;
     this->branch_n = branch_n_temp;
-    std::vector<std::reference_wrapper<std::vector<NoteList>>> branches = {
+    std::vector<std::reference_wrapper<std::deque<NoteList>>> branches = {
         std::ref(this->branch_m),
         std::ref(this->branch_e),
         std::ref(this->branch_n)
     };
 
     for (auto& branch_ref : branches) {
-        std::vector<NoteList>& branch = branch_ref.get();
+        std::deque<NoteList>& branch = branch_ref.get();
 
         if (!branch.empty()) {
             for (NoteList& section : branch) {
@@ -411,13 +409,11 @@ void Player::reset_chart() {
 
 
     this->timeline = notes.timeline;
-    timeline_index = 0;
     is_drumroll = false;
     curr_drumroll_count = 0;
     is_balloon = false;
     curr_balloon_count = 0;
     is_branch = false;
-    branch_condition_count = 0;
     branch_condition = "";
 
     NoteList total_notes; //all notes including master branch
@@ -484,7 +480,7 @@ float Player::get_position_y(Note note, double current_ms) {
 
 void Player::handle_branch_param(double ms_from_start, TimelineObject timeline_object) {
     if (!timeline_object.branch_params.has_value()) return;
-    if (timeline_object.load_ms > ms_from_start) return;
+    if (timeline_object.hit_ms > ms_from_start) return;
 
     std::string params = timeline_object.branch_params.value();
 
@@ -503,32 +499,33 @@ void Player::handle_branch_param(double ms_from_start, TimelineObject timeline_o
         if (!is_branch) {
             is_branch = true;
             branch_condition = branch_cond;
+            branch_condition_count = 0;
 
-            double branch_start_time;
+            double branch_condition_end_time;
             if (!branch_m.empty() && !branch_m.front().notes.empty()) {
-                branch_start_time = std::find_if(branch_m.front().notes.begin(), branch_m.front().notes.end(),
+                branch_condition_end_time = std::find_if(branch_m.front().notes.begin(), branch_m.front().notes.end(),
                     [](const auto& note) { return note.type != 0;}) -> load_ms;
             } else if (!branch_e.empty() && !branch_e.front().notes.empty()) {
-                branch_start_time = std::find_if(branch_e.front().notes.begin(), branch_e.front().notes.end(),
+                branch_condition_end_time = std::find_if(branch_e.front().notes.begin(), branch_e.front().notes.end(),
                     [](const auto& note) { return note.type != 0;}) -> load_ms;
             } else if (!branch_n.empty() && !branch_n.front().notes.empty()) {
-                branch_start_time = std::find_if(branch_n.front().notes.begin(), branch_n.front().notes.end(),
+                branch_condition_end_time = std::find_if(branch_n.front().notes.begin(), branch_n.front().notes.end(),
                     [](const auto& note) { return note.type != 0;}) -> load_ms;
             }
 
             if (branch_cond == "r") {
-                curr_branch_reqs = std::make_tuple(e_req, m_req, branch_start_time, 1);
+                curr_branch_reqs = std::make_tuple(e_req, m_req, branch_condition_end_time, 1);
             } else if (branch_cond == "p") {
                 int note_count = 0;
                 for (Note note : draw_note_buffer) {
-                    if ((1 <= note.type && note.type <= 4) && timeline_object.load_ms <= note.hit_ms && note.hit_ms <= branch_start_time) note_count++;
+                    if ((1 <= note.type && note.type <= 4) && timeline_object.hit_ms <= note.hit_ms && note.hit_ms <= branch_condition_end_time) note_count++;
                 }
-                curr_branch_reqs = std::make_tuple(e_req, m_req, branch_start_time, note_count);
+                curr_branch_reqs = std::make_tuple(e_req, m_req, branch_condition_end_time, note_count);
             }
-            spdlog::info("branch condition measures started with conditions {}, {}, {}, starting at {} and ending at {}", branch_cond, e_req, m_req, timeline_object.load_ms, branch_start_time);
+            spdlog::info("branch condition measures started with conditions {}, {}, {}, starting at {} and ending at {}", branch_cond, e_req, m_req, timeline_object.hit_ms, branch_condition_end_time);
         }
     }
-    timeline_index++;
+    timeline.pop_front();
 }
 
 void Player::play_note_manager(double current_ms) {//, background: Optional[Background]):
@@ -813,8 +810,6 @@ void Player::check_note(double ms_from_start, DrumType drum_type, double current
     }
 
     {
-        curr_drumroll_count = 0;
-
         if (ms_from_start > (curr_note.hit_ms + bad_window_ms)) return;
 
         bool big = curr_note.type == (int)NoteType::DON_L || curr_note.type == (int)NoteType::KAT_L;

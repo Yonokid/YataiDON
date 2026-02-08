@@ -112,9 +112,9 @@ TJAParser::TJAParser(const std::filesystem::path& path, int start_delay)
     get_metadata();
 
     master_notes = NoteList();
-    branch_m = std::vector<NoteList>();
-    branch_e = std::vector<NoteList>();
-    branch_n = std::vector<NoteList>();
+    branch_m = std::deque<NoteList>();
+    branch_e = std::deque<NoteList>();
+    branch_n = std::deque<NoteList>();
 }
 
 void TJAParser::get_metadata() {
@@ -318,7 +318,7 @@ void TJAParser::get_metadata() {
         }
 }
 
-std::tuple<NoteList, std::vector<NoteList>, std::vector<NoteList>, std::vector<NoteList>>
+std::tuple<NoteList, std::deque<NoteList>, std::deque<NoteList>, std::deque<NoteList>>
 TJAParser::notes_to_position(int diff) {
     auto commands = build_command_registry();
     auto notes = data_to_notes(diff);
@@ -813,7 +813,7 @@ void TJAParser::handle_BRANCHSTART(const std::string& value, ParserState& state)
     } else {
         branch_obj.hit_ms = this->current_ms;
     }
-    branch_obj.load_ms = branch_obj.hit_ms - (240000 * state.time_signature / state.bpm);
+    //branch_obj.load_ms = branch_obj.hit_ms - (240000 * state.time_signature / state.bpm);
     branch_obj.branch_params = branch_params;
     state.curr_timeline->push_back(branch_obj);
 
@@ -1208,7 +1208,7 @@ Interval get_note_interval_type(double interval_ms, double bpm, double time_sig)
     return Interval::UNKNOWN;
 }
 
-std::vector<std::pair<int, int>> find_streams(const std::vector<Note>& modded_notes, Interval interval_type) {
+std::vector<std::pair<int, int>> find_streams(const std::deque<Note>& modded_notes, Interval interval_type) {
     std::vector<std::pair<int, int>> streams;
     size_t i = 0;
 
