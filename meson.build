@@ -73,15 +73,33 @@ endif
 # Dependencies
 # ────────────────────────────────────────────────────────────────
 
+# SDL2
 sdl2_dep = dependency('sdl2', 
   version: '>=2.0.0',
   static: true
 )
 
-raylib_dep = dependency('raylib',
-  version: '>=5.0',
-  static: true
-)
+# raylib
+
+# raylib_dep = dependency('raylib',
+#   version: '>=5.0',
+#   static: true,
+# )
+
+# https://github.com/gilzoide/raylib-meson-template/blob/main/meson.build
+cmake = import('cmake')
+raylib_opts = cmake.subproject_options()
+raylib_opts.set_install(false)
+raylib_opts.add_cmake_defines({
+  'BUILD_EXAMPLES': 'OFF',
+  'BUILD_GAMES': 'OFF',
+  'PLATFORM': 'SDL',
+  'CUSTOMIZE_BUILD': 'ON',
+  'SUPPORT_MODULE_RAUDIO': 'OFF',
+  'SUPPORT_CUSTOM_FRAME_CONTROL': 'ON'
+})
+raylib_subproject = cmake.subproject('raylib', options: raylib_opts)
+raylib_dep = raylib_subproject.dependency('raylib')
 
 # RapidJSON (header-only)
 rapidjson_dep = dependency('RapidJSON',
