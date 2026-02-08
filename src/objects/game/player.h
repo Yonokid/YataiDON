@@ -146,6 +146,7 @@ private:
 
     float get_position_y(Note note, double current_ms);
 
+    void handle_scroll_type_commands(double ms_from_start, TimelineObject timeline_object, int buffer_index);
     void handle_gogotime(double ms_from_start, TimelineObject timeline_object, int buffer_index);
     void handle_judgeposition(double ms_from_start, TimelineObject timeline_object, int buffer_index);
     void handle_bpmchange(double ms_from_start, TimelineObject timeline_object, int buffer_index);

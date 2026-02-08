@@ -55,7 +55,7 @@ void Player::handle_timeline(double ms_from_start) {
 
     for (int i = timeline_buffer.size() - 1; i >= 0; i--) {
         auto& timeline_object = timeline_buffer[i];
-        //self.handle_scroll_type_commands(current_ms, timeline_object)
+        handle_scroll_type_commands(ms_from_start, timeline_object, i);
         handle_bpmchange(ms_from_start, timeline_object, i);
         handle_judgeposition(ms_from_start, timeline_object, i);
         handle_gogotime(ms_from_start, timeline_object, i);
@@ -491,9 +491,46 @@ float Player::get_position_y(Note note, double current_ms) {
     return (note.hit_ms - current_ms) * speedy;
 }
 
+void Player::handle_scroll_type_commands(double ms_from_start, TimelineObject timeline_object, int buffer_index) {
+    if (timeline_object.start_time > ms_from_start) return;
+    if (timeline_object.bpmchange.has_value()) {
+        for (Note note : draw_note_list) {
+            note.bpm *= timeline_object.bpmchange.value();
+        }
+        for (Note note : draw_note_buffer) {
+            note.bpm *= timeline_object.bpmchange.value();
+        }
+
+        bpm *= timeline_object.bpmchange.value();
+        timeline_buffer.erase(timeline_buffer.begin() + buffer_index);
+        return;
+    }
+
+    if (timeline_object.delay.has_value()) {
+        if (delay_start.has_value()) {
+            delay_start = timeline_object.start_time;
+            delay_end = timeline_object.start_time + timeline_object.delay.value();
+        } else {
+            spdlog::error("Needs fix: delay is currently active, but another delay is being activated");
+        }
+        timeline_buffer.erase(timeline_buffer.begin() + buffer_index);
+        return;
+    }
+}
+
 void Player::handle_gogotime(double ms_from_start, TimelineObject timeline_object, int buffer_index) {
     if (timeline_object.start_time > ms_from_start) return;
     if (!timeline_object.gogo_time.has_value()) return;
+
+    is_gogo_time = timeline_object.gogo_time.value();
+
+    if (is_gogo_time) {
+        gogo_time = GogoTime(is_2p);
+        //self.chara.set_animation('gogo_start')
+    } else {
+        gogo_time.reset();
+        //self.chara.set_animation('gogo_stop')
+    }
 
     timeline_buffer.erase(timeline_buffer.begin() + buffer_index);
 }
@@ -527,6 +564,8 @@ void Player::handle_judgeposition(double ms_from_start, TimelineObject timeline_
 void Player::handle_bpmchange(double ms_from_start, TimelineObject timeline_object, int buffer_index) {
     if (timeline_object.start_time > ms_from_start) return;
     if (!timeline_object.bpm.has_value()) return;
+
+    bpm = timeline_object.bpm.value();
 
     timeline_buffer.erase(timeline_buffer.begin() + buffer_index);
 }
