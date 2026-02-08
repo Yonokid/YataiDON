@@ -17,6 +17,12 @@ AudioEngine::AudioEngine(int host_api_index, float sample_rate, unsigned long bu
     }
 }
 
+AudioEngine::~AudioEngine() {
+    if (is_ready) {
+        close_audio_device();
+    }
+}
+
 int AudioEngine::port_audio_callback(const void *inputBuffer, void *outputBuffer,
                         unsigned long framesPerBuffer,
                         const PaStreamCallbackTimeInfo* timeInfo,
@@ -252,10 +258,10 @@ bool AudioEngine::init_audio_device() {
         is_ready = true;
 
         std::string don_path = path_to_string(sounds_path / "don.wav");
-        don = load_sound(don_path.c_str(), "sound");
+        don = load_sound(don_path.c_str(), "don");
 
         std::string kat_path = path_to_string(sounds_path / "ka.wav");
-        kat = load_sound(kat_path.c_str(), "sound");
+        kat = load_sound(kat_path.c_str(), "kat");
 
         spdlog::info("Audio Device initialized successfully");
         spdlog::info("    > Backend:       PortAudio | {}", host_api_info->name);

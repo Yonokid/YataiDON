@@ -32,6 +32,12 @@ public:
     GameScreen() : Screen("game") {
     }
 
+    ~GameScreen() {
+        if (screen_init && mask_shader.id > 0) {
+            ray::UnloadShader(mask_shader);
+        }
+    }
+
     void on_screen_start() override;
 
     std::string on_screen_end(const std::string& next_screen) override;

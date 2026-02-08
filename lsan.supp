@@ -6,6 +6,15 @@ leak:SDL_Init
 leak:SDL_CreateWindow
 leak:SDL_GL_CreateContext
 
+# SDL3 - Known to have some internal leaks that are cleaned up by the OS
+leak:libSDL3
+leak:SDL_SetTLS_REAL
+leak:SDL_FreeLater
+leak:SDL_SendKeyboardText
+leak:SDL_strdup_REAL
+leak:data_device_handle_selection
+leak:keyboard_handle_key
+
 # Raylib - Graphics library
 leak:libraylib
 leak:InitWindow
@@ -51,13 +60,19 @@ leak:libglib
 leak:g_malloc
 leak:g_type_register
 
-# libsndfile
+# libsndfile - internal allocations
 leak:libsndfile
 leak:sf_open
+leak:sf_readf_float
+leak:sf_open_fd
+leak:sf_format_check
 
-# libsamplerate
+# libsamplerate - internal allocations
 leak:libsamplerate
 leak:src_new
+leak:src_simple
+leak:src_process
+leak:src_callback_new
 
 # Standard library false positives
 leak:std::__throw_bad_alloc
@@ -67,3 +82,18 @@ leak:__static_initialization_and_destruction
 
 # C++ standard library
 leak:libstdc++
+
+# Unknown module allocations (likely from audio libraries)
+# These appear as addresses in the executable without source info
+# Pattern: calloc/malloc from unknown module addresses
+leak:^$
+
+# pthread initialization and thread-local storage
+leak:__pthread_once_slow
+leak:___pthread_once
+leak:pthread_once
+
+# Internal library initialization (one-time allocations)
+# These show up as addresses in the executable from library static initialization
+# Pattern: 0x26xxxxx addresses in the executable
+# These are typically from libsndfile, libsamplerate, or PortAudio internals

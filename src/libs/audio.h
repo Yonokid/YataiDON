@@ -58,6 +58,7 @@ struct music {
 class AudioEngine {
 public:
     AudioEngine(int device_type, float sample_rate, unsigned long buffer_size, const VolumeConfig& volume_presets);
+    ~AudioEngine();
 
     fs::path sounds_path;
 
