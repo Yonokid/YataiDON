@@ -197,7 +197,7 @@ int main(int argc, char* argv[]) {
 
     fs::path skin_path = fs::path("Skins") / global_data.config->paths.skin / "Graphics";
     if (fs::exists(skin_path)) {
-        tex.init(global_data.config->paths.skin.string());
+        tex.init(skin_path);
     } else {
         spdlog::warn("Skin directory not found, skipping texture initialization");
     }
@@ -223,7 +223,7 @@ int main(int argc, char* argv[]) {
 
     spdlog::info("Window initialized: " + std::to_string(screen_width) + "x" + std::to_string(screen_height));
     if (fs::exists(skin_path)) {
-        global_tex.init(global_data.config->paths.skin.string());
+        global_tex.init(skin_path);
     } else {
         spdlog::warn("Skin directory not found, skipping global texture initialization");
     }

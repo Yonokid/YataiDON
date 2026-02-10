@@ -622,7 +622,7 @@ void Player::handle_branch_param(double ms_from_start, const TimelineObject& tim
 void Player::play_note_manager(double current_ms, std::optional<Background>& background) {
     if (!don_notes.empty() && don_notes.front().hit_ms + Timing::BAD < current_ms) {
         combo = 0;
-        if (background.has_value()) background->add_chibi(true, PlayerNum(1 + is_2p));
+        if (background.has_value()) background->handle_bad(PlayerNum(1 + is_2p));
         bad_count++;
         if (gauge.has_value()) gauge->add_bad();
 
@@ -634,7 +634,7 @@ void Player::play_note_manager(double current_ms, std::optional<Background>& bac
 
     if (!kat_notes.empty() && kat_notes.front().hit_ms + Timing::BAD < current_ms) {
         combo = 0;
-        if (background.has_value()) background->add_chibi(true, PlayerNum(1 + is_2p));
+        if (background.has_value()) background->handle_bad(PlayerNum(1 + is_2p));
         bad_count++;
         if (gauge.has_value()) gauge->add_bad();
 
@@ -783,7 +783,7 @@ void Player::check_drumroll(double current_ms, DrumType drum_type, std::optional
     if (branch_condition != "p") {
         branch_condition_count++;
     }
-    if (background.has_value()) background->add_renda();
+    if (background.has_value()) background->handle_drumroll(PlayerNum(is_2p + 1));
     score += 100;
     if (base_score_list.size() < 5) {
         base_score_list.push_back(ScoreCounterAnimation(player_num, 100, is_2p));
@@ -803,7 +803,7 @@ void Player::check_drumroll(double current_ms, DrumType drum_type, std::optional
     }
 }
 
-void Player::check_balloon(double current_ms, DrumType drum_type, const Note& balloon) {
+void Player::check_balloon(double current_ms, DrumType drum_type, const Note& balloon, std::optional<Background>& background) {
     if (drum_type != DrumType::DON) return;
     if (balloon.is_kusudama.value()) {
         check_kusudama(current_ms, balloon);
@@ -812,6 +812,7 @@ void Player::check_balloon(double current_ms, DrumType drum_type, const Note& ba
     if (!balloon_counter.has_value()) {
         balloon_counter = BalloonCounter(balloon.count.value(), player_num, is_2p);
     }
+    if (background.has_value()) background->handle_balloon(PlayerNum(is_2p + 1));
     curr_balloon_count++;
     total_drumroll++;
     score += 100;
@@ -877,7 +878,7 @@ void Player::check_note(double ms_from_start, DrumType drum_type, double current
         return;
     } else if (is_balloon && !other_notes.empty()) {
         curr_note = other_notes.front();
-        check_balloon(current_ms, drum_type, curr_note);
+        check_balloon(current_ms, drum_type, curr_note, background);
         return;
     } else if (drum_type == DrumType::DON) {
         if (don_notes.empty()) return;
@@ -906,7 +907,7 @@ void Player::check_note(double ms_from_start, DrumType drum_type, double current
             if (is_branch && branch_condition == "p") {
                 branch_condition_count++;
             }
-            if (background.has_value()) background->add_chibi(true, PlayerNum(1 + is_2p));
+            if (background.has_value()) background->handle_good(PlayerNum(1 + is_2p));
 
         } else if ((curr_note.hit_ms - ok_window_ms) <= ms_from_start && ms_from_start <= (curr_note.hit_ms + ok_window_ms)) {
             draw_judge_list.push_back(Judgment(Judgments::OK, big, is_2p));
@@ -921,7 +922,7 @@ void Player::check_note(double ms_from_start, DrumType drum_type, double current
             if (is_branch && branch_condition == "p") {
                 branch_condition_count += 0.5;
             }
-            if (background.has_value()) background->add_chibi(false, PlayerNum(1 + is_2p));
+            if (background.has_value()) background->handle_ok(PlayerNum(1 + is_2p));
 
         } else if ((curr_note.hit_ms - bad_window_ms) <= ms_from_start && ms_from_start <= (curr_note.hit_ms + bad_window_ms)) {
             draw_judge_list.push_back(Judgment(Judgments::BAD, big, is_2p));
@@ -940,7 +941,7 @@ void Player::check_note(double ms_from_start, DrumType drum_type, double current
                 draw_note_buffer.end()
             );
             if (gauge.has_value()) gauge->add_bad();
-            if (background.has_value()) background->add_chibi(false, PlayerNum(1 + is_2p));
+            if (background.has_value()) background->handle_bad(PlayerNum(1 + is_2p));
         }
     }
 }

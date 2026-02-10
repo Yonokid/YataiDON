@@ -1,7 +1,7 @@
 #include "texture.h"
 
 void TextureWrapper::init(const std::string& skin_path) {
-    graphics_path = fs::path("Skins") / skin_path / "Graphics";
+    graphics_path = skin_path;
 
     if (!fs::exists(graphics_path)) {
         ray::TraceLog(ray::LOG_ERROR, "No skin has been configured");

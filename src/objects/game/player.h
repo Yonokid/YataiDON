@@ -165,7 +165,7 @@ private:
 
     void check_drumroll(double current_ms, DrumType drum_type, std::optional<Background>& background);
 
-    void check_balloon(double current_ms, DrumType drum_type, const Note& balloon);
+    void check_balloon(double current_ms, DrumType drum_type, const Note& balloon, std::optional<Background>& background);
 
     void check_kusudama(double current_ms, const Note& balloon);
 
