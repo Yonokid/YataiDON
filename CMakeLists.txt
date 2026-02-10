@@ -95,12 +95,20 @@ FetchContent_MakeAvailable(spdlog)
 # Lua
 FetchContent_Declare(
     lua
-    GIT_REPOSITORY https://github.com/walterschell/Lua.git
-    GIT_TAG v5.4.6
+    GIT_REPOSITORY https://github.com/lua/lua.git
+    GIT_TAG v5.5.0
     GIT_SHALLOW TRUE
 )
-set(LUA_BUILD_AS_CXX ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(lua)
+
+# Sol2
+FetchContent_Declare(
+    sol2
+    GIT_REPOSITORY https://github.com/ThePhD/sol2.git
+    GIT_TAG v3.5.0
+    GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(sol2)
 
 # libsndfile
 if(WIN32)
@@ -255,6 +263,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     tomlplusplus::tomlplusplus
     spdlog::spdlog
     lua
+    sol2::sol2
 )
 
 # Platform specific (Thanks GPT)

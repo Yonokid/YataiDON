@@ -1,6 +1,9 @@
 #include "script.h"
 
 void ScriptManager::init(fs::path script_path) {
+    lua.open_libraries(sol::lib::base, sol::lib::package, sol::lib::string,
+                       sol::lib::math, sol::lib::table);
+
     for (const auto& script : fs::directory_iterator(script_path)) {
         scripts[script.path().stem().string()] = script.path();
     }
@@ -11,6 +14,8 @@ void ScriptManager::init(fs::path script_path) {
     spdlog::debug("Total scripts: {}", scripts.size());
 
     tex.init(script_path.parent_path() / "Graphics");
+
+    register_lua_bindings();
 }
 
 std::string ScriptManager::get_lua_script_path(const std::string& script_name) {
@@ -20,251 +25,106 @@ std::string ScriptManager::get_lua_script_path(const std::string& script_name) {
     return scripts[script_name];
 }
 
-BaseAnimation** check_animation(lua_State* L, int index) {
-    return (BaseAnimation**)luaL_checkudata(L, index, "BaseAnimation");
-}
+void ScriptManager::register_lua_bindings() {
+    lua.new_usertype<BaseAnimation>("BaseAnimation",
+        "update", &BaseAnimation::update,
 
-int lua_animation_update(lua_State* L) {
-    BaseAnimation** anim = check_animation(L, 1);
-    double current_ms = luaL_checknumber(L, 2);
+        "attribute", &BaseAnimation::attribute
+    );
 
-    (*anim)->update(current_ms);
-    return 0;
-}
+    sol::table tex = lua.create_table();
 
-int lua_animation_index(lua_State* L) {
-    BaseAnimation** anim = check_animation(L, 1);
-    const char* key = luaL_checkstring(L, 2);
+    tex.set_function("load_animations", [](const std::string& screen_name) {
+        script_manager.tex.load_animations(screen_name);
+    });
 
-    if (strcmp(key, "update") == 0) {
-        lua_pushcfunction(L, lua_animation_update);
-        return 1;
-    }
+    tex.set_function("get_animation", [](int anim_id, sol::optional<bool> is_copy) -> BaseAnimation* {
+        bool copy = is_copy.value_or(false);
+        return script_manager.tex.get_animation(anim_id, copy);
+    });
 
-    if (strcmp(key, "attribute") == 0) {
-        lua_pushnumber(L, (*anim)->attribute);
-        return 1;
-    }
+    tex.set_function("load_folder", [](const std::string& screen_name, const std::string& subset) {
+        script_manager.tex.load_folder(screen_name, subset);
+    });
 
-    return 0;
-}
-
-int lua_load_animations(lua_State* L) {
-    const char* screen_name = luaL_checkstring(L, 1);
-    script_manager.tex.load_animations(screen_name);
-    return 0;
-}
-
-int lua_get_animation(lua_State* L) {
-    int anim_id = luaL_checkinteger(L, 1);
-    bool is_copy = false;
-
-    if (lua_gettop(L) >= 2) {
-        is_copy = lua_toboolean(L, 2);
-    }
-
-    BaseAnimation* anim = script_manager.tex.get_animation(anim_id, is_copy);
-
-    BaseAnimation** udata = (BaseAnimation**)lua_newuserdata(L, sizeof(BaseAnimation*));
-    *udata = anim;
-
-    luaL_getmetatable(L, "BaseAnimation");
-    lua_setmetatable(L, -2);
-
-    return 1;
-}
-
-int lua_load_folder(lua_State* L) {
-    const char* screen_name = luaL_checkstring(L, 1);
-    const char* subset = luaL_checkstring(L, 2);
-
-    script_manager.tex.load_folder(screen_name, subset);
-    return 0;
-}
-
-int lua_get_texture_info(lua_State* L) {
-    const char* subset = luaL_checkstring(L, 1);
-    const char* texture_name = luaL_checkstring(L, 2);
-
-    auto subset_it = script_manager.tex.textures.find(subset);
-    if (subset_it == script_manager.tex.textures.end()) {
-        lua_pushnil(L);
-        return 1;
-    }
-
-    auto texture_it = subset_it->second.find(texture_name);
-    if (texture_it == subset_it->second.end()) {
-        lua_pushnil(L);
-        return 1;
-    }
-
-    const auto& tex_obj = texture_it->second;
-
-    lua_newtable(L);
-
-    lua_pushstring(L, tex_obj->name.c_str());
-    lua_setfield(L, -2, "name");
-
-    lua_pushinteger(L, tex_obj->width);
-    lua_setfield(L, -2, "width");
-
-    lua_pushinteger(L, tex_obj->height);
-    lua_setfield(L, -2, "height");
-
-    return 1;
-}
-
-int lua_draw_texture(lua_State* L) {
-    const char* subset = luaL_checkstring(L, 1);
-    const char* texture_name = luaL_checkstring(L, 2);
-
-    DrawTextureParams params;
-
-    // If a third argument (table) is provided, parse it
-    if (lua_gettop(L) >= 3 && lua_istable(L, 3)) {
-        // color (as table {r, g, b, a})
-        lua_getfield(L, 3, "color");
-        if (lua_istable(L, -1)) {
-            lua_rawgeti(L, -1, 1);
-            params.color.r = lua_tointeger(L, -1);
-            lua_pop(L, 1);
-
-            lua_rawgeti(L, -1, 2);
-            params.color.g = lua_tointeger(L, -1);
-            lua_pop(L, 1);
-
-            lua_rawgeti(L, -1, 3);
-            params.color.b = lua_tointeger(L, -1);
-            lua_pop(L, 1);
-
-            lua_rawgeti(L, -1, 4);
-            params.color.a = lua_tointeger(L, -1);
-            lua_pop(L, 1);
+    tex.set_function("get_texture_info", [](const std::string& subset, const std::string& texture_name) -> sol::optional<sol::table> {
+        auto subset_it = script_manager.tex.textures.find(subset);
+        if (subset_it == script_manager.tex.textures.end()) {
+            return sol::nullopt;
         }
-        lua_pop(L, 1);
 
-        // frame
-        lua_getfield(L, 3, "frame");
-        if (lua_isnumber(L, -1)) {
-            params.frame = lua_tointeger(L, -1);
+        auto texture_it = subset_it->second.find(texture_name);
+        if (texture_it == subset_it->second.end()) {
+            return sol::nullopt;
         }
-        lua_pop(L, 1);
 
-        // scale
-        lua_getfield(L, 3, "scale");
-        if (lua_isnumber(L, -1)) {
-            params.scale = lua_tonumber(L, -1);
+        const auto& tex_obj = texture_it->second;
+
+        sol::table info = script_manager.lua.create_table();
+        info["name"] = tex_obj->name;
+        info["width"] = tex_obj->width;
+        info["height"] = tex_obj->height;
+
+        return info;
+    });
+
+    tex.set_function("draw_texture", [](const std::string& subset, const std::string& texture_name, sol::optional<sol::table> params_table) {
+        DrawTextureParams params;
+
+        if (params_table) {
+            sol::table t = params_table.value();
+
+            // color (as table {r, g, b, a})
+            sol::optional<sol::table> color = t["color"];
+            if (color) {
+                params.color.r = color.value()[1].get_or(params.color.r);
+                params.color.g = color.value()[2].get_or(params.color.g);
+                params.color.b = color.value()[3].get_or(params.color.b);
+                params.color.a = color.value()[4].get_or(params.color.a);
+            }
+
+            // Simple parameters
+            params.frame = t["frame"].get_or(params.frame);
+            params.scale = t["scale"].get_or(params.scale);
+            params.center = t["center"].get_or(params.center);
+            params.x = t["x"].get_or(params.x);
+            params.y = t["y"].get_or(params.y);
+            params.x2 = t["x2"].get_or(params.x2);
+            params.y2 = t["y2"].get_or(params.y2);
+            params.rotation = t["rotation"].get_or(params.rotation);
+            params.fade = t["fade"].get_or(params.fade);
+            params.index = t["index"].get_or(params.index);
+            params.controllable = t["controllable"].get_or(params.controllable);
+
+            // mirror (string)
+            sol::optional<std::string> mirror = t["mirror"];
+            if (mirror) {
+                params.mirror = mirror.value();
+            }
+
+            // origin (as table {x, y})
+            sol::optional<sol::table> origin = t["origin"];
+            if (origin) {
+                params.origin.x = origin.value()[1].get_or(params.origin.x);
+                params.origin.y = origin.value()[2].get_or(params.origin.y);
+            }
+
+            // src (as table {x, y, width, height})
+            sol::optional<sol::table> src = t["src"];
+            if (src) {
+                ray::Rectangle rect;
+                rect.x = src.value()["x"].get_or(0.0f);
+                rect.y = src.value()["y"].get_or(0.0f);
+                rect.width = src.value()["width"].get_or(0.0f);
+                rect.height = src.value()["height"].get_or(0.0f);
+                params.src = rect;
+            }
         }
-        lua_pop(L, 1);
 
-        // center
-        lua_getfield(L, 3, "center");
-        if (lua_isboolean(L, -1)) {
-            params.center = lua_toboolean(L, -1);
-        }
-        lua_pop(L, 1);
+        script_manager.tex.draw_texture(subset, texture_name, params);
+    });
 
-        // mirror
-        lua_getfield(L, 3, "mirror");
-        if (lua_isstring(L, -1)) {
-            params.mirror = lua_tostring(L, -1);
-        }
-        lua_pop(L, 1);
-
-        // x, y
-        lua_getfield(L, 3, "x");
-        if (lua_isnumber(L, -1)) {
-            params.x = lua_tonumber(L, -1);
-        }
-        lua_pop(L, 1);
-
-        lua_getfield(L, 3, "y");
-        if (lua_isnumber(L, -1)) {
-            params.y = lua_tonumber(L, -1);
-        }
-        lua_pop(L, 1);
-
-        // x2, y2
-        lua_getfield(L, 3, "x2");
-        if (lua_isnumber(L, -1)) {
-            params.x2 = lua_tonumber(L, -1);
-        }
-        lua_pop(L, 1);
-
-        lua_getfield(L, 3, "y2");
-        if (lua_isnumber(L, -1)) {
-            params.y2 = lua_tonumber(L, -1);
-        }
-        lua_pop(L, 1);
-
-        // origin (as table {x, y})
-        lua_getfield(L, 3, "origin");
-        if (lua_istable(L, -1)) {
-            lua_rawgeti(L, -1, 1);
-            params.origin.x = lua_tonumber(L, -1);
-            lua_pop(L, 1);
-
-            lua_rawgeti(L, -1, 2);
-            params.origin.y = lua_tonumber(L, -1);
-            lua_pop(L, 1);
-        }
-        lua_pop(L, 1);
-
-        // rotation
-        lua_getfield(L, 3, "rotation");
-        if (lua_isnumber(L, -1)) {
-            params.rotation = lua_tonumber(L, -1);
-        }
-        lua_pop(L, 1);
-
-        // fade
-        lua_getfield(L, 3, "fade");
-        if (lua_isnumber(L, -1)) {
-            params.fade = lua_tonumber(L, -1);
-        }
-        lua_pop(L, 1);
-
-        // index
-        lua_getfield(L, 3, "index");
-        if (lua_isnumber(L, -1)) {
-            params.index = lua_tointeger(L, -1);
-        }
-        lua_pop(L, 1);
-
-        // src (as table {x, y, width, height})
-        lua_getfield(L, 3, "src");
-        if (lua_istable(L, -1)) {
-            ray::Rectangle rect;
-            lua_getfield(L, -1, "x");
-            rect.x = lua_tonumber(L, -1);
-            lua_pop(L, 1);
-
-            lua_getfield(L, -1, "y");
-            rect.y = lua_tonumber(L, -1);
-            lua_pop(L, 1);
-
-            lua_getfield(L, -1, "width");
-            rect.width = lua_tonumber(L, -1);
-            lua_pop(L, 1);
-
-            lua_getfield(L, -1, "height");
-            rect.height = lua_tonumber(L, -1);
-            lua_pop(L, 1);
-
-            params.src = rect;
-        }
-        lua_pop(L, 1);
-
-        // controllable
-        lua_getfield(L, 3, "controllable");
-        if (lua_isboolean(L, -1)) {
-            params.controllable = lua_toboolean(L, -1);
-        }
-        lua_pop(L, 1);
-    }
-
-    script_manager.tex.draw_texture(subset, texture_name, params);
-    return 0;
+    lua["tex"] = tex;
 }
 
 ScriptManager script_manager;

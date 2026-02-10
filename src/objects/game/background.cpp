@@ -1,161 +1,106 @@
 #include "background.h"
 
 Background::Background(PlayerNum player_num, float bpm, const std::string& scene_preset) {
-    L = luaL_newstate();
-    luaL_openlibs(L);
-
-    luaL_newmetatable(L, "BaseAnimation");
-    lua_pushcfunction(L, lua_animation_index);
-    lua_setfield(L, -2, "__index");
-    lua_pop(L, 1);
-
-    lua_newtable(L);
-    lua_pushcfunction(L, lua_draw_texture);
-    lua_setfield(L, -2, "draw_texture");
-    lua_pushcfunction(L, lua_load_folder);
-    lua_setfield(L, -2, "load_folder");
-    lua_pushcfunction(L, lua_load_animations);
-    lua_setfield(L, -2, "load_animations");
-    lua_pushcfunction(L, lua_get_animation);
-    lua_setfield(L, -2, "get_animation");
-    lua_pushcfunction(L, lua_get_texture_info);
-    lua_setfield(L, -2, "get_texture_info");
-    lua_setglobal(L, "tex");
+    sol::state& lua = script_manager.lua;
 
     std::string script_path = script_manager.get_lua_script_path("background");
-    if (luaL_dofile(L, script_path.c_str()) != LUA_OK) {
-        spdlog::error("Error loading background.lua: {}", lua_tostring(L, -1));
-        lua_pop(L, 1);
+    auto result = lua.script_file(script_path);
+    if (!result.valid()) {
+        sol::error err = result;
+        spdlog::error("Error loading background.lua: {}", err.what());
     }
 
-    lua_getglobal(L, "Background");
-    lua_getfield(L, -1, "new");
-    lua_pushinteger(L, static_cast<int>(player_num));
-    lua_pushnumber(L, bpm);
-    lua_pushstring(L, scene_preset.c_str());
+    sol::table background_class = lua["Background"];
+    sol::protected_function new_func = background_class["new"];
 
-    if (lua_pcall(L, 3, 1, 0) != LUA_OK) {
-        spdlog::error("Error calling Background.new: {}", lua_tostring(L, -1));
-        lua_pop(L, 1);
+    auto call_result = new_func(static_cast<int>(player_num), bpm, scene_preset);
+    if (!call_result.valid()) {
+        sol::error err = call_result;
+        spdlog::error("Error calling Background.new: {}", err.what());
+    } else {
+        lua_object = call_result;
     }
-
-    lua_ref = luaL_ref(L, LUA_REGISTRYINDEX);
-    lua_pop(L, 1);
 }
 
 Background::~Background() {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, lua_ref);
-    lua_getfield(L, -1, "destroy");
-    if (lua_isfunction(L, -1)) {
-        lua_pushvalue(L, -2);  // push self
-        lua_pcall(L, 1, 0, 0);
-    } else {
-        lua_pop(L, 1);
+    sol::optional<sol::protected_function> destroy = lua_object["destroy"];
+    if (destroy) {
+        auto result = destroy.value()(lua_object);
+        if (!result.valid()) {
+            sol::error err = result;
+            spdlog::error("Error calling destroy: {}", err.what());
+        }
     }
-    lua_pop(L, 1);
-
-    luaL_unref(L, LUA_REGISTRYINDEX, lua_ref);
-    lua_close(L);
 }
 
 void Background::update(double current_ms) {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, lua_ref);
-    lua_getfield(L, -1, "update");
-    lua_pushvalue(L, -2);  // push self
-    lua_pushnumber(L, current_ms);
-
-    if (lua_pcall(L, 2, 0, 0) != LUA_OK) {
-        spdlog::error("Error calling update: {}", lua_tostring(L, -1));
-        lua_pop(L, 1);
+    sol::protected_function update_func = lua_object["update"];
+    auto result = update_func(lua_object, current_ms);
+    if (!result.valid()) {
+        sol::error err = result;
+        spdlog::error("Error calling update: {}", err.what());
     }
-    lua_pop(L, 1); // pop self
 }
 
 void Background::handle_good(PlayerNum player_num) {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, lua_ref);
-    lua_getfield(L, -1, "handle_good");
-    lua_pushvalue(L, -2);  // push self
-    lua_pushnumber(L, (int)player_num);
-
-    if (lua_pcall(L, 2, 0, 0) != LUA_OK) {
-        spdlog::error("Error calling handle_good: {}", lua_tostring(L, -1));
-        lua_pop(L, 1);
+    sol::protected_function func = lua_object["handle_good"];
+    auto result = func(lua_object, static_cast<int>(player_num));
+    if (!result.valid()) {
+        sol::error err = result;
+        spdlog::error("Error calling handle_good: {}", err.what());
     }
-    lua_pop(L, 1);
 }
 
 void Background::handle_ok(PlayerNum player_num) {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, lua_ref);
-    lua_getfield(L, -1, "handle_ok");
-    lua_pushvalue(L, -2);  // push self
-    lua_pushnumber(L, (int)player_num);
-
-    if (lua_pcall(L, 2, 0, 0) != LUA_OK) {
-        spdlog::error("Error calling handle_ok: {}", lua_tostring(L, -1));
-        lua_pop(L, 1);
+    sol::protected_function func = lua_object["handle_ok"];
+    auto result = func(lua_object, static_cast<int>(player_num));
+    if (!result.valid()) {
+        sol::error err = result;
+        spdlog::error("Error calling handle_ok: {}", err.what());
     }
-    lua_pop(L, 1);
 }
 
 void Background::handle_bad(PlayerNum player_num) {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, lua_ref);
-    lua_getfield(L, -1, "handle_bad");
-    lua_pushvalue(L, -2);  // push self
-    lua_pushnumber(L, (int)player_num);
-
-    if (lua_pcall(L, 2, 0, 0) != LUA_OK) {
-        spdlog::error("Error calling handle_bad: {}", lua_tostring(L, -1));
-        lua_pop(L, 1);
+    sol::protected_function func = lua_object["handle_bad"];
+    auto result = func(lua_object, static_cast<int>(player_num));
+    if (!result.valid()) {
+        sol::error err = result;
+        spdlog::error("Error calling handle_bad: {}", err.what());
     }
-    lua_pop(L, 1);
 }
 
 void Background::handle_drumroll(PlayerNum player_num) {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, lua_ref);
-    lua_getfield(L, -1, "handle_drumroll");
-    lua_pushvalue(L, -2);  // push self
-    lua_pushnumber(L, (int)player_num);
-
-    if (lua_pcall(L, 2, 0, 0) != LUA_OK) {
-        spdlog::error("Error calling handle_drumroll: {}", lua_tostring(L, -1));
-        lua_pop(L, 1);
+    sol::protected_function func = lua_object["handle_drumroll"];
+    auto result = func(lua_object, static_cast<int>(player_num));
+    if (!result.valid()) {
+        sol::error err = result;
+        spdlog::error("Error calling handle_drumroll: {}", err.what());
     }
-    lua_pop(L, 1);
 }
 
 void Background::handle_balloon(PlayerNum player_num) {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, lua_ref);
-    lua_getfield(L, -1, "handle_balloon");
-    lua_pushvalue(L, -2);  // push self
-    lua_pushnumber(L, (int)player_num);
-
-    if (lua_pcall(L, 2, 0, 0) != LUA_OK) {
-        spdlog::error("Error calling handle_balloon: {}", lua_tostring(L, -1));
-        lua_pop(L, 1);
+    sol::protected_function func = lua_object["handle_balloon"];
+    auto result = func(lua_object, static_cast<int>(player_num));
+    if (!result.valid()) {
+        sol::error err = result;
+        spdlog::error("Error calling handle_balloon: {}", err.what());
     }
-    lua_pop(L, 1);
 }
 
 void Background::draw_back() {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, lua_ref);
-    lua_getfield(L, -1, "draw_back");
-    lua_pushvalue(L, -2);  // push self
-
-    if (lua_pcall(L, 1, 0, 0) != LUA_OK) {
-        spdlog::error("Error calling draw_back: {}", lua_tostring(L, -1));
-        lua_pop(L, 1);
+    sol::protected_function func = lua_object["draw_back"];
+    auto result = func(lua_object);
+    if (!result.valid()) {
+        sol::error err = result;
+        spdlog::error("Error calling draw_back: {}", err.what());
     }
-    lua_pop(L, 1);
 }
 
 void Background::draw_fore() {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, lua_ref);
-    lua_getfield(L, -1, "draw_fore");
-    lua_pushvalue(L, -2);  // push self
-
-    if (lua_pcall(L, 1, 0, 0) != LUA_OK) {
-        spdlog::error("Error calling draw_fore: {}", lua_tostring(L, -1));
-        lua_pop(L, 1);
+    sol::protected_function func = lua_object["draw_fore"];
+    auto result = func(lua_object);
+    if (!result.valid()) {
+        sol::error err = result;
+        spdlog::error("Error calling draw_fore: {}", err.what());
     }
-    lua_pop(L, 1);
 }
