@@ -226,7 +226,7 @@ void input_polling_thread() {
             released_keys.insert(released_keys.end(), local_released.begin(), local_released.end());
         }
 
-        std::this_thread::yield();
+        std::this_thread::sleep_for(std::chrono::microseconds(500));
     }
 }
 
