@@ -28,9 +28,189 @@ std::string ScriptManager::get_lua_script_path(const std::string& script_name) {
 void ScriptManager::register_lua_bindings() {
     lua.new_usertype<BaseAnimation>("BaseAnimation",
         "update", &BaseAnimation::update,
-
-        "attribute", &BaseAnimation::attribute
+        "restart", &BaseAnimation::restart,
+        "start", &BaseAnimation::start,
+        "pause", &BaseAnimation::pause,
+        "unpause", &BaseAnimation::unpause,
+        "reset", &BaseAnimation::reset,
+        "attribute", &BaseAnimation::attribute,
+        "is_finished", &BaseAnimation::is_finished,
+        "is_started", &BaseAnimation::is_started,
+        "isFinished", &BaseAnimation::isFinished,
+        "isStarted", &BaseAnimation::isStarted
     );
+
+    // Fade animation bindings
+    lua.new_usertype<FadeAnimation>("FadeAnimation",
+        sol::base_classes, sol::bases<BaseAnimation>(),
+        "update", &FadeAnimation::update,
+        "restart", &FadeAnimation::restart
+    );
+
+    // Move animation bindings
+    lua.new_usertype<MoveAnimation>("MoveAnimation",
+        sol::base_classes, sol::bases<BaseAnimation>(),
+        "update", &MoveAnimation::update,
+        "restart", &MoveAnimation::restart
+    );
+
+    // Texture change animation bindings
+    lua.new_usertype<TextureChangeAnimation>("TextureChangeAnimation",
+        sol::base_classes, sol::bases<BaseAnimation>(),
+        "update", &TextureChangeAnimation::update,
+        "reset", &TextureChangeAnimation::reset
+    );
+
+    // Text stretch animation bindings
+    lua.new_usertype<TextStretchAnimation>("TextStretchAnimation",
+        sol::base_classes, sol::bases<BaseAnimation>(),
+        "update", &TextStretchAnimation::update
+    );
+
+    // Texture resize animation bindings
+    lua.new_usertype<TextureResizeAnimation>("TextureResizeAnimation",
+        sol::base_classes, sol::bases<BaseAnimation>(),
+        "update", &TextureResizeAnimation::update,
+        "restart", &TextureResizeAnimation::restart
+    );
+
+    // Animation creation helper functions
+    sol::table anim = lua.create_table();
+
+    anim.set_function("fade", [](double duration, sol::optional<sol::table> params) -> FadeAnimation* {
+        double initial_opacity = 1.0;
+        double final_opacity = 0.0;
+        double delay = 0.0;
+        bool loop = false;
+        bool lock_input = false;
+        std::optional<std::string> ease_in = std::nullopt;
+        std::optional<std::string> ease_out = std::nullopt;
+        std::optional<double> reverse_delay = std::nullopt;
+
+        if (params) {
+            sol::table t = params.value();
+            initial_opacity = t["initial_opacity"].get_or(initial_opacity);
+            final_opacity = t["final_opacity"].get_or(final_opacity);
+            delay = t["delay"].get_or(delay);
+            loop = t["loop"].get_or(loop);
+            lock_input = t["lock_input"].get_or(lock_input);
+            
+            sol::optional<std::string> ease_in_opt = t["ease_in"];
+            if (ease_in_opt) ease_in = ease_in_opt.value();
+            
+            sol::optional<std::string> ease_out_opt = t["ease_out"];
+            if (ease_out_opt) ease_out = ease_out_opt.value();
+            
+            sol::optional<double> reverse_delay_opt = t["reverse_delay"];
+            if (reverse_delay_opt) reverse_delay = reverse_delay_opt.value();
+        }
+
+        return new FadeAnimation(duration, initial_opacity, loop, lock_input, final_opacity, delay, ease_in, ease_out, reverse_delay);
+    });
+
+    anim.set_function("move", [](double duration, sol::optional<sol::table> params) -> MoveAnimation* {
+        int total_distance = 0;
+        int start_position = 0;
+        double delay = 0.0;
+        bool loop = false;
+        bool lock_input = false;
+        std::optional<double> reverse_delay = std::nullopt;
+        std::optional<std::string> ease_in = std::nullopt;
+        std::optional<std::string> ease_out = std::nullopt;
+
+        if (params) {
+            sol::table t = params.value();
+            total_distance = t["total_distance"].get_or(total_distance);
+            start_position = t["start_position"].get_or(start_position);
+            delay = t["delay"].get_or(delay);
+            loop = t["loop"].get_or(loop);
+            lock_input = t["lock_input"].get_or(lock_input);
+            
+            sol::optional<double> reverse_delay_opt = t["reverse_delay"];
+            if (reverse_delay_opt) reverse_delay = reverse_delay_opt.value();
+            
+            sol::optional<std::string> ease_in_opt = t["ease_in"];
+            if (ease_in_opt) ease_in = ease_in_opt.value();
+            
+            sol::optional<std::string> ease_out_opt = t["ease_out"];
+            if (ease_out_opt) ease_out = ease_out_opt.value();
+        }
+
+        return new MoveAnimation(duration, total_distance, loop, lock_input, start_position, delay, reverse_delay, ease_in, ease_out);
+    });
+
+    anim.set_function("texture_change", [](double duration, sol::table textures_table, sol::optional<sol::table> params) -> TextureChangeAnimation* {
+        std::vector<std::tuple<double, double, int>> textures;
+        
+        for (size_t i = 1; i <= textures_table.size(); ++i) {
+            sol::table tex_entry = textures_table[i];
+            double start = tex_entry[1].get<double>();
+            double end = tex_entry[2].get<double>();
+            int index = tex_entry[3].get<int>();
+            textures.emplace_back(start, end, index);
+        }
+
+        double delay = 0.0;
+        bool loop = false;
+        bool lock_input = false;
+
+        if (params) {
+            sol::table t = params.value();
+            delay = t["delay"].get_or(delay);
+            loop = t["loop"].get_or(loop);
+            lock_input = t["lock_input"].get_or(lock_input);
+        }
+
+        return new TextureChangeAnimation(duration, textures, loop, lock_input, delay);
+    });
+
+    anim.set_function("text_stretch", [](double duration, sol::optional<sol::table> params) -> TextStretchAnimation* {
+        double delay = 0.0;
+        bool loop = false;
+        bool lock_input = false;
+
+        if (params) {
+            sol::table t = params.value();
+            delay = t["delay"].get_or(delay);
+            loop = t["loop"].get_or(loop);
+            lock_input = t["lock_input"].get_or(lock_input);
+        }
+
+        return new TextStretchAnimation(duration, delay, loop, lock_input);
+    });
+
+    anim.set_function("texture_resize", [](double duration, sol::optional<sol::table> params) -> TextureResizeAnimation* {
+        double initial_size = 1.0;
+        double final_size = 0.0;
+        double delay = 0.0;
+        bool loop = false;
+        bool lock_input = false;
+        std::optional<double> reverse_delay = std::nullopt;
+        std::optional<std::string> ease_in = std::nullopt;
+        std::optional<std::string> ease_out = std::nullopt;
+
+        if (params) {
+            sol::table t = params.value();
+            initial_size = t["initial_size"].get_or(initial_size);
+            final_size = t["final_size"].get_or(final_size);
+            delay = t["delay"].get_or(delay);
+            loop = t["loop"].get_or(loop);
+            lock_input = t["lock_input"].get_or(lock_input);
+            
+            sol::optional<double> reverse_delay_opt = t["reverse_delay"];
+            if (reverse_delay_opt) reverse_delay = reverse_delay_opt.value();
+            
+            sol::optional<std::string> ease_in_opt = t["ease_in"];
+            if (ease_in_opt) ease_in = ease_in_opt.value();
+            
+            sol::optional<std::string> ease_out_opt = t["ease_out"];
+            if (ease_out_opt) ease_out = ease_out_opt.value();
+        }
+
+        return new TextureResizeAnimation(duration, initial_size, loop, lock_input, final_size, delay, reverse_delay, ease_in, ease_out);
+    });
+
+    lua["anim"] = anim;
 
     sol::table tex = lua.create_table();
 

@@ -87,6 +87,15 @@ void Background::handle_balloon(PlayerNum player_num) {
     }
 }
 
+void Background::handle_gauge(PlayerNum player_num, float progress, bool is_clear, bool is_rainbow) {
+    sol::protected_function func = lua_object["handle_gauge"];
+    auto result = func(lua_object, static_cast<int>(player_num), progress, is_clear, is_rainbow);
+    if (!result.valid()) {
+        sol::error err = result;
+        spdlog::error("Error calling handle_gauge: {}", err.what());
+    }
+}
+
 void Background::draw_back() {
     sol::protected_function func = lua_object["draw_back"];
     auto result = func(lua_object);

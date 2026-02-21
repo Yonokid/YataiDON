@@ -46,4 +46,5 @@ public:
 
     bool get_is_clear() const { return is_clear; }
     bool get_is_rainbow() const { return is_rainbow; }
+    float get_progress();
 };

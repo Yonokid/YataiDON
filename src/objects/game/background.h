@@ -17,6 +17,7 @@ public:
     void handle_bad(PlayerNum player_num);
     void handle_drumroll(PlayerNum player_num);
     void handle_balloon(PlayerNum player_num);
+    void handle_gauge(PlayerNum player_num, float progress, bool is_clear, bool is_rainbow);
     void draw_back();
     void draw_fore();
 };

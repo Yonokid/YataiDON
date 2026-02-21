@@ -67,6 +67,10 @@ Gauge::Gauge(PlayerNum player_num, int difficulty, int level, int total_notes, b
     rainbow_animation = (TextureChangeAnimation*)tex.get_animation(64);
 }
 
+float Gauge::get_progress() {
+    return gauge_length / gauge_max;
+}
+
 void Gauge::add_good() {
     gauge_update_anim->start();
     previous_length = (int)gauge_length;
