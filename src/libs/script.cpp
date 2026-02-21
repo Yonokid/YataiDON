@@ -94,13 +94,13 @@ void ScriptManager::register_lua_bindings() {
             delay = t["delay"].get_or(delay);
             loop = t["loop"].get_or(loop);
             lock_input = t["lock_input"].get_or(lock_input);
-            
+
             sol::optional<std::string> ease_in_opt = t["ease_in"];
             if (ease_in_opt) ease_in = ease_in_opt.value();
-            
+
             sol::optional<std::string> ease_out_opt = t["ease_out"];
             if (ease_out_opt) ease_out = ease_out_opt.value();
-            
+
             sol::optional<double> reverse_delay_opt = t["reverse_delay"];
             if (reverse_delay_opt) reverse_delay = reverse_delay_opt.value();
         }
@@ -125,13 +125,13 @@ void ScriptManager::register_lua_bindings() {
             delay = t["delay"].get_or(delay);
             loop = t["loop"].get_or(loop);
             lock_input = t["lock_input"].get_or(lock_input);
-            
+
             sol::optional<double> reverse_delay_opt = t["reverse_delay"];
             if (reverse_delay_opt) reverse_delay = reverse_delay_opt.value();
-            
+
             sol::optional<std::string> ease_in_opt = t["ease_in"];
             if (ease_in_opt) ease_in = ease_in_opt.value();
-            
+
             sol::optional<std::string> ease_out_opt = t["ease_out"];
             if (ease_out_opt) ease_out = ease_out_opt.value();
         }
@@ -140,14 +140,14 @@ void ScriptManager::register_lua_bindings() {
     });
 
     anim.set_function("texture_change", [](double duration, sol::table textures_table, sol::optional<sol::table> params) -> TextureChangeAnimation* {
-        std::vector<std::tuple<double, double, int>> textures;
-        
+        std::vector<std::tuple<double, double, int>> keyframes;
+
         for (size_t i = 1; i <= textures_table.size(); ++i) {
             sol::table tex_entry = textures_table[i];
             double start = tex_entry[1].get<double>();
             double end = tex_entry[2].get<double>();
             int index = tex_entry[3].get<int>();
-            textures.emplace_back(start, end, index);
+            keyframes.emplace_back(start, end, index);
         }
 
         double delay = 0.0;
@@ -161,7 +161,7 @@ void ScriptManager::register_lua_bindings() {
             lock_input = t["lock_input"].get_or(lock_input);
         }
 
-        return new TextureChangeAnimation(duration, textures, loop, lock_input, delay);
+        return new TextureChangeAnimation(duration, keyframes, loop, lock_input, delay);
     });
 
     anim.set_function("text_stretch", [](double duration, sol::optional<sol::table> params) -> TextStretchAnimation* {
@@ -196,13 +196,13 @@ void ScriptManager::register_lua_bindings() {
             delay = t["delay"].get_or(delay);
             loop = t["loop"].get_or(loop);
             lock_input = t["lock_input"].get_or(lock_input);
-            
+
             sol::optional<double> reverse_delay_opt = t["reverse_delay"];
             if (reverse_delay_opt) reverse_delay = reverse_delay_opt.value();
-            
+
             sol::optional<std::string> ease_in_opt = t["ease_in"];
             if (ease_in_opt) ease_in = ease_in_opt.value();
-            
+
             sol::optional<std::string> ease_out_opt = t["ease_out"];
             if (ease_out_opt) ease_out = ease_out_opt.value();
         }
@@ -227,6 +227,52 @@ void ScriptManager::register_lua_bindings() {
         script_manager.tex.load_folder(screen_name, subset);
     });
 
+    tex.set_function("get_screen_width", []() -> float {
+        return script_manager.tex.screen_width;
+    });
+
+    tex.set_function("get_screen_height", []() -> float {
+        return script_manager.tex.screen_height;
+    });
+
+    tex.set_function("get_screen_scale", []() -> float {
+        return script_manager.tex.screen_scale;
+    });
+
+    tex.set_function("get_skin_config", [](const std::string& config_key) -> sol::optional<sol::table> {
+        auto config_it = script_manager.tex.skin_config.find(config_key);
+        if (config_it == script_manager.tex.skin_config.end()) {
+            return sol::nullopt;
+        }
+
+        const auto& skin_info = config_it->second;
+
+        sol::table info = script_manager.lua.create_table();
+        info["x"] = skin_info.x;
+        info["y"] = skin_info.y;
+        info["font_size"] = skin_info.font_size;
+        info["width"] = skin_info.width;
+        info["height"] = skin_info.height;
+
+        return info;
+    });
+
+    tex.set_function("get_texture_keys", [](const std::string& subset) -> sol::optional<sol::table> {
+        auto subset_it = script_manager.tex.textures.find(subset);
+        if (subset_it == script_manager.tex.textures.end()) {
+            return sol::nullopt;
+        }
+
+        sol::table keys = script_manager.lua.create_table();
+        int index = 1;
+        for (const auto& [key, _] : subset_it->second) {
+            keys[index] = key;
+            ++index;
+        }
+
+        return keys;
+    });
+
     tex.set_function("get_texture_info", [](const std::string& subset, const std::string& texture_name) -> sol::optional<sol::table> {
         auto subset_it = script_manager.tex.textures.find(subset);
         if (subset_it == script_manager.tex.textures.end()) {
@@ -244,6 +290,13 @@ void ScriptManager::register_lua_bindings() {
         info["name"] = tex_obj->name;
         info["width"] = tex_obj->width;
         info["height"] = tex_obj->height;
+        
+        // Try to get frame count from the texture object
+        int frame_count = 1;
+        if (auto framed = dynamic_cast<FramedTexture*>(tex_obj.get())) {
+            frame_count = framed->textures.size();
+        }
+        info["frame_count"] = frame_count;
 
         return info;
     });

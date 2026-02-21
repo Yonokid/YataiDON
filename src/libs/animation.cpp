@@ -197,10 +197,10 @@ std::unique_ptr<BaseAnimation> MoveAnimation::copy() const {
     );
 }
 
-TextureChangeAnimation::TextureChangeAnimation(double duration, const std::vector<std::tuple<double, double, int>>& textures,
+TextureChangeAnimation::TextureChangeAnimation(double duration, const std::vector<std::tuple<double, double, int>>& keyframes,
                       bool loop, bool lock_input, double delay)
     : BaseAnimation(duration, delay, loop, lock_input) {
-    for (const auto& [start, end, index] : textures) {
+    for (const auto& [start, end, index] : keyframes) {
         this->textures.push_back({start, end, index});
     }
     if (!this->textures.empty()) {
