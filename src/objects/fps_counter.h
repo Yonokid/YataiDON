@@ -1,4 +1,5 @@
-#include "../libs/utils.h"
+#include "../libs/texture.h"
+#include "../libs/text.h"
 
 class FPSCounter {
 private:

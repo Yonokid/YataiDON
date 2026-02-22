@@ -276,7 +276,9 @@ void Player::update(double ms_from_start, double current_ms, std::optional<Backg
     //self.nameplate.update(current_ms)
     if (gauge.has_value()) {
         gauge->update(current_ms);
-        background->handle_gauge(player_num, gauge->get_progress(), gauge->get_is_clear(), gauge->get_is_rainbow());
+        if (background.has_value()) {
+            background->handle_gauge(player_num, gauge->get_progress(), gauge->get_is_clear(), gauge->get_is_rainbow());
+        }
     }
     if (judge_counter.has_value()) {
         judge_counter->update(good_count, ok_count, bad_count, total_drumroll);

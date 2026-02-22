@@ -8,7 +8,7 @@
 #include "libs/config.h"
 #include "libs/script.h"
 #include "scenes/game.h"
-#include "libs/utils.h"
+#include "libs/input.h"
 #include "libs/audio.h"
 #include "libs/logging.h"
 #include "objects/fps_counter.h"
@@ -220,6 +220,13 @@ int main(int argc, char* argv[]) {
 
     set_config_flags();
     ray::InitWindow(screen_width, screen_height, "YataiDON");
+
+    fs::path font_path = fs::path("Skins") / global_data.config->paths.skin / "Graphics/Modified-DFPKanteiryu-XB.ttf";
+    if (fs::exists(font_path)) {
+        font_manager.init(font_path);
+    } else {
+        spdlog::warn("Font file not found, skipping font initialization");
+    }
 
     spdlog::info("Window initialized: " + std::to_string(screen_width) + "x" + std::to_string(screen_height));
     if (fs::exists(skin_path)) {

@@ -1,5 +1,4 @@
 #include "result_transition.h"
-#include "../../libs/utils.h"
 
 ResultTransition::ResultTransition(PlayerNum player_num)
     : player_num(player_num), is_finished(false), is_started(false) {

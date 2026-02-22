@@ -24,11 +24,11 @@ void GameScreen::on_screen_start() {
         SetShaderValueTexture(mask_shader, GetShaderLocation(mask_shader, "texture0"), rainbow_mask->texture);
         SetShaderValueTexture(mask_shader, GetShaderLocation(mask_shader, "texture1"), rainbow->texture);
     }
-    SessionData session_data = global_data.session_data[(int)global_data.player_num];
+    SessionData& session_data = global_data.session_data[(int)global_data.player_num];
     init_tja(session_data.selected_song);
     spdlog::info("TJA initialized for song: {}", session_data.selected_song.string());
     load_hitsounds();
-    //song_info = SongInfo(session_data.song_title, session_data.genre_index)
+    song_info = SongInfo(session_data.song_title, session_data.genre_index);
     //self.result_transition = ResultTransition(global_data.player_num)
     //subtitle = self.parser.metadata.subtitle.get(global_data.config['general']['language'].lower(), '')
     bpm = parser->metadata.bpm;
@@ -91,7 +91,10 @@ void GameScreen::init_tja(fs::path song) {
     else:
         self.movie = None
         */
-    //global_data.session_data[(int)global_data.player_num].song_title = parser->metadata.title.get(global_data.config->general.language.lower(), parser->metadata.title["en"])
+    auto& titles = parser->metadata.title;
+    const std::string& lang = global_data.config->general.language;
+
+    global_data.session_data[(int)global_data.player_num].song_title = titles.count(lang) ? titles.at(lang) : titles.at("en");
     if (fs::exists(parser->metadata.wave) && !song_music.has_value()) {
         song_music = audio->load_music_stream(parser->metadata.wave, "song");
     }
@@ -167,8 +170,8 @@ std::optional<std::string> GameScreen::update() {
     if (player_1.has_value()) {
         player_1->update(current_ms, current_time, background);
     }
+    song_info.update(current_time);
     /*
-    self.song_info.update(current_time)
     self.result_transition.update(current_time)
     if self.result_transition.is_finished and not audio.is_sound_playing('result_transition'):
         logger.info("Result transition finished, moving to RESULT screen")
@@ -196,7 +199,8 @@ std::optional<std::string> GameScreen::update() {
 }
 
 void GameScreen::draw_overlay() {
-    /*self.song_info.draw()
+    song_info.draw();
+    /*
     if not self.transition.is_finished:
         self.transition.draw()
     if self.result_transition.is_started:

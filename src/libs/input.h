@@ -48,6 +48,3 @@ inline bool operator!=(const ray::Color& a, const ray::Color& b)
 {
     return !(a == b);
 }
-
-
-extern TextureWrapper global_tex;

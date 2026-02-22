@@ -2,7 +2,6 @@
 
 #include "../../libs/texture.h"
 #include "../../libs/ray.h"
-#include "../../libs/utils.h"
 #include <string>
 
 class JudgeCounter {
@@ -18,8 +17,7 @@ private:
 
 public:
     JudgeCounter();
-    
+
     void update(int good, int ok, int bad, int drumrolls);
     void draw();
 };
-

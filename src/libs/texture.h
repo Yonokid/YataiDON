@@ -100,6 +100,7 @@ private:
 public:
     std::map<std::string, std::map<std::string, std::shared_ptr<TextureObject>>> textures;
     std::map<std::string, SkinInfo> skin_config;
+    fs::path font_path;
     int screen_width;
     int screen_height;
     float screen_scale;
@@ -133,3 +134,5 @@ public:
 };
 
 extern TextureWrapper tex;
+
+extern TextureWrapper global_tex;

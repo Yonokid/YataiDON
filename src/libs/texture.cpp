@@ -471,3 +471,5 @@ void TextureWrapper::draw_texture(const std::string& subset, const std::string& 
 }
 
 TextureWrapper tex;
+
+TextureWrapper global_tex;

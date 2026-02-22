@@ -1,12 +1,13 @@
 #pragma once
 
 #include "../libs/screen.h"
-#include "../libs/utils.h"
+#include "../libs/input.h"
 #include "../libs/parsers/tja.h"
 #include "../libs/global_data.h"
 #include "../libs/animation.h"
 
 #include "../objects/game/player.h"
+#include "../objects/game/song_info.h"
 
 class GameScreen : public Screen {
 private:
@@ -27,6 +28,7 @@ private:
     std::optional<TJAParser> parser;
     std::string scene_preset;
     std::optional<Player> player_1;
+    SongInfo song_info;
 
 
 public:

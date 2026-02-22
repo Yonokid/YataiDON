@@ -1,4 +1,4 @@
-#include "utils.h"
+#include "input.h"
 #include <unordered_map>
 
 #ifdef _WIN32
@@ -279,5 +279,3 @@ void clear_input_buffers() {
     pressed_keys.clear();
     released_keys.clear();
 }
-
-TextureWrapper global_tex;

@@ -112,8 +112,6 @@ struct CameraConfig {
 struct GlobalData {
     int songs_played = 0;
     CameraConfig camera;
-    ray::Font font = ray::GetFontDefault();
-    std::unordered_set<int> font_codepoints;
     Config* config = nullptr;  // Using pointer, initialize appropriately
     std::unordered_map<std::string, std::vector<std::unordered_map<std::string, std::string>>> song_hashes;  // Hash to metadata
     std::unordered_map<fs::path, std::string> song_paths;  // Path to hash
