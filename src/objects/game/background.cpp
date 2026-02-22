@@ -33,9 +33,9 @@ Background::~Background() {
     }
 }
 
-void Background::update(double current_ms) {
+void Background::update(double current_ms, float bpm) {
     sol::protected_function update_func = lua_object["update"];
-    auto result = update_func(lua_object, current_ms);
+    auto result = update_func(lua_object, current_ms, bpm);
     if (!result.valid()) {
         sol::error err = result;
         spdlog::error("Error calling update: {}", err.what());

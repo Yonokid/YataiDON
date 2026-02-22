@@ -39,6 +39,9 @@ namespace Timing {
 
 class Player {
 public:
+    double end_time;
+    float bpm;
+
     Player(std::optional<TJAParser>& parser_ref, PlayerNum player_num_param, int difficulty_param,
            bool is_2p_param, const Modifiers& modifiers_param);
 
@@ -55,8 +58,6 @@ private:
     std::string score_method;
     Modifiers modifiers;
     std::optional<TJAParser> parser;
-
-    float bpm;
 
     // Score management
     int good_count;
@@ -92,8 +93,6 @@ private:
     int base_score;
     int score_init;
     int score_diff;
-
-    double end_time;
 
     bool is_drumroll;
     int curr_drumroll_count;

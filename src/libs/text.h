@@ -30,7 +30,7 @@ private:
 public:
     float width;
     float height;
-    OutlinedText(std::string text, int font_size, ray::Color color, ray::Color outline_color, int outline_thickness);
+    OutlinedText(std::string text, int font_size, ray::Color color, ray::Color outline_color, int outline_thickness = 5);
 
     void draw(float x, float y, float fade);
 };

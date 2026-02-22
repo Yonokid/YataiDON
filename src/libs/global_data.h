@@ -95,6 +95,7 @@ struct SessionData {
     int dan_color = 0;
     int selected_difficulty = 0;
     std::string song_title = "default_title";
+    std::string song_subtitle = "default_subtitle";
     int genre_index = 0;
     ResultData result_data;
     DanResultData dan_result_data;

@@ -13,6 +13,8 @@ public:
     bool is_finished;
     bool is_started;
 
+    ResultTransition() = default;
+
     ResultTransition(PlayerNum player_num);
 
     void start();

@@ -8,6 +8,8 @@
 
 #include "../objects/game/player.h"
 #include "../objects/game/song_info.h"
+#include "../objects/game/transition.h"
+#include "../objects/game/result_transition.h"
 
 class GameScreen : public Screen {
 private:
@@ -29,6 +31,8 @@ private:
     std::string scene_preset;
     std::optional<Player> player_1;
     SongInfo song_info;
+    Transition transition;
+    ResultTransition result_transition;
 
 
 public:

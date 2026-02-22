@@ -29,8 +29,7 @@ void GameScreen::on_screen_start() {
     spdlog::info("TJA initialized for song: {}", session_data.selected_song.string());
     load_hitsounds();
     song_info = SongInfo(session_data.song_title, session_data.genre_index);
-    //self.result_transition = ResultTransition(global_data.player_num)
-    //subtitle = self.parser.metadata.subtitle.get(global_data.config['general']['language'].lower(), '')
+    result_transition = ResultTransition(global_data.player_num);
     bpm = parser->metadata.bpm;
     scene_preset = parser->metadata.scene_preset;
     //if self.movie is None:
@@ -39,9 +38,9 @@ void GameScreen::on_screen_start() {
     //else:
         //self.background = None
         //logger.info("Movie initialized")
-    //self.transition = Transition(session_data.song_title, subtitle, is_second=True)
+    transition = Transition(session_data.song_title, session_data.song_subtitle, true);
     //self.allnet_indicator = AllNetIcon()
-    //self.transition.start()
+    transition.start();
 }
 
 std::string GameScreen::on_screen_end(const std::string& next_screen) {
@@ -92,9 +91,12 @@ void GameScreen::init_tja(fs::path song) {
         self.movie = None
         */
     auto& titles = parser->metadata.title;
+    auto& subtitles = parser->metadata.subtitle;
     const std::string& lang = global_data.config->general.language;
 
     global_data.session_data[(int)global_data.player_num].song_title = titles.count(lang) ? titles.at(lang) : titles.at("en");
+    global_data.session_data[(int)global_data.player_num].song_subtitle = titles.count(lang) ? titles.at(lang) : titles.at("en");
+
     if (fs::exists(parser->metadata.wave) && !song_music.has_value()) {
         song_music = audio->load_music_stream(parser->metadata.wave, "song");
     }
@@ -147,65 +149,69 @@ void GameScreen::update_background(double current_time) {
     //if self.movie is not None:
         //self.movie.update()
     //else:
-        //if len(self.player_1.current_bars) > 0:
-            //self.bpm = self.player_1.bpm
-        if (background.has_value()) background->update(current_time);
-            //self.background.update(current_time, self.bpm, self.player_1.gauge, None)
+        bpm = player_1->bpm;
+        if (background.has_value()) background->update(current_time, bpm);
 }
 
 std::optional<std::string> GameScreen::update() {
     Screen::update();  // Call parent implementation
 
     volatile double current_time = get_current_ms();
-    //self.transition.update(current_time)
+    transition.update(current_time);
     if (!paused) {
         current_ms = current_time - start_ms;
     }
-    //if self.transition.is_finished:
-    start_song(current_ms);
-        //else:
-        //self.start_ms = current_time - self.parser.metadata.offset*1000
+    if (transition.is_finished()) {
+        start_song(current_ms);
+    } else {
+        start_ms = current_time - parser->metadata.offset*1000;
+    }
     update_background(current_time);
 
     if (player_1.has_value()) {
         player_1->update(current_ms, current_time, background);
     }
     song_info.update(current_time);
-    /*
-    self.result_transition.update(current_time)
-    if self.result_transition.is_finished and not audio.is_sound_playing('result_transition'):
-        logger.info("Result transition finished, moving to RESULT screen")
-        return self.on_screen_end('RESULT')
-    elif self.current_ms >= self.player_1.end_time:
-        session_data = global_data.session_data[global_data.player_num]
-        session_data.result_data.score, session_data.result_data.good, session_data.result_data.ok, session_data.result_data.bad, session_data.result_data.max_combo, session_data.result_data.total_drumroll = self.player_1.get_result_score()
-        if self.player_1.gauge is not None:
-            session_data.result_data.gauge_length = self.player_1.gauge.gauge_length
-        if self.end_ms != 0:
-            if current_time >= self.end_ms + 1000:
-                if self.player_1.ending_anim is None:
+    result_transition.update(current_time);
+    if (result_transition.is_finished && !audio->is_sound_playing("result_transition")) {
+        spdlog::info("Result transition finished, moving to RESULT screen");
+        return on_screen_end("RESULT");
+    }
+    else if (current_ms >= player_1->end_time) {
+        SessionData& session_data = global_data.session_data[(int)global_data.player_num];
+        //session_data.result_data.score, session_data.result_data.good, session_data.result_data.ok, session_data.result_data.bad, session_data.result_data.max_combo, session_data.result_data.total_drumroll = self.player_1.get_result_score()
+        //if self.player_1.gauge is not None:
+            //session_data.result_data.gauge_length = self.player_1.gauge.gauge_length
+        if (end_ms != 0) {
+            if (current_time >= end_ms + 1000) {
+                /*if self.player_1.ending_anim is None:
                     self.write_score()
                     logger.info("Score written and ending animations spawned")
-                    self.spawn_ending_anims()
-            if current_time >= self.end_ms + 8533.34:
-                if not self.result_transition.is_started:
-                    self.result_transition.start()
-                    audio.play_sound('result_transition', 'voice')
-                    logger.info("Result transition started and voice played")
-        else:
-            self.end_ms = current_time
-        */
+                    self.spawn_ending_anims()*/
+            }
+            if (current_time >= end_ms + 8533.34) {
+                if (!result_transition.is_started) {
+                    result_transition.start();
+                    audio->play_sound("result_transition", "voice");
+                    spdlog::info("Result transition started and voice played");
+                }
+            }
+        } else {
+            end_ms = current_time;
+        }
+    }
     return global_keys();
 }
 
 void GameScreen::draw_overlay() {
     song_info.draw();
-    /*
-    if not self.transition.is_finished:
-        self.transition.draw()
-    if self.result_transition.is_started:
-        self.result_transition.draw()
-    self.allnet_indicator.draw()*/
+    if (!transition.is_finished()) {
+        transition.draw();
+    }
+    if (result_transition.is_started) {
+        result_transition.draw();
+    }
+    //self.allnet_indicator.draw()
 }
 
 void GameScreen::draw() {

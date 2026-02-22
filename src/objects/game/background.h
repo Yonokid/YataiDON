@@ -11,7 +11,7 @@ private:
 public:
     Background(PlayerNum player_num, float bpm, const std::string& scene_preset);
     ~Background();
-    void update(double current_ms);
+    void update(double current_ms, float bpm);
     void handle_good(PlayerNum player_num);
     void handle_ok(PlayerNum player_num);
     void handle_bad(PlayerNum player_num);
