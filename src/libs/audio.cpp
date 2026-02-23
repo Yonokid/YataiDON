@@ -267,12 +267,6 @@ bool AudioEngine::init_audio_device() {
 
         is_ready = true;
 
-        std::string don_path = path_to_string(sounds_path / "don.wav");
-        don = load_sound(don_path.c_str(), "don");
-
-        std::string kat_path = path_to_string(sounds_path / "ka.wav");
-        kat = load_sound(kat_path.c_str(), "kat");
-
         spdlog::info("Audio Device initialized successfully");
         spdlog::info("    > Backend:       PortAudio | {}", host_api_info->name);
         spdlog::info("    > Device:        {}", device_info->name);
@@ -476,6 +470,12 @@ void AudioEngine::load_screen_sounds(const std::string& screen_name) {
         spdlog::warn("Sounds for screen {} not found", screen_name);
         return;
     }
+
+    std::string don_path = path_to_string(sounds_path / "don.wav");
+    don = load_sound(don_path.c_str(), "don");
+
+    std::string kat_path = path_to_string(sounds_path / "ka.wav");
+    kat = load_sound(kat_path.c_str(), "kat");
 
     for (const auto& entry : fs::directory_iterator(path)) {
         if (entry.is_directory()) {

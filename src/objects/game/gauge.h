@@ -12,7 +12,6 @@ private:
     bool is_2p;
     PlayerNum player_num;
     std::string string_diff;
-    float gauge_length;
     float previous_length;
     int total_notes;
     int difficulty;
@@ -36,6 +35,7 @@ private:
     TextureChangeAnimation* rainbow_animation;
 
 public:
+    float gauge_length;
     Gauge(PlayerNum player_num, int difficulty, int level, int total_notes, bool is_2p);
 
     void add_good();

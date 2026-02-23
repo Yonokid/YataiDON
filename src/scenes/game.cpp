@@ -39,11 +39,10 @@ void GameScreen::on_screen_start() {
         //self.background = None
         //logger.info("Movie initialized")
     transition = Transition(session_data.song_title, session_data.song_subtitle, true);
-    //self.allnet_indicator = AllNetIcon()
     transition.start();
 }
 
-std::string GameScreen::on_screen_end(const std::string& next_screen) {
+Screens GameScreen::on_screen_end(Screens next_screen) {
     song_started = false;
     end_ms = 0;
     ray::UnloadShader(mask_shader);
@@ -121,7 +120,25 @@ void GameScreen::start_song(double ms_from_start) {
     }
 }
 
-std::nullopt_t GameScreen::global_keys() {
+void GameScreen::pause_song() {
+    paused = !paused;
+    double audio_time;
+    if (paused) {
+        if (song_music.has_value()) {
+            audio_time = audio->get_music_time_played(song_music.value());
+            audio->stop_music_stream(song_music.value());
+        }
+        pause_time = get_current_ms() - start_ms;
+    } else {
+        if (song_music.has_value()) {
+            audio->play_music_stream(song_music.value(), "music");
+            audio->seek_music_stream(song_music.value(), audio_time);
+        }
+        start_ms = get_current_ms() - pause_time;
+    }
+}
+
+std::optional<Screens> GameScreen::global_keys() {
     if (ray::IsKeyPressed(global_data.config->keys.restart_key)) {
         if (song_music.has_value()) {
             audio->stop_music_stream(song_music.value());
@@ -135,11 +152,11 @@ std::nullopt_t GameScreen::global_keys() {
         if (song_music.has_value()) {
             audio->stop_music_stream(song_music.value());
         }
-        //return self.on_screen_end('SONG_SELECT')
+        return on_screen_end(Screens::SONG_SELECT);
     }
 
     if (ray::IsKeyPressed(global_data.config->keys.pause_key)) {
-        //pause_song();
+        pause_song();
     }
 
     return std::nullopt;
@@ -153,7 +170,7 @@ void GameScreen::update_background(double current_time) {
         if (background.has_value()) background->update(current_time, bpm);
 }
 
-std::optional<std::string> GameScreen::update() {
+std::optional<Screens> GameScreen::update() {
     Screen::update();  // Call parent implementation
 
     volatile double current_time = get_current_ms();
@@ -175,13 +192,10 @@ std::optional<std::string> GameScreen::update() {
     result_transition.update(current_time);
     if (result_transition.is_finished && !audio->is_sound_playing("result_transition")) {
         spdlog::info("Result transition finished, moving to RESULT screen");
-        return on_screen_end("RESULT");
+        return on_screen_end(Screens::RESULT);
     }
     else if (current_ms >= player_1->end_time) {
-        SessionData& session_data = global_data.session_data[(int)global_data.player_num];
-        //session_data.result_data.score, session_data.result_data.good, session_data.result_data.ok, session_data.result_data.bad, session_data.result_data.max_combo, session_data.result_data.total_drumroll = self.player_1.get_result_score()
-        //if self.player_1.gauge is not None:
-            //session_data.result_data.gauge_length = self.player_1.gauge.gauge_length
+        global_data.session_data[(int)global_data.player_num].result_data = player_1->get_result_score();
         if (end_ms != 0) {
             if (current_time >= end_ms + 1000) {
                 /*if self.player_1.ending_anim is None:
@@ -211,7 +225,7 @@ void GameScreen::draw_overlay() {
     if (result_transition.is_started) {
         result_transition.draw();
     }
-    //self.allnet_indicator.draw()
+    allnet_indicator.draw();
 }
 
 void GameScreen::draw() {

@@ -45,6 +45,18 @@ Player::Player(std::optional<TJAParser>& parser_ref, PlayerNum player_num_param,
     }
 }
 
+ResultData Player::get_result_score() {
+    ResultData result = ResultData();
+    result.score = score;
+    result.good = good_count;
+    result.ok = ok_count;
+    result.bad = bad_count;
+    result.max_combo = max_combo;
+    result.total_drumroll = total_drumroll;
+    result.gauge_length = gauge->gauge_length;
+    return result;
+}
+
 void Player::handle_timeline(double ms_from_start) {
     if (timeline.empty()) return;
     TimelineObject timeline_object = timeline.front();

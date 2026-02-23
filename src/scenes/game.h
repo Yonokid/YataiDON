@@ -10,6 +10,7 @@
 #include "../objects/game/song_info.h"
 #include "../objects/game/transition.h"
 #include "../objects/game/result_transition.h"
+#include "../objects/global/allnet_indicator.h"
 
 class GameScreen : public Screen {
 private:
@@ -33,6 +34,7 @@ private:
     SongInfo song_info;
     Transition transition;
     ResultTransition result_transition;
+    AllNetIcon allnet_indicator;
 
 
 public:
@@ -47,7 +49,7 @@ public:
 
     void on_screen_start() override;
 
-    std::string on_screen_end(const std::string& next_screen) override;
+    Screens on_screen_end(Screens next_screen) override;
 
     void load_hitsounds();
 
@@ -55,11 +57,13 @@ public:
 
     void start_song(double ms_from_start);
 
-    std::nullopt_t global_keys();
+    void pause_song();
+
+    std::optional<Screens> global_keys();
 
     void update_background(double current_time);
 
-    std::optional<std::string> update() override;
+    std::optional<Screens> update() override;
 
     void draw_overlay();
 

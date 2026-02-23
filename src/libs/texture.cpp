@@ -122,7 +122,7 @@ void TextureWrapper::unload_textures() {
 
 BaseAnimation* TextureWrapper::get_animation(const int id, bool is_copy) {
     if (animations.find(id) == animations.end()) {
-        throw std::runtime_error(&"Unable to find animation: " [ id]);
+        throw std::runtime_error("Unable to find animation: " + std::to_string(id));
     }
 
     if (is_copy) {
@@ -143,6 +143,25 @@ BaseAnimation* TextureWrapper::get_animation(const int id, bool is_copy) {
 
 void TextureWrapper::read_tex_obj_data(const Value& tex_mapping, TextureObject* tex_obj) {
     if (tex_mapping.IsArray()) {
+        // Check if crop data exists in the first mapping (index 0)
+        bool has_crop_in_first = tex_mapping.Size() > 0 && 
+                                 tex_mapping[0].IsObject() && 
+                                 tex_mapping[0].HasMember("crop") && 
+                                 tex_mapping[0]["crop"].IsArray();
+        
+        std::vector<ray::Rectangle> crops;
+        if (has_crop_in_first) {
+            const Value& first_mapping = tex_mapping[0];
+            for (SizeType j = 0; j < first_mapping["crop"].Size(); j++) {
+                const Value& crop = first_mapping["crop"][j];
+                crops.push_back(ray::Rectangle{
+                    crop[0].GetFloat(), crop[1].GetFloat(),
+                    crop[2].GetFloat(), crop[3].GetFloat()
+                });
+            }
+            tex_obj->crop_data = crops;
+        }
+        
         for (SizeType i = 0; i < tex_mapping.Size(); i++) {
             const Value& mapping = tex_mapping[i];
 
@@ -179,17 +198,8 @@ void TextureWrapper::read_tex_obj_data(const Value& tex_mapping, TextureObject* 
                 }
             }
 
-            // Handle crop
-            if (mapping.HasMember("crop") && mapping["crop"].IsArray()) {
-                std::vector<ray::Rectangle> crops;
-                for (SizeType j = 0; j < mapping["crop"].Size(); j++) {
-                    const Value& crop = mapping["crop"][j];
-                    crops.push_back(ray::Rectangle{
-                        crop[0].GetFloat(), crop[1].GetFloat(),
-                        crop[2].GetFloat(), crop[3].GetFloat()
-                    });
-                }
-                tex_obj->crop_data = crops;
+            // Apply crop dimensions to all indices if crop exists in first mapping
+            if (has_crop_in_first) {
                 tex_obj->x2[i] = crops[0].width;
                 tex_obj->y2[i] = crops[0].height;
             }
@@ -225,8 +235,8 @@ void TextureWrapper::read_tex_obj_data(const Value& tex_mapping, TextureObject* 
                 });
             }
             tex_obj->crop_data = crops;
-            tex_obj->x2 = {static_cast<int>(crops[0].width)};
-            tex_obj->y2 = {static_cast<int>(crops[0].height)};
+            tex_obj->x2[0] = static_cast<int>(crops[0].width);
+            tex_obj->y2[0] = static_cast<int>(crops[0].height);
         }
     }
 }

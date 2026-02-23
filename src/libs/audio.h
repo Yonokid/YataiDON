@@ -10,7 +10,6 @@
 #include "audio/sndfile.h"
 #include "audio/samplerate.h"
 #include "spdlog/spdlog.h"
-
 namespace fs = std::filesystem;
 
 struct sound {

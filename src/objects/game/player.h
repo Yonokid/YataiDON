@@ -45,6 +45,8 @@ public:
     Player(std::optional<TJAParser>& parser_ref, PlayerNum player_num_param, int difficulty_param,
            bool is_2p_param, const Modifiers& modifiers_param);
 
+    ResultData get_result_score();
+
     void update(double ms_from_start, double current_ms, std::optional<Background>& background);
 
     void draw(double ms_from_start, ray::Shader& mask_shader);
@@ -139,8 +141,6 @@ private:
     void evaluate_branch(double current_ms);
 
     void merge_branch_section(const NoteList& branch_section, double current_ms);
-
-    std::tuple<int> get_result_score();
 
     float get_position_x(const Note& note, double current_ms);
 

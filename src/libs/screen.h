@@ -3,6 +3,16 @@
 #include "texture.h"
 #include "audio.h"
 
+#include "../objects/enums.h"
+
+template <>
+struct fmt::formatter<Screens> : fmt::formatter<std::string> {
+    auto format(Screens screen, fmt::format_context& ctx) const {
+        return fmt::formatter<std::string>::format(screens_to_string(screen), ctx);
+    }
+};
+
+
 class Screen {
 
 public:
@@ -26,7 +36,7 @@ public:
         spdlog::info("Loaded sounds for screen: {}", screen_name);
     }
 
-    virtual std::string on_screen_end(const std::string& next_screen) {
+    virtual Screens on_screen_end(Screens next_screen) {
         screen_init = false;
         spdlog::info("{} ended, transitioning to {} screen", screen_name, next_screen);
 
@@ -40,7 +50,7 @@ public:
         return next_screen;
     }
 
-    virtual std::optional<std::string> update() {
+    virtual std::optional<Screens> update() {
         auto ret_val = _do_screen_start();
         if (ret_val.has_value()) {
             return ret_val;
@@ -59,7 +69,7 @@ public:
     }
 
 protected:
-    std::optional<std::string> _do_screen_start() {
+    std::optional<Screens> _do_screen_start() {
         if (!screen_init) {
             screen_init = true;
             on_screen_start();

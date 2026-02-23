@@ -7,11 +7,14 @@
 #include "libs/screen.h"
 #include "libs/config.h"
 #include "libs/script.h"
-#include "scenes/game.h"
 #include "libs/input.h"
 #include "libs/audio.h"
 #include "libs/logging.h"
 #include "objects/fps_counter.h"
+
+#include "scenes/game.h"
+#include "scenes/result.h"
+
 #ifdef _WIN32
     #include <windows.h>
 #endif
@@ -105,9 +108,9 @@ void set_config_flags() {
     ray::SetTraceLogLevel(ray::LOG_WARNING);
 }
 
-std::string check_args(int argc, char* argv[]) {
+Screens check_args(int argc, char* argv[]) {
     if (argc == 1) {
-        return "";
+        return Screens::LOADING;
     }
 
     std::string song_path;
@@ -180,12 +183,12 @@ std::string check_args(int argc, char* argv[]) {
         }
     }
 
-    //Screens current_screen = practice ? Screens::GAME_PRACTICE : Screens::GAME;
+    Screens current_screen = practice ? Screens::GAME_PRACTICE : Screens::GAME;
     global_data.session_data[(int)PlayerNum::P1].selected_song = path;
     global_data.session_data[(int)PlayerNum::P1].selected_difficulty = selected_difficulty;
     global_data.modifiers[(int)PlayerNum::P1].auto_play = auto_play;
 
-    return "GAME"; //current_screen
+    return current_screen;
 }
 
 
@@ -249,25 +252,22 @@ int main(int argc, char* argv[]) {
 
     init_audio();
 
-    std::string current_screen = check_args(argc, argv);
-
-    spdlog::info("Initial screen: " + current_screen);
+    Screens current_screen = check_args(argc, argv);
 
     //create_song_db()
 
-    /*
     //title_screen = TitleScreen('title')
     //entry_screen = EntryScreen('entry')
     //song_select_screen = SongSelectScreen('song_select')
     //song_select_screen_2p = TwoPlayerSongSelectScreen('song_select')
     //load_screen = LoadScreen('loading')
-    //game_screen = GameScreen('game')
+    std::unique_ptr<GameScreen> game_screen = std::make_unique<GameScreen>();
     //game_screen_2p = TwoPlayerGameScreen('game')
     //game_screen_practice = PracticeGameScreen('game')
     //practice_select_screen = PracticeSongSelectScreen('song_select')
     //ai_select_screen = AISongSelectScreen('song_select')
     //ai_game_screen = AIBattleGameScreen('game')
-    //result_screen = ResultScreen('result')
+    std::unique_ptr<ResultScreen> result_screen = std::make_unique<ResultScreen>();
     //result_screen_2p = TwoPlayerResultScreen('result')
     //settings_screen = SettingsScreen('settings')
     //dev_screen = DevScreen('dev')
@@ -275,27 +275,26 @@ int main(int argc, char* argv[]) {
     //game_screen_dan = DanGameScreen('game_dan')
     //dan_result_screen = DanResultScreen('dan_result')
 
-    screen_mapping: dict[str, Screen] = {
-        Screens.ENTRY: entry_screen,
-        Screens.TITLE: title_screen,
-        Screens.SONG_SELECT: song_select_screen,
-        Screens.SONG_SELECT_2P: song_select_screen_2p,
-        Screens.PRACTICE_SELECT: practice_select_screen,
-        Screens.GAME: game_screen,
-        Screens.GAME_2P: game_screen_2p,
-        Screens.GAME_PRACTICE: game_screen_practice,
-        Screens.AI_SELECT: ai_select_screen,
-        Screens.AI_GAME: ai_game_screen,
-        Screens.RESULT: result_screen,
-        Screens.RESULT_2P: result_screen_2p,
-        Screens.SETTINGS: settings_screen,
-        Screens.DEV_MENU: dev_screen,
-        Screens.DAN_SELECT: dan_select_screen,
-        Screens.GAME_DAN: game_screen_dan,
-        Screens.DAN_RESULT: dan_result_screen,
-        Screens.LOADING: load_screen
-    }
-     */
+    std::unordered_map<Screens, Screen*> screen_mapping = {
+        //{Screens::ENTRY,          &entry_screen},
+        //{Screens::TITLE,          &title_screen},
+        //{Screens::SONG_SELECT,    &song_select_screen},
+        //{Screens::SONG_SELECT_2P, &song_select_screen_2p},
+        //{Screens::PRACTICE_SELECT,&practice_select_screen},
+        {Screens::GAME,           game_screen.get()},
+        //{Screens::GAME_2P,        &game_screen_2p},
+        //{Screens::GAME_PRACTICE,  &game_screen_practice},
+        //{Screens::AI_SELECT,      &ai_select_screen},
+        //{Screens::AI_GAME,        &ai_game_screen},
+        {Screens::RESULT,         result_screen.get()},
+        //{Screens::RESULT_2P,      &result_screen_2p},
+        //{Screens::SETTINGS,       &settings_screen},
+        //{Screens::DEV_MENU,       &dev_screen},
+        //{Screens::DAN_SELECT,     &dan_select_screen},
+        //{Screens::GAME_DAN,       &game_screen_dan},
+        //{Screens::DAN_RESULT,     &dan_result_screen},
+        //{Screens::LOADING,        &load_screen},
+    };
 
     ray::Camera2D camera = ray::Camera2D();
     update_camera_for_window_size(camera, screen_width, screen_height);
@@ -308,8 +307,6 @@ int main(int argc, char* argv[]) {
     spdlog::info("Cursor hidden");
     FPSCounter fps_counter = FPSCounter();
     ray::Color last_color = ray::BLACK;
-
-    std::unique_ptr<Screen> screen = std::make_unique<GameScreen>();
 
     input_thread = std::thread(input_polling_thread);
     spdlog::info("Input polling thread started");
@@ -332,7 +329,6 @@ int main(int argc, char* argv[]) {
         update_camera_for_window_size(camera, screen_width, screen_height);
 
         ray::BeginDrawing();
-        ray::ClearBackground(ray::BLACK); //remove when finished
 
         if (global_data.camera.border_color != last_color) {
             ray::ClearBackground(global_data.camera.border_color);
@@ -342,9 +338,9 @@ int main(int argc, char* argv[]) {
         ray::BeginMode2D(camera);
         ray::BeginBlendMode(ray::BLEND_CUSTOM_SEPARATE);
 
-        //screen = screen_mapping[current_screen]
+        Screen* screen = screen_mapping[current_screen];
 
-        std::optional<std::string> next_screen = screen->update();
+        std::optional<Screens> next_screen = screen->update();
 
         if (screen->screen_init) {
             screen->_do_draw();
