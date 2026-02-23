@@ -19,7 +19,7 @@ Screens ResultScreen::on_screen_end(Screens next_screen) {
 }
 
 void ResultScreen::handle_input() {
-    if (is_r_don_pressed() || is_l_don_pressed()) {
+    if (fade_in.has_value() && fade_in->is_finished() && is_r_don_pressed() || is_l_don_pressed()) {
         if (skipped_time == 0) {
             skipped_time = get_current_ms();
             audio->play_sound("don", "sound");

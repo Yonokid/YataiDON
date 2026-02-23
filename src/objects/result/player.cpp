@@ -27,7 +27,6 @@ ResultPlayer::ResultPlayer(PlayerNum player_num, bool has_2p, bool is_2p)
 void ResultPlayer::update_score_animation(double current_ms, bool is_skipped) {
     if (is_skipped) {
         if (update_index == update_list.size()) return;
-        // Skip to end by setting all remaining values
         while (update_index < update_list.size()) {
             std::string field_name = std::get<0>(update_list[update_index]);
             int value = std::get<1>(update_list[update_index]);
