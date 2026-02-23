@@ -380,6 +380,11 @@ void Player::reset_chart() {
         if (note.type == (int)NoteType::TAIL && last_note != nullptr) {
             note.load_ms = last_note->load_ms;
             last_note->unload_ms = note.unload_ms;
+            auto it = std::find_if(draw_note_list.begin(), draw_note_list.end(),
+                [&](const Note& n) { return n.index == last_note->index; });
+            if (it != draw_note_list.end()) {
+                it->unload_ms = note.unload_ms;
+            }
         }
         if (note.type == (int)NoteType::DON || note.type == (int)NoteType::DON_L) {
             don_notes.push_back(note);
@@ -389,7 +394,9 @@ void Player::reset_chart() {
             other_notes.push_back(note);
         }
         draw_note_list.push_back(note);
-        last_note = &note;
+        if (note.type != 0) {
+            last_note = &note;
+        }
 
         if (note.hit_ms > end_time) {
             end_time = note.hit_ms;
@@ -738,8 +745,11 @@ void Player::draw_note_manager(double current_ms) {
         }
     }
 
-    if (current_ms >= draw_note_buffer.front().unload_ms) {
-        draw_note_buffer.erase(draw_note_buffer.begin());
+    for (int i = (int)draw_note_buffer.size() - 1; i >= 0; i--) {
+        Note& note = draw_note_buffer[i];
+        if (current_ms >= note.unload_ms) {
+            draw_note_buffer.erase(draw_note_buffer.begin() + i);
+        }
     }
 }
 
