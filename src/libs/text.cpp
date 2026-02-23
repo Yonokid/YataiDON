@@ -1,6 +1,4 @@
 #include "text.h"
-#include <raylib.h>
-#include <spdlog/spdlog.h>
 
 FontManager::FontManager() {
 }
@@ -66,21 +64,21 @@ OutlinedText::OutlinedText(std::string text, int font_size, ray::Color color, ra
         float oy = sinf(angle) * this->outline_thickness;
         ray::ImageDrawTextEx(&img, sdf_font, text.c_str(), {pad + ox, pad + oy}, font_size, 2, outline_color);
     }
-    ray::ImageDrawTextEx(&img, sdf_font, text.c_str(), {(float)pad, (float)pad}, font_size, 2, ray::WHITE);
+    ray::ImageDrawTextEx(&img, sdf_font, text.c_str(), {(float)pad, (float)pad}, font_size, 2, color);
 
     texture = ray::LoadTextureFromImage(img);
     ray::UnloadImage(img);
 }
 
-void OutlinedText::draw(float x, float y, float fade) {
+void OutlinedText::draw(const DrawTextureParams& params) {
     ray::Rectangle src = {
         0, 0,
         (float)texture.width,
         (float)texture.height
     };
     int pad = outline_thickness + 2;
-    ray::Rectangle dst = {x - pad, y - pad, (float)texture.width, (float)texture.height};
-    ray::DrawTexturePro(texture, src, dst, {0, 0}, 0.0f, ray::Fade(ray::WHITE, fade));
+    ray::Rectangle dst = {params.x - pad, params.y - pad, (float)texture.width + params.x2, (float)texture.height + params.y2};
+    ray::DrawTexturePro(texture, src, dst, {0, 0}, 0.0f, ray::Fade(ray::WHITE, params.fade));
 }
 
 FontManager font_manager;

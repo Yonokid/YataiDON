@@ -45,11 +45,11 @@ void Transition::draw_song_info() {
 
     float x = (float)global_tex.screen_width/2 - title->width/2;
     float y = global_tex.skin_config["transition_title"].y - title->height/2 - rainbow_up->attribute - offset;
-    title->draw(x, y, fade_1);
+    title->draw({.x = x, .y = y, .fade = fade_1});
 
     x = (float)global_tex.screen_width/2 - subtitle->width/2;
     y = global_tex.skin_config["transition_subtitle"].y - subtitle->height/2 - rainbow_up->attribute - offset;
-    subtitle->draw(x=x, y=y, fade_1);
+    subtitle->draw({.x = x, .y = y, .fade = fade_1});
 }
 
 void Transition::draw() {

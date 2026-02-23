@@ -37,8 +37,13 @@ Player::Player(std::optional<TJAParser>& parser_ref, PlayerNum player_num_param,
         }
     }
     //self.ending_anim: Optional[FailAnimation | ClearAnimation | FCAnimation] = None
-    //plate_info = global_data.config[f"nameplate_{self.is_2p+1}p"]
-    //self.nameplate = Nameplate(plate_info["name"], plate_info["title"], global_data.player_num, plate_info["dan"], plate_info["gold"], plate_info["rainbow"], plate_info["title_bg"])
+    NameplateConfig plate_info;
+    if (is_2p) {
+        plate_info = global_data.config->nameplate_2p;
+    } else {
+        plate_info = global_data.config->nameplate_1p;
+    }
+    nameplate = Nameplate(plate_info.name, plate_info.title, global_data.player_num, plate_info.dan, plate_info.gold, plate_info.rainbow, plate_info.title_bg);
     //self.chara = Chara2D(player_num - 1, self.bpm)
     if (global_data.config->general.judge_counter) {
         judge_counter = JudgeCounter();
@@ -285,7 +290,7 @@ void Player::update(double ms_from_start, double current_ms, std::optional<Backg
     score_counter.update(current_ms, score);
     autoplay_manager(ms_from_start, current_ms, background);
     handle_input(ms_from_start, current_ms, background);
-    //self.nameplate.update(current_ms)
+    nameplate.update(current_ms);
     if (gauge.has_value()) {
         gauge->update(current_ms);
         if (background.has_value()) {
@@ -1263,10 +1268,10 @@ void Player::draw_overlays(const ray::Shader& mask_shader) {
     if (modifiers.auto_play) {
         tex.draw_texture("lane", "auto_icon", {.index=is_2p});
     } else {
-        if (is_2p) {
-            //self.nameplate.draw(tex.skin_config["game_nameplate_1p"].x, tex.skin_config["game_nameplate_1p"].y)
+        if (!is_2p) {
+            nameplate.draw(tex.skin_config["game_nameplate_2p"].x, tex.skin_config["game_nameplate_2p"].y);
         } else {
-            //self.nameplate.draw(tex.skin_config["game_nameplate_2p"].x, tex.skin_config["game_nameplate_2p"].y)
+            nameplate.draw(tex.skin_config["game_nameplate_1p"].x, tex.skin_config["game_nameplate_1p"].y);
         }
     }
     draw_modifiers();

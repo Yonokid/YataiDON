@@ -59,7 +59,7 @@ void ResultScreen::draw_overlay() {
 
 void ResultScreen::draw_song_info() {
     tex.draw_texture("song_info", "song_num", {.frame=global_data.songs_played%4});
-    song_info->draw(tex.skin_config["song_info_result"].x - song_info->width, tex.skin_config["song_info_result"].y - song_info->height / 2, 1.0);
+    song_info->draw({.x=tex.skin_config["song_info_result"].x - song_info->width, .y=tex.skin_config["song_info_result"].y - song_info->height / 2, .fade=1.0});
 }
 
 void ResultScreen::draw() {

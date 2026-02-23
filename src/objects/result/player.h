@@ -2,6 +2,7 @@
 
 #include "../../libs/texture.h"
 #include "../../libs/audio.h"
+#include "../global/nameplate.h"
 #include "result_crown.h"
 #include "bottom_characters.h"
 #include "../enums.h"
@@ -14,6 +15,7 @@ private:
     PlayerNum player_num;
     bool has_2p;
     bool is_2p;
+    Nameplate nameplate;
 
     bool fade_in_finished;
     FadeAnimation* fade_in_bottom;

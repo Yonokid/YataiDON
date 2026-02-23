@@ -5,6 +5,7 @@
 #include "../../libs/texture.h"
 #include "../../libs/audio.h"
 #include "../../libs/input.h"
+#include "../global/nameplate.h"
 #include "balloon_counter.h"
 #include "branch_indicator.h"
 #include "combo_announce.h"
@@ -60,6 +61,7 @@ private:
     std::string score_method;
     Modifiers modifiers;
     std::optional<TJAParser> parser;
+    Nameplate nameplate;
 
     // Score management
     int good_count;

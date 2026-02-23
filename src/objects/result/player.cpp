@@ -6,8 +6,13 @@ ResultPlayer::ResultPlayer(PlayerNum player_num, bool has_2p, bool is_2p)
     // self.chara = Chara2D(int(self.player_num) - 1)
     SessionData& session_data = global_data.session_data[(int)player_num];
     score_animator = ScoreAnimator(session_data.result_data.score);
-    //plate_info = global_data.config[f"nameplate_{self.player_num}p"]
-    //self.nameplate = Nameplate(plate_info["name"], plate_info["title"], self.player_num, plate_info["dan"], plate_info["gold"], plate_info["rainbow"], plate_info["title_bg"])
+    NameplateConfig plate_info;
+    if (is_2p) {
+        plate_info = global_data.config->nameplate_2p;
+    } else {
+        plate_info = global_data.config->nameplate_1p;
+    }
+    nameplate = Nameplate(plate_info.name, plate_info.title, player_num, plate_info.dan, plate_info.gold, plate_info.rainbow, plate_info.title_bg);
     update_list = {
         {"score", session_data.result_data.score},
         {"good", session_data.result_data.good},
@@ -99,7 +104,7 @@ void ResultPlayer::update(double current_ms, bool fade_in_finished, bool is_skip
         high_score_indicator->update(current_ms);
     }
     fade_in_bottom->update(current_ms);
-    //nameplate.update(current_ms);
+    nameplate.update(current_ms);
     if (gauge.has_value()) {
         gauge->update(current_ms);
         if (gauge->is_finished() && !score_delay.has_value()) {
@@ -204,5 +209,5 @@ void ResultPlayer::draw() {
 
     //self.chara.draw(y=tex.skin_config["result_chara"].y+(self.is_2p*tex.screen_height//2))
     if (gauge.has_value()) gauge->draw();
-    //self.nameplate.draw(tex.skin_config["result_nameplate"].x, tex.skin_config["result_nameplate"].y+(self.is_2p*tex.skin_config["result_nameplate"].height))
+    nameplate.draw(tex.skin_config["result_nameplate"].x, tex.skin_config["result_nameplate"].y+(is_2p*tex.skin_config["result_nameplate"].height));
 }
