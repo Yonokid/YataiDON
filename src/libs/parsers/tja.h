@@ -23,7 +23,7 @@
 namespace fs = std::filesystem;
 
 enum class NoteType : int {
-    NONE = 0,
+    BARLINE = 0,
     DON = 1,
     KAT = 2,
     DON_L = 3,
@@ -62,7 +62,7 @@ struct TimelineObject {
 
 class Note {
 public:
-    int type;
+    NoteType type;
     double hit_ms;
     double load_ms;
     double unload_ms;
@@ -81,7 +81,7 @@ public:
     std::optional<int> count;
     std::optional<bool> popped;
 
-    Note() : type(0), hit_ms(0.0f), load_ms(0.0f), unload_ms(0.0f),
+    Note() : type(NoteType::BARLINE), hit_ms(0.0f), load_ms(0.0f), unload_ms(0.0f),
              bpm(0.0f), scroll_x(0.0f), scroll_y(0.0f),
              display(true), index(0), moji(0),
              is_branch_start(false) {}
@@ -110,7 +110,7 @@ public:
         oss << "[";
         for (const auto& field : hash_fields) {
             oss << "('" << field << "', ";
-            if (field == "type") oss << type;
+            if (field == "type") oss << (int)type;
             else if (field == "hit_ms") oss << hit_ms;
             else if (field == "bpm") oss << bpm;
             else if (field == "scroll_x") oss << scroll_x;

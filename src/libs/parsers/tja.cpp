@@ -23,10 +23,10 @@ int calculate_base_score(const NoteList& notes) {
         } else if (note.count.has_value()) { //is balloon
             balloon_count += std::min(100, note.count.value());
         } else {
-            if (note.type == 8) {
+            if (note.type == NoteType::TAIL) {
                 continue;
             }
-            if (1 <= note.type && note.type <= 4) total_notes += 1;
+            if (NoteType::DON <= note.type && note.type <= NoteType::KAT_L) total_notes += 1;
         }
     }
 
@@ -398,7 +398,7 @@ TJAParser::notes_to_position(int diff) {
                 // Skip consecutive balloon end markers (9)
                 if (item == '9' && !state.curr_note_list->empty()) {
                     Note* last_note = &state.curr_note_list->back();
-                    if (last_note && last_note->type == 9) {
+                    if (last_note && last_note->type == NoteType::KUSUDAMA) {
                         state.delay_last_note_ms = current_ms;
                         current_ms += increment;
                         continue;
@@ -1007,7 +1007,7 @@ Note TJAParser::add_bar(ParserState& state) {
     Note bar_line = Note();
 
     bar_line.hit_ms = this->current_ms;
-    bar_line.type = 0;
+    bar_line.type = NoteType::BARLINE;
     bar_line.display = state.barline_display;
     bar_line.bpm = state.bpm;
     bar_line.index = state.index;
@@ -1034,7 +1034,7 @@ Note TJAParser::add_note(const std::string& item, ParserState& state) {
     note.hit_ms = this->current_ms;
     state.delay_last_note_ms = this->current_ms;
     note.display = true;
-    note.type = std::stof(item);
+    note.type = NoteType(std::stof(item));
     note.index = state.index;
     note.bpm = state.bpm;
     note.scroll_x = state.scroll_x_modifier;
@@ -1045,17 +1045,17 @@ Note TJAParser::add_note(const std::string& item, ParserState& state) {
         note.sudden_moving_ms = state.sudden_moving;
     }
 
-    if (note.type == 5 || note.type == 6) {
+    if (note.type == NoteType::ROLL_HEAD || note.type == NoteType::ROLL_HEAD_L) {
         note.color = 255;
         return note;
-    } else if (note.type == 7 || note.type == 9) {
+    } else if (note.type == NoteType::BALLOON_HEAD || note.type == NoteType::KUSUDAMA) {
         state.balloon_index++;
         note.count = (!state.balloons.empty()) ? state.balloons[0] : 1;
         if (!state.balloons.empty()) {
             state.balloons.erase(state.balloons.begin());
         }
         return note;
-    } else if (note.type == 8) {
+    } else if (note.type == NoteType::TAIL) {
         if (!state.prev_note.has_value()) {
             throw std::runtime_error("No previous note found");
         }
@@ -1087,7 +1087,11 @@ void modifier_display(NoteList& notes) {
 }
 
 void modifier_inverse(NoteList& notes) {
-    std::map<int, int> type_mapping = {{1, 2}, {2, 1}, {3, 4}, {4, 3}};
+    std::map<NoteType, NoteType> type_mapping = {
+        {NoteType::DON, NoteType::KAT},
+        {NoteType::KAT, NoteType::DON},
+        {NoteType::DON_L, NoteType::KAT_L},
+        {NoteType::KAT_L, NoteType::DON_L}};
 
     for (auto& note : notes.notes) {
         auto it = type_mapping.find(note.type);
@@ -1114,7 +1118,11 @@ void modifier_random(NoteList& notes, int value) {
 
     std::vector<int> selected_notes(indices.begin(), indices.begin() + percentage);
 
-    std::map<int, int> type_mapping = {{1, 2}, {2, 1}, {3, 4}, {4, 3}};
+    std::map<NoteType, NoteType> type_mapping = {
+        {NoteType::DON, NoteType::KAT},
+        {NoteType::KAT, NoteType::DON},
+        {NoteType::DON_L, NoteType::KAT_L},
+        {NoteType::KAT_L, NoteType::DON_L}};
 
     for (int i : selected_notes) {
         auto it = type_mapping.find(notes.notes[i].type);
@@ -1125,9 +1133,10 @@ void modifier_random(NoteList& notes, int value) {
 }
 
 void modifier_moji(NoteList& notes) {
-    static const std::map<int, int> se_notes = {
-        {1, 0}, {2, 3}, {3, 5}, {4, 6},
-        {5, 7}, {6, 8}, {7, 9}, {8, 10}, {9, 11}
+    static const std::map<NoteType, int> se_notes = {
+        {NoteType::DON, 0}, {NoteType::KAT, 3}, {NoteType::DON_L, 5}, {NoteType::KAT_L, 6},
+        {NoteType::ROLL_HEAD, 7}, {NoteType::ROLL_HEAD_L, 8}, {NoteType::BALLOON_HEAD, 9},
+        {NoteType::TAIL, 10}, {NoteType::KUSUDAMA, 11}
     };
 
     for (Note& note : notes.notes) {
@@ -1143,16 +1152,16 @@ void modifier_moji(NoteList& notes) {
         auto streams = find_streams(notes.notes, interval);
         for (const auto& [start, length] : streams) {
             for (int i = start; i < start + length - 1; ++i) {
-                if (notes.notes[i].type == 1) {
+                if (notes.notes[i].type == NoteType::DON) {
                     notes.notes[i].moji = 1;
-                } else if (notes.notes[i].type == 2) {
+                } else if (notes.notes[i].type == NoteType::KAT) {
                     notes.notes[i].moji = 4;
                 }
             }
             if (length == 3) {
-                if (notes.notes[start + 0].type == 1 &&
-                    notes.notes[start + 1].type == 1 &&
-                    notes.notes[start + 2].type == 1) {
+                if (notes.notes[start + 0].type == NoteType::DON &&
+                    notes.notes[start + 1].type == NoteType::DON &&
+                    notes.notes[start + 2].type == NoteType::DON) {
                     notes.notes[start + 1].moji = 2;
                 }
             }
@@ -1217,8 +1226,8 @@ std::vector<std::pair<int, int>> find_streams(const std::deque<Note>& modded_not
     size_t i = 0;
 
     while (i < modded_notes.size() - 1) {
-        if (modded_notes[i].type == 5 || modded_notes[i].type == 6 ||
-            modded_notes[i].type == 7 || modded_notes[i].type == 9) {
+        if (modded_notes[i].type == NoteType::ROLL_HEAD || modded_notes[i].type == NoteType::ROLL_HEAD_L ||
+            modded_notes[i].type == NoteType::BALLOON_HEAD || modded_notes[i].type == NoteType::KUSUDAMA) {
             i++;
             continue;
         }
@@ -1227,8 +1236,8 @@ std::vector<std::pair<int, int>> find_streams(const std::deque<Note>& modded_not
         int stream_length = 1;
 
         while (i < modded_notes.size() - 1) {
-            if (modded_notes[i + 1].type == 5 || modded_notes[i + 1].type == 6 ||
-                modded_notes[i + 1].type == 7 || modded_notes[i + 1].type == 9) {
+            if (modded_notes[i + 1].type == NoteType::ROLL_HEAD || modded_notes[i + 1].type == NoteType::ROLL_HEAD_L ||
+                modded_notes[i + 1].type == NoteType::BALLOON_HEAD || modded_notes[i + 1].type == NoteType::KUSUDAMA) {
                 break;
             }
 

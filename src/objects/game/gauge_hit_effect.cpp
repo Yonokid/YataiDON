@@ -1,6 +1,6 @@
 #include "gauge_hit_effect.h"
 
-GaugeHitEffect::GaugeHitEffect(int note_type, bool is_big, bool is_2p)
+GaugeHitEffect::GaugeHitEffect(NoteType note_type, bool is_big, bool is_2p)
             : note_type(note_type), is_big(is_big), is_2p(is_2p) {
     texture_change = (TextureChangeAnimation*)tex.get_animation(2, true);
     circle_fadein = (FadeAnimation*)tex.get_animation(31, true);
@@ -67,7 +67,7 @@ void GaugeHitEffect::draw() {
 
     //Note type texture
     SkinInfo pos_data = tex.skin_config["gauge_hit_effect_note"];
-    tex.draw_texture("notes", std::to_string(note_type),
+    tex.draw_texture("notes", std::to_string((int)note_type),
         {.x=pos_data.x, .y=pos_data.y+(is_2p*(pos_data.height)),
                     .fade=fade_out->attribute});
 

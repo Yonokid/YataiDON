@@ -2,11 +2,12 @@
 
 #include "../../libs/animation.h"
 #include "../../libs/texture.h"
+#include "../../libs/parsers/tja.h"
 
 class GaugeHitEffect {
 private:
     bool is_2p;
-    int note_type;
+    NoteType note_type;
     bool is_big;
     TextureChangeAnimation* texture_change;
     FadeAnimation* circle_fadein;
@@ -25,7 +26,7 @@ private:
     float rotation_angle;
 
 public:
-    GaugeHitEffect(int note_type, bool big, bool is_2p);
+    GaugeHitEffect(NoteType note_type, bool big, bool is_2p);
 
     void update(double current_ms);
 

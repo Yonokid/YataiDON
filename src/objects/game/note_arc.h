@@ -2,6 +2,7 @@
 
 #include "../../libs/animation.h"
 #include "../../libs/texture.h"
+#include "../../libs/parsers/tja.h"
 
 class NoteArc {
 private:
@@ -50,10 +51,10 @@ private:
     float x_i;
     float y_i;
 public:
-    int note_type;
+    NoteType note_type;
     bool is_big;
 
-    NoteArc(int note_type, double current_ms, PlayerNum player_num, bool big, bool is_balloon, float start_x = 0, float start_y = 0);
+    NoteArc(NoteType note_type, double current_ms, PlayerNum player_num, bool big, bool is_balloon, float start_x = 0, float start_y = 0);
 
     void update(double current_ms);
 

@@ -2,7 +2,7 @@
 
 std::unordered_map<NoteArc::CacheKey, std::vector<std::pair<int, int>>, NoteArc::CacheKeyHash> NoteArc::_arc_points_cache;
 
-NoteArc::NoteArc(int note_type, double current_ms, PlayerNum player_num, bool big, bool is_balloon, float start_x, float start_y)
+NoteArc::NoteArc(NoteType note_type, double current_ms, PlayerNum player_num, bool big, bool is_balloon, float start_x, float start_y)
     : note_type(note_type), start_ms(current_ms), player_num(player_num), is_big(big), is_balloon(is_balloon)
 {
     arc_points = 100;
@@ -111,7 +111,7 @@ void NoteArc::draw(ray::Shader mask_shader) {
             }
         }
     }
-    tex.draw_texture("notes", std::to_string(note_type), {.x=x_i, .y=y_i});
+    tex.draw_texture("notes", std::to_string((int)note_type), {.x=x_i, .y=y_i});
 }
 
 bool NoteArc::is_finished() const {

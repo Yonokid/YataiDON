@@ -132,15 +132,15 @@ void Player::merge_branch_section(const NoteList& branch_section, double current
 
     for (const auto& note : branch_section.notes) {
 
-        if (note.type == (int)NoteType::DON || note.type == (int)NoteType::DON_L) {
+        if (note.type == NoteType::DON || note.type == NoteType::DON_L) {
             auto pos = std::lower_bound(don_notes.begin(), don_notes.end(), note,
                 [](const auto& a, const auto& b) { return a.hit_ms < b.hit_ms; });
             don_notes.insert(pos, note);
-        } else if (note.type == (int)NoteType::KAT || note.type == (int)NoteType::KAT_L) {
+        } else if (note.type == NoteType::KAT || note.type == NoteType::KAT_L) {
             auto pos = std::lower_bound(kat_notes.begin(), kat_notes.end(), note,
                 [](const auto& a, const auto& b) { return a.hit_ms < b.hit_ms; });
             kat_notes.insert(pos, note);
-        } else if (note.type != 0) {
+        } else if (note.type != NoteType::BARLINE) {
             auto pos = std::lower_bound(other_notes.begin(), other_notes.end(), note,
                 [](const auto& a, const auto& b) { return a.hit_ms < b.hit_ms; });
             other_notes.insert(pos, note);
@@ -262,7 +262,7 @@ void Player::update(double ms_from_start, double current_ms, std::optional<Backg
     for (auto it = draw_arc_list.begin(); it != draw_arc_list.end(); ) {
         it->update(current_ms);
         if (it->is_finished()) {
-            int note_type = it->note_type;
+            NoteType note_type = it->note_type;
             bool is_big = it->is_big;
             it = draw_arc_list.erase(it);
             gauge_hit_effect.push_back(GaugeHitEffect(note_type, is_big, is_2p));
@@ -382,7 +382,7 @@ void Player::reset_chart() {
 
     for (Note& note: notes.notes) {
         get_load_time(note);
-        if (note.type == (int)NoteType::TAIL && last_note != nullptr) {
+        if (note.type == NoteType::TAIL && last_note != nullptr) {
             note.load_ms = last_note->load_ms;
             last_note->unload_ms = note.unload_ms;
             auto it = std::find_if(draw_note_list.begin(), draw_note_list.end(),
@@ -391,15 +391,15 @@ void Player::reset_chart() {
                 it->unload_ms = note.unload_ms;
             }
         }
-        if (note.type == (int)NoteType::DON || note.type == (int)NoteType::DON_L) {
+        if (note.type == NoteType::DON || note.type == NoteType::DON_L) {
             don_notes.push_back(note);
-        } else if (note.type == (int)NoteType::KAT || note.type == (int)NoteType::KAT_L) {
+        } else if (note.type == NoteType::KAT || note.type == NoteType::KAT_L) {
             kat_notes.push_back(note);
-        } else if (note.type != 0) {
+        } else if (note.type != NoteType::BARLINE) {
             other_notes.push_back(note);
         }
         draw_note_list.push_back(note);
-        if (note.type != 0) {
+        if (note.type != NoteType::BARLINE) {
             last_note = &note;
         }
 
@@ -428,7 +428,7 @@ void Player::reset_chart() {
                 apply_modifiers(section, modifiers);
                 for (Note& note: section.notes) {
                     get_load_time(note);
-                    if (note.type == (int)NoteType::TAIL && last_note != nullptr) {
+                    if (note.type == NoteType::TAIL && last_note != nullptr) {
                         note.load_ms = last_note->load_ms;
                         last_note->unload_ms = note.unload_ms;
                     }
@@ -473,7 +473,7 @@ void Player::reset_chart() {
     }
     int gauge_total_notes = 0;
     for (Note& note : total_notes.notes) {
-        if (note.type > 0 && note.type < 5) {
+        if (note.type >= NoteType::DON && note.type <= NoteType::KAT_L) {
             gauge_total_notes++;
         }
     }
@@ -671,11 +671,11 @@ void Player::play_note_manager(double current_ms, std::optional<Background>& bac
 
     Note& note = other_notes.front();
     if (note.hit_ms <= current_ms) {
-        if (note.type == (int)NoteType::ROLL_HEAD || note.type == (int)NoteType::ROLL_HEAD_L) {
+        if (note.type == NoteType::ROLL_HEAD || note.type == NoteType::ROLL_HEAD_L) {
             is_drumroll = true;
-        } else if (note.type == (int)NoteType::BALLOON_HEAD || note.type == (int)NoteType::KUSUDAMA) {
+        } else if (note.type == NoteType::BALLOON_HEAD || note.type == NoteType::KUSUDAMA) {
             is_balloon = true;
-        } else if (note.type == (int)NoteType::TAIL) {
+        } else if (note.type == NoteType::TAIL) {
             other_notes.pop_front();
             is_drumroll = false;
             is_balloon = false;
@@ -700,7 +700,7 @@ void Player::draw_note_manager(double current_ms) {
         Note current_note = draw_note_list.front();
         draw_note_list.pop_front();
 
-        if (current_note.type >= 5 && current_note.type <= 7) {
+        if (current_note.type >= NoteType::ROLL_HEAD && current_note.type <= NoteType::BALLOON_HEAD) {
             auto pos = std::lower_bound(draw_note_buffer.begin(), draw_note_buffer.end(),
                                         current_note,
                                         [](const auto& a, const auto& b) { return a.index < b.index; });
@@ -708,7 +708,7 @@ void Player::draw_note_manager(double current_ms) {
 
             auto tail_it = std::find_if(draw_note_list.begin(), draw_note_list.end(),
                                         [&current_note](const auto& note) {
-                                            return note.type == (int)NoteType::TAIL && note.index > current_note.index;
+                                            return note.type == NoteType::TAIL && note.index > current_note.index;
                                         });
 
             if (tail_it != draw_note_list.end()) {
@@ -736,8 +736,8 @@ void Player::draw_note_manager(double current_ms) {
         auto drumroll_it = std::find_if(draw_note_buffer.begin(), draw_note_buffer.end(),
                                          [active_drumroll_index](const Note& n) {
                                              return n.index == active_drumroll_index &&
-                                                    (n.type == (int)NoteType::ROLL_HEAD ||
-                                                     n.type == (int)NoteType::ROLL_HEAD_L);
+                                                    (n.type == NoteType::ROLL_HEAD ||
+                                                     n.type == NoteType::ROLL_HEAD_L);
                                          });
         if (drumroll_it != draw_note_buffer.end() && drumroll_it->color.has_value() &&
             last_drumroll_color_time + 16.67f < current_ms) {
@@ -769,13 +769,13 @@ void Player::note_correct(const Note& note, double current_ms) {
     }
 
     int index = note.index;
-    if (note.type == (int)NoteType::BALLOON_HEAD || note.type == (int)NoteType::KUSUDAMA) {
+    if (note.type == NoteType::BALLOON_HEAD || note.type == NoteType::KUSUDAMA) {
         if (!other_notes.empty()) {
             other_notes.pop_front();
         }
     }
 
-    if (note.type < 7) {
+    if (note.type < NoteType::BALLOON_HEAD) {
         combo++;
         if (combo % 10 == 0) {
             //chara.set_animation("10_combo")
@@ -792,9 +792,9 @@ void Player::note_correct(const Note& note, double current_ms) {
         }
     }
 
-    if (note.type != (int)NoteType::KUSUDAMA) {
-        bool is_big = note.type == (int)NoteType::DON_L || note.type == (int)NoteType::KAT_L || note.type == (int)NoteType::BALLOON_HEAD;
-        draw_arc_list.push_back(NoteArc(note.type, current_ms, PlayerNum(is_2p + 1), is_big, note.type == (int)NoteType::BALLOON_HEAD, judge_x, judge_y));
+    if (note.type != NoteType::KUSUDAMA) {
+        bool is_big = note.type == NoteType::DON_L || note.type == NoteType::KAT_L || note.type == NoteType::BALLOON_HEAD;
+        draw_arc_list.push_back(NoteArc(note.type, current_ms, PlayerNum(is_2p + 1), is_big, note.type == NoteType::BALLOON_HEAD, judge_x, judge_y));
     }
     auto it = std::find(draw_note_buffer.begin(), draw_note_buffer.end(), note);
     if (it != draw_note_buffer.end()) {
@@ -803,7 +803,7 @@ void Player::note_correct(const Note& note, double current_ms) {
 }
 
 void Player::check_drumroll(double current_ms, DrumType drum_type, std::optional<Background>& background) {
-    draw_arc_list.push_back(NoteArc((int)drum_type, current_ms, PlayerNum(is_2p + 1), (int)drum_type == 3 || (int)drum_type == 4, false));
+    draw_arc_list.push_back(NoteArc(NoteType(drum_type), current_ms, PlayerNum(is_2p + 1), (int)drum_type == 3 || (int)drum_type == 4, false));
     curr_drumroll_count++;
     total_drumroll++;
     if (branch_condition != "p") {
@@ -820,8 +820,8 @@ void Player::check_drumroll(double current_ms, DrumType drum_type, std::optional
         auto drumroll_it = std::find_if(draw_note_buffer.begin(), draw_note_buffer.end(),
                                          [active_drumroll_index](const Note& n) {
                                              return n.index == active_drumroll_index &&
-                                                    (n.type == (int)NoteType::ROLL_HEAD ||
-                                                     n.type == (int)NoteType::ROLL_HEAD_L);
+                                                    (n.type == NoteType::ROLL_HEAD ||
+                                                     n.type == NoteType::ROLL_HEAD_L);
                                          });
         if (drumroll_it != draw_note_buffer.end() && drumroll_it->color.has_value()) {
             drumroll_it->color.value() = std::max(0, 255 - (curr_drumroll_count * 10));
@@ -901,10 +901,10 @@ void Player::check_note(double ms_from_start, DrumType drum_type, double current
         return;
     } else if (is_balloon && !other_notes.empty()) {
         curr_note = other_notes.front();
-        if (curr_note.type == (int)NoteType::BALLOON_HEAD) {
+        if (curr_note.type == NoteType::BALLOON_HEAD) {
             check_balloon(current_ms, drum_type, curr_note, background);
         }
-        if (curr_note.type == (int)NoteType::KUSUDAMA) {
+        if (curr_note.type == NoteType::KUSUDAMA) {
             check_kusudama(current_ms, drum_type, curr_note, background);
         }
         return;
@@ -919,7 +919,7 @@ void Player::check_note(double ms_from_start, DrumType drum_type, double current
     {
         if (ms_from_start > (curr_note.hit_ms + bad_window_ms)) return;
 
-        bool big = curr_note.type == (int)NoteType::DON_L || curr_note.type == (int)NoteType::KAT_L;
+        bool big = curr_note.type == NoteType::DON_L || curr_note.type == NoteType::KAT_L;
         if ((curr_note.hit_ms - good_window_ms <= ms_from_start) && (ms_from_start <= curr_note.hit_ms + good_window_ms)) {
             if (draw_judge_list.size() < 7) {
                 draw_judge_list.push_back(Judgment(Judgments::GOOD, big, is_2p));
@@ -1074,11 +1074,11 @@ void Player::draw_drumroll(double current_ms, const Note& head, int current_eigh
     float start_position = get_position_x(head, current_ms);
     auto it = std::find_if(draw_note_buffer.begin() + 1, draw_note_buffer.end(),
         [&head](const auto& note) {
-            return note.type == (int)NoteType::TAIL && note.index > head.index;
+            return note.type == NoteType::TAIL && note.index > head.index;
         });
 
     auto& tail = (it != draw_note_buffer.end()) ? *it : draw_note_buffer[1];
-    bool is_big = head.type == (int)NoteType::ROLL_HEAD_L;
+    bool is_big = head.type == NoteType::ROLL_HEAD_L;
     float end_position = get_position_x(tail, current_ms);
     float length = end_position - start_position;
     ray::Color color = ray::Color{255, (unsigned char)head.color.value(), (unsigned char)head.color.value(), 255};
@@ -1093,7 +1093,7 @@ void Player::draw_drumroll(double current_ms, const Note& head, int current_eigh
         } else {
             tex.draw_texture("notes", "drumroll_tail", {.color=color, .x=end_position, .y=y+(is_2p*tex.skin_config["2p_offset"].y)});
         }
-        tex.draw_texture("notes", std::to_string(head.type), {.color=color, .frame=current_eighth % 2, .x=start_position - tex.textures["notes"]["1"]->width/2.0f, .y=y+(is_2p*tex.skin_config["2p_offset"].y)+judge_y});
+        tex.draw_texture("notes", std::to_string((int)head.type), {.color=color, .frame=current_eighth % 2, .x=start_position - tex.textures["notes"]["1"]->width/2.0f, .y=y+(is_2p*tex.skin_config["2p_offset"].y)+judge_y});
     }
 
     tex.draw_texture("notes", "moji_drumroll_mid", {.x=start_position, .y=moji_y+(is_2p*tex.skin_config["2p_offset"].y)+judge_y, .x2=length});
@@ -1114,7 +1114,7 @@ void Player::draw_balloon(double current_ms, const Note& head, int current_eight
     float start_position = get_position_x(head, current_ms);
     auto it = std::find_if(draw_note_buffer.begin() + 1, draw_note_buffer.end(),
         [&head](const auto& note) {
-            return note.type == (int)NoteType::TAIL && note.index > head.index;
+            return note.type == NoteType::TAIL && note.index > head.index;
         });
 
     auto& tail = (it != draw_note_buffer.end()) ? *it : draw_note_buffer[1];
@@ -1133,7 +1133,7 @@ void Player::draw_balloon(double current_ms, const Note& head, int current_eight
         position = start_position;
     }
     if (head.display) {
-        tex.draw_texture("notes", std::to_string(head.type), {.frame=current_eighth % 2, .x=position-offset - tex.textures["notes"]["1"]->width/2.0f, .y=y+(is_2p*tex.skin_config["2p_offset"].y)});
+        tex.draw_texture("notes", std::to_string((int)head.type), {.frame=current_eighth % 2, .x=position-offset - tex.textures["notes"]["1"]->width/2.0f, .y=y+(is_2p*tex.skin_config["2p_offset"].y)});
         tex.draw_texture("notes", "10", {.frame=current_eighth % 2, .x=position-offset+tex.textures["notes"]["10"]->width - tex.textures["notes"]["1"]->width/2.0f, .y=y+(is_2p*tex.skin_config["2p_offset"].y)});
     }
     tex.draw_texture("notes", "moji", {.frame=head.moji, .x=position - (tex.textures["notes"]["moji"]->width/2.0f), .y=moji_y + (is_2p*tex.skin_config["2p_offset"].y)});
@@ -1148,7 +1148,7 @@ void Player::draw_notes(double current_ms) {
     for (auto it = draw_note_buffer.rbegin(); it != draw_note_buffer.rend(); ++it) {
         auto& note = *it;
 
-        if (note.type == 0) {
+        if (note.type == NoteType::BARLINE) {
             draw_bar(current_ms, note);
         }
     }
@@ -1156,19 +1156,19 @@ void Player::draw_notes(double current_ms) {
     for (auto it = draw_note_buffer.rbegin(); it != draw_note_buffer.rend(); ++it) {
         auto& note = *it;
 
-        if (balloon_counter.has_value() && note.type == (int)NoteType::BALLOON_HEAD && !other_notes.empty() && note.index == other_notes[0].index) {
+        if (balloon_counter.has_value() && note.type == NoteType::BALLOON_HEAD && !other_notes.empty() && note.index == other_notes[0].index) {
             continue;
         }
 
-        if (kusudama_counter.has_value() && note.type == (int)NoteType::KUSUDAMA && !other_notes.empty() && note.index == other_notes[0].index) {
+        if (kusudama_counter.has_value() && note.type == NoteType::KUSUDAMA && !other_notes.empty() && note.index == other_notes[0].index) {
             continue;
         }
 
-        if (note.type == (int)NoteType::TAIL) {
+        if (note.type == NoteType::TAIL) {
             continue;
         }
 
-        if (note.type == 0) {
+        if (note.type == NoteType::BARLINE) {
             continue;
         }
 
@@ -1199,10 +1199,10 @@ void Player::draw_notes(double current_ms) {
 
         if (note.color.has_value()) {
             draw_drumroll(current_ms, note, current_eighth);
-        } else if (note.type == (int)NoteType::BALLOON_HEAD) {
+        } else if (note.type == NoteType::BALLOON_HEAD) {
             draw_balloon(current_ms, note, current_eighth);
         } else {
-            if (note.display) tex.draw_texture("notes", std::to_string(note.type), {.frame=current_eighth % 2, .center=true, .x=x_position - (tex.textures["notes"]["1"]->width/2.0f), .y=y_position+tex.skin_config["notes"].y+(is_2p*tex.skin_config["2p_offset"].y)});
+            if (note.display) tex.draw_texture("notes", std::to_string((int)note.type), {.frame=current_eighth % 2, .center=true, .x=x_position - (tex.textures["notes"]["1"]->width/2.0f), .y=y_position+tex.skin_config["notes"].y+(is_2p*tex.skin_config["2p_offset"].y)});
             tex.draw_texture("notes", "moji", {.frame=note.moji, .x=x_position - (tex.textures["notes"]["moji"]->width/2.0f), .y=tex.skin_config["moji"].y + y_position+(is_2p*tex.skin_config["2p_offset"].y)});
         }
     }
