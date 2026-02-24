@@ -153,13 +153,12 @@ void Player::evaluate_branch(double current_ms) {
     float e_req = std::get<0>(curr_branch_reqs);
     float m_req = std::get<1>(curr_branch_reqs);
     double end_time = std::get<2>(curr_branch_reqs);
-    int total_notes = std::get<3>(curr_branch_reqs);
     if (current_ms >= end_time) {
         is_branch = false;
         if (branch_condition == "p") {
-            branch_condition_count = std::max(std::min((branch_condition_count/total_notes)*100, 100), 0);
+            branch_condition_count = std::max(std::min((int)((double)branch_condition_count / branch_note_count * 100), 100), 0);
         } else if (branch_condition == "r") {
-            branch_condition_count = std::max(curr_drumroll_count, branch_condition_count);
+            branch_condition_count = std::max(curr_drumroll_count, (int)branch_condition_count);
         }
         if (branch_indicator.has_value()) {
             spdlog::info("Branch set to {} based on conditions {}, {}, {}", branch_diff_to_string(branch_indicator->difficulty), branch_condition_count, e_req, m_req);
@@ -212,6 +211,7 @@ void Player::evaluate_branch(double current_ms) {
             }
         }
         branch_condition_count = 0;
+        branch_note_count = 0;
     }
 }
 
@@ -455,6 +455,7 @@ void Player::reset_chart() {
     is_branch = false;
     branch_condition = "";
     branch_condition_count = 0;
+    branch_note_count = 0;
 
     NoteList total_notes; //all notes including master branch
 
@@ -631,14 +632,9 @@ void Player::handle_branch_param(double ms_from_start, const TimelineObject& tim
             }
 
             if (branch_cond == "r") {
-                curr_branch_reqs = std::make_tuple(e_req, m_req, branch_condition_end_time, 1);
+                curr_branch_reqs = std::make_tuple(e_req, m_req, branch_condition_end_time);
             } else if (branch_cond == "p") {
-                branch_condition_count = 0;
-                int note_count = 0;
-                for (Note& note : draw_note_buffer) {
-                    if ((1 <= note.type && note.type <= 4) && timeline_object.start_time <= note.hit_ms && note.hit_ms <= branch_condition_end_time) note_count++;
-                }
-                curr_branch_reqs = std::make_tuple(e_req, m_req, branch_condition_end_time, note_count);
+                curr_branch_reqs = std::make_tuple(e_req, m_req, branch_condition_end_time);
             }
             spdlog::info("branch condition measures started with conditions {}, {}, {}, starting at {} and ending at {}", branch_cond, e_req, m_req, timeline_object.start_time, branch_condition_end_time);
         }
@@ -934,9 +930,8 @@ void Player::check_note(double ms_from_start, DrumType drum_type, double current
             }
             note_correct(curr_note, current_ms);
             if (gauge.has_value()) gauge->add_good();
-            if (is_branch && branch_condition == "p") {
-                branch_condition_count++;
-            }
+            branch_condition_count++;
+            branch_note_count++;
             if (background.has_value()) background->handle_good(PlayerNum(1 + is_2p));
 
         } else if ((curr_note.hit_ms - ok_window_ms) <= ms_from_start && ms_from_start <= (curr_note.hit_ms + ok_window_ms)) {
@@ -949,15 +944,15 @@ void Player::check_note(double ms_from_start, DrumType drum_type, double current
             }
             note_correct(curr_note, current_ms);
             if (gauge.has_value()) gauge->add_ok();
-            if (is_branch && branch_condition == "p") {
-                branch_condition_count += 0.5;
-            }
+            branch_condition_count += 0.5;
+            branch_note_count++;
             if (background.has_value()) background->handle_ok(PlayerNum(1 + is_2p));
 
         } else if ((curr_note.hit_ms - bad_window_ms) <= ms_from_start && ms_from_start <= (curr_note.hit_ms + bad_window_ms)) {
             draw_judge_list.push_back(Judgment(Judgments::BAD, big, is_2p));
             bad_count++;
             combo = 0;
+            branch_note_count++;
             Note note;
             if (drum_type == DrumType::DON) {
                 note = don_notes.front();

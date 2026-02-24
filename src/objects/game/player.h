@@ -106,8 +106,9 @@ private:
     int balloon_index;
 
     bool is_branch;
-    std::tuple<float, float, double, int> curr_branch_reqs;
-    int branch_condition_count;
+    std::tuple<float, float, double> curr_branch_reqs;
+    float branch_condition_count;
+    int branch_note_count;
     std::string branch_condition;
 
     std::string don_hitsound;
