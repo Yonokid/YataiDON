@@ -99,10 +99,6 @@ void set_config_flags() {
         ray::SetConfigFlags(ray::FLAG_VSYNC_HINT);
         spdlog::info("VSync enabled");
     }
-    if (global_data.config->video.target_fps != -1) {
-        ray::SetTargetFPS(global_data.config->video.target_fps);
-        spdlog::info("Target FPS set to {}", global_data.config->video.target_fps);
-    }
     ray::SetConfigFlags(ray::FLAG_MSAA_4X_HINT);
     ray::SetConfigFlags(ray::FLAG_WINDOW_RESIZABLE);
     ray::SetTraceLogLevel(ray::LOG_WARNING);
@@ -193,7 +189,6 @@ Screens check_args(int argc, char* argv[]) {
 
 
 int main(int argc, char* argv[]) {
-    //force_dedicated_gpu()
     set_working_directory_to_executable();
     global_data.config = new Config(get_config());
     setup_logging(global_data.config->general.log_level);
@@ -253,6 +248,12 @@ int main(int argc, char* argv[]) {
     init_audio();
 
     Screens current_screen = check_args(argc, argv);
+
+    double target_fps = global_data.config->video.target_fps;
+    if (target_fps != -1) {
+        spdlog::info("Target FPS set to {}", target_fps);
+    }
+    auto target_duration = std::chrono::duration<double>(1.0 / target_fps);
 
     //create_song_db()
 
@@ -318,6 +319,8 @@ int main(int argc, char* argv[]) {
         poll_gamepad_events();
         #endif
 
+        auto frame_start = std::chrono::steady_clock::now();
+
         if (check_key_pressed(global_data.config->keys.fullscreen_key)) {
             ray::ToggleFullscreen();
             spdlog::info("Toggled fullscreen");
@@ -363,6 +366,12 @@ int main(int argc, char* argv[]) {
         ray::EndMode2D();
         ray::EndDrawing();
         ray::SwapScreenBuffer();
+
+        auto elapsed = std::chrono::steady_clock::now() - frame_start;
+        auto remaining = target_duration - elapsed;
+        if (remaining > std::chrono::duration<double>::zero()) {
+            std::this_thread::sleep_for(remaining);
+        }
     }
 
     input_thread_running = false;
