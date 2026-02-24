@@ -1050,7 +1050,6 @@ Note TJAParser::add_note(const std::string& item, ParserState& state) {
         return note;
     } else if (note.type == 7 || note.type == 9) {
         state.balloon_index++;
-        note.is_kusudama = (note.type == 9);
         note.count = (!state.balloons.empty()) ? state.balloons[0] : 1;
         if (!state.balloons.empty()) {
             state.balloons.erase(state.balloons.begin());

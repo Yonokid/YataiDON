@@ -15,7 +15,7 @@ private:
     FadeAnimation* renda_fade_in;
     FadeAnimation* renda_fade_out;
     TextStretchAnimation* stretch;
-    MoveAnimation* breathing;
+    TextureResizeAnimation* breathing;
     MoveAnimation* renda_breathe;
     TextureChangeAnimation* open;
     FadeAnimation* fade_out;
@@ -24,7 +24,7 @@ public:
 
     void update_count(int count);
 
-    void update(double current_ms, bool popped);
+    void update(double current_ms, int count);
 
     void draw();
 

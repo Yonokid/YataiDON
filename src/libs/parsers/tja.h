@@ -80,7 +80,6 @@ public:
     // Balloon specific
     std::optional<int> count;
     std::optional<bool> popped;
-    std::optional<bool> is_kusudama;
 
     Note() : type(0), hit_ms(0.0f), load_ms(0.0f), unload_ms(0.0f),
              bpm(0.0f), scroll_x(0.0f), scroll_y(0.0f),

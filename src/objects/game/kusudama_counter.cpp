@@ -9,7 +9,7 @@ KusudamaCounter::KusudamaCounter(int total)
     renda_fade_in = (FadeAnimation*)tex.get_animation(14);
     renda_fade_out = (FadeAnimation*)tex.get_animation(20);
     stretch = (TextStretchAnimation*)tex.get_animation(15);
-    breathing = (MoveAnimation*)tex.get_animation(16);
+    breathing = (TextureResizeAnimation*)tex.get_animation(16);
     renda_breathe = (MoveAnimation*)tex.get_animation(17);
     open = (TextureChangeAnimation*)tex.get_animation(19);
     fade_out = (FadeAnimation*)tex.get_animation(21);
@@ -30,17 +30,16 @@ void KusudamaCounter::update_count(int count) {
         balloon_count = count;
         stretch->start();
         breathing->start();
+        if (balloon_count == balloon_total) {
+            is_popped = true;
+            open->start();
+            renda_fade_out->start();
+            fade_out->start();
+        }
     }
 }
 
-void KusudamaCounter::update(double current_ms, bool popped) {
-    if (popped && !is_popped) {
-        is_popped = true;
-        open->start();
-        renda_fade_out->start();
-        fade_out->start();
-        fade_out->start();
-    }
+void KusudamaCounter::update(double current_ms, int count) {
     move_down->update(current_ms);
     move_up->update(current_ms);
     renda_move_up->update(current_ms);
@@ -52,6 +51,7 @@ void KusudamaCounter::update(double current_ms, bool popped) {
     breathing->update(current_ms);
     renda_breathe->update(current_ms);
     open->update(current_ms);
+    if (count != 0) update_count(count);
 }
 
 void KusudamaCounter::draw() {
