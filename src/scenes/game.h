@@ -1,10 +1,8 @@
 #pragma once
 
 #include "../libs/screen.h"
-#include "../libs/input.h"
 #include "../libs/parsers/tja.h"
-#include "../libs/global_data.h"
-#include "../libs/animation.h"
+#include "../libs/video.h"
 
 #include "../objects/game/player.h"
 #include "../objects/game/song_info.h"
@@ -25,7 +23,7 @@ private:
     float bpm;
     //int audio_time;
     //int last_resync;
-    //std::optional<VideoPlayer> movie;
+    std::optional<VideoPlayer> movie;
     std::optional<Background> background;
     std::optional<std::string> song_music;
     std::optional<TJAParser> parser;

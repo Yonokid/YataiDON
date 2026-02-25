@@ -7,6 +7,7 @@ cmake_policy(SET CMP0079 NEW)  # Allow target_link_libraries() in different dire
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug)
@@ -199,6 +200,45 @@ else()
     endif()
 endif()
 
+# FFmpeg (libavformat, libavcodec, libavutil, libswscale)
+if(WIN32)
+    message(STATUS "Using local FFmpeg on Windows")
+    set(FFMPEG_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/src/libs/ffmpeg/include")
+    set(FFMPEG_LIB_DIR     "${CMAKE_SOURCE_DIR}/src/libs/ffmpeg/lib")
+
+    foreach(_lib avformat avcodec avutil swscale)
+        set(_libfile "${FFMPEG_LIB_DIR}/lib${_lib}.a")
+        if(NOT EXISTS ${_libfile})
+            message(FATAL_ERROR "FFmpeg lib not found: ${_libfile}")
+        endif()
+        add_library(FFmpeg::${_lib} STATIC IMPORTED)
+        set_target_properties(FFmpeg::${_lib} PROPERTIES
+            IMPORTED_LOCATION         ${_libfile}
+            INTERFACE_INCLUDE_DIRECTORIES ${FFMPEG_INCLUDE_DIR}
+        )
+    endforeach()
+else()
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(AVFORMAT  REQUIRED libavformat)
+    pkg_check_modules(AVCODEC   REQUIRED libavcodec)
+    pkg_check_modules(AVUTIL    REQUIRED libavutil)
+    pkg_check_modules(SWSCALE   REQUIRED libswscale)
+
+    foreach(_lib avformat avcodec avutil swscale)
+        string(TOUPPER ${_lib} _LIB)
+        add_library(FFmpeg::${_lib} INTERFACE IMPORTED)
+        target_include_directories(FFmpeg::${_lib} INTERFACE ${${_LIB}_INCLUDE_DIRS})
+        target_link_libraries(FFmpeg::${_lib}      INTERFACE ${${_LIB}_LINK_LIBRARIES})
+        target_link_directories(FFmpeg::${_lib}    INTERFACE ${${_LIB}_LIBRARY_DIRS})
+    endforeach()
+
+    message(STATUS "Using system FFmpeg")
+    message(STATUS "  libavformat ${AVFORMAT_VERSION}")
+    message(STATUS "  libavcodec  ${AVCODEC_VERSION}")
+    message(STATUS "  libavutil   ${AVUTIL_VERSION}")
+    message(STATUS "  libswscale  ${SWSCALE_VERSION}")
+endif()
+
 # digestpp
 FetchContent_Declare(
     digestpp
@@ -264,6 +304,10 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     spdlog::spdlog
     lua
     sol2::sol2
+    FFmpeg::avformat
+    FFmpeg::avcodec
+    FFmpeg::swscale
+    FFmpeg::avutil
 )
 
 # Platform specific (Thanks GPT)
@@ -283,6 +327,10 @@ if(WIN32)
         mp3lame
         mpg123
         shlwapi
+        # FFmpeg on Windows also needs these at the end of the link line
+        bcrypt
+        secur32
+        ws2_32
     )
     # Static linking on Windows
     target_link_options(${PROJECT_NAME} PRIVATE
@@ -303,6 +351,10 @@ elseif(APPLE)
         "-framework CoreAudio"
         "-framework AudioToolbox"
         "-framework AudioUnit"
+        # FFmpeg on macOS may need VideoToolbox for hardware-accelerated decode
+        "-framework VideoToolbox"
+        "-framework CoreFoundation"
+        "-framework CoreMedia"
     )
 elseif(UNIX)
     target_link_libraries(${PROJECT_NAME} PRIVATE

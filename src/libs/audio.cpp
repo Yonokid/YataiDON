@@ -1,5 +1,47 @@
 #include "audio.h"
 
+//for use with load_music_stream_memory
+
+static sf_count_t vf_get_filelen(void* user_data) {
+    auto* vf = static_cast<VirtualFile*>(user_data);
+    return static_cast<sf_count_t>(vf->data->size());
+}
+
+static sf_count_t vf_seek(sf_count_t offset, int whence, void* user_data) {
+    auto* vf = static_cast<VirtualFile*>(user_data);
+    sf_count_t size = static_cast<sf_count_t>(vf->data->size());
+
+    switch (whence) {
+        case SEEK_SET: vf->pos = offset;             break;
+        case SEEK_CUR: vf->pos += offset;            break;
+        case SEEK_END: vf->pos = size + offset;      break;
+        default:       return -1;
+    }
+
+    if (vf->pos < 0)    vf->pos = 0;
+    if (vf->pos > size) vf->pos = size;
+    return vf->pos;
+}
+
+static sf_count_t vf_read(void* ptr, sf_count_t count, void* user_data) {
+    auto* vf   = static_cast<VirtualFile*>(user_data);
+    sf_count_t remaining = static_cast<sf_count_t>(vf->data->size()) - vf->pos;
+    sf_count_t to_read   = std::min(count, remaining);
+    if (to_read <= 0) return 0;
+    std::memcpy(ptr, vf->data->data() + vf->pos, static_cast<std::size_t>(to_read));
+    vf->pos += to_read;
+    return to_read;
+}
+
+static sf_count_t vf_write(const void*, sf_count_t, void*) {
+    return 0;  // read-only
+}
+
+static sf_count_t vf_tell(void* user_data) {
+    return static_cast<VirtualFile*>(user_data)->pos;
+}
+
+
 AudioEngine::AudioEngine(int host_api_index, float sample_rate, unsigned long buffer_size, const VolumeConfig& volume_presets)
     : host_api_index(std::max(host_api_index, 0))
     , target_sample_rate(sample_rate < 0 ? 44100.0f : sample_rate)
@@ -640,6 +682,97 @@ std::string AudioEngine::load_music_stream(const fs::path& file_path, const std:
 
     } catch (const std::exception& e) {
         spdlog::error("Error loading music stream {}: {}", file_path.string(), e.what());
+        return "";
+    }
+}
+
+std::string AudioEngine::load_music_stream_memory(
+    const av::AVAudioStream& audio_stream,
+    const std::string&       name)
+{
+    try {
+        std::vector<uint8_t> encoded = audio_stream.encoded_bytes();
+        if (encoded.empty()) {
+            spdlog::error("load_music_stream_memory: no audio data for stream '{}'", name);
+            return "";
+        }
+
+        // Build the struct and move it into the map BEFORE opening the sndfile
+        // handle, so that vio_cursor lives at its final stable address when
+        // sf_open_virtual stores a pointer to it.
+        music mus{};
+        mus.memory_buffer    = std::make_shared<std::vector<uint8_t>>(std::move(encoded));
+        mus.file_handle      = nullptr;
+        mus.file_path        = "<memory:" + name + ">";
+        mus.buffer_size      = 4096;
+        mus.buffer_position  = 0;
+        mus.frames_in_buffer = 0;
+        mus.is_playing       = false;
+        mus.current_frame    = 0;
+        mus.loop             = false;
+        mus.volume           = 1.0f;
+        mus.pan              = 0.5f;
+        mus.pitch            = 1.0f;
+        mus.resampler        = nullptr;
+        mus.resample_buffer  = nullptr;
+        mus.stream_buffer    = nullptr;
+
+        lock.lock();
+        music_streams[name] = std::move(mus);
+        music& stored = music_streams[name];  // reference into the map – stable address
+
+        // vio_cursor now lives inside the map entry and will never move again.
+        stored.vio_cursor = VirtualFile{ stored.memory_buffer.get(), 0 };
+
+        SF_VIRTUAL_IO vio{};
+        vio.get_filelen = vf_get_filelen;
+        vio.seek        = vf_seek;
+        vio.read        = vf_read;
+        vio.write       = vf_write;
+        vio.tell        = vf_tell;
+
+        SF_INFO file_info{};
+        std::memset(&file_info, 0, sizeof(SF_INFO));
+
+        stored.file_handle = sf_open_virtual(&vio, SFM_READ, &file_info, &stored.vio_cursor);
+        if (!stored.file_handle) {
+            spdlog::error("load_music_stream_memory: sf_open_virtual failed for '{}': {}",
+                          name, sf_strerror(nullptr));
+            music_streams.erase(name);
+            lock.unlock();
+            return "";
+        }
+
+        stored.file_info     = file_info;
+        stored.stream_buffer = new float[stored.buffer_size * file_info.channels];
+
+        if (file_info.samplerate != target_sample_rate) {
+            int error;
+            stored.resampler = src_new(SRC_SINC_FASTEST, file_info.channels, &error);
+            if (!stored.resampler) {
+                spdlog::error("Failed to create resampler for memory stream '{}': {}",
+                              name, src_strerror(error));
+                sf_close(stored.file_handle);
+                delete[] stored.stream_buffer;
+                music_streams.erase(name);
+                lock.unlock();
+                return "";
+            }
+            double       ratio            = target_sample_rate / (double)file_info.samplerate;
+            unsigned int resample_buf_size = (unsigned int)(stored.buffer_size * ratio) + 256;
+            stored.resample_buffer = new float[resample_buf_size * file_info.channels];
+            spdlog::info("Memory music stream '{}' will be resampled from {} Hz to {} Hz",
+                         name, file_info.samplerate, target_sample_rate);
+        }
+
+        lock.unlock();
+
+        spdlog::debug("Loaded memory music stream: '{}' ({} frames, {} Hz, {} channels)",
+                      name, file_info.frames, file_info.samplerate, file_info.channels);
+        return name;
+
+    } catch (const std::exception& e) {
+        spdlog::error("Error loading memory music stream '{}': {}", name, e.what());
         return "";
     }
 }

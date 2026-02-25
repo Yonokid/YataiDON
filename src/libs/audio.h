@@ -9,8 +9,14 @@
 
 #include "audio/sndfile.h"
 #include "audio/samplerate.h"
+#include "av.h"
 #include "spdlog/spdlog.h"
 namespace fs = std::filesystem;
+
+struct VirtualFile {
+    const std::vector<uint8_t>* data = nullptr;
+    sf_count_t                  pos  = 0;
+};
 
 struct sound {
     float* data;                    // Audio sample data (interleaved stereo or mono)
@@ -51,6 +57,8 @@ struct music {
     float* resample_buffer;         // Buffer for resampled audio
 
     std::string file_path;          // Path to the audio file
+    std::shared_ptr<std::vector<uint8_t>> memory_buffer;
+    VirtualFile                           vio_cursor;
 };
 
 
@@ -78,6 +86,7 @@ public:
     void set_sound_pan(const std::string& name, float pan);
 
     std::string load_music_stream(const fs::path& file_path, const std::string& name);
+    std::string load_music_stream_memory(const av::AVAudioStream& audio_stream, const std::string& name);
     void play_music_stream(const std::string& name, const std::string& volume_preset = "");
     float get_music_time_length(const std::string& name) const;
     float get_music_time_played(const std::string& name) const;
