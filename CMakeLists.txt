@@ -18,11 +18,6 @@ include(FetchContent)
 
 ### Dependencies
 
-# Lua
-find_package(Lua REQUIRED)
-target_include_directories(YataiDON PRIVATE ${LUA_INCLUDE_DIR})
-target_link_libraries(YataiDON PRIVATE ${LUA_LIBRARIES})
-
 # SDL2
 find_package(PkgConfig QUIET)
 if(PkgConfig_FOUND)
@@ -101,8 +96,8 @@ FetchContent_MakeAvailable(spdlog)
 # Lua
 FetchContent_Declare(
     lua
-    GIT_REPOSITORY https://github.com/lua/lua.git
-    GIT_TAG v5.5.0
+    GIT_REPOSITORY https://github.com/walterschell/Lua.git
+    GIT_TAG v5.4.5
     GIT_SHALLOW TRUE
 )
 FetchContent_MakeAvailable(lua)
