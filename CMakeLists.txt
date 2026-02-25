@@ -18,6 +18,11 @@ include(FetchContent)
 
 ### Dependencies
 
+# Lua
+find_package(Lua REQUIRED)
+target_include_directories(YataiDON PRIVATE ${LUA_INCLUDE_DIR})
+target_link_libraries(YataiDON PRIVATE ${LUA_LIBRARIES})
+
 # SDL2
 find_package(PkgConfig QUIET)
 if(PkgConfig_FOUND)
