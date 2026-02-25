@@ -5,7 +5,18 @@
 #include "../../libs/global_data.h"
 #include "../../libs/ray.h"
 #include "../../libs/text.h"
-#include <string>
+
+class SongNum {
+private:
+    OutlinedText* text;
+public:
+    float width;
+    float height;
+    SongNum() = default;
+    SongNum(int song_num);
+
+    void draw(float x, float y, float fade);
+};
 
 class SongInfo {
 private:
@@ -13,6 +24,7 @@ private:
     int genre;
     FadeAnimation* fade;
     OutlinedText* song_title;
+    SongNum* song_num;
 
 public:
     SongInfo() = default;

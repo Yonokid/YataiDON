@@ -6,6 +6,7 @@
 #include "../objects/result/background.h"
 #include "../objects/result/player.h"
 #include "../objects/result/fade_in.h"
+#include "../objects/game/song_info.h"
 
 class ResultScreen : public Screen {
 private:
@@ -17,6 +18,7 @@ private:
     double skipped_time = 0;
     std::optional<ResultPlayer> player_1;
     std::optional<FadeIn> fade_in;
+    SongNum* song_num;
 
     void handle_input();
 

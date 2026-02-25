@@ -10,6 +10,7 @@ void ResultScreen::on_screen_start() {
     start_ms = get_current_ms();
     background.emplace(global_data.player_num, tex.screen_width);
     player_1.emplace(global_data.player_num, false, false);
+    song_num = new SongNum(global_data.songs_played+1);
 }
 
 Screens ResultScreen::on_screen_end(Screens next_screen) {
@@ -58,7 +59,7 @@ void ResultScreen::draw_overlay() {
 }
 
 void ResultScreen::draw_song_info() {
-    tex.draw_texture("song_info", "song_num", {.frame=global_data.songs_played%4});
+    song_num->draw(tex.skin_config["song_num_result"].x, tex.skin_config["song_num_result"].y, 1.0);
     song_info->draw({.x=tex.skin_config["song_info_result"].x - song_info->width, .y=tex.skin_config["song_info_result"].y - song_info->height / 2, .fade=1.0});
 }
 

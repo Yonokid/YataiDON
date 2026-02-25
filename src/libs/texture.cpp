@@ -144,11 +144,11 @@ BaseAnimation* TextureWrapper::get_animation(const int id, bool is_copy) {
 void TextureWrapper::read_tex_obj_data(const Value& tex_mapping, TextureObject* tex_obj) {
     if (tex_mapping.IsArray()) {
         // Check if crop data exists in the first mapping (index 0)
-        bool has_crop_in_first = tex_mapping.Size() > 0 && 
-                                 tex_mapping[0].IsObject() && 
-                                 tex_mapping[0].HasMember("crop") && 
+        bool has_crop_in_first = tex_mapping.Size() > 0 &&
+                                 tex_mapping[0].IsObject() &&
+                                 tex_mapping[0].HasMember("crop") &&
                                  tex_mapping[0]["crop"].IsArray();
-        
+
         std::vector<ray::Rectangle> crops;
         if (has_crop_in_first) {
             const Value& first_mapping = tex_mapping[0];
@@ -160,8 +160,10 @@ void TextureWrapper::read_tex_obj_data(const Value& tex_mapping, TextureObject* 
                 });
             }
             tex_obj->crop_data = crops;
+            tex_obj->width = static_cast<int>(crops[0].width);
+            tex_obj->height = static_cast<int>(crops[0].height);
         }
-        
+
         for (SizeType i = 0; i < tex_mapping.Size(); i++) {
             const Value& mapping = tex_mapping[i];
 

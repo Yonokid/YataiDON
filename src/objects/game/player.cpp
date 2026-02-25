@@ -347,7 +347,7 @@ void Player::draw(double ms_from_start, ray::Shader& mask_shader) {//dan_transit
 }
 
 void Player::get_load_time(Note& note) {
-    int note_half_w = tex.textures["notes"]["1"]->width / 2;
+    int note_half_w = tex.textures["notes"]["9"]->width / 2;
     float travel_distance = tex.screen_width - JudgePos::X;
     float base_pixels_per_ms = (note.bpm / 240000 * abs(note.scroll_x) * travel_distance);
     if (base_pixels_per_ms == 0) {
@@ -1059,7 +1059,7 @@ void Player::draw_bar(double current_ms, const Note& bar) {
     } else {
         angle = 0;
     }
-    tex.draw_texture("notes", "0", {.frame=bar.is_branch_start, .x=x_position+tex.skin_config["moji_drumroll"].x - (tex.textures["notes"]["1"]->width/2.0f), .y=y_position+tex.skin_config["moji_drumroll"].y+(is_2p*tex.skin_config["2p_offset"].y), .rotation=angle});
+    tex.draw_texture("notes", "0", {.frame=bar.is_branch_start, .x=x_position+tex.skin_config["moji_drumroll"].x - (tex.textures["notes"]["9"]->width/2.0f), .y=y_position+tex.skin_config["moji_drumroll"].y+(is_2p*tex.skin_config["2p_offset"].y), .rotation=angle});
 }
 
 void Player::draw_drumroll(double current_ms, const Note& head, int current_eighth) {
@@ -1093,7 +1093,7 @@ void Player::draw_drumroll(double current_ms, const Note& head, int current_eigh
         } else {
             tex.draw_texture("notes", "drumroll_tail", {.color=color, .x=end_position, .y=y+(is_2p*tex.skin_config["2p_offset"].y)});
         }
-        tex.draw_texture("notes", std::to_string((int)head.type), {.color=color, .frame=current_eighth % 2, .x=start_position - tex.textures["notes"]["1"]->width/2.0f, .y=y+(is_2p*tex.skin_config["2p_offset"].y)+judge_y});
+        tex.draw_texture("notes", std::to_string((int)head.type), {.color=color, .frame=current_eighth % 2, .x=start_position - tex.textures["notes"]["9"]->width/2.0f, .y=y+(is_2p*tex.skin_config["2p_offset"].y)+judge_y});
     }
 
     tex.draw_texture("notes", "moji_drumroll_mid", {.x=start_position, .y=moji_y+(is_2p*tex.skin_config["2p_offset"].y)+judge_y, .x2=length});
@@ -1133,8 +1133,8 @@ void Player::draw_balloon(double current_ms, const Note& head, int current_eight
         position = start_position;
     }
     if (head.display) {
-        tex.draw_texture("notes", std::to_string((int)head.type), {.frame=current_eighth % 2, .x=position-offset - tex.textures["notes"]["1"]->width/2.0f, .y=y+(is_2p*tex.skin_config["2p_offset"].y)});
-        tex.draw_texture("notes", "10", {.frame=current_eighth % 2, .x=position-offset+tex.textures["notes"]["10"]->width - tex.textures["notes"]["1"]->width/2.0f, .y=y+(is_2p*tex.skin_config["2p_offset"].y)});
+        tex.draw_texture("notes", std::to_string((int)head.type), {.frame=current_eighth % 2, .x=position-offset - tex.textures["notes"]["9"]->width/2.0f, .y=y+(is_2p*tex.skin_config["2p_offset"].y)});
+        tex.draw_texture("notes", "10", {.frame=current_eighth % 2, .x=position-offset+tex.textures["notes"]["10"]->width - tex.textures["notes"]["9"]->width/2.0f, .y=y+(is_2p*tex.skin_config["2p_offset"].y)});
     }
     tex.draw_texture("notes", "moji", {.frame=head.moji, .x=position - (tex.textures["notes"]["moji"]->width/2.0f), .y=moji_y + (is_2p*tex.skin_config["2p_offset"].y)});
 }
@@ -1202,7 +1202,7 @@ void Player::draw_notes(double current_ms) {
         } else if (note.type == NoteType::BALLOON_HEAD) {
             draw_balloon(current_ms, note, current_eighth);
         } else {
-            if (note.display) tex.draw_texture("notes", std::to_string((int)note.type), {.frame=current_eighth % 2, .center=true, .x=x_position - (tex.textures["notes"]["1"]->width/2.0f), .y=y_position+tex.skin_config["notes"].y+(is_2p*tex.skin_config["2p_offset"].y)});
+            if (note.display) tex.draw_texture("notes", std::to_string((int)note.type), {.frame=current_eighth % 2, .center=true, .x=x_position - (tex.textures["notes"]["9"]->width/2.0f), .y=y_position+tex.skin_config["notes"].y+(is_2p*tex.skin_config["2p_offset"].y)});
             tex.draw_texture("notes", "moji", {.frame=note.moji, .x=x_position - (tex.textures["notes"]["moji"]->width/2.0f), .y=tex.skin_config["moji"].y + y_position+(is_2p*tex.skin_config["2p_offset"].y)});
         }
     }
