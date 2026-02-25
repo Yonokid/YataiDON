@@ -30,7 +30,15 @@ jobs:
             libasound2-dev \
             libpulse-dev \
             libjack-dev \
-            libsdl2-dev
+            libsdl2-dev \
+            liblua5.4-dev \
+            libavcodec-dev \
+            libavformat-dev \
+            libavutil-dev \
+            libswscale-dev \
+            libswresample-dev \
+            libavfilter-dev \
+            libavdevice-dev
 
       - name: Configure CMake
         run: |
@@ -86,6 +94,8 @@ jobs:
             mingw-w64-x86_64-libsndfile
             mingw-w64-x86_64-libsamplerate
             mingw-w64-x86_64-SDL2
+            mingw-w64-x86_64-lua
+            mingw-w64-x86_64-ffmpeg
             make
 
       - name: Configure CMake
