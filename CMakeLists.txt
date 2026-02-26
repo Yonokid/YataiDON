@@ -293,6 +293,11 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${lua_SOURCE_DIR}/include
 )
 
+message(STATUS "Lua source dir: ${lua_SOURCE_DIR}")
+message(STATUS "Lua binary dir: ${lua_BINARY_DIR}")
+file(GLOB_RECURSE LUA_HEADERS "${lua_SOURCE_DIR}/*.h")
+message(STATUS "Lua headers found: ${LUA_HEADERS}")
+
 target_link_libraries(${PROJECT_NAME} PRIVATE
     raylib
     SDL2::SDL2-static
