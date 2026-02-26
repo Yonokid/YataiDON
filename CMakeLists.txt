@@ -202,41 +202,22 @@ endif()
 
 # FFmpeg (libavformat, libavcodec, libavutil, libswscale)
 if(WIN32)
-    message(STATUS "Using local FFmpeg on Windows")
-    set(FFMPEG_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/src/libs/ffmpeg/include")
-    set(FFMPEG_LIB_DIR     "${CMAKE_SOURCE_DIR}/src/libs/ffmpeg/lib")
+    message(STATUS "Fetching prebuilt FFmpeg for Windows")
+    FetchContent_Declare(
+        ffmpeg_prebuilt
+        URL https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl-shared.zip
+    )
+    FetchContent_MakeAvailable(ffmpeg_prebuilt)
+    set(FFMPEG_INCLUDE_DIR "${ffmpeg_prebuilt_SOURCE_DIR}/include")
+    set(FFMPEG_LIB_DIR     "${ffmpeg_prebuilt_SOURCE_DIR}/lib")
 
     foreach(_lib avformat avcodec avutil swscale)
-        set(_libfile "${FFMPEG_LIB_DIR}/lib${_lib}.a")
-        if(NOT EXISTS ${_libfile})
-            message(FATAL_ERROR "FFmpeg lib not found: ${_libfile}")
-        endif()
         add_library(FFmpeg::${_lib} STATIC IMPORTED)
         set_target_properties(FFmpeg::${_lib} PROPERTIES
-            IMPORTED_LOCATION         ${_libfile}
-            INTERFACE_INCLUDE_DIRECTORIES ${FFMPEG_INCLUDE_DIR}
+            IMPORTED_LOCATION         "${FFMPEG_LIB_DIR}/lib${_lib}.a"
+            INTERFACE_INCLUDE_DIRECTORIES "${FFMPEG_INCLUDE_DIR}"
         )
     endforeach()
-else()
-    find_package(PkgConfig REQUIRED)
-    pkg_check_modules(AVFORMAT  REQUIRED libavformat)
-    pkg_check_modules(AVCODEC   REQUIRED libavcodec)
-    pkg_check_modules(AVUTIL    REQUIRED libavutil)
-    pkg_check_modules(SWSCALE   REQUIRED libswscale)
-
-    foreach(_lib avformat avcodec avutil swscale)
-        string(TOUPPER ${_lib} _LIB)
-        add_library(FFmpeg::${_lib} INTERFACE IMPORTED)
-        target_include_directories(FFmpeg::${_lib} INTERFACE ${${_LIB}_INCLUDE_DIRS})
-        target_link_libraries(FFmpeg::${_lib}      INTERFACE ${${_LIB}_LINK_LIBRARIES})
-        target_link_directories(FFmpeg::${_lib}    INTERFACE ${${_LIB}_LIBRARY_DIRS})
-    endforeach()
-
-    message(STATUS "Using system FFmpeg")
-    message(STATUS "  libavformat ${AVFORMAT_VERSION}")
-    message(STATUS "  libavcodec  ${AVCODEC_VERSION}")
-    message(STATUS "  libavutil   ${AVUTIL_VERSION}")
-    message(STATUS "  libswscale  ${SWSCALE_VERSION}")
 endif()
 
 # digestpp
