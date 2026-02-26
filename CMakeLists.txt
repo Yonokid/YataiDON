@@ -303,7 +303,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     digestpp
     tomlplusplus::tomlplusplus
     spdlog::spdlog
-    ${lua_BINARY_DIR}/lua-5.4.5/liblua.a
+    lua_static
     sol2::sol2
     FFmpeg::avformat
     FFmpeg::avcodec
