@@ -96,8 +96,8 @@ FetchContent_MakeAvailable(spdlog)
 # Lua
 FetchContent_Declare(
     lua
-    GIT_REPOSITORY https://github.com/walterschell/Lua.git
-    GIT_TAG v5.4.5
+    GIT_REPOSITORY https://github.com/marovira/lua.git
+    GIT_TAG 5.4.6
     GIT_SHALLOW TRUE
 )
 FetchContent_MakeAvailable(lua)
@@ -290,7 +290,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${PORTAUDIO_INCLUDE_DIR}
     ${rapidjson_SOURCE_DIR}/include
     ${tomlplusplus_SOURCE_DIR}/include
-    ${lua_SOURCE_DIR}/lua-5.4.5/include
+    $<TARGET_PROPERTY:lua_static,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
@@ -303,7 +303,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     digestpp
     tomlplusplus::tomlplusplus
     spdlog::spdlog
-    lua_static
+    lua::lua
     sol2::sol2
     FFmpeg::avformat
     FFmpeg::avcodec
