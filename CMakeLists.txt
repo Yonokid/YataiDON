@@ -300,11 +300,16 @@ add_executable(${PROJECT_NAME} ${CppFiles} ${HeaderFiles})
 
 if(WIN32)
     foreach(_lib avformat avcodec avutil swscale)
-        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "${FFMPEG_LIB_DIR}/../bin/${_lib}.dll"
-                "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
-        )
+        file(GLOB _dll "${FFMPEG_LIB_DIR}/../bin/${_lib}*.dll")
+        if(_dll)
+            add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    ${_dll}
+                    "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
+            )
+        else()
+            message(WARNING "FFmpeg DLL not found for ${_lib}")
+        endif()
     endforeach()
 endif()
 
