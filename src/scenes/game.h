@@ -21,8 +21,7 @@ private:
     bool paused;
     int pause_time;
     float bpm;
-    //int audio_time;
-    //int last_resync;
+
     std::optional<VideoPlayer> movie;
     std::optional<Background> background;
     std::optional<std::string> song_music;

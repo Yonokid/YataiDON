@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.14)
 project(YataiDON VERSION 0.1.0 LANGUAGES C CXX)
 
 cmake_policy(SET CMP0002 NEW)  # Logical target names must be globally unique
-cmake_policy(SET CMP0079 NEW)  # Allow target_link_libraries() in different directories
+cmake_policy(SET CMP0079 NEW)  # Allow target_link_libraries() everywhere
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -215,7 +215,7 @@ if(WIN32)
     set(FFMPEG_INCLUDE_DIR "${ffmpeg_prebuilt_SOURCE_DIR}/include")
     set(FFMPEG_LIB_DIR     "${ffmpeg_prebuilt_SOURCE_DIR}/lib")
 
-    foreach(_lib avformat avcodec avutil swscale)
+    foreach(_lib avformat avcodec avutil swscale swresample)
         set(_libfile "${FFMPEG_LIB_DIR}/lib${_lib}.dll.a")
         if(NOT EXISTS "${_libfile}")
             message(FATAL_ERROR "FFmpeg lib not found: ${_libfile}")
@@ -233,8 +233,9 @@ else()
     pkg_check_modules(AVCODEC  REQUIRED libavcodec)
     pkg_check_modules(AVUTIL   REQUIRED libavutil)
     pkg_check_modules(SWSCALE  REQUIRED libswscale)
+    pkg_check_modules(SWRESAMPLE REQUIRED libswresample)
 
-    foreach(_lib avformat avcodec avutil swscale)
+    foreach(_lib avformat avcodec avutil swscale swresample)
         string(TOUPPER ${_lib} _LIB)
         add_library(FFmpeg::${_lib} INTERFACE IMPORTED)
         target_include_directories(FFmpeg::${_lib} INTERFACE ${${_LIB}_INCLUDE_DIRS})
@@ -247,11 +248,8 @@ else()
     message(STATUS "  libavcodec  ${AVCODEC_VERSION}")
     message(STATUS "  libavutil   ${AVUTIL_VERSION}")
     message(STATUS "  libswscale  ${SWSCALE_VERSION}")
+    message(STATUS "  libswresample ${SWRESAMPLE_VERSION}")
 endif()
-
-file(GLOB_RECURSE FFMPEG_LIBS "${ffmpeg_prebuilt_SOURCE_DIR}/*.a")
-message(STATUS "FFmpeg prebuilt source dir: ${ffmpeg_prebuilt_SOURCE_DIR}")
-message(STATUS "FFmpeg libs found: ${FFMPEG_LIBS}")
 
 # digestpp
 FetchContent_Declare(
@@ -299,7 +297,7 @@ message(STATUS "C++ files found: ${CppFiles}")
 add_executable(${PROJECT_NAME} ${CppFiles} ${HeaderFiles})
 
 if(WIN32)
-    foreach(_lib avformat avcodec avutil swscale)
+    foreach(_lib avformat avcodec avutil swscale swresample)
         file(GLOB _dll "${FFMPEG_LIB_DIR}/../bin/${_lib}*.dll")
         if(_dll)
             add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
@@ -337,6 +335,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     FFmpeg::avcodec
     FFmpeg::swscale
     FFmpeg::avutil
+    FFmpeg::swresample
 )
 
 # Platform specific (Thanks GPT)

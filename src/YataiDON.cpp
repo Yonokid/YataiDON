@@ -14,6 +14,7 @@
 
 #include "scenes/game.h"
 #include "scenes/result.h"
+#include "scenes/title.h"
 
 #ifdef _WIN32
     #include <windows.h>
@@ -257,7 +258,7 @@ int main(int argc, char* argv[]) {
 
     //create_song_db()
 
-    //title_screen = TitleScreen('title')
+    std::unique_ptr<TitleScreen> title_screen = std::make_unique<TitleScreen>();
     //entry_screen = EntryScreen('entry')
     //song_select_screen = SongSelectScreen('song_select')
     //song_select_screen_2p = TwoPlayerSongSelectScreen('song_select')
@@ -278,7 +279,7 @@ int main(int argc, char* argv[]) {
 
     std::unordered_map<Screens, Screen*> screen_mapping = {
         //{Screens::ENTRY,          &entry_screen},
-        //{Screens::TITLE,          &title_screen},
+        {Screens::TITLE,          title_screen.get()},
         //{Screens::SONG_SELECT,    &song_select_screen},
         //{Screens::SONG_SELECT_2P, &song_select_screen_2p},
         //{Screens::PRACTICE_SELECT,&practice_select_screen},

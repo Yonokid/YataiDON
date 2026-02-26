@@ -21,6 +21,7 @@ extern "C" {
 #include <libavutil/avutil.h>
 #include <libavutil/imgutils.h>
 #include <libswscale/swscale.h>
+#include <libswresample/swresample.h>
 }
 
 namespace av {
@@ -262,7 +263,7 @@ public:
     // For silent streams: returns a minimal 44100 Hz stereo 16-bit PCM WAV of silence.
     std::vector<uint8_t> encoded_bytes() const {
         if (silent_) return make_silence_wav(silent_duration_);
-        return read_stream_bytes();
+        return remux_to_wav();
     }
 
     const ::AVStream* raw() const { return stream_; }
@@ -272,26 +273,133 @@ private:
     AVAudioStream()
         : stream_(nullptr), fmt_ctx_(nullptr), silent_(false), silent_duration_(0.0) {}
 
-    std::vector<uint8_t> read_stream_bytes() const {
-        std::vector<uint8_t> out;
-        ::AVPacket* pkt = av_packet_alloc();
-        if (!pkt) throw std::runtime_error("av_packet_alloc failed");
+        std::vector<uint8_t> remux_to_wav() const {
+        // 1. Decode audio stream to raw PCM, then write a WAV into memory.
 
-        // Save and restore position so we don't disturb the container state.
-        int64_t saved_pos = fmt_ctx_->pb ? avio_tell(fmt_ctx_->pb) : 0;
+        // --- Find decoder ---
+        const ::AVCodec* codec = avcodec_find_decoder(stream_->codecpar->codec_id);
+        if (!codec) throw std::runtime_error("remux_to_wav: no decoder found");
+
+        ::AVCodecContext* dec_ctx = avcodec_alloc_context3(codec);
+        if (!dec_ctx) throw std::runtime_error("remux_to_wav: avcodec_alloc_context3");
+
+        check(avcodec_parameters_to_context(dec_ctx, stream_->codecpar),
+                "remux_to_wav: avcodec_parameters_to_context");
+        check(avcodec_open2(dec_ctx, codec, nullptr), "remux_to_wav: avcodec_open2");
+
+        // --- Set up SwrContext for conversion to S16 interleaved ---
+        SwrContext* swr = nullptr;
+        // Use the channel layout from the codec context
+        AVChannelLayout out_layout = AV_CHANNEL_LAYOUT_STEREO;
+        check(swr_alloc_set_opts2(
+                    &swr,
+                    &out_layout,          AV_SAMPLE_FMT_S16, 44100,
+                    &dec_ctx->ch_layout,  dec_ctx->sample_fmt, dec_ctx->sample_rate,
+                    0, nullptr),
+                "remux_to_wav: swr_alloc_set_opts2");
+        check(swr_init(swr), "remux_to_wav: swr_init");
+
+        // --- Decode all packets ---
+        std::vector<int16_t> pcm;
+
+        // Seek to start
         av_seek_frame(fmt_ctx_, stream_->index, 0, AVSEEK_FLAG_BACKWARD);
+        avcodec_flush_buffers(dec_ctx);
+
+        ::AVPacket* pkt   = av_packet_alloc();
+        ::AVFrame*  frame = av_frame_alloc();
+        if (!pkt || !frame) throw std::runtime_error("remux_to_wav: alloc failed");
+
+        auto flush_decoder = [&](bool flushing) {
+            while (true) {
+                int ret = avcodec_receive_frame(dec_ctx, frame);
+                if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) break;
+                check(ret, "remux_to_wav: avcodec_receive_frame");
+
+                // How many output samples will swr produce?
+                int64_t out_samples = swr_get_out_samples(swr, frame->nb_samples);
+
+                std::vector<int16_t> tmp(out_samples * 2); // stereo
+                uint8_t* out_ptr = reinterpret_cast<uint8_t*>(tmp.data());
+
+                int converted = swr_convert(
+                    swr,
+                    &out_ptr,                           out_samples,
+                    (const uint8_t**)frame->extended_data, frame->nb_samples);
+                if (converted > 0)
+                    pcm.insert(pcm.end(), tmp.begin(), tmp.begin() + converted * 2);
+
+                av_frame_unref(frame);
+            }
+        };
 
         while (av_read_frame(fmt_ctx_, pkt) >= 0) {
-            if (pkt->stream_index == stream_->index)
-                out.insert(out.end(), pkt->data, pkt->data + pkt->size);
+            if (pkt->stream_index == stream_->index) {
+                avcodec_send_packet(dec_ctx, pkt);
+                flush_decoder(false);
+            }
             av_packet_unref(pkt);
         }
+        // Flush
+        avcodec_send_packet(dec_ctx, nullptr);
+        flush_decoder(true);
+
+        // Drain any remaining samples from swr
+        while (true) {
+            std::vector<int16_t> tmp(4096 * 2);
+            uint8_t* out_ptr = reinterpret_cast<uint8_t*>(tmp.data());
+            int converted = swr_convert(swr, &out_ptr, 4096, nullptr, 0);
+            if (converted <= 0) break;
+            pcm.insert(pcm.end(), tmp.begin(), tmp.begin() + converted * 2);
+        }
+
         av_packet_free(&pkt);
+        av_frame_free(&frame);
+        swr_free(&swr);
+        avcodec_free_context(&dec_ctx);
 
-        if (fmt_ctx_->pb && saved_pos > 0)
-            avio_seek(fmt_ctx_->pb, saved_pos, SEEK_SET);
+        // --- Build WAV from PCM ---
+        return make_pcm_wav(pcm, 44100, 2);
+    }
 
-        return out;
+    static std::vector<uint8_t> make_pcm_wav(
+        const std::vector<int16_t>& pcm,
+        uint32_t sample_rate,
+        uint16_t channels)
+    {
+        constexpr uint16_t bits        = 16;
+        const     uint16_t block_align = channels * (bits / 8);
+        const     uint32_t byte_rate   = sample_rate * block_align;
+        const     uint32_t data_size   = static_cast<uint32_t>(pcm.size()) * sizeof(int16_t);
+        const     uint32_t chunk_size  = 36 + data_size;
+
+        std::vector<uint8_t> wav;
+        wav.reserve(44 + data_size);
+
+        auto write_u16 = [&](uint16_t v) {
+            wav.push_back(v & 0xFF); wav.push_back((v >> 8) & 0xFF);
+        };
+        auto write_u32 = [&](uint32_t v) {
+            wav.push_back(v & 0xFF); wav.push_back((v >> 8) & 0xFF);
+            wav.push_back((v >> 16) & 0xFF); wav.push_back((v >> 24) & 0xFF);
+        };
+        auto write_cc = [&](const char* s) {
+            wav.push_back(s[0]); wav.push_back(s[1]);
+            wav.push_back(s[2]); wav.push_back(s[3]);
+        };
+
+        write_cc("RIFF"); write_u32(chunk_size); write_cc("WAVE");
+        write_cc("fmt "); write_u32(16);
+        write_u16(1); write_u16(channels);
+        write_u32(sample_rate); write_u32(byte_rate);
+        write_u16(block_align); write_u16(bits);
+        write_cc("data"); write_u32(data_size);
+
+        // Append PCM samples (already little-endian on x86/ARM)
+        const uint8_t* bytes = reinterpret_cast<const uint8_t*>(pcm.data());
+        wav.insert(wav.end(), bytes, bytes + data_size);
+
+        return wav;
     }
 
     // Builds a minimal valid PCM WAV in memory:
