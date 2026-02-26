@@ -97,7 +97,7 @@ FetchContent_MakeAvailable(spdlog)
 FetchContent_Declare(
     lua
     GIT_REPOSITORY https://github.com/marovira/lua.git
-    GIT_TAG 5.4.6
+    GIT_TAG 5.4.8
     GIT_SHALLOW TRUE
 )
 FetchContent_MakeAvailable(lua)
