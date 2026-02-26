@@ -7,6 +7,8 @@
 #include "../input.h" // IWYU pragma: keep
 #include "../audio.h" // IWYU pragma: keep
 #include "../objects/global/allnet_indicator.h"
+#include "../objects/global/coin_overlay.h"
+#include "../objects/global/entry_overlay.h"
 
 #include <random> // IWYU pragma: keep
 
@@ -30,6 +32,8 @@ private:
     std::optional<WarningScreen> warning_board;
 
     AllNetIcon allnet_indicator;
+    CoinOverlay coin_overlay;
+    EntryOverlay entry_overlay;
 
     OutlinedText* hit_taiko_text;
 

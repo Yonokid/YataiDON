@@ -15,8 +15,6 @@ void TitleScreen::on_screen_start() {
         }
     }
     state = TitleState::OP_VIDEO;
-    //coin_overlay = CoinOverlay();
-    //entry_overlay = EntryOverlay();
     hit_taiko_text = new OutlinedText(tex.skin_config["hit_taiko_to_start"].text[global_data.config->general.language], tex.skin_config["hit_taiko_to_start"].font_size, ray::WHITE, ray::BLACK, 4);
     fade_out = (FadeAnimation*)tex.get_animation(13);
     text_overlay_fade = (FadeAnimation*)tex.get_animation(14);
@@ -103,9 +101,9 @@ void TitleScreen::draw() {
     }
 
     tex.draw_texture("movie", "background", {.fade=fade_out->attribute});
-    //coin_overlay.draw();
+    coin_overlay.draw();
     allnet_indicator.draw();
-    //entry_overlay.draw(tex.skin_config["entry_overlay_title"].x, tex.skin_config["entry_overlay_title"].y);
+    entry_overlay.draw(tex.skin_config["entry_overlay_title"].x, tex.skin_config["entry_overlay_title"].y);
 
     hit_taiko_text->draw({.x=(float)(tex.screen_width*0.25 - hit_taiko_text->width/2), .y=tex.skin_config["hit_taiko_to_start"].y, .fade=text_overlay_fade->attribute});
     hit_taiko_text->draw({.x=(float)(tex.screen_width*0.75 - hit_taiko_text->width/2), .y=tex.skin_config["hit_taiko_to_start"].y, .fade=text_overlay_fade->attribute});

@@ -6,7 +6,6 @@ void ResultScreen::on_screen_start() {
     audio->play_sound("bgm", "music");
     fade_out = (FadeAnimation*)tex.get_animation(0);
     fade_in.emplace(global_data.player_num);
-    //coin_overlay = CoinOverlay()
     start_ms = get_current_ms();
     background.emplace(global_data.player_num, tex.screen_width);
     player_1.emplace(global_data.player_num, false, false);
@@ -54,7 +53,7 @@ std::optional<Screens> ResultScreen::update() {
 void ResultScreen::draw_overlay() {
     if (fade_in.has_value()) fade_in->draw();
     if (fade_out) ray::DrawRectangle(0, 0, tex.screen_width, tex.screen_height, ray::Fade(ray::BLACK, fade_out->attribute));
-    //coin_overlay.draw();
+    coin_overlay.draw();
     allnet_indicator.draw();
 }
 

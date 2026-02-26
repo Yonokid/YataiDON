@@ -3,6 +3,7 @@
 #include "../libs/texture.h"
 #include "../libs/input.h"
 #include "../objects/global/allnet_indicator.h"
+#include "../objects/global/coin_overlay.h"
 #include "../objects/result/background.h"
 #include "../objects/result/player.h"
 #include "../objects/result/fade_in.h"
@@ -13,6 +14,8 @@ private:
     OutlinedText* song_info;
     FadeAnimation* fade_out;
     AllNetIcon allnet_indicator;
+    CoinOverlay coin_overlay;
+
     std::optional<ResultBackground> background;
     double start_ms = 0;
     double skipped_time = 0;
