@@ -202,23 +202,36 @@ endif()
 
 # FFmpeg (libavformat, libavcodec, libavutil, libswscale)
 if(WIN32)
-    message(STATUS "Fetching prebuilt FFmpeg for Windows")
     FetchContent_Declare(
         ffmpeg_prebuilt
         URL https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl-shared.zip
     )
     FetchContent_MakeAvailable(ffmpeg_prebuilt)
+
+    file(GLOB_RECURSE FFMPEG_LIBS "${ffmpeg_prebuilt_SOURCE_DIR}/*.lib")
+    message(STATUS "FFmpeg prebuilt source dir: ${ffmpeg_prebuilt_SOURCE_DIR}")
+    message(STATUS "FFmpeg libs found: ${FFMPEG_LIBS}")
+
     set(FFMPEG_INCLUDE_DIR "${ffmpeg_prebuilt_SOURCE_DIR}/include")
     set(FFMPEG_LIB_DIR     "${ffmpeg_prebuilt_SOURCE_DIR}/lib")
 
     foreach(_lib avformat avcodec avutil swscale)
-        add_library(FFmpeg::${_lib} STATIC IMPORTED)
+        set(_libfile "${FFMPEG_LIB_DIR}/lib${_lib}.lib")
+        if(NOT EXISTS "${_libfile}")
+            message(FATAL_ERROR "FFmpeg lib not found: ${_libfile}")
+        endif()
+        add_library(FFmpeg::${_lib} SHARED IMPORTED)
         set_target_properties(FFmpeg::${_lib} PROPERTIES
-            IMPORTED_LOCATION         "${FFMPEG_LIB_DIR}/lib${_lib}.a"
+            IMPORTED_LOCATION         "${FFMPEG_LIB_DIR}/lib${_lib}.dll"
+            IMPORTED_IMPLIB           "${_libfile}"
             INTERFACE_INCLUDE_DIRECTORIES "${FFMPEG_INCLUDE_DIR}"
         )
     endforeach()
 endif()
+
+file(GLOB_RECURSE FFMPEG_LIBS "${ffmpeg_prebuilt_SOURCE_DIR}/*.a")
+message(STATUS "FFmpeg prebuilt source dir: ${ffmpeg_prebuilt_SOURCE_DIR}")
+message(STATUS "FFmpeg libs found: ${FFMPEG_LIBS}")
 
 # digestpp
 FetchContent_Declare(
