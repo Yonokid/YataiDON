@@ -290,6 +290,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${PORTAUDIO_INCLUDE_DIR}
     ${rapidjson_SOURCE_DIR}/include
     ${tomlplusplus_SOURCE_DIR}/include
+    ${lua_SOURCE_DIR}/include
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
