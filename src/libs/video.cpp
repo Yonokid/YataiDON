@@ -4,7 +4,7 @@ VideoPlayer::VideoPlayer(fs::path path)
     : is_finished_arr{false, false}
 {
     if (path.extension() == ".png" || path.extension() == ".jpg") {
-        texture  = ray::LoadTexture(path.c_str());
+        texture  = ray::LoadTexture(path.string().c_str());
         is_static = true;
         return;
     }

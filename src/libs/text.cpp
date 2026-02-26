@@ -8,7 +8,7 @@ void FontManager::init(const fs::path& font_path) {
     for (int i = 32; i < 127; i++)
         codepoint_cache.insert(i);
     std::vector<int> codepoints(codepoint_cache.begin(), codepoint_cache.end());
-    font = ray::LoadFontEx(font_path.c_str(), max_font_size, codepoints.data(), codepoints.size());
+    font = ray::LoadFontEx(font_path.string().c_str(), max_font_size, codepoints.data(), codepoints.size());
     ray::SetTextureFilter(font.texture, ray::TEXTURE_FILTER_BILINEAR);
 }
 
@@ -37,7 +37,7 @@ ray::Font FontManager::get_font(const std::string& text, int font_size) {
         std::vector<int> codepoints(codepoint_cache.begin(), codepoint_cache.end());
 
         font = ray::LoadFontEx(
-            font_path.c_str(),
+            font_path.string().c_str(),
             max_font_size,
             codepoints.data(),
             static_cast<int>(codepoints.size())
