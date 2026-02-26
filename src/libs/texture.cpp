@@ -1,6 +1,6 @@
 #include "texture.h"
 
-void TextureWrapper::init(const std::string& skin_path) {
+void TextureWrapper::init(const fs::path& skin_path) {
     graphics_path = skin_path;
 
     if (!fs::exists(graphics_path)) {

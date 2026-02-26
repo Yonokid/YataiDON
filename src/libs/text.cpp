@@ -3,7 +3,7 @@
 FontManager::FontManager() {
 }
 
-void FontManager::init(const std::string& font_path) {
+void FontManager::init(const fs::path& font_path) {
     this->font_path = font_path;
     for (int i = 32; i < 127; i++)
         codepoint_cache.insert(i);

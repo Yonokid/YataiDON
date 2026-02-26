@@ -14,7 +14,7 @@ private:
 public:
     FontManager();
 
-    void init(const std::string& font_path);
+    void init(const fs::path& font_path);
 
     ray::Font get_font(const std::string& text, int font_size);
 };

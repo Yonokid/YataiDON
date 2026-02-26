@@ -108,7 +108,7 @@ public:
     TextureWrapper() : screen_width(1280), screen_height(720), screen_scale(1.0) {
     }
 
-    void init(const std::string& skin_path);
+    void init(const fs::path& skin_path);
 
     ~TextureWrapper() {
         unload_textures();

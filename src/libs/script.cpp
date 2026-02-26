@@ -5,7 +5,7 @@ void ScriptManager::init(fs::path script_path) {
                        sol::lib::math, sol::lib::table);
 
     for (const auto& script : fs::directory_iterator(script_path)) {
-        scripts[script.path().stem().string()] = script.path();
+        scripts[script.path().stem().string()] = script.path().string();
     }
     spdlog::debug("Loaded scripts:");
     for (const auto& [name, path] : scripts) {
@@ -290,7 +290,7 @@ void ScriptManager::register_lua_bindings() {
         info["name"] = tex_obj->name;
         info["width"] = tex_obj->width;
         info["height"] = tex_obj->height;
-        
+
         // Try to get frame count from the texture object
         int frame_count = 1;
         if (auto framed = dynamic_cast<FramedTexture*>(tex_obj.get())) {
