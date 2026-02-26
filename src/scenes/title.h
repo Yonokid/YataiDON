@@ -3,12 +3,12 @@
 #include "../libs/screen.h"
 #include "../libs/video.h"
 #include "../libs/text.h"
-#include "../libs/texture.h"
-#include "../input.h"
-#include "../audio.h"
+#include "../libs/texture.h" // IWYU pragma: keep
+#include "../input.h" // IWYU pragma: keep
+#include "../audio.h" // IWYU pragma: keep
 #include "../objects/global/allnet_indicator.h"
 
-#include <random>
+#include <random> // IWYU pragma: keep
 
 #include "../objects/title/warning_screen.h"
 

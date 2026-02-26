@@ -15,6 +15,7 @@
 #include "scenes/game.h"
 #include "scenes/result.h"
 #include "scenes/title.h"
+#include "scenes/loading.h"
 
 #ifdef _WIN32
     #include <windows.h>
@@ -262,7 +263,7 @@ int main(int argc, char* argv[]) {
     //entry_screen = EntryScreen('entry')
     //song_select_screen = SongSelectScreen('song_select')
     //song_select_screen_2p = TwoPlayerSongSelectScreen('song_select')
-    //load_screen = LoadScreen('loading')
+    std::unique_ptr<LoadingScreen> load_screen = std::make_unique<LoadingScreen>();
     std::unique_ptr<GameScreen> game_screen = std::make_unique<GameScreen>();
     //game_screen_2p = TwoPlayerGameScreen('game')
     //game_screen_practice = PracticeGameScreen('game')
@@ -272,7 +273,6 @@ int main(int argc, char* argv[]) {
     std::unique_ptr<ResultScreen> result_screen = std::make_unique<ResultScreen>();
     //result_screen_2p = TwoPlayerResultScreen('result')
     //settings_screen = SettingsScreen('settings')
-    //dev_screen = DevScreen('dev')
     //dan_select_screen = DanSelectScreen('dan_select')
     //game_screen_dan = DanGameScreen('game_dan')
     //dan_result_screen = DanResultScreen('dan_result')
@@ -291,11 +291,10 @@ int main(int argc, char* argv[]) {
         {Screens::RESULT,         result_screen.get()},
         //{Screens::RESULT_2P,      &result_screen_2p},
         //{Screens::SETTINGS,       &settings_screen},
-        //{Screens::DEV_MENU,       &dev_screen},
         //{Screens::DAN_SELECT,     &dan_select_screen},
         //{Screens::GAME_DAN,       &game_screen_dan},
         //{Screens::DAN_RESULT,     &dan_result_screen},
-        //{Screens::LOADING,        &load_screen},
+        {Screens::LOADING,        load_screen.get()},
     };
 
     ray::Camera2D camera = ray::Camera2D();
