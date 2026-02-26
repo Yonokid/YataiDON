@@ -227,7 +227,12 @@ if(WIN32)
             INTERFACE_INCLUDE_DIRECTORIES "${FFMPEG_INCLUDE_DIR}"
         )
     endforeach()
-
+else()
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(AVFORMAT REQUIRED libavformat)
+    pkg_check_modules(AVCODEC  REQUIRED libavcodec)
+    pkg_check_modules(AVUTIL   REQUIRED libavutil)
+    pkg_check_modules(SWSCALE  REQUIRED libswscale)
 endif()
 
 file(GLOB_RECURSE FFMPEG_LIBS "${ffmpeg_prebuilt_SOURCE_DIR}/*.a")
