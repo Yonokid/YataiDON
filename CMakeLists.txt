@@ -216,25 +216,18 @@ if(WIN32)
     set(FFMPEG_LIB_DIR     "${ffmpeg_prebuilt_SOURCE_DIR}/lib")
 
     foreach(_lib avformat avcodec avutil swscale)
-        set(_libfile "${FFMPEG_LIB_DIR}/${_lib}.lib")
+        set(_libfile "${FFMPEG_LIB_DIR}/lib${_lib}.dll.a")
         if(NOT EXISTS "${_libfile}")
             message(FATAL_ERROR "FFmpeg lib not found: ${_libfile}")
         endif()
         add_library(FFmpeg::${_lib} SHARED IMPORTED)
         set_target_properties(FFmpeg::${_lib} PROPERTIES
-            IMPORTED_LOCATION             "${FFMPEG_LIB_DIR}/${_lib}.dll"
+            IMPORTED_LOCATION             "${FFMPEG_LIB_DIR}/../bin/${_lib}.dll"
             IMPORTED_IMPLIB               "${_libfile}"
             INTERFACE_INCLUDE_DIRECTORIES "${FFMPEG_INCLUDE_DIR}"
         )
     endforeach()
 
-    foreach(_lib avformat avcodec avutil swscale)
-        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "${FFMPEG_LIB_DIR}/../bin/${_lib}.dll"
-                "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
-        )
-    endforeach()
 endif()
 
 file(GLOB_RECURSE FFMPEG_LIBS "${ffmpeg_prebuilt_SOURCE_DIR}/*.a")
@@ -285,6 +278,16 @@ file(GLOB_RECURSE HeaderFiles
 message(STATUS "C++ files found: ${CppFiles}")
 
 add_executable(${PROJECT_NAME} ${CppFiles} ${HeaderFiles})
+
+if(WIN32)
+    foreach(_lib avformat avcodec avutil swscale)
+        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${FFMPEG_LIB_DIR}/../bin/${_lib}.dll"
+                "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
+        )
+    endforeach()
+endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/include
