@@ -139,6 +139,7 @@ std::optional<Screens> GameScreen::global_keys() {
         if (song_music.has_value()) {
             audio->stop_music_stream(song_music.value());
         }
+        players.clear();
         init_tja(global_data.session_data[(int)global_data.player_num].selected_song);
         audio->play_sound("restart", "sound");
         song_started = false;

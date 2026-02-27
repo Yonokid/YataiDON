@@ -236,6 +236,9 @@ void Player::update(double ms_from_start, double current_ms, std::optional<Backg
     }
     if (fireworks.has_value()) {
         fireworks->update(current_ms);
+        if (fireworks->is_finished()) {
+            fireworks.reset();
+        }
     }
     if (lane_hit_effect.has_value()) {
         lane_hit_effect->update(current_ms);
@@ -564,7 +567,6 @@ void Player::handle_gogotime(double ms_from_start, const TimelineObject& timelin
         //self.chara.set_animation('gogo_start')
     } else {
         gogo_time.reset();
-        fireworks.reset();
         //self.chara.set_animation('gogo_stop')
     }
 

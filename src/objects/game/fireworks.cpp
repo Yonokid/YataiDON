@@ -17,3 +17,7 @@ void Fireworks::draw() {
         }
     }
 }
+
+bool Fireworks::is_finished() {
+    return explosion_anim->is_finished;
+}
