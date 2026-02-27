@@ -98,7 +98,7 @@ void GameScreen::init_tja(fs::path song) {
         song_music = audio->load_music_stream(parser->metadata.wave, "song");
     }
 
-    player_1.emplace(parser, global_data.player_num, global_data.session_data[(int)global_data.player_num].selected_difficulty, false, global_data.modifiers[(int)global_data.player_num]);
+    players.push_back(new Player(parser, global_data.player_num, global_data.session_data[(int)global_data.player_num].selected_difficulty, false, global_data.modifiers[(int)global_data.player_num]));
     start_ms = get_current_ms() - parser->metadata.offset*1000;
 }
 
@@ -162,7 +162,7 @@ void GameScreen::update_background(double current_time) {
     if (movie.has_value()) {
         movie->update(current_time);
     } else {
-        bpm = player_1->bpm;
+        bpm = players[0]->bpm;
         if (background.has_value()) background->update(current_time, bpm);
     }
 }
@@ -182,8 +182,8 @@ std::optional<Screens> GameScreen::update() {
     }
     update_background(current_time);
 
-    if (player_1.has_value()) {
-        player_1->update(current_ms, current_time, background);
+    for (Player* player : players) {
+        player->update(current_ms, current_time, background);
     }
     song_info.update(current_time);
     result_transition.update(current_time);
@@ -191,8 +191,8 @@ std::optional<Screens> GameScreen::update() {
         spdlog::info("Result transition finished, moving to RESULT screen");
         return on_screen_end(Screens::RESULT);
     }
-    else if (current_ms >= player_1->end_time) {
-        global_data.session_data[(int)global_data.player_num].result_data = player_1->get_result_score();
+    else if (current_ms >= players[0]->end_time) {
+        global_data.session_data[(int)global_data.player_num].result_data = players[0]->get_result_score();
         if (end_ms != 0) {
             if (current_time >= end_ms + 1000) {
                 /*if self.player_1.ending_anim is None:
@@ -225,15 +225,28 @@ void GameScreen::draw_overlay() {
     allnet_indicator.draw();
 }
 
+void GameScreen::draw_players() {
+    if (players.size() == 1) {
+        players[0]->draw(current_ms, 0, 184, mask_shader);
+    } else if (players.size() == 2) {
+        players[0]->draw(current_ms, 0, 184, mask_shader);
+        players[1]->draw(current_ms, 0, 360, mask_shader);
+    } else {
+        float gap = ((float)tex.screen_height - (players.size() * 176)) / (players.size() + 1);
+        for (int i = 0; i < players.size(); i++) {
+            float position = gap + i * (176 + gap);
+            players[i]->draw(current_ms, 0, position, mask_shader);
+        }
+    }
+}
+
 void GameScreen::draw() {
     if (movie.has_value()) {
         movie->draw();
     } else if (background.has_value()) {
         background->draw_back();
     }
-    if (player_1.has_value()) {
-        player_1->draw(current_ms, 0, 184, mask_shader);
-    }
+    draw_players();
     if (background.has_value()) background->draw_fore();
     draw_overlay();
 }

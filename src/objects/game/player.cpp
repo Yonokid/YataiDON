@@ -344,7 +344,7 @@ void Player::draw(double ms_from_start, float x, float y, ray::Shader& mask_shad
         anim.draw(judge_x, y + judge_y);
     }
 
-    draw_notes(ms_from_start);
+    draw_notes(ms_from_start, y);
     /*if (dan_transition.has_value()) {
         dan_transition->draw();
     }*/
@@ -1057,10 +1057,10 @@ void Player::handle_input(double ms_from_start, double current_ms, std::optional
     }
 }
 
-void Player::draw_bar(double current_ms, const Note& bar) {
+void Player::draw_bar(double current_ms, float y, const Note& bar) {
     if (!bar.display) return;
     float x_position = get_position_x(bar, current_ms) + judge_x;
-    float y_position = get_position_y(bar, current_ms) + judge_y;
+    float y_position = get_position_y(bar, current_ms) + judge_y + y;
     float angle;
     if (y_position != 0) {
         angle = std::atan2(bar.scroll_y, bar.scroll_x) * 180.0 / PI;
@@ -1070,7 +1070,7 @@ void Player::draw_bar(double current_ms, const Note& bar) {
     tex.draw_texture("notes", "0", {.frame=bar.is_branch_start, .x=x_position+tex.skin_config["moji_drumroll"].x - (tex.textures["notes"]["9"]->width/2.0f), .y=y_position+tex.skin_config["moji_drumroll"].y, .rotation=angle});
 }
 
-void Player::draw_drumroll(double current_ms, const Note& head, int current_eighth) {
+void Player::draw_drumroll(double current_ms, float y, const Note& head, int current_eighth) {
     if (head.sudden_appear_ms.has_value() && head.sudden_moving_ms.has_value()) {
         double appear_ms = head.hit_ms - head.sudden_appear_ms.value();
         double moving_start_ms = head.hit_ms - head.sudden_moving_ms.value();
@@ -1090,10 +1090,10 @@ void Player::draw_drumroll(double current_ms, const Note& head, int current_eigh
     float end_position = get_position_x(tail, current_ms);
     float length = end_position - start_position;
     ray::Color color = ray::Color{255, (unsigned char)head.color.value(), (unsigned char)head.color.value(), 255};
-    float y_pos = tex.skin_config["notes"].y + get_position_y(head, current_ms) + judge_y;
+    float y_pos = y + tex.skin_config["notes"].y + get_position_y(head, current_ms) + judge_y;
     start_position += judge_x;
     end_position += judge_x;
-    float moji_y = tex.skin_config["moji"].y;
+    float moji_y = y + tex.skin_config["moji"].y;
     if (head.display) {
         tex.draw_texture("notes", "8", {.color=color, .frame=is_big, .x=start_position, .y=y_pos, .x2=length+tex.skin_config["drumroll_width_offset"].width});
         if (is_big) {
@@ -1109,7 +1109,7 @@ void Player::draw_drumroll(double current_ms, const Note& head, int current_eigh
     tex.draw_texture("notes", "moji", {.frame=tail.moji, .x=end_position - (tex.textures["notes"]["moji"]->width/2.0f), .y=moji_y+judge_y});
 }
 
-void Player::draw_balloon(double current_ms, const Note& head, int current_eighth) {
+void Player::draw_balloon(double current_ms, float y, const Note& head, int current_eighth) {
     float offset = tex.skin_config["balloon_offset"].x;
     if (head.sudden_appear_ms.has_value() && head.sudden_moving_ms.has_value()) {
         double appear_ms = head.hit_ms - head.sudden_appear_ms.value();
@@ -1128,8 +1128,8 @@ void Player::draw_balloon(double current_ms, const Note& head, int current_eight
     auto& tail = (it != draw_note_buffer.end()) ? *it : draw_note_buffer[1];
     float end_position = get_position_x(tail, current_ms);
     float pause_position = JudgePos::X + judge_x;
-    float y_pos = tex.skin_config["notes"].y + get_position_y(head, current_ms) + judge_y;
-    float moji_y = tex.skin_config["moji"].y + get_position_y(head, current_ms) + judge_y;
+    float y_pos = y + tex.skin_config["notes"].y + get_position_y(head, current_ms) + judge_y;
+    float moji_y = y + tex.skin_config["moji"].y + get_position_y(head, current_ms) + judge_y;
     start_position += judge_x;
     end_position += judge_x;
     float position;
@@ -1147,7 +1147,7 @@ void Player::draw_balloon(double current_ms, const Note& head, int current_eight
     tex.draw_texture("notes", "moji", {.frame=head.moji, .x=position - (tex.textures["notes"]["moji"]->width/2.0f), .y=moji_y});
 }
 
-void Player::draw_notes(double current_ms) {
+void Player::draw_notes(double current_ms, float y) {
     if (draw_note_buffer.empty()) return;
 
     double eighth_in_ms = (bpm == 0) ? 0 : (60000.0 * 4.0 / bpm) / 8.0;
@@ -1157,7 +1157,7 @@ void Player::draw_notes(double current_ms) {
         auto& note = *it;
 
         if (note.type == NoteType::BARLINE) {
-            draw_bar(current_ms, note);
+            draw_bar(current_ms, y, note);
         }
     }
 
@@ -1203,12 +1203,12 @@ void Player::draw_notes(double current_ms) {
         }
 
         x_position += judge_x;
-        y_position += judge_y;
+        y_position += judge_y + y;
 
         if (note.color.has_value()) {
-            draw_drumroll(current_ms, note, current_eighth);
+            draw_drumroll(current_ms, y, note, current_eighth);
         } else if (note.type == NoteType::BALLOON_HEAD) {
-            draw_balloon(current_ms, note, current_eighth);
+            draw_balloon(current_ms, y, note, current_eighth);
         } else {
             if (note.display) tex.draw_texture("notes", std::to_string((int)note.type), {.frame=current_eighth % 2, .center=true, .x=x_position - (tex.textures["notes"]["9"]->width/2.0f), .y=y_position+tex.skin_config["notes"].y});
             tex.draw_texture("notes", "moji", {.frame=note.moji, .x=x_position - (tex.textures["notes"]["moji"]->width/2.0f), .y=tex.skin_config["moji"].y + y_position});
@@ -1282,11 +1282,7 @@ void Player::draw_overlays(float y, const ray::Shader& mask_shader) {
     if (modifiers.auto_play) {
         tex.draw_texture("lane", "auto_icon", {.y=y});
     } else {
-        if (!is_2p) {
-            nameplate.draw(tex.skin_config["game_nameplate_2p"].x, y + tex.skin_config["game_nameplate_2p"].y);
-        } else {
-            nameplate.draw(tex.skin_config["game_nameplate_1p"].x, y + tex.skin_config["game_nameplate_1p"].y);
-        }
+        nameplate.draw(tex.skin_config["game_nameplate_1p"].x, y + tex.skin_config["game_nameplate_1p"].y);
     }
     draw_modifiers(y);
     //self.chara.draw(y=(self.is_2p*tex.skin_config["game_2p_offset"].y))

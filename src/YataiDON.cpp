@@ -10,7 +10,7 @@
 #include "libs/input.h"
 #include "libs/audio.h"
 #include "libs/logging.h"
-#include "objects/fps_counter.h"
+#include "objects/global/fps_counter.h"
 
 #include "scenes/game.h"
 #include "scenes/result.h"

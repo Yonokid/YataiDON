@@ -27,7 +27,7 @@
 
 namespace JudgePos {
     inline float X = 414 * tex.screen_scale;
-    inline float Y = 256 * tex.screen_scale; //y is relative sorry
+    inline float Y = 256 * tex.screen_scale;
 }
 
 namespace Timing {
@@ -185,13 +185,13 @@ private:
 
     void handle_input(double ms_from_start, double current_ms, std::optional<Background>& background);
 
-    void draw_bar(double current_ms, const Note& bar);
+    void draw_bar(double current_ms, float y, const Note& bar);
 
-    void draw_drumroll(double current_ms, const Note& head, int current_eighth);
+    void draw_drumroll(double current_ms, float y, const Note& head, int current_eighth);
 
-    void draw_balloon(double current_ms, const Note& head, int current_eighth);
+    void draw_balloon(double current_ms, float y, const Note& head, int current_eighth);
 
-    void draw_notes(double current_ms);
+    void draw_notes(double current_ms, float y);
 
     void draw_modifiers(float y);
 

@@ -27,7 +27,7 @@ private:
     std::optional<std::string> song_music;
     std::optional<TJAParser> parser;
     std::string scene_preset;
-    std::optional<Player> player_1;
+    std::vector<Player*> players;
     SongInfo song_info;
     Transition transition;
     ResultTransition result_transition;
@@ -61,6 +61,8 @@ public:
     void update_background(double current_time);
 
     std::optional<Screens> update() override;
+
+    void draw_players();
 
     void draw_overlay();
 
