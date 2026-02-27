@@ -8,15 +8,14 @@ class DrumHitEffect {
 private:
     DrumType type;
     Side side;
-    bool is_2p;
     FadeAnimation* fade;
 
 public:
-    DrumHitEffect(DrumType type, Side side, bool is_2p);
+    DrumHitEffect(DrumType type, Side side);
 
     void update(double current_ms);
 
-    void draw();
+    void draw(float y);
 
     bool is_finished() const;
 

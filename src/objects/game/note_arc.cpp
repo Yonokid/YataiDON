@@ -11,9 +11,9 @@ NoteArc::NoteArc(NoteType note_type, double current_ms, PlayerNum player_num, bo
 
     float curve_height = 425 * tex.screen_scale;
     this->start_x = start_x + (350 * tex.screen_scale);
-    this->start_y = start_y + (192 * tex.screen_scale);
+    this->start_y = start_y + (8 * tex.screen_scale);
     end_x = 1158 * tex.screen_scale;
-    end_y = 101 * tex.screen_scale;
+    end_y = -83 * tex.screen_scale;
 
     if (player_num == PlayerNum::P2) {
         this->start_y += (176 * tex.screen_scale);
@@ -76,7 +76,7 @@ void NoteArc::update(double current_ms) {
     }
 }
 
-void NoteArc::draw(ray::Shader mask_shader) {
+void NoteArc::draw(float y, ray::Shader mask_shader) {
     if (is_balloon) {
         std::shared_ptr<TextureObject> rainbow = tex.textures["balloon"]["rainbow"];
         float rainbow_height;
@@ -97,21 +97,21 @@ void NoteArc::draw(ray::Shader mask_shader) {
             if (crop_width > 0) {
                 ray::Rectangle src = {crop_start_x, 0, crop_width, rainbow_height};
                 std::string mirror;
-                float y;
+                float y_pos;
                 if (player_num == PlayerNum::P2) {
                     mirror = "vertical";
-                    y = (435 * tex.screen_scale);
+                    y_pos = (435 * tex.screen_scale);
                 } else {
                     mirror = "";
-                    y = 0;
+                    y_pos = 0;
                 }
                 ray::BeginShaderMode(mask_shader);
-                tex.draw_texture("balloon", "rainbow_mask", {.mirror=mirror, .x=crop_start_x, .y=y, .x2=-rainbow->width + crop_width, .src=src});
+                tex.draw_texture("balloon", "rainbow_mask", {.mirror=mirror, .x=crop_start_x, .y=y + y_pos, .x2=-rainbow->width + crop_width, .src=src});
                 ray::EndShaderMode();
             }
         }
     }
-    tex.draw_texture("notes", std::to_string((int)note_type), {.x=x_i, .y=y_i});
+    tex.draw_texture("notes", std::to_string((int)note_type), {.x=x_i, .y=y + y_i});
 }
 
 bool NoteArc::is_finished() const {

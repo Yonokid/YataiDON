@@ -58,7 +58,7 @@ public:
 
     void update(double current_ms);
 
-    void draw(ray::Shader mask_shader);
+    void draw(float y, ray::Shader mask_shader);
 
     bool is_finished() const;
 };

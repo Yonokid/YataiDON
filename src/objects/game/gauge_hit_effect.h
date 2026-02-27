@@ -6,7 +6,6 @@
 
 class GaugeHitEffect {
 private:
-    bool is_2p;
     NoteType note_type;
     bool is_big;
     TextureChangeAnimation* texture_change;
@@ -26,11 +25,11 @@ private:
     float rotation_angle;
 
 public:
-    GaugeHitEffect(NoteType note_type, bool big, bool is_2p);
+    GaugeHitEffect(NoteType note_type, bool big);
 
     void update(double current_ms);
 
-    void draw();
+    void draw(float y);
 
     bool is_finished() const;
 };

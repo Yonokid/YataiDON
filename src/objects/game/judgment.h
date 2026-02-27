@@ -6,7 +6,6 @@
 
 class Judgment {
 private:
-    bool is_2p;
     Judgments type;
     bool big;
 
@@ -16,7 +15,7 @@ private:
     TextureChangeAnimation* texture_animation;
 
 public:
-    Judgment(Judgments type, bool big, bool is_2p);
+    Judgment(Judgments type, bool big);
 
     void update(double current_ms);
 

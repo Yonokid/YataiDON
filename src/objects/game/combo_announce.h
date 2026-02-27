@@ -8,7 +8,6 @@
 class ComboAnnounce {
 private:
     PlayerNum player_num;
-    bool is_2p;
     int combo;
     double wait;
     FadeAnimation* fade;
@@ -17,8 +16,8 @@ private:
 public:
     bool is_finished;
 
-    ComboAnnounce(int combo, double current_ms, PlayerNum player_num, bool is_2p);
+    ComboAnnounce(int combo, double current_ms, PlayerNum player_num);
 
     void update(double current_ms);
-    void draw();
+    void draw(float y);
 };

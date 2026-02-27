@@ -9,7 +9,6 @@
 
 class Gauge {
 private:
-    bool is_2p;
     PlayerNum player_num;
     std::string string_diff;
     float previous_length;
@@ -36,13 +35,13 @@ private:
 
 public:
     float gauge_length;
-    Gauge(PlayerNum player_num, int difficulty, int level, int total_notes, bool is_2p);
+    Gauge(PlayerNum player_num, int difficulty, int level, int total_notes);
 
     void add_good();
     void add_ok();
     void add_bad();
     void update(double current_ms);
-    void draw();
+    void draw(float y);
 
     bool get_is_clear() const { return is_clear; }
     bool get_is_rainbow() const { return is_rainbow; }

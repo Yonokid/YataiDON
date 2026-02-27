@@ -372,31 +372,6 @@ void TextureWrapper::load_screen_textures(const std::string& screen_name) {
     ray::TraceLog(ray::LOG_INFO, "Screen textures loaded for: %s", screen_name.c_str());
 }
 
-void TextureWrapper::control(TextureObject* tex_obj, int index) {
-    int distance = ray::IsKeyDown(ray::KEY_LEFT_SHIFT) ? 10 : 1;
-
-    if (ray::IsKeyPressed(ray::KEY_LEFT)) {
-        tex_obj->x[index] -= distance;
-        //TraceLog(LOG_INFO, "%s: %d, %d", tex_obj->name.c_str(),
-               //tex_obj->x[index], tex_obj->y[index]);
-    }
-    if (ray::IsKeyPressed(ray::KEY_RIGHT)) {
-        tex_obj->x[index] += distance;
-        //TraceLog(LOG_INFO, "%s: %d, %d", tex_obj->name.c_str(),
-               //tex_obj->x[index], tex_obj->y[index]);
-    }
-    if (ray::IsKeyPressed(ray::KEY_UP)) {
-        tex_obj->y[index] -= distance;
-        //TraceLog(LOG_INFO, "%s: %d, %d", tex_obj->name.c_str(),
-               //tex_obj->x[index], tex_obj->y[index]);
-    }
-    if (ray::IsKeyPressed(ray::KEY_DOWN)) {
-        tex_obj->y[index] += distance;
-        //TraceLog(LOG_INFO, "%s: %d, %d", tex_obj->name.c_str(),
-               //tex_obj->x[index], tex_obj->y[index]);
-    }
-}
-
 void TextureWrapper::clear_screen(const ray::Color& color) {
     ray::ClearBackground(color);
 }
@@ -470,10 +445,6 @@ void TextureWrapper::draw_texture(const std::string& subset, const std::string& 
             DrawTexturePro(single->texture, source_rect, dest_rect,
                          params.origin, params.rotation, final_color);
         }
-    }
-
-    if (tex_obj->controllable[params.index] || params.controllable) {
-        control(tex_obj, params.index);
     }
 }
 

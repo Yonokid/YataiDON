@@ -20,7 +20,6 @@ struct DrawTextureParams {
     double fade = 1.1f;
     int index = 0;
     std::optional<ray::Rectangle> src = std::nullopt;
-    bool controllable = false;
 };
 
 struct SkinInfo {
@@ -45,13 +44,9 @@ struct TextureObject {
     std::vector<int> y;
     std::vector<int> x2;
     std::vector<int> y2;
-    std::vector<bool> controllable;
     std::optional<std::vector<ray::Rectangle>> crop_data;
-
     TextureObject(const std::string& name, int width, int height)
-        : name(name), width(width), height(height),
-          x{0}, y{0}, x2{width}, y2{height}, controllable{false} {}
-
+        : name(name), width(width), height(height), x{0}, y{0}, x2{width}, y2{height} {}
     virtual ~TextureObject() = default;
 };
 

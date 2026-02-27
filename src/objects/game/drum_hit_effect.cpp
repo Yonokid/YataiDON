@@ -1,7 +1,7 @@
 #include "drum_hit_effect.h"
 
-DrumHitEffect::DrumHitEffect(DrumType type, Side side, bool is_2p)
-            : type(type), side(side), is_2p(is_2p) {
+DrumHitEffect::DrumHitEffect(DrumType type, Side side)
+            : type(type), side(side) {
     fade = (FadeAnimation*)tex.get_animation(1, true);
     fade->start();
 }
@@ -10,18 +10,18 @@ void DrumHitEffect::update(double current_ms) {
     fade->update(current_ms);
 }
 
-void DrumHitEffect::draw() {
+void DrumHitEffect::draw(float y) {
     if (type == DrumType::DON) {
         if (side == Side::LEFT) {
-            tex.draw_texture("lane", "drum_don_l", {.fade=fade->attribute, .index=is_2p});
+            tex.draw_texture("lane", "drum_don_l", {.y=y, .fade=fade->attribute});
         } else if (side == Side::RIGHT) {
-            tex.draw_texture("lane", "drum_don_r", {.fade=fade->attribute, .index=is_2p});
+            tex.draw_texture("lane", "drum_don_r", {.y=y, .fade=fade->attribute});
         }
     } else if (type == DrumType::KAT) {
         if (side == Side::LEFT) {
-            tex.draw_texture("lane", "drum_kat_l", {.fade=fade->attribute, .index=is_2p});
+            tex.draw_texture("lane", "drum_kat_l", {.y=y, .fade=fade->attribute});
         } else if (side == Side::RIGHT) {
-            tex.draw_texture("lane", "drum_kat_r", {.fade=fade->attribute, .index=is_2p});
+            tex.draw_texture("lane", "drum_kat_r", {.y=y, .fade=fade->attribute});
         }
     }
 }

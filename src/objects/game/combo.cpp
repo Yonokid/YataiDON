@@ -1,7 +1,7 @@
 #include "combo.h"
 
-Combo::Combo(int combo, double current_ms, bool is_2p)
-    : combo(combo), is_2p(is_2p) {
+Combo::Combo(int combo, double current_ms)
+    : combo(combo) {
     stretch = (TextStretchAnimation*)tex.get_animation(5, true);
     color = {ray::Fade(ray::WHITE, 1), ray::Fade(ray::WHITE, 1), ray::Fade(ray::WHITE, 1)};
     glimmer_map[0] = 0;
@@ -51,7 +51,7 @@ void Combo::update(double current_ms, int curr_combo) {
     }
 }
 
-void Combo::draw() {
+void Combo::draw(float y) {
     if (combo < 3) return;
 
     std::string counter = std::to_string(combo);
@@ -60,19 +60,19 @@ void Combo::draw() {
     if (combo < 100) {
         margin = tex.skin_config["combo_margin"].x;
         total_width = counter.length() * margin;
-        tex.draw_texture("combo", "combo", {.index=is_2p});
+        tex.draw_texture("combo", "combo", {.y=y});
         for (int i = 0; i < counter.size(); i++) {
             char digit = counter[i];
-            tex.draw_texture("combo", "counter", {.frame=digit - '0', .x=-(total_width / 2) + (i * margin), .y=(float)-stretch->attribute, .y2=(float)stretch->attribute, .index=is_2p});
+            tex.draw_texture("combo", "counter", {.frame=digit - '0', .x=-(total_width / 2) + (i * margin), .y=y + (float)-stretch->attribute, .y2=(float)stretch->attribute});
         }
 
     } else {
         margin = tex.skin_config["combo_margin"].y;
         total_width = counter.length() * margin;
-        tex.draw_texture("combo", "combo_100", {.index=is_2p});
+        tex.draw_texture("combo", "combo_100", {.y=y});
         for (int i = 0; i < counter.size(); i++) {
             char digit = counter[i];
-            tex.draw_texture("combo", "counter_100", {.frame=digit - '0', .x=-(total_width / 2) + (i * margin), .y=(float)-stretch->attribute, .y2=(float)stretch->attribute, .index=is_2p});
+            tex.draw_texture("combo", "counter_100", {.frame=digit - '0', .x=-(total_width / 2) + (i * margin), .y=y + (float)-stretch->attribute, .y2=(float)stretch->attribute});
         }
         std::vector<std::pair<float, float>> glimmer_positions = {
             {225 * tex.screen_scale, 210 * tex.screen_scale},
@@ -80,9 +80,9 @@ void Combo::draw() {
             {250 * tex.screen_scale, 230 * tex.screen_scale}
         };
         for (size_t j = 0; j < glimmer_positions.size(); j++) {
-            auto [x, y] = glimmer_positions[j];
+            auto [x, y_pos] = glimmer_positions[j];
             for (int i = 0; i < 3; i++) {
-                tex.draw_texture("combo", "gleam", {.color=color[j], .x=x+(i*tex.skin_config["combo_margin"].x), .y=y+glimmer_map[j] + (is_2p*tex.skin_config["2p_offset"].y)});
+                tex.draw_texture("combo", "gleam", {.color=color[j], .x=x+(i*tex.skin_config["combo_margin"].x), .y=y+y_pos+glimmer_map[j]});
             }
         }
     }

@@ -5,13 +5,11 @@
 
 class GogoTime {
 private:
-    bool is_2p;
-    TextureChangeAnimation* explosion_anim;
     TextureResizeAnimation* fire_resize;
     TextureChangeAnimation* fire_change;
 
 public:
-    GogoTime(bool is_2p);
+    GogoTime();
 
     void update(double current_ms);
     void draw(float judge_x, float judge_y);

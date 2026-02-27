@@ -1,7 +1,7 @@
 #include "gauge_hit_effect.h"
 
-GaugeHitEffect::GaugeHitEffect(NoteType note_type, bool is_big, bool is_2p)
-            : note_type(note_type), is_big(is_big), is_2p(is_2p) {
+GaugeHitEffect::GaugeHitEffect(NoteType note_type, bool is_big)
+            : note_type(note_type), is_big(is_big) {
     texture_change = (TextureChangeAnimation*)tex.get_animation(2, true);
     circle_fadein = (FadeAnimation*)tex.get_animation(31, true);
     resize = (TextureResizeAnimation*)tex.get_animation(32, true);
@@ -53,23 +53,22 @@ void GaugeHitEffect::update(double current_ms) {
 
 }
 
-void GaugeHitEffect::draw() {
+void GaugeHitEffect::draw(float y) {
     //Main hit effect texture
     tex.draw_texture("gauge", "hit_effect",
                     {.color=ray::Fade(color, fade_out->attribute),
                     .frame=(int)texture_change->attribute,
                     .center=true,
+                    .y=y,
                     .x2=x2_pos,
                     .y2=y2_pos,
                     .origin=origin,
-                    .rotation=rotation_angle,
-                    .index=is_2p,});
+                    .rotation=rotation_angle});
 
     //Note type texture
     SkinInfo pos_data = tex.skin_config["gauge_hit_effect_note"];
     tex.draw_texture("notes", std::to_string((int)note_type),
-        {.x=pos_data.x, .y=pos_data.y+(is_2p*(pos_data.height)),
-                    .fade=fade_out->attribute});
+        {.x=pos_data.x, .y=y+pos_data.y, .fade=fade_out->attribute});
 
     //Circle effect texture
     ray::Color texture_color;
@@ -79,9 +78,9 @@ void GaugeHitEffect::draw() {
         texture_color = ray::Fade(ray::YELLOW, circle_fadein->attribute);
     }
     if (is_big) {
-        tex.draw_texture("gauge", "hit_effect_circle_big", {.color=texture_color, .index=is_2p});
+        tex.draw_texture("gauge", "hit_effect_circle_big", {.color=texture_color, .y=y});
     } else {
-        tex.draw_texture("gauge", "hit_effect_circle", {.color=texture_color, .index=is_2p});
+        tex.draw_texture("gauge", "hit_effect_circle", {.color=texture_color, .y=y});
     }
 }
 

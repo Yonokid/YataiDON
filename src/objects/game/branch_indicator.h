@@ -6,7 +6,6 @@
 
 class BranchIndicator {
 private:
-    bool is_2p;
     BranchDifficulty diff_2;
     MoveAnimation* diff_down;
     MoveAnimation* diff_up;
@@ -17,10 +16,10 @@ private:
 
 public:
     BranchDifficulty difficulty;
-    BranchIndicator(bool is_2p);
+    BranchIndicator();
 
     void update(double current_ms);
     void level_up(BranchDifficulty difficulty);
     void level_down(BranchDifficulty difficulty);
-    void draw();
+    void draw(float y);
 };

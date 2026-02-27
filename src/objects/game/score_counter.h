@@ -5,15 +5,14 @@
 
 class ScoreCounter {
 private:
-    bool is_2p;
     int score;
     TextStretchAnimation* stretch;
 
     void update_count(int score);
 
 public:
-    ScoreCounter(bool is_2p, int score);
+    ScoreCounter(int score);
     void update(double current_ms, int score);
-    void draw();
+    void draw(float y);
 
 };

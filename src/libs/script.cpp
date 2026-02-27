@@ -327,7 +327,6 @@ void ScriptManager::register_lua_bindings() {
             params.rotation = t["rotation"].get_or(params.rotation);
             params.fade = t["fade"].get_or(params.fade);
             params.index = t["index"].get_or(params.index);
-            params.controllable = t["controllable"].get_or(params.controllable);
 
             // mirror (string)
             sol::optional<std::string> mirror = t["mirror"];

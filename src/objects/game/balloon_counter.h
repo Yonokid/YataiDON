@@ -5,21 +5,19 @@
 
 class BalloonCounter {
 private:
-    PlayerNum player_num;
-    bool is_2p;
     int balloon_count;
     int balloon_total;
     bool is_popped;
     TextStretchAnimation* stretch;
     FadeAnimation* fade;
 public:
-    BalloonCounter(int count, PlayerNum player_num, bool is_2p);
+    BalloonCounter(int count);
 
     void update_count(int count);
 
     void update(double current_ms, int count);
 
-    void draw();
+    void draw(float y);
 
     bool is_finished() const;
 };

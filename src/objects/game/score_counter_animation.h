@@ -7,7 +7,6 @@
 
 class ScoreCounterAnimation {
 private:
-    bool is_2p;
     int counter;
     int direction;
     FadeAnimation* fade_animation_1;
@@ -24,10 +23,10 @@ private:
     std::vector<float> y_pos_list;
 
 public:
-    ScoreCounterAnimation(PlayerNum player_num, int counter, bool is_2p);
+    ScoreCounterAnimation(PlayerNum player_num, int counter);
 
     void update(double current_ms);
-    void draw();
+    void draw(float y);
 
     bool is_finished() const;
 };

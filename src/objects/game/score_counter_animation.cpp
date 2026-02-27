@@ -1,10 +1,7 @@
 #include "score_counter_animation.h"
 
-ScoreCounterAnimation::ScoreCounterAnimation(PlayerNum player_num, int counter, bool is_2p)
-    : is_2p(is_2p), counter(counter) {
-
-    direction = is_2p ? -1 : 1;
-
+ScoreCounterAnimation::ScoreCounterAnimation(PlayerNum player_num, int counter) : counter(counter) {
+    direction = 1;
     counter_str = std::to_string(counter);
     margin = tex.skin_config["score_counter_margin"].x;
     total_width = counter_str.length() * margin;
@@ -49,7 +46,7 @@ void ScoreCounterAnimation::update(double current_ms) {
     }
 }
 
-void ScoreCounterAnimation::draw() {
+void ScoreCounterAnimation::draw(float y) {
     float x = move_animation_1->is_finished ? move_animation_2->attribute : move_animation_1->attribute;
     if (x == 0) {
         return;
@@ -58,22 +55,22 @@ void ScoreCounterAnimation::draw() {
     float start_x = x - total_width;
 
     for (int i = 0; i < counter_str.length(); i++) {
-        float y;
+        float y_pos;
         if (move_animation_3->is_finished) {
-            y = y_pos_list[i];
+            y_pos = y_pos_list[i];
         } else if (move_animation_2->is_finished) {
-            y = move_animation_3->attribute;
+            y_pos = move_animation_3->attribute;
         } else {
-            y = 148 * tex.screen_scale;
+            y_pos = 148 * tex.screen_scale;
         }
 
-        float y_offset = y * direction;
+        float y_offset = (y_pos * direction) + y;
 
         tex.draw_texture("lane", "score_number", {
             .color = color,
             .frame = counter_str[i] - '0',
             .x = start_x + (i * margin),
-            .y = y_offset + (is_2p * 680 * tex.screen_scale)
+            .y = y_offset
         });
     }
 }

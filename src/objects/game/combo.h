@@ -6,7 +6,6 @@
 class Combo {
 private:
     int combo;
-    bool is_2p;
     TextStretchAnimation* stretch;
     std::vector<ray::Color> color;
     std::unordered_map<int, int> glimmer_map;
@@ -17,9 +16,9 @@ private:
     void update_count(int combo);
 public:
     Combo() = default;
-    Combo(int combo, double current_ms, bool is_2p);
+    Combo(int combo, double current_ms);
 
     void update(double current_ms, int curr_combo);
 
-    void draw();
+    void draw(float y);
 };

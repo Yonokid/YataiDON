@@ -1,7 +1,7 @@
 #include "combo_announce.h"
 
-ComboAnnounce::ComboAnnounce(int combo, double current_ms, PlayerNum player_num, bool is_2p)
-    : combo(combo), wait(current_ms), player_num(player_num), is_2p(is_2p),
+ComboAnnounce::ComboAnnounce(int combo, double current_ms, PlayerNum player_num)
+    : combo(combo), wait(current_ms), player_num(player_num),
       is_finished(false), audio_played(false) {
 
     fade = (FadeAnimation*)tex.get_animation(65);
@@ -23,7 +23,7 @@ void ComboAnnounce::update(double current_ms) {
     }
 }
 
-void ComboAnnounce::draw() {
+void ComboAnnounce::draw(float y) {
     if (combo == 0) {
         return;
     }
@@ -31,10 +31,7 @@ void ComboAnnounce::draw() {
     float fade_value = is_finished ? fade->attribute : 1 - fade->attribute;
 
     std::string bg_name = "announce_bg_" + std::to_string(static_cast<int>(player_num)) + "p";
-    tex.draw_texture("combo", bg_name, {
-        .fade = fade_value,
-        .index = (int)is_2p
-    });
+    tex.draw_texture("combo", bg_name, {.y=y, .fade = fade_value,});
 
     if (combo >= 1000) {
         int thousands = combo / 1000;
@@ -43,53 +40,20 @@ void ComboAnnounce::draw() {
         float hundreds_offset = 20;
 
         if (combo % 1000 == 0) {
-            tex.draw_texture("combo", "announce_number", {
-                .frame = thousands - 1,
-                .x = -23 * tex.screen_scale,
-                .fade = fade_value,
-                .index = (int)is_2p
-            });
-            tex.draw_texture("combo", "announce_add", {
-                .frame = 0,
-                .x = 435 * tex.screen_scale,
-                .fade = fade_value,
-                .index = (int)is_2p
-            });
+            tex.draw_texture("combo", "announce_number", {.frame = thousands - 1, .x = -23 * tex.screen_scale, .y = y, .fade = fade_value});
+            tex.draw_texture("combo", "announce_add", {.frame = 0, .x = 435 * tex.screen_scale, .y = y, .fade = fade_value});
         } else {
             if (thousands <= 5) {
-                tex.draw_texture("combo", "announce_add", {
-                    .frame = thousands,
-                    .x = 429 * tex.screen_scale + thousands_offset,
-                    .fade = fade_value,
-                    .index = (int)is_2p
-                });
+                tex.draw_texture("combo", "announce_add", {.frame = thousands, .x = 429 * tex.screen_scale + thousands_offset, .y = y, .fade = fade_value});
             }
             if (remaining_hundreds > 0) {
-                tex.draw_texture("combo", "announce_number", {
-                    .frame = remaining_hundreds - 1,
-                    .x = hundreds_offset,
-                    .fade = fade_value,
-                    .index = (int)is_2p
-                });
+                tex.draw_texture("combo", "announce_number", {.frame = remaining_hundreds - 1, .x = hundreds_offset, .y = y, .fade = fade_value});
             }
         }
         float text_offset = -30 * tex.screen_scale;
-        tex.draw_texture("combo", "announce_text", {
-            .x = -text_offset / 2,
-            .fade = fade_value,
-            .index = (int)is_2p
-        });
+        tex.draw_texture("combo", "announce_text", {.x = -text_offset / 2, .y = y, .fade = fade_value});
     } else {
-        tex.draw_texture("combo", "announce_number", {
-            .frame = combo / 100 - 1,
-            .x = 0,
-            .fade = fade_value,
-            .index = (int)is_2p
-        });
-        tex.draw_texture("combo", "announce_text", {
-            .x = 0,
-            .fade = fade_value,
-            .index = (int)is_2p
-        });
+        tex.draw_texture("combo", "announce_number", {.frame = combo / 100 - 1, .x = 0, .y = y, .fade = fade_value});
+        tex.draw_texture("combo", "announce_text", {.x = 0, .y = y, .fade = fade_value});
     }
 }

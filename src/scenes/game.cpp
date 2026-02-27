@@ -232,7 +232,7 @@ void GameScreen::draw() {
         background->draw_back();
     }
     if (player_1.has_value()) {
-        player_1->draw(current_ms, mask_shader);
+        player_1->draw(current_ms, 0, 184, mask_shader);
     }
     if (background.has_value()) background->draw_fore();
     draw_overlay();

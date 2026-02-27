@@ -11,6 +11,7 @@
 #include "combo_announce.h"
 #include "gauge.h"
 #include "gogo_time.h"
+#include "fireworks.h"
 #include "judge_counter.h"
 #include "judgment.h"
 #include "lane_hit_effect.h"
@@ -26,7 +27,7 @@
 
 namespace JudgePos {
     inline float X = 414 * tex.screen_scale;
-    inline float Y = 256 * tex.screen_scale;
+    inline float Y = 256 * tex.screen_scale; //y is relative sorry
 }
 
 namespace Timing {
@@ -50,7 +51,7 @@ public:
 
     void update(double ms_from_start, double current_ms, std::optional<Background>& background);
 
-    void draw(double ms_from_start, ray::Shader& mask_shader);
+    void draw(double ms_from_start, float x, float y, ray::Shader& mask_shader);
 
 private:
     bool is_2p;
@@ -126,6 +127,7 @@ private:
     ScoreCounter score_counter;
     std::vector<ScoreCounterAnimation> base_score_list;
     std::optional<GogoTime> gogo_time;
+    std::optional<Fireworks> fireworks;
     std::optional<double> delay_start;
     std::optional<double> delay_end;
     std::optional<ComboAnnounce> combo_announce;
@@ -191,7 +193,7 @@ private:
 
     void draw_notes(double current_ms);
 
-    void draw_modifiers();
+    void draw_modifiers(float y);
 
-    void draw_overlays(const ray::Shader& mask_shader);
+    void draw_overlays(float y, const ray::Shader& mask_shader);
 };
