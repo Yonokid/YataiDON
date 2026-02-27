@@ -74,9 +74,9 @@ void GaugeHitEffect::draw() {
     //Circle effect texture
     ray::Color texture_color;
     if (circle_fadein->is_finished) {
-        texture_color = ray::WHITE;
+        texture_color = ray::Fade(ray::WHITE, circle_fadein->attribute);
     } else {
-        texture_color = ray::YELLOW;
+        texture_color = ray::Fade(ray::YELLOW, circle_fadein->attribute);
     }
     if (is_big) {
         tex.draw_texture("gauge", "hit_effect_circle_big", {.color=texture_color, .index=is_2p});

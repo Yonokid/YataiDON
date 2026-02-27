@@ -171,20 +171,17 @@ void TextureWrapper::read_tex_obj_data(const Value& tex_mapping, TextureObject* 
             int y = mapping.HasMember("y") ? mapping["y"].GetInt() : 0;
             int x2 = mapping.HasMember("x2") ? mapping["x2"].GetInt() : tex_obj->width;
             int y2 = mapping.HasMember("y2") ? mapping["y2"].GetInt() : tex_obj->height;
-            bool ctrl = mapping.HasMember("controllable") && mapping["controllable"].GetBool();
 
             if (i == 0) {
                 tex_obj->x[0] = x;
                 tex_obj->y[0] = y;
                 tex_obj->x2[0] = x2;
                 tex_obj->y2[0] = y2;
-                tex_obj->controllable[0] = ctrl;
             } else {
                 tex_obj->x.push_back(x);
                 tex_obj->y.push_back(y);
                 tex_obj->x2.push_back(x2);
                 tex_obj->y2.push_back(y2);
-                tex_obj->controllable.push_back(ctrl);
             }
 
             // Handle frame_order
@@ -207,11 +204,24 @@ void TextureWrapper::read_tex_obj_data(const Value& tex_mapping, TextureObject* 
             }
         }
     } else if (tex_mapping.IsObject()) {
+        if (tex_mapping.HasMember("crop") && tex_mapping["crop"].IsArray()) {
+            std::vector<ray::Rectangle> crops;
+            for (SizeType j = 0; j < tex_mapping["crop"].Size(); j++) {
+                const Value& crop = tex_mapping["crop"][j];
+                crops.push_back(ray::Rectangle{
+                    crop[0].GetFloat(), crop[1].GetFloat(),
+                    crop[2].GetFloat(), crop[3].GetFloat()
+                });
+            }
+            tex_obj->crop_data = crops;
+            tex_obj->width = static_cast<int>(crops[0].width);
+            tex_obj->height = static_cast<int>(crops[0].height);
+        }
+
         tex_obj->x = {tex_mapping.HasMember("x") ? tex_mapping["x"].GetInt() : 0};
         tex_obj->y = {tex_mapping.HasMember("y") ? tex_mapping["y"].GetInt() : 0};
         tex_obj->x2 = {tex_mapping.HasMember("x2") ? tex_mapping["x2"].GetInt() : tex_obj->width};
         tex_obj->y2 = {tex_mapping.HasMember("y2") ? tex_mapping["y2"].GetInt() : tex_obj->height};
-        tex_obj->controllable = {tex_mapping.HasMember("controllable") && tex_mapping["controllable"].GetBool()};
 
         // Handle frame_order
         if (tex_mapping.HasMember("frame_order") && tex_mapping["frame_order"].IsArray()) {
@@ -224,21 +234,6 @@ void TextureWrapper::read_tex_obj_data(const Value& tex_mapping, TextureObject* 
                 }
                 framed->textures = reordered;
             }
-        }
-
-        // Handle crop
-        if (tex_mapping.HasMember("crop") && tex_mapping["crop"].IsArray()) {
-            std::vector<ray::Rectangle> crops;
-            for (SizeType j = 0; j < tex_mapping["crop"].Size(); j++) {
-                const Value& crop = tex_mapping["crop"][j];
-                crops.push_back(ray::Rectangle{
-                    crop[0].GetFloat(), crop[1].GetFloat(),
-                    crop[2].GetFloat(), crop[3].GetFloat()
-                });
-            }
-            tex_obj->crop_data = crops;
-            tex_obj->x2[0] = static_cast<int>(crops[0].width);
-            tex_obj->y2[0] = static_cast<int>(crops[0].height);
         }
     }
 }

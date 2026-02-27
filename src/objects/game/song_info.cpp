@@ -3,7 +3,7 @@
 SongInfo::SongInfo(const std::string& song_name, int genre)
     : song_name(song_name), genre(genre) {
 
-    song_title = new OutlinedText(song_name, tex.skin_config["song_info"].font_size, ray::WHITE, ray::BLACK, 5);
+    song_title = new OutlinedText(song_name, tex.skin_config["song_info"].font_size, ray::WHITE, ray::BLACK, false, 5);
     song_num = new SongNum(global_data.songs_played + 1);
     fade = (FadeAnimation*)tex.get_animation(3);
 }
@@ -30,7 +30,7 @@ SongNum::SongNum(int song_num) {
     if (pos != std::string::npos) {
         song_format.replace(pos, 3, std::to_string(global_data.songs_played + 1));
     }
-    text = new OutlinedText(song_format, tex.skin_config["song_num"].font_size, ray::WHITE, ray::BLACK);
+    text = new OutlinedText(song_format, tex.skin_config["song_num"].font_size, ray::WHITE, ray::BLACK, false, 5);
     width = text->width;
     height = text->height;
 }

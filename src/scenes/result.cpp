@@ -2,7 +2,7 @@
 
 void ResultScreen::on_screen_start() {
     Screen::on_screen_start();
-    song_info = new OutlinedText(global_data.session_data[(int)global_data.player_num].song_title, tex.skin_config["song_info_result"].font_size, ray::WHITE, ray::BLACK);
+    song_info = new OutlinedText(global_data.session_data[(int)global_data.player_num].song_title, tex.skin_config["song_info_result"].font_size, ray::WHITE, ray::BLACK, false, 5);
     audio->play_sound("bgm", "music");
     fade_out = (FadeAnimation*)tex.get_animation(0);
     fade_in.emplace(global_data.player_num);

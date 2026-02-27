@@ -26,10 +26,14 @@ private:
     float outline_thickness;
     ray::Texture texture;
 
+    void create_horizontal_text(ray::Color color, ray::Color outline_color, float spacing);
+
+    void create_vertical_text(ray::Color color, ray::Color outline_color, float spacing);
+
 public:
     float width;
     float height;
-    OutlinedText(std::string text, int font_size, ray::Color color, ray::Color outline_color, int outline_thickness = 5);
+    OutlinedText(std::string text, int font_size, ray::Color color, ray::Color outline_color, bool is_vertical, int outline_thickness = 5, float spacing = 2.0f);
 
     void draw(const DrawTextureParams& = {});
 };

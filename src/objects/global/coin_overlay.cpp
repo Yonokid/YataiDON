@@ -1,7 +1,7 @@
 #include "coin_overlay.h"
 
 CoinOverlay::CoinOverlay() {
-    free_play = new OutlinedText(global_tex.skin_config["free_play"].text[get_config().general.language], global_tex.skin_config["free_play"].font_size, ray::WHITE, ray::BLACK);
+    free_play = new OutlinedText(global_tex.skin_config["free_play"].text[get_config().general.language], global_tex.skin_config["free_play"].font_size, ray::WHITE, ray::BLACK, false, 4, 5);
 }
 
 void CoinOverlay::update(double current_ms) {
