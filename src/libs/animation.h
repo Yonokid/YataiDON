@@ -16,11 +16,9 @@ inline double get_current_ms() {
 
 class BaseAnimation {
 protected:
-    double duration;
     double delay;
     double delay_saved;
     double start_ms;
-    bool is_reversing;
     bool unlocked;
     bool loop;
     bool lock_input;
@@ -34,8 +32,10 @@ protected:
 
 public:
     double attribute;
+    double duration;
     bool is_finished;
     bool is_started;
+    bool is_reversing;
 
     BaseAnimation(double duration, double delay = 0.0, bool loop = false, bool lock_input = false);
 
@@ -87,7 +87,6 @@ public:
 class MoveAnimation : public BaseAnimation {
 private:
     int total_distance;
-    int start_position;
     int total_distance_saved;
     int start_position_saved;
     std::optional<std::string> ease_in;
@@ -96,6 +95,7 @@ private:
     std::optional<double> reverse_delay_saved;
 
 public:
+    int start_position;
     MoveAnimation(double duration, int total_distance = 0, bool loop = false,
                   bool lock_input = false, int start_position = 0, double delay = 0.0,
                   std::optional<double> reverse_delay = std::nullopt,

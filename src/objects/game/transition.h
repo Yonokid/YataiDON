@@ -1,3 +1,5 @@
+#pragma once
+
 #include "../../libs/texture.h"
 #include "../../libs/text.h"
 
@@ -15,7 +17,6 @@ private:
     FadeAnimation* song_info_fade_out;
 public:
 
-    Transition() = default;
     Transition(const std::string& title, const std::string& subtitle, bool is_second);
     void start();
     void update(double current_ms);

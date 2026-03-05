@@ -2,6 +2,7 @@
 
 #include "../libs/screen.h"
 #include "../objects/global/allnet_indicator.h"
+#include "../objects/song_select/file_navigator/navigator.h"
 
 class LoadingScreen : public Screen {
 private:

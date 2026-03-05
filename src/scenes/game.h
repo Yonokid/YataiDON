@@ -29,7 +29,7 @@ private:
     std::string scene_preset;
     std::vector<Player*> players;
     SongInfo song_info;
-    Transition transition;
+    std::optional<Transition> transition;
     ResultTransition result_transition;
     AllNetIcon allnet_indicator;
 

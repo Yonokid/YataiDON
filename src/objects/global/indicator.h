@@ -19,6 +19,7 @@ private:
     FadeAnimation* blue_arrow_fade;
     OutlinedText* select_text;
 public:
+
     Indicator(State state);
     void update(double current_ms);
     void draw(float x, float y, float fade = 1.0f);

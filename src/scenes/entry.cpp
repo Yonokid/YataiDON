@@ -111,8 +111,7 @@ std::optional<Screens> EntryScreen::update() {
         if (player) player->update(current_time);
     }
     if (box_manager->is_finished()) {
-        on_screen_end(box_manager->selected_box());
-        return std::nullopt;
+        return on_screen_end(box_manager->selected_box());
     }
     for (auto* player : players) {
         if (player && player->is_cloud_animation_finished() &&

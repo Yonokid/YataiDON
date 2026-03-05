@@ -210,7 +210,7 @@ struct TJAEXData {
     bool new_audio = false;
     bool old_audio = false;
     bool limited_time = false;
-    bool new_file = false;
+    bool new_song = false;
 };
 
 struct ParserState {
@@ -259,6 +259,8 @@ enum class Interval {
 class TJAParser {
 public:
     static const std::map<int, std::string> DIFFS;
+
+    TJAParser() = default;
 
     TJAParser(const std::filesystem::path& path, int start_delay = 0);
 
@@ -355,4 +357,4 @@ void modifier_speed(NoteList& notes, float value);
 void modifier_display(NoteList& notes);
 void modifier_inverse(NoteList& notes);
 void modifier_random(NoteList& notes, int value);
-void apply_modifiers( NoteList& notes, const Modifiers& modifiers);
+void apply_modifiers(NoteList& notes, const Modifiers& modifiers);

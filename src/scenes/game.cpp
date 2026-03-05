@@ -38,8 +38,8 @@ void GameScreen::on_screen_start() {
     } else {
         spdlog::info("Movie initialized");
     }
-    transition = Transition(session_data.song_title, session_data.song_subtitle, true);
-    transition.start();
+    transition.emplace(session_data.song_title, session_data.song_subtitle, true);
+    transition->start();
 }
 
 Screens GameScreen::on_screen_end(Screens next_screen) {
@@ -55,6 +55,10 @@ Screens GameScreen::on_screen_end(Screens next_screen) {
         background.reset();
         spdlog::info("Background unloaded");
     }
+    transition.reset();
+    song_music.reset();
+    parser.reset();
+    players.clear();
 
     return Screen::on_screen_end(next_screen);
 }
@@ -172,12 +176,13 @@ std::optional<Screens> GameScreen::update() {
     Screen::update();  // Call parent implementation
 
     volatile double current_time = get_current_ms();
-    transition.update(current_time);
+    transition->update(current_time);
     if (!paused) {
         current_ms = current_time - start_ms;
     }
-    if (transition.is_finished()) {
+    if (transition->is_finished()) {
         start_song(current_ms);
+        global_data.input_locked = 0;
     } else {
         start_ms = current_time - parser->metadata.offset*1000;
     }
@@ -217,8 +222,8 @@ std::optional<Screens> GameScreen::update() {
 
 void GameScreen::draw_overlay() {
     song_info.draw();
-    if (!transition.is_finished()) {
-        transition.draw();
+    if (!transition->is_finished()) {
+        transition->draw();
     }
     if (result_transition.is_started) {
         result_transition.draw();

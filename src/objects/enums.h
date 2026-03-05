@@ -1,7 +1,11 @@
 #pragma once
 
 #include <string>
+#include <set>
 #include <array>
+
+#include "../libs/global_data.h"
+#include "../texture.h"
 
 enum class Screens {
     TITLE,
@@ -52,6 +56,13 @@ enum ResultState {
     RAINBOW = 2,
 };
 
+enum SongSelectState {
+    BROWSING = 0,
+    SONG_SELECTED = 1,
+    DIFF_SORTING = 2,
+    SEARCHING = 3
+};
+
 inline std::string branch_diff_to_string(BranchDifficulty difficulty) {
     static const std::array<std::string, 3> names = {
         "normal",   // 0
@@ -91,4 +102,79 @@ inline std::string screens_to_string(Screens screen) {
     return names[static_cast<int>(screen)];
 }
 
+enum class TextureIndex : int {
+    NONE       = 0,
+    VOCALOID    = 1,
+    DEFAULT     = 2,
+    RECOMMENDED = 3,
+    FAVORITE    = 4,
+    RECENT      = 5
+};
 
+enum class GenreIndex : int {
+    TUTORIAL    = 0,
+    JPOP        = 1,
+    ANIME       = 2,
+    VOCALOID    = 3,
+    CHILDREN    = 4,
+    VARIETY     = 5,
+    CLASSICAL   = 6,
+    GAME        = 7,
+    NAMCO       = 8,
+    DEFAULT     = 9,
+    RECOMMENDED = 10,
+    FAVORITE    = 11,
+    RECENT      = 12,
+    DAN         = 13,
+    DIFFICULTY  = 14
+};
+
+struct ScoreRow {
+    int score    = 0;
+    int good     = 0;
+    int ok       = 0;
+    int bad      = 0;
+    int drumroll = 0;
+    Crown crown  = Crown::NONE;
+};
+
+const std::map<std::string, TextureIndex> TEXTURE_MAP = {
+    {"VOCALOID",    TextureIndex::VOCALOID},
+    {"ボーカロイド", TextureIndex::VOCALOID},
+    {"RECOMMENDED", TextureIndex::RECOMMENDED},
+    {"FAVORITE",    TextureIndex::FAVORITE},
+    {"RECENT",      TextureIndex::RECENT},
+};
+
+const std::map<GenreIndex, std::set<std::string>> GENRE_MAP = {
+    { GenreIndex::TUTORIAL,   {"TUTORIAL"} },
+    { GenreIndex::JPOP,       {"J-POP"} },
+    { GenreIndex::ANIME,      {"ANIME", "アニメ"} },
+    { GenreIndex::CHILDREN,   {"CHILDREN", "どうよう"} },
+    { GenreIndex::VOCALOID,   {"VOCALOID", "ボーカロイド"} },
+    { GenreIndex::VARIETY,    {"VARIETY", "バラエティー", "バラエティ"} },
+    { GenreIndex::CLASSICAL,  {"CLASSICAL", "クラシック"} },
+    { GenreIndex::GAME,       {"GAME", "ゲームミュージック"} },
+    { GenreIndex::NAMCO,      {"NAMCO", "ナムコオリジナル"} },
+    { GenreIndex::RECOMMENDED,{"RECOMMENDED"} },
+    { GenreIndex::FAVORITE,   {"FAVORITE"} },
+    { GenreIndex::RECENT,     {"RECENT"} },
+    { GenreIndex::DAN,        {"DAN", "段位道場"} },
+    { GenreIndex::DIFFICULTY, {"DIFFICULTY"} },
+};
+
+inline GenreIndex get_genre_index(const std::string& genreString) {
+    std::string genreUpper = genreString;
+    std::transform(genreUpper.begin(), genreUpper.end(), genreUpper.begin(), ::toupper);
+
+    for (const auto& [genreIndex, genreSet] : GENRE_MAP) {
+        if (genreSet.count(genreUpper)) {
+            return genreIndex;
+        }
+    }
+    return GenreIndex::DEFAULT;
+}
+
+const std::array<std::string, 6> COLLECTIONS = {
+    "NEW", "RECENT", "FAVORITE", "DIFFICULTY", "RECOMMENDED", "SEARCH"
+};

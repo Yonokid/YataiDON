@@ -17,6 +17,7 @@
 #include "scenes/title.h"
 #include "scenes/loading.h"
 #include "scenes/entry.h"
+#include "scenes/song_select.h"
 
 #ifdef _WIN32
     #include <windows.h>
@@ -262,7 +263,7 @@ int main(int argc, char* argv[]) {
 
     std::unique_ptr<TitleScreen> title_screen = std::make_unique<TitleScreen>();
     std::unique_ptr<EntryScreen> entry_screen = std::make_unique<EntryScreen>();
-    //song_select_screen = SongSelectScreen('song_select')
+    std::unique_ptr<SongSelectScreen> song_select_screen = std::make_unique<SongSelectScreen>();
     //song_select_screen_2p = TwoPlayerSongSelectScreen('song_select')
     std::unique_ptr<LoadingScreen> load_screen = std::make_unique<LoadingScreen>();
     std::unique_ptr<GameScreen> game_screen = std::make_unique<GameScreen>();
@@ -281,7 +282,7 @@ int main(int argc, char* argv[]) {
     std::unordered_map<Screens, Screen*> screen_mapping = {
         {Screens::ENTRY,          entry_screen.get()},
         {Screens::TITLE,          title_screen.get()},
-        //{Screens::SONG_SELECT,    &song_select_screen},
+        {Screens::SONG_SELECT,    song_select_screen.get()},
         //{Screens::SONG_SELECT_2P, &song_select_screen_2p},
         //{Screens::PRACTICE_SELECT,&practice_select_screen},
         {Screens::GAME,           game_screen.get()},

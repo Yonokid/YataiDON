@@ -21,6 +21,9 @@ namespace ScoreMethod {
 }
 
 enum class Difficulty {
+    BACK = -3,
+    MODIFIER = -2,
+    NEIRO = -1,
     EASY = 0,
     NORMAL = 1,
     HARD = 2,

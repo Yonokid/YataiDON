@@ -19,7 +19,7 @@ void LoadingScreen::load_song_hashes() {
 }
 
 void LoadingScreen::load_navigator() {
-    //navigator.initialize(global_data.config->paths.tja_path]);
+    //navigator.init(global_data.config->paths.tja_path);
     loading_complete = true;
 }
 
