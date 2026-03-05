@@ -19,7 +19,7 @@ BoxDef Navigator::parse_box_def(const fs::path& path) {
     std::ifstream boxDef(path / "box.def");
     std::string line;
     BoxDef result;
-    result.name = path.filename();
+    result.name = path.filename().string();
     result.texture_index = TextureIndex::DEFAULT;
     result.genre_index = GenreIndex::DEFAULT;
     result.collection = "";
