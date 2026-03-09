@@ -59,7 +59,7 @@ public:
 
     void update(double current_ms);
 
-    void draw();
+    void draw(bool is_ura);
 };
 
 extern Navigator navigator;

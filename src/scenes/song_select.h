@@ -34,17 +34,17 @@ private:
     GenreIndex genre_index;
     GenreIndex last_genre_index;
 
-    int selected_difficulty = -3;
-
     ray::Shader shader;
     ray::Color color;
     SongNum* song_num;
 
+    std::unique_ptr<SongSelectPlayer> player;
+
     void select_song(SongBox* song);
 
-    void handle_input();
+    void handle_input(double current_ms);
 
-    void handle_input_browsing();
+    void handle_input_browsing(double current_ms);
     void handle_input_selecting();
 
     void draw_overlays();

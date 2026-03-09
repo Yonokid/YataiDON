@@ -1,7 +1,7 @@
 #include "player.h"
 
-SongSelectPlayer::SongSelectPlayer(PlayerNum player_num, FadeAnimation* text_fade_in)
-    : player_num(player_num), text_fade_in(text_fade_in)
+SongSelectPlayer::SongSelectPlayer(PlayerNum player_num)
+    : player_num(player_num)
       //chara(player_num - 1),
 {
     NameplateConfig plate_info;
@@ -19,6 +19,7 @@ SongSelectPlayer::SongSelectPlayer(PlayerNum player_num, FadeAnimation* text_fad
     is_ura = false;
     ura_toggle = 0;
     diff_select_move_right = false;
+    last_moved = 0;
 
     diff_selector_move_1          = (MoveAnimation*)tex.get_animation(26, true);
     diff_selector_move_2          = (MoveAnimation*)tex.get_animation(27, true);
@@ -53,6 +54,7 @@ void SongSelectPlayer::update(double current_time) {
             modifier_selector.reset();
         }
     }
+    if (ura_switch.has_value()) ura_switch->update(current_time);
 }
 
 bool SongSelectPlayer::is_voice_playing() {
@@ -68,46 +70,53 @@ bool SongSelectPlayer::is_voice_playing() {
     }
     }*/
 
-/*std::string SongSelectPlayer::handle_input_browsing(double last_moved, SongFile* selected_item) {
-    double current_time = get_current_ms();
+SongSelectState SongSelectPlayer::handle_input_browsing(double current_ms) {
 
-    if (ray::IsKeyPressed(ray::KEY_LEFT_CONTROL) || (is_l_kat_pressed(player_num) && current_time <= last_moved + 50)) {
-        audio->play_sound("skip", "sound");
-        return "skip_left";
-    }
-    if (ray::IsKeyPressed(ray::KEY_RIGHT_CONTROL) || (is_r_kat_pressed(player_num) && current_time <= last_moved + 50)) {
-        audio->play_sound("skip", "sound");
-        return "skip_right";
-    }
-
+    bool l_kat = is_l_kat_pressed(player_num);
+    bool r_kat = is_r_kat_pressed(player_num);
+    bool l_don = is_l_don_pressed(player_num);
+    bool r_don = is_r_don_pressed(player_num);
     float wheel = ray::GetMouseWheelMove();
-    if (is_l_kat_pressed(player_num) || wheel > 0) {
-        audio->play_sound("kat", "sound");
-        return "navigate_left";
-    }
-    if (is_r_kat_pressed(player_num) || wheel < 0) {
-        audio->play_sound("kat", "sound");
-        return "navigate_right";
-    }
 
-    if (is_l_don_pressed(player_num) || is_r_don_pressed(player_num)) {
-        if (selected_item != nullptr && dynamic_cast<BackBox*>(selected_item->box) != nullptr) {
-            audio->play_sound("cancel", "sound");
-            return "go_back";
-        } else if (auto* dir = dynamic_cast<Directory*>(selected_item)) {
-            if (dir->collection == Directory::COLLECTIONS[3]) return "diff_sort";
-            if (dir->collection == Directory::COLLECTIONS[5]) return "search";
+    if (ray::IsKeyPressed(ray::KEY_LEFT_CONTROL) || (l_kat && current_ms <= last_moved + 50)) {
+        audio->play_sound("skip", "sound");
+        for (int i = 0; i < 10; i++) {
+            navigator.move_left();
         }
-        return "select_song";
+        last_moved = current_ms;
+    } else if (l_kat || wheel > 0) {
+        audio->play_sound("kat", "sound");
+        navigator.move_left();
+        last_moved = current_ms;
     }
 
-    if (ray::IsKeyPressed(ray::KEY_SPACE)) {
-        audio->play_sound("add_favorite", "sound");
-        return "add_favorite";
+    if (ray::IsKeyPressed(ray::KEY_RIGHT_CONTROL) || (r_kat && current_ms <= last_moved + 50)) {
+        audio->play_sound("skip", "sound");
+        for (int i = 0; i < 10; i++) {
+            navigator.move_right();
+        }
+        last_moved = current_ms;
+    } else if (r_kat || wheel < 0) {
+        audio->play_sound("kat", "sound");
+        navigator.move_right();
+        last_moved = current_ms;
     }
 
-    return "";
-}*/
+    if (l_don || r_don) {
+        audio->play_sound("don", "sound");
+        BaseBox* item = navigator.get_current_item();
+        if (navigator.is_song(item)) {
+            navigator.enter_diff_select();
+            selected_song = true;
+            SongBox* song_item = (SongBox*)item;
+            curr_diffs = song_item->get_diffs();
+            return SongSelectState::SONG_SELECTED;
+        } else if (navigator.is_directory(item)) {
+            navigator.load_current_directory(item->path, true);
+        }
+    }
+    return SongSelectState::BROWSING;
+}
 
 std::optional<std::pair<int,int>> SongSelectPlayer::handle_input_diff_sort(DiffSortSelect* diff_sort_selector) {
     if (is_l_kat_pressed(player_num)) {
@@ -141,6 +150,27 @@ std::optional<std::string> SongSelectPlayer::handle_input_search() {
         key = ray::GetCharPressed();
     }
     return std::nullopt;
+}
+
+SongSelectState SongSelectPlayer::handle_input_selecting() {
+    bool l_kat = is_l_kat_pressed(player_num);
+    bool r_kat = is_r_kat_pressed(player_num);
+    bool l_don = is_l_don_pressed(player_num);
+    bool r_don = is_r_don_pressed(player_num);
+
+    if (l_kat) {
+        audio->play_sound("kat", "sound");
+        navigate_difficulty_left();
+    } else if (r_kat) {
+        audio->play_sound("kat", "sound");
+        navigate_difficulty_right();
+    } else if (l_don || r_don) {
+        audio->play_sound("don", "sound");
+        if (selected_difficulty >= Difficulty::EASY || selected_difficulty == Difficulty::BACK) {
+            is_ready = true;
+        }
+    }
+    return SongSelectState::SONG_SELECTED;
 }
 
 /*std::optional<std::string> SongSelectPlayer::handle_input_selected(SongFile* current_item) {
@@ -215,37 +245,36 @@ std::optional<std::string> SongSelectPlayer::handle_input_search() {
     return std::nullopt;
     }*/
 
-std::optional<std::string> SongSelectPlayer::navigate_difficulty_left(const std::vector<Difficulty>& diffs) {
+void SongSelectPlayer::navigate_difficulty_left() {
     diff_select_move_right = false;
 
     if (is_ura && selected_difficulty == Difficulty::URA) {
         diff_selector_move_1->start();
         prev_diff = selected_difficulty;
-        selected_difficulty = (diffs.size() == 1) ? Difficulty::NEIRO : diffs[diffs.size() - 3];
+        selected_difficulty = (curr_diffs.size() == 1) ? Difficulty::NEIRO : curr_diffs[curr_diffs.size() - 3];
     } else if (selected_difficulty == Difficulty::NEIRO || selected_difficulty == Difficulty::MODIFIER) {
         diff_selector_move_2->start();
         prev_diff = selected_difficulty;
         selected_difficulty = Difficulty((int)selected_difficulty - 1);
     } else if (selected_difficulty == Difficulty::BACK) {
         // no-op
-    } else if (std::find(diffs.begin(), diffs.end(), selected_difficulty) == diffs.end()) {
+    } else if (std::find(curr_diffs.begin(), curr_diffs.end(), selected_difficulty) == curr_diffs.end()) {
         prev_diff = selected_difficulty;
         diff_selector_move_1->start();
-        selected_difficulty = diffs.front();
-    } else if (selected_difficulty == diffs.front()) {
+        selected_difficulty = curr_diffs.front();
+    } else if (selected_difficulty == curr_diffs.front()) {
         diff_selector_move_2->start();
         prev_diff = selected_difficulty;
         selected_difficulty = Difficulty::NEIRO;
     } else {
         diff_selector_move_1->start();
         prev_diff = selected_difficulty;
-        auto it = std::find(diffs.begin(), diffs.end(), selected_difficulty);
+        auto it = std::find(curr_diffs.begin(), curr_diffs.end(), selected_difficulty);
         selected_difficulty = *std::prev(it);
     }
-    return std::nullopt;
 }
 
-std::optional<std::string> SongSelectPlayer::navigate_difficulty_right(const std::vector<Difficulty>& diffs) {
+void SongSelectPlayer::navigate_difficulty_right() {
     diff_select_move_right = true;
 
     if (is_ura && selected_difficulty == Difficulty::HARD) {
@@ -254,41 +283,41 @@ std::optional<std::string> SongSelectPlayer::navigate_difficulty_right(const std
         diff_selector_move_1->start();
     }
 
-    bool has_ura = std::find(diffs.begin(), diffs.end(), Difficulty::URA) != diffs.end();
-    bool has_oni = std::find(diffs.begin(), diffs.end(), Difficulty::ONI) != diffs.end();
+    bool has_ura = std::find(curr_diffs.begin(), curr_diffs.end(), Difficulty::URA) != curr_diffs.end();
+    bool has_oni = std::find(curr_diffs.begin(), curr_diffs.end(), Difficulty::ONI) != curr_diffs.end();
 
     if ((selected_difficulty == Difficulty::ONI || selected_difficulty == Difficulty::URA) && has_ura && has_oni) {
         ura_toggle = (ura_toggle + 1) % 10;
-        if (ura_toggle == 0) return toggle_ura_mode();
+        if (ura_toggle == 0) toggle_ura_mode();
     } else if (selected_difficulty == Difficulty::NEIRO) {
         prev_diff = selected_difficulty;
-        selected_difficulty = diffs.front();
+        selected_difficulty = curr_diffs.front();
         diff_selector_move_2->start();
         diff_selector_move_1->start();
     } else if (selected_difficulty == Difficulty::MODIFIER || selected_difficulty == Difficulty::BACK) {
         prev_diff = selected_difficulty;
         selected_difficulty = Difficulty((int)selected_difficulty + 1);
         diff_selector_move_2->start();
-    } else if (selected_difficulty < diffs.back()) {
+    } else if (selected_difficulty < curr_diffs.back()) {
         prev_diff = selected_difficulty;
-        auto it = std::find(diffs.begin(), diffs.end(), selected_difficulty);
+        auto it = std::find(curr_diffs.begin(), curr_diffs.end(), selected_difficulty);
         selected_difficulty = *std::next(it);
         diff_selector_move_1->start();
     }
-    return std::nullopt;
 }
 
-std::string SongSelectPlayer::toggle_ura_mode() {
+void SongSelectPlayer::toggle_ura_mode() {
     ura_toggle = 0;
     is_ura = !is_ura;
     audio->play_sound("ura_switch", "sound");
     selected_difficulty = Difficulty(7 - (int)selected_difficulty);
-    return "ura_toggle";
+    ura_switch.emplace();
+    ura_switch->start(is_ura);
 }
 
 void SongSelectPlayer::draw_selector(bool is_half) {
     float fade = (neiro_selector.has_value() || modifier_selector.has_value())
-        ? 0.5f : text_fade_in->attribute;
+        ? 0.5f : 1.0f;
     float direction = diff_select_move_right ? 1.0f : -1.0f;
     float offset = tex.skin_config["selector_offset"].x;
     float balloon_offset_1 = tex.skin_config["selector_balloon_offset_1"].x;
@@ -372,7 +401,7 @@ void SongSelectPlayer::draw(SongSelectState state, bool is_half) {
             : -offset;
     }
 
-    if ((int)player_num == 1) {
+    if (player_num == PlayerNum::P1) {
         nameplate.draw(tex.skin_config["song_select_nameplate_1p"].x, tex.skin_config["song_select_nameplate_1p"].y);
         //chara.draw({.x=tex.skin_config["song_select_chara_1p"].x, .y=tex.skin_config["song_select_chara_1p"].y + (offset * 0.6f)});
     } else {
@@ -382,4 +411,5 @@ void SongSelectPlayer::draw(SongSelectState state, bool is_half) {
 
     if (neiro_selector.has_value())   neiro_selector->draw();
     if (modifier_selector.has_value()) modifier_selector->draw();
+    if (ura_switch.has_value()) ura_switch->draw();
 }

@@ -17,6 +17,20 @@ SongBox::SongBox(const fs::path& path,
     text_subtitle = subtitles.count(lang) ? subtitles.at(lang) : subtitles.at("en");
 
     is_favorite = false;
+    diff_fade_in = (FadeAnimation*)tex.get_animation(12);
+}
+
+void SongBox::reset() {
+    BaseBox::reset();
+    diff_fade_in = (FadeAnimation*)tex.get_animation(12);
+}
+
+std::vector<Difficulty> SongBox::get_diffs() {
+    std::vector<Difficulty> diffs;
+    for (const auto& [diff, level] : parser.metadata.course_data) {
+        diffs.push_back(Difficulty(diff));
+    }
+    return diffs;
 }
 
 void SongBox::load_text() {
@@ -93,19 +107,25 @@ void SongBox::load_text() {
 
 void SongBox::update(double current_time) {
     BaseBox::update(current_time);
+    diff_fade_in->update(current_time);
 }
 
-void SongBox::draw_closed(float outer_fade_override) {
-    BaseBox::draw_closed(outer_fade_override);
+void SongBox::enter_diff_select() {
+    yellow_box->create_anim_2();
+    diff_fade_in->start();
+}
+
+void SongBox::draw_closed() {
+    BaseBox::draw_closed();
 
     if (!text_loaded) return;
     float name_x = position + tex.skin_config["song_box_name"].x - (int)(this->name->width / 2);
     float name_y = tex.skin_config["song_box_name"].y;
     float name_h = std::min((float)this->name->height, tex.skin_config["song_box_name"].height);
-    this->name->draw({.x = name_x, .y = name_y, .y2 = name_h - this->name->height, .fade = outer_fade_override});
+    this->name->draw({.x = name_x, .y = name_y, .y2 = name_h - this->name->height});
 
     if (parser.ex_data.new_song)
-        tex.draw_texture("yellow_box", "ex_data_new_song_balloon", {.x=position, .fade=outer_fade_override});
+        tex.draw_texture("yellow_box", "ex_data_new_song_balloon", {.x=position});
 
     /*int highest_key = -1;
     for (const auto& [diff, row] : scores) {
@@ -121,11 +141,11 @@ void SongBox::draw_closed(float outer_fade_override) {
         }*/
 }
 
-void SongBox::draw_diff_select(std::optional<float> fade_override) {
-    BaseBox::draw_diff_select(fade_override);
-    tex.draw_texture("diff_select", "back",   {});
-    tex.draw_texture("diff_select", "option", {});
-    tex.draw_texture("diff_select", "neiro",  {});
+void SongBox::draw_diff_select(bool is_ura) {
+    BaseBox::draw_diff_select(is_ura);
+    tex.draw_texture("diff_select", "back",   {.fade=diff_fade_in->attribute});
+    tex.draw_texture("diff_select", "option", {.fade=diff_fade_in->attribute});
+    tex.draw_texture("diff_select", "neiro",  {.fade=diff_fade_in->attribute});
 
     float offset_x     = tex.skin_config["yb_diff_offset_diff_select"].x;
     float offset_y     = tex.skin_config["yb_diff_offset_diff_select"].y;
@@ -143,26 +163,26 @@ void SongBox::draw_diff_select(std::optional<float> fade_override) {
     }*/
 
     for (int i = 0; i < 4; i++) {
-        /*if (i == (int)Difficulty::ONI) {
+        if (i == (int)Difficulty::ONI && is_ura) {
             tex.draw_texture("diff_select", "diff_tower",    {.frame=4, .x=i*offset_x, });
             tex.draw_texture("diff_select", "ura_oni_plate", {});
-        } else {*/
-            tex.draw_texture("diff_select", "diff_tower", {.frame=i, .x=i*offset_x, });
-            //}
+        } else {
+            tex.draw_texture("diff_select", "diff_tower", {.frame=i, .x=i*offset_x, .fade=diff_fade_in->attribute});
+        }
         if (!parser.metadata.course_data.count(i))
-            tex.draw_texture("diff_select", "diff_tower_shadow", {.frame=i, .x=i*offset_x, .fade=0.25f});
+            tex.draw_texture("diff_select", "diff_tower_shadow", {.frame=i, .x=i*offset_x, .fade=std::min((float)diff_fade_in->attribute, 0.25f)});
     }
 
     float star_offset_y = tex.skin_config["yb_diff_offset_crown"].y;
     for (const auto& [course_diff, course] : parser.metadata.course_data) {
-        /*if ((course_diff == (int)Difficulty::URA && !is_ura) ||
+        if ((course_diff == (int)Difficulty::URA && !is_ura) ||
             (course_diff == (int)Difficulty::ONI && is_ura))
-            continue;*/
+            continue;
         for (int j = 0; j < course.level; j++)
-            tex.draw_texture("yellow_box", "star_ura", {.x=std::min(course_diff, (int)Difficulty::ONI)*offset_x, .y=j*star_offset_y, });
+            tex.draw_texture("yellow_box", "star_ura", {.x=std::min(course_diff, (int)Difficulty::ONI)*offset_x, .y=j*star_offset_y, .fade=diff_fade_in->attribute});
         if (course.is_branching && ((int)(get_current_ms() / 1000)) % 2 == 0) {
             std::string bname = (course_diff == (int)Difficulty::URA) ? "branch_indicator_ura" : "branch_indicator_diff";
-            tex.draw_texture("yellow_box", bname, {.x=std::min(course_diff, (int)Difficulty::ONI)*offset_x, });
+            tex.draw_texture("yellow_box", bname, {.x=std::min(course_diff, (int)Difficulty::ONI)*offset_x, .fade=diff_fade_in->attribute});
         }
     }
     draw_text();
@@ -171,12 +191,13 @@ void SongBox::draw_diff_select(std::optional<float> fade_override) {
 void SongBox::draw_text() {
     float x = position + (yellow_box->right_out->attribute*0.85 - (yellow_box->right_out->start_position*0.85)) + yellow_box->right_out_2->attribute - yellow_box->right_out_2->start_position;
     float h = std::min((float)subtitle->height, tex.skin_config["yb_subtitle"].height);
-    subtitle->draw({.x = x + tex.skin_config["yb_subtitle"].x, .y=tex.skin_config["yb_subtitle"].y, .y2 = h - subtitle->height});
+    subtitle->draw({.x = x + tex.skin_config["yb_subtitle"].x, .y=tex.skin_config["yb_subtitle"].y - h + (float)yellow_box->top_y_out->attribute - yellow_box->top_y_out->start_position, .y2 =h - subtitle->height, .fade=open_fade->attribute});
     float name_h = std::min((float)this->name->height, tex.skin_config["song_box_name"].height) - this->name->height;
-    name_black->draw({.x=x + tex.skin_config["yb_name"].x, .y=tex.skin_config["yb_name"].y + (float)yellow_box->top_y_out->attribute, .y2=name_h});
+    name_black->draw({.x=x + tex.skin_config["yb_name"].x, .y=tex.skin_config["yb_name"].y + (float)yellow_box->top_y_out->attribute, .y2=name_h, .fade=open_fade->attribute});
+    name->draw({.x=x + tex.skin_config["yb_name"].x, .y=tex.skin_config["yb_name"].y + (float)yellow_box->top_y_out->attribute, .y2=name_h, .fade=1 - open_fade->attribute});
 }
 
-void SongBox::draw_open(std::optional<float> fade_override) {
+void SongBox::draw_open() {
     if (yellow_box.has_value())
         yellow_box->draw();
 
@@ -192,27 +213,27 @@ void SongBox::draw_open(std::optional<float> fade_override) {
         tex.draw_texture("yellow_box", "s_crown_outline", {.x=diff*offset, .fade=std::min(fade_val, 0.25f)});
     }*/
 
-    if      (parser.ex_data.new_audio)     tex.draw_texture("yellow_box", "ex_data_new_audio",     {});
-    else if (parser.ex_data.old_audio)     tex.draw_texture("yellow_box", "ex_data_old_audio",     {});
-    else if (parser.ex_data.limited_time)  tex.draw_texture("yellow_box", "ex_data_limited_time",  {});
-    else if (parser.ex_data.new_song)      tex.draw_texture("yellow_box", "ex_data_new_song",      {});
+    if      (parser.ex_data.new_audio)     tex.draw_texture("yellow_box", "ex_data_new_audio",     {.fade=open_fade->attribute});
+    else if (parser.ex_data.old_audio)     tex.draw_texture("yellow_box", "ex_data_old_audio",     {.fade=open_fade->attribute});
+    else if (parser.ex_data.limited_time)  tex.draw_texture("yellow_box", "ex_data_limited_time",  {.fade=open_fade->attribute});
+    else if (parser.ex_data.new_song)      tex.draw_texture("yellow_box", "ex_data_new_song",      {.fade=open_fade->attribute});
 
     if (is_favorite)
-        tex.draw_texture("yellow_box", "favorite_" + std::to_string((int)global_data.player_num) + "p", {});
+        tex.draw_texture("yellow_box", "favorite_" + std::to_string((int)global_data.player_num) + "p", {.fade=open_fade->attribute});
 
     for (int i = 0; i < 4; i++) {
-        tex.draw_texture("yellow_box", "difficulty_bar", {.frame=i, .x=i*offset});
+        tex.draw_texture("yellow_box", "difficulty_bar", {.frame=i, .x=i*offset, .fade=open_fade->attribute});
         if (!parser.metadata.course_data.count(i))
-            tex.draw_texture("yellow_box", "difficulty_bar_shadow", {.frame=i, .x=i*offset, .fade=0.25f});
+            tex.draw_texture("yellow_box", "difficulty_bar_shadow", {.frame=i, .x=i*offset, .fade=std::min((float)open_fade->attribute, 0.25f)});
     }
 
     float offset_y = tex.skin_config["yb_diff_offset"].y;
     for (const auto& [diff, course] : parser.metadata.course_data) {
         if (Difficulty(diff) >= Difficulty::URA) continue;
         for (int j = 0; j < course.level; j++)
-            tex.draw_texture("yellow_box", "star", {.x=diff*offset, .y=j*offset_y});
+            tex.draw_texture("yellow_box", "star", {.x=diff*offset, .y=j*offset_y, .fade=open_fade->attribute});
         if (course.is_branching && ((int)(get_current_ms() / 1000)) % 2 == 0)
-            tex.draw_texture("yellow_box", "branch_indicator", {.x=diff*offset});
+            tex.draw_texture("yellow_box", "branch_indicator", {.x=diff*offset, .fade=open_fade->attribute});
     }
     draw_text();
 }

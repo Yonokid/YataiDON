@@ -24,6 +24,6 @@ public:
     void update(double current_time) override;
 
 protected:
-    void draw_closed(float outer_fade_override) override;
-    void draw_open(std::optional<float> fade_override) override;
+    void draw_closed() override;
+    void draw_open() override;
 };

@@ -26,62 +26,30 @@ void SongSelectScreen::on_screen_start() {
     game_transition.reset();
 
     navigator.init(global_data.config->paths.tja_path);
+
+    player = std::make_unique<SongSelectPlayer>(global_data.player_num);
 }
 
 void SongSelectScreen::select_song(SongBox* song) {
     SessionData& session_data = global_data.session_data[(int)global_data.player_num];
     session_data.selected_song = song->path;
-    session_data.selected_difficulty = selected_difficulty;
+    session_data.selected_difficulty = (int)player->selected_difficulty;
     session_data.genre_index = (int)song->genre_index;
     game_transition.emplace(song->text_name, song->text_subtitle, false);
     game_transition->start();
 }
 
-void SongSelectScreen::handle_input_browsing() {
-    if (is_l_kat_pressed())  {
-        audio->play_sound("kat", "sound");
-        navigator.move_left();
-    }
-    if (is_r_kat_pressed()) {
-        audio->play_sound("kat", "sound");
-        navigator.move_right();
-    }
-    if (is_l_don_pressed() || is_r_don_pressed()) {
-        audio->play_sound("don", "sound");
-        BaseBox* item = navigator.get_current_item();
-        if (navigator.is_song(item)) {
-            state = SongSelectState::SONG_SELECTED;
-            navigator.enter_diff_select();
-        } else if (navigator.is_directory(item)) {
-            navigator.load_current_directory(item->path, true);
-        }
-    }
+void SongSelectScreen::handle_input_browsing(double current_ms) {
+    state = player->handle_input_browsing(current_ms);
 }
 
 void SongSelectScreen::handle_input_selecting() {
-    if (is_l_kat_pressed())  {
-        audio->play_sound("kat", "sound");
-        selected_difficulty = std::max(selected_difficulty - 1, -3);
-    }
-    if (is_r_kat_pressed()) {
-        audio->play_sound("kat", "sound");
-        selected_difficulty = std::min(selected_difficulty + 1, 3);
-    }
-    if (is_l_don_pressed() || is_r_don_pressed()) {
-        audio->play_sound("don", "sound");
-        if (selected_difficulty >= (int)Difficulty::EASY) {
-            BaseBox* item = navigator.get_current_item();
-            select_song((SongBox*)item);
-        } else if (selected_difficulty == (int)Difficulty::BACK) {
-            navigator.exit_diff_select();
-            state = SongSelectState::BROWSING;
-        }
-    }
+    player->handle_input_selecting();
 }
 
-void SongSelectScreen::handle_input() {
+void SongSelectScreen::handle_input(double current_ms) {
     if (state == SongSelectState::BROWSING) {
-        handle_input_browsing();
+        handle_input_browsing(current_ms);
     } else if (state == SongSelectState::SONG_SELECTED) {
         handle_input_selecting();
     }
@@ -99,7 +67,20 @@ std::optional<Screens> SongSelectScreen::update() {
     blue_arrow_fade->update(current_time);
     blue_arrow_move->update(current_time);
 
-    handle_input();
+    handle_input(current_time);
+
+    player->update(current_time);
+    if (player->is_ready && !game_transition.has_value()) {
+        if (player->selected_difficulty >= Difficulty::EASY) {
+            BaseBox* item = navigator.get_current_item();
+            select_song((SongBox*)item);
+        } else if (player->selected_difficulty == Difficulty::BACK) {
+            navigator.exit_diff_select();
+            state = SongSelectState::BROWSING;
+            player->is_ready = false;
+            player->selected_song = false;
+        }
+    }
 
     navigator.update(current_time);
 
@@ -147,7 +128,9 @@ void SongSelectScreen::draw_overlays() {
 void SongSelectScreen::draw() {
     draw_background();
 
-    navigator.draw();
+    navigator.draw(player->is_ura);
+
+    player->draw(state);
 
     draw_overlays();
 

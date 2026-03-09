@@ -19,14 +19,19 @@ public:
             TextureIndex texture_index,
             TJAParser tja);
 
+    void reset() override;
+
     void load_text() override;
     //void get_scores() override;
     void update(double current_time) override;
     //void draw_score_history() override;
+    void enter_diff_select() override;
+    std::vector<Difficulty> get_diffs();
 
 protected:
-    void draw_closed(float outer_fade_override) override;
-    void draw_open(std::optional<float> fade_override) override;
-    void draw_diff_select(std::optional<float> fade_override) override;
+    FadeAnimation* diff_fade_in;
+    void draw_closed() override;
+    void draw_open() override;
+    void draw_diff_select(bool is_ura) override;
     void draw_text();
 };

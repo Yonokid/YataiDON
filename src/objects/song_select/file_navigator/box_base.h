@@ -32,20 +32,20 @@ public:
     virtual void load_text();
     virtual void get_scores() {}
     virtual void draw_score_history() {}
-    virtual void draw_diff_select(std::optional<float> fade_override);
+    virtual void draw_diff_select(bool is_ura);
 
-    void reset_yellow_box();
+    virtual void reset();
     void set_position(float target_position);
     virtual void expand_box();
     void close_box();
 
-    void enter_diff_select();
+    virtual void enter_diff_select();
     void exit_diff_select();
 
     void move_box(float target_position, float duration);
     virtual void update(double current_ms);
 
-    virtual void draw(std::optional<float> inner_fade_override = std::nullopt, float outer_fade_override = 1.0f);
+    virtual void draw(bool is_ura);
 
 protected:
     MoveAnimation* open_anim;
@@ -66,6 +66,6 @@ protected:
 
     float target_position;
 
-    virtual void draw_closed(float outer_fade_override);
-    virtual void draw_open(std::optional<float> fade_override);
+    virtual void draw_closed();
+    virtual void draw_open();
 };

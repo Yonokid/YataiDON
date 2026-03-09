@@ -21,7 +21,7 @@ BaseBox::BaseBox(const fs::path& path,
     target_position = std::numeric_limits<float>::infinity();
 
     open_anim = new MoveAnimation(233, 150.0f * tex.screen_scale, false, false, 0, 133);
-    open_fade = new FadeAnimation(200, 0.0f, 1.0f);
+    open_fade = new FadeAnimation(200, 0.0f, false, false, 1.0f, 133);
     move = std::make_unique<MoveAnimation>(133, 0, false, false, 0, 0.0, std::nullopt, std::nullopt, "cubic");
     move->start();
 }
@@ -52,16 +52,20 @@ void BaseBox::load_text() {
     text_loaded = true;
 }
 
-void BaseBox::reset_yellow_box() {
+void BaseBox::reset() {
     if (yellow_box.has_value()) {
         yellow_box->reset();
         yellow_box_opened = false;
     }
+    open_anim->reset();
+    open_fade->reset();
 }
 
 void BaseBox::expand_box() {
     yellow_box.emplace();
     yellow_box_opened = false;
+    open_anim->start();
+    open_fade->start();
 }
 
 void BaseBox::close_box() {
@@ -77,6 +81,7 @@ void BaseBox::exit_diff_select() {
     yellow_box.reset();
     yellow_box.emplace();
     yellow_box->create_anim();
+    open_fade->start();
 }
 
 void BaseBox::set_position(float target_position) {
@@ -108,39 +113,40 @@ void BaseBox::update(double current_time) {
     if (yellow_box.has_value()) yellow_box->update(current_time);
 }
 
-void BaseBox::draw_closed(float outer_fade_override) {
+void BaseBox::draw_closed() {
     if (shader_loaded && texture_index == TextureIndex::NONE)
         ray::BeginShaderMode(shader);
 
-    tex.draw_texture("box", "folder_texture_left",  {.frame=(int)texture_index, .x=position, .fade=outer_fade_override});
-    tex.draw_texture("box", "folder_texture",       {.frame=(int)texture_index, .x=position, .x2=tex.skin_config["song_box_bg"].width, .fade=outer_fade_override});
-    tex.draw_texture("box", "folder_texture_right", {.frame=(int)texture_index, .x=position, .fade=outer_fade_override});
+    tex.draw_texture("box", "folder_texture_left",  {.frame=(int)texture_index, .x=position});
+    tex.draw_texture("box", "folder_texture",       {.frame=(int)texture_index, .x=position, .x2=tex.skin_config["song_box_bg"].width});
+    tex.draw_texture("box", "folder_texture_right", {.frame=(int)texture_index, .x=position});
 
     if (shader_loaded && texture_index == TextureIndex::NONE)
         ray::EndShaderMode();
 
     if (texture_index == TextureIndex::DEFAULT)
-        tex.draw_texture("box", "genre_overlay", {.x=position, .fade=outer_fade_override});
+        tex.draw_texture("box", "genre_overlay", {.x=position});
     if (genre_index == GenreIndex::DIFFICULTY)
-        tex.draw_texture("box", "diff_overlay",  {.x=position, .fade=outer_fade_override});
+        tex.draw_texture("box", "diff_overlay",  {.x=position});
 }
 
-void BaseBox::draw_open(std::optional<float> inner_fade_override) {
-    if (yellow_box.has_value())
-        yellow_box->draw();
-    tex.draw_texture("box", "back_graphic", {.fade=inner_fade_override.value()});
-}
-
-void BaseBox::draw_diff_select(std::optional<float> fade_override) {
+void BaseBox::draw_open() {
     if (yellow_box.has_value())
         yellow_box->draw();
 }
 
-void BaseBox::draw(std::optional<float> inner_fade_override, float outer_fade_override)
+void BaseBox::draw_diff_select(bool is_ura) {
+    if (yellow_box.has_value())
+        yellow_box->draw();
+}
+
+void BaseBox::draw(bool is_ura)
 {
-    draw_closed(outer_fade_override);
     if (yellow_box.has_value() && yellow_box->is_diff_select) {
-        draw_diff_select(inner_fade_override);
-    } else if (yellow_box.has_value() && yellow_box_opened)
-        draw_open(inner_fade_override);
+        draw_diff_select(is_ura);
+    } else if (yellow_box.has_value() && yellow_box_opened) {
+        draw_open();
+    } else {
+        draw_closed();
+    }
 }

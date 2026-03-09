@@ -11,7 +11,11 @@ void Navigator::init(std::vector<fs::path> songs_paths) {
         }
         is_init = true;
     } else {
-        get_current_item()->reset_yellow_box();
+        for (auto& item : items) {
+            item->reset();
+        }
+        set_positions(false, 0);
+        get_current_item()->expand_box();
     }
 }
 
@@ -164,7 +168,7 @@ void Navigator::enter_diff_select() {
         std::unique_ptr<BaseBox>& box = items[i];
         bool on_screen = box->position > -100 && box->position < tex.screen_width + 100;
         if (on_screen and i != open_index) {
-            float duration = 500;
+            float duration = 800;
             float distance = 150;
             if (box->position < 594) {
                 box->move_box(-distance, duration);
@@ -190,10 +194,10 @@ void Navigator::update(double current_ms) {
     }
 }
 
-void Navigator::draw() {
+void Navigator::draw(bool is_ura) {
     for (auto& box : items) {
         if (box->position > -100 && box->position < tex.screen_width + 100) {
-            box->draw();
+            box->draw(is_ura);
         }
     }
 }

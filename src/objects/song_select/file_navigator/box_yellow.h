@@ -11,7 +11,6 @@ public:
     MoveAnimation* left_out;
     MoveAnimation* right_out;
     MoveAnimation* center_out;
-    FadeAnimation* fade;
 
     MoveAnimation* left_out_2;
     MoveAnimation* right_out_2;
@@ -37,5 +36,4 @@ public:
     void draw();
 
 private:
-    void draw_yellow_box();
 };
