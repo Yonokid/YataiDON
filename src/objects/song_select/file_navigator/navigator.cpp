@@ -138,6 +138,12 @@ void Navigator::load_current_directory(const fs::path path) {
         inline_state           = std::move(state);
         pending_inline_path    = path;
         pending_inline_box_def = box_def;
+        genre_bg.emplace(items[open_index]->text_name, items[open_index]->back_color.value(), items[open_index]->texture_index);
+        for (int i = 0; i < items.size(); i++) {
+            if (items[i]->position > items[open_index]->position) {
+                items[i]->move_box(tex.screen_width + 150, 600);
+            }
+        }
         return;
     }
 
@@ -280,6 +286,7 @@ void Navigator::exit_diff_select() {
 }
 
 void Navigator::update(double current_ms) {
+    if (genre_bg.has_value()) genre_bg->update(current_ms);
     // --- Pending inline load: wait for enter_fade to finish ---
     if (pending_inline_path) {
         if (pending_inline_folder->enter_fade->is_finished) {
@@ -289,9 +296,11 @@ void Navigator::update(double current_ms) {
             pending_inline_folder = nullptr;
             setup_back_box(*pending_inline_path, false);
             int before = items.size();
+            genre_bg_start = inline_state->first_song_index - 1;
             load_songs_inline(*pending_inline_path, pending_inline_box_def);
             is_inline = true;
             inline_state->songs_count = items.size() - before;
+            genre_bg_end = inline_state->songs_count + inline_state->first_song_index - 1;
             pending_inline_path.reset();
             set_positions(false, 800);
             items[open_index]->expand_box();
@@ -324,6 +333,7 @@ void Navigator::update(double current_ms) {
             items[open_index]->exit_box();
             items[open_index]->fade_in(466);
             items[open_index]->expand_box();
+            genre_bg.reset();
         }
     }
 
@@ -336,6 +346,13 @@ void Navigator::update(double current_ms) {
 }
 
 void Navigator::draw(bool is_ura) {
+    if (genre_bg.has_value()) {
+        auto& start_box = items[genre_bg_start];
+        auto& end_box = items[genre_bg_end];
+        float start_pos = start_box->left_bound;
+        float end_pos = end_box->right_bound;
+        genre_bg->draw(start_pos, end_pos);
+    }
     for (auto& box : items) {
         if (box->position > -100 && box->position < tex.screen_width + 100) {
             box->draw(is_ura);

@@ -82,12 +82,18 @@ void YellowBox::update(double current_ms) {
         top_y         = top_y_out->attribute;
         center_width  = center_out_2->attribute;
         center_height = center_h_out->attribute;
+
+        left_distance = left_x - left_out_2->start_position;
+        right_distance = right_x - right_out_2->start_position;
     } else {
         right_x       = right_out->attribute;
         left_x        = left_out->attribute;
         center_width  = center_out->attribute;
         top_y         = top_y_out->attribute;
         center_height = center_h_out->attribute;
+
+        left_distance = left_x - left_out->start_position;
+        right_distance = right_x + tex.textures["yellow_box"]["yellow_box_right"]->width;
     }
 }
 

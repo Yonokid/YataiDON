@@ -118,7 +118,14 @@ void BaseBox::update(double current_time) {
             open_fade->start();
         }
     }
-    if (yellow_box.has_value()) yellow_box->update(current_time);
+    if (yellow_box.has_value()) {
+        yellow_box->update(current_time);
+        left_bound = position + yellow_box->left_distance;
+        right_bound = yellow_box->right_distance;
+    } else {
+        left_bound = position;
+        right_bound = position + (float)(tex.textures["box"]["folder_texture_left"]->width) + (float)(tex.textures["box"]["folder_texture_right"]->width) + (tex.skin_config["song_box_bg"].width);
+    }
 }
 
 void BaseBox::draw_closed() {

@@ -5,6 +5,7 @@
 #include "box_folder.h"
 #include "box_back.h"
 #include "box_song.h"
+#include "genre_bg.h"
 
 struct CourseStats {
     int total   = 0;
@@ -34,6 +35,9 @@ private:
     FolderBox* pending_inline_folder = nullptr;
     BoxDef                      pending_inline_box_def;
     bool is_inline = false;
+    std::optional<GenreBG> genre_bg;
+    int genre_bg_start;
+    int genre_bg_end;
 
     void set_positions(bool init, float duration);
     bool is_song_file(const fs::path& path);

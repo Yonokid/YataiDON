@@ -37,6 +37,8 @@ public:
     FadeAnimation* fade;
 
     float position;
+    float left_bound;
+    float right_bound;
 
     fs::path path;
 
