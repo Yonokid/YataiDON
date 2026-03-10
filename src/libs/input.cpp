@@ -30,6 +30,7 @@ bool is_input_key_pressed(const std::vector<int>& keys, const std::vector<int>& 
 }
 
 bool is_l_don_pressed(PlayerNum player_num) {
+    if (global_data.input_locked) return false;
     std::vector<int> keys;
     if (player_num == PlayerNum::ALL) {
         keys = global_data.config->keys_1p.left_don;
@@ -48,6 +49,7 @@ bool is_l_don_pressed(PlayerNum player_num) {
 }
 
 bool is_r_don_pressed(PlayerNum player_num) {
+    if (global_data.input_locked) return false;
     std::vector<int> keys;
     if (player_num == PlayerNum::ALL) {
         keys = global_data.config->keys_1p.right_don;
@@ -66,6 +68,7 @@ bool is_r_don_pressed(PlayerNum player_num) {
 }
 
 bool is_l_kat_pressed(PlayerNum player_num) {
+    if (global_data.input_locked) return false;
     std::vector<int> keys;
     if (player_num == PlayerNum::ALL) {
         keys = global_data.config->keys_1p.left_kat;
@@ -84,6 +87,7 @@ bool is_l_kat_pressed(PlayerNum player_num) {
 }
 
 bool is_r_kat_pressed(PlayerNum player_num) {
+    if (global_data.input_locked) return false;
     std::vector<int> keys;
     if (player_num == PlayerNum::ALL) {
         keys = global_data.config->keys_1p.right_kat;

@@ -5,8 +5,7 @@ class BackBox : public BaseBox {
 public:
     static constexpr ray::Color COLOR = ray::Color(170, 115, 35);
 
-    BackBox(const fs::path& path, const std::optional<ray::Color> back_color,
-            const std::optional<ray::Color> fore_color, TextureIndex texture_index);
+    BackBox(const fs::path& path, const BoxDef& box_def);
 
 protected:
     void draw_closed() override;

@@ -13,11 +13,7 @@ public:
     std::unique_ptr<OutlinedText> subtitle;
     std::unique_ptr<OutlinedText> name_black;
 
-    SongBox(const fs::path& path,
-            const std::optional<ray::Color>& back_color,
-            const std::optional<ray::Color>& fore_color,
-            TextureIndex texture_index,
-            TJAParser tja);
+    SongBox(const fs::path& path, const BoxDef& box_def, TJAParser tja);
 
     void reset() override;
 
@@ -25,7 +21,7 @@ public:
     //void get_scores() override;
     void update(double current_time) override;
     //void draw_score_history() override;
-    void enter_diff_select() override;
+    void enter_box() override;
     std::vector<Difficulty> get_diffs();
 
 protected:

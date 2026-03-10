@@ -9,7 +9,7 @@ Transition::Transition(const std::string& title, const std::string& subtitle, bo
     song_info_fade_out = (FadeAnimation*)global_tex.get_animation(4);
 
     this->title = new OutlinedText(title, global_tex.skin_config["transition_title"].font_size, ray::WHITE, ray::BLACK, false, 5);
-    this->subtitle = new OutlinedText(subtitle, global_tex.skin_config["transition_title"].font_size, ray::WHITE, ray::BLACK, false, 5);
+    this->subtitle = new OutlinedText(subtitle, global_tex.skin_config["transition_subtitle"].font_size, ray::WHITE, ray::BLACK, false, 5);
 }
 
 void Transition::start() {

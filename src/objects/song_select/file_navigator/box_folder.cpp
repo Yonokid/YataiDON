@@ -1,17 +1,11 @@
 #include "box_folder.h"
 #include <memory>
 
-FolderBox::FolderBox(const fs::path& path,
-                     const std::optional<ray::Color>& back_color,
-                     const std::optional<ray::Color>& fore_color,
-                     TextureIndex texture_index,
-                     GenreIndex genre_index,
-                     const std::string& text_name,
-                     int tja_count)
-    : BaseBox(path, back_color, fore_color, texture_index),
-      genre_index(genre_index), tja_count(tja_count)
+FolderBox::FolderBox(const fs::path& path, const BoxDef& box_def, int tja_count)
+    : BaseBox(path, box_def), tja_count(tja_count)
 {
-    this->text_name = text_name;
+    this->text_name = box_def.name;
+    enter_fade = new FadeAnimation(166);
 }
 
 void FolderBox::load_text() {
@@ -23,6 +17,7 @@ void FolderBox::load_text() {
 
 void FolderBox::update(double current_time) {
     bool is_open_prev = yellow_box_opened;
+    enter_fade->update(current_time);
     BaseBox::update(current_time);
 
     if (!is_open_prev && yellow_box_opened) {
@@ -34,15 +29,22 @@ void FolderBox::update(double current_time) {
     }
 }
 
+void FolderBox::enter_box() {
+    entered = true;
+    enter_fade->start();
+}
+
+void FolderBox::exit_box() {
+    entered = false;
+    enter_fade->reset();
+}
+
 void FolderBox::draw_closed() {
     BaseBox::draw_closed();
 
     if (shader_loaded && texture_index == TextureIndex::NONE)
         ray::BeginShaderMode(shader);
-    tex.draw_texture("box", "folder_clip", {
-        .frame=(int)texture_index,
-        .x=position-(1.0f * tex.screen_scale),
-    });
+    tex.draw_texture("box", "folder_clip", {.frame=(int)texture_index, .x=position-(1.0f * tex.screen_scale), .fade=fade->attribute});
     if (shader_loaded && texture_index == TextureIndex::NONE)
         ray::EndShaderMode();
 
@@ -52,6 +54,7 @@ void FolderBox::draw_closed() {
         .x    = position + tex.skin_config["song_box_name"].x - (int)(this->name->width / 2.0f),
         .y    = tex.skin_config["song_box_name"].y,
         .y2   = name_h - this->name->height,
+        .fade = fade->attribute
     });
 
     if (!crown.empty()) {
@@ -65,18 +68,32 @@ void FolderBox::draw_closed() {
     }
 }
 
-void FolderBox::draw_open() {
-    float fade = open_fade->attribute;
+void FolderBox::draw_open_bg(float fade) {
     int frame = (int)texture_index;
     bool use_shader = shader_loaded && texture_index == TextureIndex::NONE;
 
-    // Top flap (only once animation has progressed enough)
     if (open_anim->attribute >= (100.0f * tex.screen_scale)) {
         if (use_shader) ray::BeginShaderMode(shader);
         tex.draw_texture("box", "folder_top_edge", {.frame=frame, .mirror="horizontal", .y=-(float)open_anim->attribute, .fade=fade});
         tex.draw_texture("box", "folder_top",      {.frame=frame, .y=-(float)open_anim->attribute, .fade=fade});
         tex.draw_texture("box", "folder_top_edge", {.frame=frame, .x=tex.skin_config["song_folder_top"].x, .y=-(float)open_anim->attribute, .fade=fade});
+        if (use_shader) ray::EndShaderMode();
+    }
 
+    if (use_shader) ray::BeginShaderMode(shader);
+    tex.draw_texture("box", "folder_texture_left",  {.frame=frame, .x=position-(float)open_anim->attribute, .fade=fade});
+    tex.draw_texture("box", "folder_texture", {
+        .frame=frame,
+        .x=position-(float)open_anim->attribute,
+        .x2=((float)open_anim->attribute * 2.0f) + tex.skin_config["song_box_bg"].width,
+        .fade=fade
+    });
+    tex.draw_texture("box", "folder_texture_right", {.frame=frame, .x=position + (float)open_anim->attribute, .fade=fade});
+    if (use_shader) ray::EndShaderMode();
+}
+
+void FolderBox::draw_open_fg(float fade) {
+    if (open_anim->attribute >= (100.0f * tex.screen_scale)) {
         float dest_width = std::min(tex.skin_config["song_hori_name"].width,
                                     (float)hori_name->width);
         hori_name->draw({
@@ -84,19 +101,7 @@ void FolderBox::draw_open() {
             .y  = tex.skin_config["song_hori_name"].y - (float)open_anim->attribute,
             .x2 = dest_width - hori_name->width, .fade=fade
         });
-        if (use_shader) ray::EndShaderMode();
     }
-
-    // Expanding box sides
-    if (use_shader) ray::BeginShaderMode(shader);
-    tex.draw_texture("box", "folder_texture_left",  {.frame=frame, .x=position-(float)open_anim->attribute});
-    tex.draw_texture("box", "folder_texture", {
-        .frame=frame,
-        .x=position-(float)open_anim->attribute,
-        .x2=((float)open_anim->attribute * 2.0f) + tex.skin_config["song_box_bg"].width
-    });
-    tex.draw_texture("box", "folder_texture_right", {.frame=frame, .x=position + (float)open_anim->attribute});
-    if (use_shader) ray::EndShaderMode();
 
     if (texture_index == TextureIndex::DEFAULT)
         tex.draw_texture("box", "genre_overlay_large", {.fade=fade});
@@ -122,5 +127,15 @@ void FolderBox::draw_open() {
     if (texture_index != TextureIndex::DEFAULT) {
         tex.draw_texture("box", "folder_graphic", {.frame=(int)genre_index, .fade=fade});
         tex.draw_texture("box", "folder_text",    {.frame=(int)genre_index, .fade=fade});
+    }
+}
+
+void FolderBox::draw_open() {
+    if (entered) {
+        draw_open_bg(0.0);
+        draw_open_fg(enter_fade->attribute);
+    } else {
+        draw_open_bg(1.0);
+        draw_open_fg(open_fade->attribute);
     }
 }

@@ -91,14 +91,14 @@ void YellowBox::update(double current_ms) {
     }
 }
 
-void YellowBox::draw() {
-    tex.draw_texture("yellow_box", "yellow_box_bottom_right", {.x=right_x});
-    tex.draw_texture("yellow_box", "yellow_box_bottom_left",  {.x=left_x,              .y=bottom_y});
-    tex.draw_texture("yellow_box", "yellow_box_top_right",    {.x=right_x,             .y=top_y});
-    tex.draw_texture("yellow_box", "yellow_box_top_left",     {.x=left_x,              .y=top_y});
-    tex.draw_texture("yellow_box", "yellow_box_bottom",       {.x=left_x+edge_height,  .y=bottom_y,           .x2=center_width});
-    tex.draw_texture("yellow_box", "yellow_box_right",        {.x=right_x,             .y=top_y+edge_height,  .y2=center_height});
-    tex.draw_texture("yellow_box", "yellow_box_left",         {.x=left_x,              .y=top_y+edge_height,  .y2=center_height});
-    tex.draw_texture("yellow_box", "yellow_box_top",          {.x=left_x+edge_height,  .y=top_y,              .x2=center_width});
-    tex.draw_texture("yellow_box", "yellow_box_center",       {.x=left_x+edge_height,  .y=top_y+edge_height,  .x2=center_width, .y2=center_height});
+void YellowBox::draw(float fade) {
+    tex.draw_texture("yellow_box", "yellow_box_bottom_right", {.x=right_x, .fade=fade});
+    tex.draw_texture("yellow_box", "yellow_box_bottom_left",  {.x=left_x,              .y=bottom_y, .fade=fade});
+    tex.draw_texture("yellow_box", "yellow_box_top_right",    {.x=right_x,             .y=top_y, .fade=fade});
+    tex.draw_texture("yellow_box", "yellow_box_top_left",     {.x=left_x,              .y=top_y, .fade=fade});
+    tex.draw_texture("yellow_box", "yellow_box_bottom",       {.x=left_x+edge_height,  .y=bottom_y,           .x2=center_width, .fade=fade});
+    tex.draw_texture("yellow_box", "yellow_box_right",        {.x=right_x,             .y=top_y+edge_height,  .y2=center_height, .fade=fade});
+    tex.draw_texture("yellow_box", "yellow_box_left",         {.x=left_x,              .y=top_y+edge_height,  .y2=center_height, .fade=fade});
+    tex.draw_texture("yellow_box", "yellow_box_top",          {.x=left_x+edge_height,  .y=top_y,              .x2=center_width, .fade=fade});
+    tex.draw_texture("yellow_box", "yellow_box_center",       {.x=left_x+edge_height,  .y=top_y+edge_height,  .x2=center_width, .y2=center_height, .fade=fade});
 }

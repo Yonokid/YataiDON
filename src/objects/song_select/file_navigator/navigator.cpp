@@ -6,13 +6,15 @@ Navigator::Navigator() {
 
 void Navigator::init(std::vector<fs::path> songs_paths) {
     if (!is_init) {
+        open_index = 0;
         for (fs::path& root_path : songs_paths) {
-            load_current_directory(root_path, false);
+            load_current_directory(root_path);
         }
         is_init = true;
     } else {
         for (auto& item : items) {
             item->reset();
+            item->fade_in(0);
         }
         set_positions(false, 0);
         get_current_item()->expand_box();
@@ -59,7 +61,7 @@ BoxDef Navigator::parse_box_def(const fs::path& path) {
     return result;
 }
 
-bool Navigator::has_subdirectories(const std::filesystem::path& path) {
+bool Navigator::has_def_file(const std::filesystem::path& path) {
     for (const auto& entry : std::filesystem::recursive_directory_iterator(path)) {
         if (entry.path().extension() == ".def") return true;
     }
@@ -74,31 +76,120 @@ int Navigator::get_tja_count(const std::filesystem::path& path) {
     return count;
 }
 
-void Navigator::load_current_directory(const fs::path path, bool clear_items) {
-    if (clear_items) {
-        items.clear();
-    }
-    BoxDef box_def = parse_box_def(path);
+void Navigator::exit_inline() {
+    if (!inline_state) return;
+    InlineState& state = *inline_state;
+
+    // Kick off fade_out on all inserted items
+    int end = state.first_song_index + state.songs_count;
+    for (int i = state.first_song_index; i < end; i++)
+        items[i]->fade_out();
+
+    state.fading_out = true;
+    is_inline = false;
+}
+
+void Navigator::load_songs_inline(const fs::path& path, const BoxDef& box_def) {
+    int insert_pos = open_index + 1;
+    int songs_added = 0;
+
+    auto add_song = [&](const fs::path& song_path) {
+        auto box = std::make_unique<SongBox>(song_path, box_def, TJAParser(song_path));
+
+        if (songs_added > 0 && songs_added % 10 == 0) {
+            BoxDef back_box_def;
+            back_box_def.back_color = BackBox::COLOR;
+            back_box_def.fore_color = BackBox::COLOR;
+            back_box_def.texture_index = TextureIndex::NONE;
+            auto back = std::make_unique<BackBox>(path.parent_path(), back_box_def);
+            items.insert(items.begin() + insert_pos++, std::move(back));
+        }
+
+        box->fade_in(666);
+        items.insert(items.begin() + insert_pos++, std::move(box));
+        songs_added++;
+    };
+
     for (const fs::directory_entry& entry : fs::directory_iterator(path)) {
         const fs::path& curr_path = entry.path();
-        if (!fs::is_directory(curr_path)) continue;
-        if (has_subdirectories(curr_path)) {
-            BoxDef entry_box_def = parse_box_def(entry.path());
-            int tja_count = get_tja_count(entry.path());
-            items.push_back(std::make_unique<FolderBox>(entry.path(), entry_box_def.back_color, entry_box_def.fore_color, entry_box_def.texture_index, entry_box_def.genre_index, entry_box_def.name, tja_count));
+        if (!fs::is_directory(curr_path)) {
+            if (is_song_file(curr_path))
+                items.insert(items.begin() + insert_pos++,
+                    std::make_unique<SongBox>(curr_path, box_def, TJAParser(curr_path)));
+            continue;
+        }
+        for (const auto& song : fs::recursive_directory_iterator(curr_path))
+            if (is_song_file(song.path()))
+                add_song(song.path());
+    }
+}
+
+void Navigator::load_current_directory(const fs::path path) {
+    BoxDef box_def = parse_box_def(path);
+    bool has_children = has_child_folders(path);
+
+    if (!has_children) {
+        items[open_index]->enter_box();
+        InlineState state;
+        state.folder_index   = open_index;
+        state.first_song_index = open_index + 1;
+        state.songs_count    = 0;
+        pending_inline_folder  = static_cast<FolderBox*>(items[open_index].get());
+        inline_state           = std::move(state);
+        pending_inline_path    = path;
+        pending_inline_box_def = box_def;
+        return;
+    }
+
+    if (is_inline) {
+        exit_inline();
+        return;
+    }
+
+    setup_back_box(path, true);
+
+    for (const fs::directory_entry& entry : fs::directory_iterator(path)) {
+        const fs::path& curr_path = entry.path();
+        if (!fs::is_directory(curr_path)) {
+            if (is_song_file(curr_path))
+                items.push_back(std::make_unique<SongBox>(curr_path, box_def, TJAParser(curr_path)));
+            continue;
+        }
+        if (has_def_file(curr_path)) {
+            BoxDef entry_box_def = parse_box_def(curr_path);
+            items.push_back(std::make_unique<FolderBox>(curr_path, entry_box_def, get_tja_count(curr_path)));
         } else {
-            for (const fs::directory_entry& song : fs::directory_iterator(curr_path)) {
-                if (is_song_file(song.path())) {
-                    TJAParser parser = TJAParser(song.path());
-                    items.push_back(std::make_unique<SongBox>(song.path(), box_def.back_color, box_def.fore_color, box_def.texture_index, parser));
-                }
-            }
+            for (const auto& song : fs::recursive_directory_iterator(curr_path))
+                if (is_song_file(song.path()))
+                    items.push_back(std::make_unique<SongBox>(song.path(), box_def, TJAParser(song.path())));
         }
     }
-    items.push_back(std::make_unique<BackBox>(path.parent_path(), BackBox::COLOR, BackBox::COLOR, TextureIndex::NONE));
-    open_index = items.size() / 2;
-    set_positions(true, 0);
+
+    set_positions(false, 800);
     items[open_index]->expand_box();
+}
+
+void Navigator::setup_back_box(const fs::path& path, bool has_children) {
+    BoxDef back_box_def;
+    back_box_def.back_color = BackBox::COLOR;
+    back_box_def.fore_color = BackBox::COLOR;
+    back_box_def.texture_index = TextureIndex::NONE;
+    auto back = std::make_unique<BackBox>(path.parent_path(), back_box_def);
+    if (has_children) {
+        items.clear();
+        items.push_back(std::move(back));
+    } else {
+        back->fade_in(666);
+        items.erase(items.begin() + open_index);
+        items.insert(items.begin() + open_index, std::move(back));
+    }
+}
+
+bool Navigator::has_child_folders(const fs::path& path) {
+    for (const auto& entry : fs::directory_iterator(path))
+        if (fs::is_directory(entry.path()) && has_def_file(entry.path()))
+            return true;
+    return false;
 }
 
 bool Navigator::is_directory(BaseBox* item) {
@@ -163,7 +254,7 @@ void Navigator::move_right() {
 }
 
 void Navigator::enter_diff_select() {
-    items[open_index]->enter_diff_select();
+    items[open_index]->enter_box();
     for (int i = 0; i < items.size(); i++) {
         std::unique_ptr<BaseBox>& box = items[i];
         bool on_screen = box->position > -100 && box->position < tex.screen_width + 100;
@@ -175,21 +266,71 @@ void Navigator::enter_diff_select() {
             } else {
                 box->move_box(tex.screen_width + distance, duration);
             }
+            box->fade_out();
         }
     }
 }
 
 void Navigator::exit_diff_select() {
-    items[open_index]->exit_diff_select();
+    items[open_index]->exit_box();
     set_positions(false, 500);
+    for (auto& box : items) {
+        box->fade_in(166);
+    }
 }
 
 void Navigator::update(double current_ms) {
+    // --- Pending inline load: wait for enter_fade to finish ---
+    if (pending_inline_path) {
+        if (pending_inline_folder->enter_fade->is_finished) {
+            inline_state->saved_folder_box = std::unique_ptr<FolderBox>(
+                static_cast<FolderBox*>(items[open_index].release())
+            );
+            pending_inline_folder = nullptr;
+            setup_back_box(*pending_inline_path, false);
+            int before = items.size();
+            load_songs_inline(*pending_inline_path, pending_inline_box_def);
+            is_inline = true;
+            inline_state->songs_count = items.size() - before;
+            pending_inline_path.reset();
+            set_positions(false, 800);
+            items[open_index]->expand_box();
+        }
+    }
+
+    // --- Inline fade-out: wait for completion then restore ---
+    if (inline_state && inline_state->fading_out) {
+        InlineState& state = *inline_state;
+        int end = state.first_song_index + state.songs_count;
+
+        bool all_done = true;
+        for (int i = state.first_song_index; i < end; i++) {
+            if (!items[i]->fade->is_finished) { all_done = false; break; }
+        }
+
+        if (all_done) {
+            // Remove all inserted songs/back-boxes
+            items.erase(items.begin() + state.first_song_index,
+                        items.begin() + end);
+
+            // Restore FolderBox in place of the BackBox
+            items.erase(items.begin() + state.folder_index);
+            items.insert(items.begin() + state.folder_index,
+                         std::move(state.saved_folder_box));
+
+            open_index = state.folder_index;
+            inline_state.reset();
+            set_positions(false, 500);
+            items[open_index]->exit_box();
+            items[open_index]->fade_in(466);
+            items[open_index]->expand_box();
+        }
+    }
+
     for (auto& box : items) {
         bool on_screen = box->position > -100 && box->position < tex.screen_width + 100;
-        if (on_screen && !box->text_loaded) {
+        if (on_screen && !box->text_loaded)
             box->load_text();
-        }
         box->update(current_ms);
     }
 }

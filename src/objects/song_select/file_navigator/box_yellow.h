@@ -33,7 +33,7 @@ public:
     void create_anim();
     void create_anim_2();
     void update(double current_ms);
-    void draw();
+    void draw(float fade = 1.0);
 
 private:
 };

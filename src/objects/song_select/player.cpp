@@ -112,7 +112,7 @@ SongSelectState SongSelectPlayer::handle_input_browsing(double current_ms) {
             curr_diffs = song_item->get_diffs();
             return SongSelectState::SONG_SELECTED;
         } else if (navigator.is_directory(item)) {
-            navigator.load_current_directory(item->path, true);
+            navigator.load_current_directory(item->path);
         }
     }
     return SongSelectState::BROWSING;

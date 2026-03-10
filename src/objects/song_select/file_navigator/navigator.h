@@ -12,13 +12,12 @@ struct CourseStats {
     int clears       = 0;
 };
 
-struct BoxDef {
-    std::string name;
-    TextureIndex texture_index;
-    GenreIndex genre_index;
-    std::string collection;
-    std::optional<ray::Color> back_color;
-    std::optional<ray::Color> fore_color;
+struct InlineState {
+    std::unique_ptr<FolderBox> saved_folder_box;
+    int folder_index;           // where in items the FolderBox was
+    int first_song_index;       // first inserted song/back position
+    int songs_count;            // how many items were inserted
+    bool fading_out = false;
 };
 
 using Statistics = std::map<int, std::map<int, CourseStats>>;
@@ -30,19 +29,28 @@ private:
     int open_index;
 
     bool is_init = false;
+    std::optional<InlineState>  inline_state;
+    std::optional<fs::path>     pending_inline_path;
+    FolderBox* pending_inline_folder = nullptr;
+    BoxDef                      pending_inline_box_def;
+    bool is_inline = false;
 
     void set_positions(bool init, float duration);
     bool is_song_file(const fs::path& path);
-    bool has_subdirectories(const std::filesystem::path& path);
+    bool has_def_file(const std::filesystem::path& path);
     int get_tja_count(const std::filesystem::path& path);
     BoxDef parse_box_def(const fs::path& path);
+    void setup_back_box(const fs::path& path, bool has_children);
+    bool has_child_folders(const fs::path& path);
+    void load_songs_inline(const fs::path& path, const BoxDef& box_def);
+    void exit_inline();
 
 public:
     Navigator();
 
     void init(std::vector<fs::path> songs_paths);
 
-    void load_current_directory(const fs::path path, bool clear_items);
+    void load_current_directory(const fs::path path);
 
     void enter_diff_select();
 

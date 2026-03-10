@@ -1,18 +1,13 @@
 #include "box_base.h"
 
-BaseBox::BaseBox(const fs::path& path,
-                 const std::optional<ray::Color> back_color,
-                 const std::optional<ray::Color> fore_color,
-                 TextureIndex texture_index)
-    : path(path), texture_index(texture_index),
-      back_color(back_color)
+BaseBox::BaseBox(const fs::path& path, const BoxDef& box_def)
+    : path(path), texture_index(box_def.texture_index),
+      back_color(box_def.back_color), genre_index(box_def.genre_index)
 {
-    genre_index = GenreIndex::DEFAULT;
-
-    if (fore_color.has_value()) {
-        this->fore_color = fore_color.value();
+    if (box_def.fore_color.has_value()) {
+        this->fore_color = box_def.fore_color.value();
     } else if (back_color.has_value()) {
-        this->fore_color = darken_color(back_color.value());
+        this->fore_color = darken_color(box_def.back_color.value());
     } else {
         this->fore_color = ray::Color(101, 0, 82, 255);
     }
@@ -24,6 +19,8 @@ BaseBox::BaseBox(const fs::path& path,
     open_fade = new FadeAnimation(200, 0.0f, false, false, 1.0f, 133);
     move = std::make_unique<MoveAnimation>(133, 0, false, false, 0, 0.0, std::nullopt, std::nullopt, "cubic");
     move->start();
+
+    fade_in(100);
 }
 
 BaseBox::~BaseBox() {
@@ -65,7 +62,6 @@ void BaseBox::expand_box() {
     yellow_box.emplace();
     yellow_box_opened = false;
     open_anim->start();
-    open_fade->start();
 }
 
 void BaseBox::close_box() {
@@ -73,11 +69,11 @@ void BaseBox::close_box() {
     yellow_box_opened = false;
 }
 
-void BaseBox::enter_diff_select() {
+void BaseBox::enter_box() {
     yellow_box->create_anim_2();
 }
 
-void BaseBox::exit_diff_select() {
+void BaseBox::exit_box() {
     yellow_box.reset();
     yellow_box.emplace();
     yellow_box->create_anim();
@@ -96,9 +92,20 @@ void BaseBox::move_box(float target_position, float duration) {
     move->start();
 }
 
+void BaseBox::fade_in(float delay) {
+    fade = new FadeAnimation(266, 0.0f, false, false, 1.0f, delay);
+    fade->start();
+}
+
+void BaseBox::fade_out() {
+    fade = new FadeAnimation(166);
+    fade->start();
+}
+
 void BaseBox::update(double current_time) {
     open_anim->update(current_time);
     open_fade->update(current_time);
+    fade->update(current_time);
     float prev_position = move->attribute;
     move->update(current_time);
     if (!move->is_finished) {
@@ -108,6 +115,7 @@ void BaseBox::update(double current_time) {
         if (yellow_box.has_value() && !yellow_box_opened) {
             yellow_box->create_anim();
             yellow_box_opened = true;
+            open_fade->start();
         }
     }
     if (yellow_box.has_value()) yellow_box->update(current_time);
@@ -117,17 +125,17 @@ void BaseBox::draw_closed() {
     if (shader_loaded && texture_index == TextureIndex::NONE)
         ray::BeginShaderMode(shader);
 
-    tex.draw_texture("box", "folder_texture_left",  {.frame=(int)texture_index, .x=position});
-    tex.draw_texture("box", "folder_texture",       {.frame=(int)texture_index, .x=position, .x2=tex.skin_config["song_box_bg"].width});
-    tex.draw_texture("box", "folder_texture_right", {.frame=(int)texture_index, .x=position});
+    tex.draw_texture("box", "folder_texture_left",  {.frame=(int)texture_index, .x=position, .fade=fade->attribute});
+    tex.draw_texture("box", "folder_texture",       {.frame=(int)texture_index, .x=position, .x2=tex.skin_config["song_box_bg"].width, .fade=fade->attribute});
+    tex.draw_texture("box", "folder_texture_right", {.frame=(int)texture_index, .x=position, .fade=fade->attribute});
 
     if (shader_loaded && texture_index == TextureIndex::NONE)
         ray::EndShaderMode();
 
     if (texture_index == TextureIndex::DEFAULT)
-        tex.draw_texture("box", "genre_overlay", {.x=position});
+        tex.draw_texture("box", "genre_overlay", {.x=position, .fade=fade->attribute});
     if (genre_index == GenreIndex::DIFFICULTY)
-        tex.draw_texture("box", "diff_overlay",  {.x=position});
+        tex.draw_texture("box", "diff_overlay",  {.x=position, .fade=fade->attribute});
 }
 
 void BaseBox::draw_open() {

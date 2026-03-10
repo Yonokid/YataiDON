@@ -7,6 +7,15 @@
 #include "color_utils.h" // IWYU pragma: keep
 #include "box_yellow.h"
 
+struct BoxDef {
+    std::string name;
+    TextureIndex texture_index;
+    GenreIndex genre_index;
+    std::string collection;
+    std::optional<ray::Color> back_color;
+    std::optional<ray::Color> fore_color;
+};
+
 inline size_t utf8_char_count(const std::string& s) {
     size_t count = 0;
     for (unsigned char c : s) {
@@ -21,12 +30,17 @@ public:
     GenreIndex genre_index;
     std::string text_name;
 
+    TextureIndex texture_index;
+    std::optional<ray::Color> back_color;
+    std::optional<ray::Color> fore_color;
+
+    FadeAnimation* fade;
+
     float position;
 
     fs::path path;
 
-    BaseBox(const fs::path& path, const std::optional<ray::Color> back_color,
-            const std::optional<ray::Color> fore_color, TextureIndex texture_index);
+    BaseBox(const fs::path& path, const BoxDef& box_def);
     virtual ~BaseBox();
 
     virtual void load_text();
@@ -39,8 +53,11 @@ public:
     virtual void expand_box();
     void close_box();
 
-    virtual void enter_diff_select();
-    void exit_diff_select();
+    virtual void enter_box();
+    virtual void exit_box();
+
+    void fade_in(float delay);
+    void fade_out();
 
     void move_box(float target_position, float duration);
     virtual void update(double current_ms);
@@ -59,10 +76,6 @@ protected:
 
     std::optional<YellowBox> yellow_box;
     bool yellow_box_opened = false;
-
-    TextureIndex texture_index;
-    std::optional<ray::Color> back_color;
-    std::optional<ray::Color> fore_color;
 
     float target_position;
 

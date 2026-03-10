@@ -1,11 +1,7 @@
 #include "box_song.h"
 
-SongBox::SongBox(const fs::path& path,
-                 const std::optional<ray::Color>& back_color,
-                 const std::optional<ray::Color>& fore_color,
-                 TextureIndex texture_index,
-                 TJAParser parser)
-    : BaseBox(path, back_color, fore_color, texture_index)
+SongBox::SongBox(const fs::path& path, const BoxDef& box_def, TJAParser parser)
+    : BaseBox(path, box_def)
 {
     this->parser = parser;
     parser.get_metadata();
@@ -110,7 +106,7 @@ void SongBox::update(double current_time) {
     diff_fade_in->update(current_time);
 }
 
-void SongBox::enter_diff_select() {
+void SongBox::enter_box() {
     yellow_box->create_anim_2();
     diff_fade_in->start();
 }
@@ -122,10 +118,10 @@ void SongBox::draw_closed() {
     float name_x = position + tex.skin_config["song_box_name"].x - (int)(this->name->width / 2);
     float name_y = tex.skin_config["song_box_name"].y;
     float name_h = std::min((float)this->name->height, tex.skin_config["song_box_name"].height);
-    this->name->draw({.x = name_x, .y = name_y, .y2 = name_h - this->name->height});
+    this->name->draw({.x = name_x, .y = name_y, .y2 = name_h - this->name->height, .fade=fade->attribute});
 
     if (parser.ex_data.new_song)
-        tex.draw_texture("yellow_box", "ex_data_new_song_balloon", {.x=position});
+        tex.draw_texture("yellow_box", "ex_data_new_song_balloon", {.x=position, .fade=fade->attribute});
 
     /*int highest_key = -1;
     for (const auto& [diff, row] : scores) {
@@ -189,12 +185,14 @@ void SongBox::draw_diff_select(bool is_ura) {
 }
 
 void SongBox::draw_text() {
-    float x = position + (yellow_box->right_out->attribute*0.85 - (yellow_box->right_out->start_position*0.85)) + yellow_box->right_out_2->attribute - yellow_box->right_out_2->start_position;
+    float x = position + (yellow_box->right_out->attribute*0.90 - (yellow_box->right_out->start_position*0.90)) + yellow_box->right_out_2->attribute - yellow_box->right_out_2->start_position;
     float h = std::min((float)subtitle->height, tex.skin_config["yb_subtitle"].height);
     subtitle->draw({.x = x + tex.skin_config["yb_subtitle"].x, .y=tex.skin_config["yb_subtitle"].y - h + (float)yellow_box->top_y_out->attribute - yellow_box->top_y_out->start_position, .y2 =h - subtitle->height, .fade=open_fade->attribute});
     float name_h = std::min((float)this->name->height, tex.skin_config["song_box_name"].height) - this->name->height;
-    name_black->draw({.x=x + tex.skin_config["yb_name"].x, .y=tex.skin_config["yb_name"].y + (float)yellow_box->top_y_out->attribute, .y2=name_h, .fade=open_fade->attribute});
-    name->draw({.x=x + tex.skin_config["yb_name"].x, .y=tex.skin_config["yb_name"].y + (float)yellow_box->top_y_out->attribute, .y2=name_h, .fade=1 - open_fade->attribute});
+    float name_x = x + tex.skin_config["song_box_name"].x - (int)(this->name->width / 2);
+    float name_y = tex.skin_config["song_box_name"].y + (float)yellow_box->top_y_out->attribute - yellow_box->top_y_out->start_position;
+    name_black->draw({.x=name_x, .y=name_y, .y2=name_h, .fade=open_fade->attribute});
+    name->draw({.x=name_x, .y=name_y, .y2=name_h, .fade=1 - open_fade->attribute});
 }
 
 void SongBox::draw_open() {
