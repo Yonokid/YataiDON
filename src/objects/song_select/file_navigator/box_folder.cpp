@@ -135,7 +135,7 @@ void FolderBox::draw_open() {
         draw_open_bg(0.0);
         draw_open_fg(enter_fade->attribute);
     } else {
-        draw_open_bg(1.0);
-        draw_open_fg(open_fade->attribute);
+        draw_open_bg(std::min(1.0, fade->attribute));
+        draw_open_fg(std::min(open_fade->attribute, fade->attribute));
     }
 }

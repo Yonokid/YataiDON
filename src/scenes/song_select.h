@@ -19,20 +19,15 @@
 
 class SongSelectScreen : public Screen {
 private:
-    MoveAnimation* background_move;
     FadeAnimation* diff_fade_out;
     FadeAnimation* text_fade_out;
     FadeAnimation* text_fade_in;
-    FadeAnimation* background_fade_change;
     FadeAnimation* blue_arrow_fade;
     MoveAnimation* blue_arrow_move;
 
     SongSelectState state;
 
     std::optional<Transition> game_transition;
-
-    GenreIndex genre_index;
-    GenreIndex last_genre_index;
 
     ray::Shader shader;
     ray::Color color;
@@ -48,8 +43,6 @@ private:
     void handle_input_selecting();
 
     void draw_overlays();
-
-    void draw_background();
 
 public:
     SongSelectScreen() : Screen("song_select") {

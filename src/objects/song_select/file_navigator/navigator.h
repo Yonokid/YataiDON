@@ -39,6 +39,12 @@ private:
     int genre_bg_start;
     int genre_bg_end;
 
+    GenreIndex bg_genre_index;
+    GenreIndex last_bg_genre_index;
+
+    FadeAnimation* background_fade_change;
+    MoveAnimation* background_move;
+
     void set_positions(bool init, float duration);
     bool is_song_file(const fs::path& path);
     bool has_def_file(const std::filesystem::path& path);
@@ -52,6 +58,7 @@ private:
 public:
     Navigator();
 
+    bool is_processing = false;
     void init(std::vector<fs::path> songs_paths);
 
     void load_current_directory(const fs::path path);

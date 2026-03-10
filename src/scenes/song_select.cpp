@@ -7,11 +7,9 @@ void SongSelectScreen::on_screen_start() {
     audio->play_sound("bgm", "music");
     audio->play_sound("voice_enter", "voice");
 
-    background_move        = (MoveAnimation*)tex.get_animation(0);
     diff_fade_out          = (FadeAnimation*)tex.get_animation(2);
     text_fade_out          = (FadeAnimation*)tex.get_animation(3);
     text_fade_in           = (FadeAnimation*)tex.get_animation(4);
-    background_fade_change = (FadeAnimation*)tex.get_animation(5);
     blue_arrow_fade        = (FadeAnimation*)tex.get_animation(29);
     blue_arrow_move        = (MoveAnimation*)tex.get_animation(30);
     blue_arrow_fade->start();
@@ -19,8 +17,6 @@ void SongSelectScreen::on_screen_start() {
 
     shader = ray::LoadShader("shader/dummy.vs", "shader/colortransform.fs");
 
-    genre_index = GenreIndex::DEFAULT;
-    last_genre_index = genre_index;
     state = SongSelectState::BROWSING;
 
     game_transition.reset();
@@ -48,6 +44,7 @@ void SongSelectScreen::handle_input_selecting() {
 }
 
 void SongSelectScreen::handle_input(double current_ms) {
+    if (navigator.is_processing) return;
     if (state == SongSelectState::BROWSING) {
         handle_input_browsing(current_ms);
     } else if (state == SongSelectState::SONG_SELECTED) {
@@ -59,9 +56,7 @@ std::optional<Screens> SongSelectScreen::update() {
     Screen::update();
 
     double current_time = get_current_ms();
-    background_move->update(current_time);
     diff_fade_out->update(current_time);
-    background_fade_change->update(current_time);
     text_fade_out->update(current_time);
     text_fade_in->update(current_time);
     blue_arrow_fade->update(current_time);
@@ -82,7 +77,7 @@ std::optional<Screens> SongSelectScreen::update() {
         }
     }
 
-    navigator.update(current_time);
+    if (screen_init) navigator.update(current_time);
 
     if (game_transition.has_value()) {
         game_transition->update(current_time);
@@ -103,15 +98,6 @@ Screens SongSelectScreen::on_screen_end(Screens next_screen) {
     return Screen::on_screen_end(next_screen);
 }
 
-void SongSelectScreen::draw_background() {
-    int width = tex.textures["box"]["background"]->width;
-
-    for (int i = 0; i < width * 4; i += width) {
-        tex.draw_texture("box", "background", {.frame=(int)last_genre_index, .x=(float)(i - background_move->attribute)});
-        tex.draw_texture("box", "background", {.frame=(int)genre_index,  .x=(float)(i - background_move->attribute), .fade=1.0f - background_fade_change->attribute});
-    }
-}
-
 void SongSelectScreen::draw_overlays() {
     if (state == SongSelectState::BROWSING) {
         tex.draw_texture("global", "arrow", {.x=-((float)blue_arrow_move->attribute * 2), .fade=blue_arrow_fade->attribute, .index=0});
@@ -126,9 +112,7 @@ void SongSelectScreen::draw_overlays() {
 }
 
 void SongSelectScreen::draw() {
-    draw_background();
-
-    navigator.draw(player->is_ura);
+    if (screen_init) navigator.draw(player->is_ura);
 
     player->draw(state);
 

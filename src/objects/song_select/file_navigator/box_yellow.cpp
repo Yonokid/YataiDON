@@ -66,15 +66,15 @@ void YellowBox::create_anim_2() {
 }
 
 void YellowBox::update(double current_ms) {
-    left_out->update(current_ms);
-    right_out->update(current_ms);
-    center_out->update(current_ms);
-    fade_in->update(current_ms);
-    left_out_2->update(current_ms);
-    right_out_2->update(current_ms);
-    center_out_2->update(current_ms);
-    top_y_out->update(current_ms);
-    center_h_out->update(current_ms);
+    if (left_out != nullptr) left_out->update(current_ms);
+    if (right_out != nullptr) right_out->update(current_ms);
+    if (center_out != nullptr) center_out->update(current_ms);
+    if (fade_in != nullptr) fade_in->update(current_ms);
+    if (left_out_2 != nullptr) left_out_2->update(current_ms);
+    if (right_out_2 != nullptr) right_out_2->update(current_ms);
+    if (center_out_2 != nullptr) center_out_2->update(current_ms);
+    if (top_y_out != nullptr) top_y_out->update(current_ms);
+    if (center_h_out != nullptr) center_h_out->update(current_ms);
 
     if (is_diff_select) {
         right_x       = right_out_2->attribute;

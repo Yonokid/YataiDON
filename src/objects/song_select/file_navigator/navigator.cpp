@@ -16,9 +16,15 @@ void Navigator::init(std::vector<fs::path> songs_paths) {
             item->reset();
             item->fade_in(0);
         }
+        if (pending_inline_folder != nullptr) pending_inline_folder->reset();
         set_positions(false, 0);
         get_current_item()->expand_box();
     }
+    background_move = (MoveAnimation*)tex.get_animation(0);
+    background_fade_change = (FadeAnimation*)tex.get_animation(5);
+    bg_genre_index = items[open_index]->genre_index;
+    last_bg_genre_index = bg_genre_index;
+    if (genre_bg.has_value()) genre_bg->fade_in();
 }
 
 BoxDef Navigator::parse_box_def(const fs::path& path) {
@@ -82,11 +88,17 @@ void Navigator::exit_inline() {
 
     // Kick off fade_out on all inserted items
     int end = state.first_song_index + state.songs_count;
-    for (int i = state.first_song_index; i < end; i++)
+    for (int i = state.first_song_index - 1; i < end; i++)
         items[i]->fade_out();
 
     state.fading_out = true;
+    auto& start_box = items[genre_bg_start];
+    auto& end_box = items[genre_bg_end];
+    float start_pos = start_box->left_bound;
+    float end_pos = end_box->right_bound;
+    genre_bg->exit(start_pos, end_pos, pending_inline_folder);
     is_inline = false;
+    is_processing = true;
 }
 
 void Navigator::load_songs_inline(const fs::path& path, const BoxDef& box_def) {
@@ -138,7 +150,11 @@ void Navigator::load_current_directory(const fs::path path) {
         inline_state           = std::move(state);
         pending_inline_path    = path;
         pending_inline_box_def = box_def;
-        genre_bg.emplace(items[open_index]->text_name, items[open_index]->back_color.value(), items[open_index]->texture_index);
+        float approx_distance = get_tja_count(pending_inline_path.value()) * 100;
+        genre_bg_start = 0;
+        genre_bg_end = 0;
+        genre_bg.emplace(items[open_index]->text_name, items[open_index]->back_color, items[open_index]->texture_index, approx_distance);
+        is_processing = true;
         for (int i = 0; i < items.size(); i++) {
             if (items[i]->position > items[open_index]->position) {
                 items[i]->move_box(tex.screen_width + 150, 600);
@@ -247,16 +263,22 @@ void Navigator::set_positions(bool init, float duration) {
 
 void Navigator::move_left() {
     items[open_index]->close_box();
+    last_bg_genre_index = bg_genre_index;
     open_index = (open_index - 1 + (int)items.size()) % (int)items.size();
+    bg_genre_index = items[open_index]->genre_index;
     set_positions(false, 166);
     items[open_index]->expand_box();
+    background_fade_change->start();
 }
 
 void Navigator::move_right() {
     items[open_index]->close_box();
+    last_bg_genre_index = bg_genre_index;
     open_index = (open_index + 1 + (int)items.size()) % (int)items.size();
+    bg_genre_index = items[open_index]->genre_index;
     set_positions(false, 166);
     items[open_index]->expand_box();
+    background_fade_change->start();
 }
 
 void Navigator::enter_diff_select() {
@@ -275,6 +297,9 @@ void Navigator::enter_diff_select() {
             box->fade_out();
         }
     }
+    if (genre_bg.has_value()) {
+        genre_bg->fade_out();
+    }
 }
 
 void Navigator::exit_diff_select() {
@@ -283,17 +308,21 @@ void Navigator::exit_diff_select() {
     for (auto& box : items) {
         box->fade_in(166);
     }
+    if (genre_bg.has_value()) {
+        genre_bg->fade_in();
+    }
 }
 
 void Navigator::update(double current_ms) {
-    if (genre_bg.has_value()) genre_bg->update(current_ms);
+    if (genre_bg.has_value()) genre_bg->update(current_ms, pending_inline_folder);
+    background_move->update(current_ms);
+    background_fade_change->update(current_ms);
     // --- Pending inline load: wait for enter_fade to finish ---
     if (pending_inline_path) {
-        if (pending_inline_folder->enter_fade->is_finished) {
+        if (genre_bg->is_finished()) {
             inline_state->saved_folder_box = std::unique_ptr<FolderBox>(
                 static_cast<FolderBox*>(items[open_index].release())
             );
-            pending_inline_folder = nullptr;
             setup_back_box(*pending_inline_path, false);
             int before = items.size();
             genre_bg_start = inline_state->first_song_index - 1;
@@ -304,6 +333,7 @@ void Navigator::update(double current_ms) {
             pending_inline_path.reset();
             set_positions(false, 800);
             items[open_index]->expand_box();
+            is_processing = false;
         }
     }
 
@@ -314,10 +344,11 @@ void Navigator::update(double current_ms) {
 
         bool all_done = true;
         for (int i = state.first_song_index; i < end; i++) {
-            if (!items[i]->fade->is_finished) { all_done = false; break; }
+            if (!items[i]->fade->is_finished || !genre_bg->is_complete()) { all_done = false; break; }
         }
 
         if (all_done) {
+            pending_inline_folder = nullptr;
             // Remove all inserted songs/back-boxes
             items.erase(items.begin() + state.first_song_index,
                         items.begin() + end);
@@ -331,9 +362,8 @@ void Navigator::update(double current_ms) {
             inline_state.reset();
             set_positions(false, 500);
             items[open_index]->exit_box();
-            items[open_index]->fade_in(466);
-            items[open_index]->expand_box();
             genre_bg.reset();
+            is_processing = false;
         }
     }
 
@@ -346,12 +376,20 @@ void Navigator::update(double current_ms) {
 }
 
 void Navigator::draw(bool is_ura) {
+    int width = tex.textures["box"]["background"]->width;
+
+    for (int i = 0; i < width * 4; i += width) {
+        tex.draw_texture("box", "background", {.frame=(int)last_bg_genre_index, .x=(float)(i - background_move->attribute)});
+        tex.draw_texture("box", "background", {.frame=(int)bg_genre_index,  .x=(float)(i - background_move->attribute), .fade=1.0f - background_fade_change->attribute});
+    }
+
     if (genre_bg.has_value()) {
         auto& start_box = items[genre_bg_start];
         auto& end_box = items[genre_bg_end];
         float start_pos = start_box->left_bound;
         float end_pos = end_box->right_bound;
-        genre_bg->draw(start_pos, end_pos);
+        FolderBox* folder = pending_inline_folder;
+        genre_bg->draw(start_pos, end_pos, folder);
     }
     for (auto& box : items) {
         if (box->position > -100 && box->position < tex.screen_width + 100) {

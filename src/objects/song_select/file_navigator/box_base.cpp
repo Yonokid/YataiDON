@@ -50,10 +50,8 @@ void BaseBox::load_text() {
 }
 
 void BaseBox::reset() {
-    if (yellow_box.has_value()) {
-        yellow_box->reset();
-        yellow_box_opened = false;
-    }
+    yellow_box.reset();
+    yellow_box_opened = false;
     open_anim->reset();
     open_fade->reset();
 }
