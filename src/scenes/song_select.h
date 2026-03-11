@@ -20,7 +20,6 @@
 class SongSelectScreen : public Screen {
 private:
     FadeAnimation* diff_fade_out;
-    FadeAnimation* text_fade_out;
     FadeAnimation* text_fade_in;
     FadeAnimation* blue_arrow_fade;
     MoveAnimation* blue_arrow_move;
@@ -28,6 +27,11 @@ private:
     SongSelectState state;
 
     std::optional<Transition> game_transition;
+    CoinOverlay coin_overlay;
+    AllNetIcon allnet_indicator;
+    Timer* select_timer;
+    Timer* diff_select_timer;
+    Indicator* indicator;
 
     ray::Shader shader;
     ray::Color color;

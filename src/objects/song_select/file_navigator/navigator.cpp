@@ -113,11 +113,12 @@ void Navigator::load_songs_inline(const fs::path& path, const BoxDef& box_def) {
             back_box_def.back_color = BackBox::COLOR;
             back_box_def.fore_color = BackBox::COLOR;
             back_box_def.texture_index = TextureIndex::NONE;
+            back_box_def.genre_index = GenreIndex::NAMCO;
             auto back = std::make_unique<BackBox>(path.parent_path(), back_box_def);
             items.insert(items.begin() + insert_pos++, std::move(back));
         }
 
-        box->fade_in(666);
+        box->fade_in(466);
         items.insert(items.begin() + insert_pos++, std::move(box));
         songs_added++;
     };
@@ -196,6 +197,7 @@ void Navigator::setup_back_box(const fs::path& path, bool has_children) {
     back_box_def.back_color = BackBox::COLOR;
     back_box_def.fore_color = BackBox::COLOR;
     back_box_def.texture_index = TextureIndex::NONE;
+    back_box_def.genre_index = GenreIndex::NAMCO;
     auto back = std::make_unique<BackBox>(path.parent_path(), back_box_def);
     if (has_children) {
         items.clear();
@@ -275,6 +277,26 @@ void Navigator::move_right() {
     items[open_index]->close_box();
     last_bg_genre_index = bg_genre_index;
     open_index = (open_index + 1 + (int)items.size()) % (int)items.size();
+    bg_genre_index = items[open_index]->genre_index;
+    set_positions(false, 166);
+    items[open_index]->expand_box();
+    background_fade_change->start();
+}
+
+void Navigator::skip_left() {
+    items[open_index]->close_box();
+    last_bg_genre_index = bg_genre_index;
+    open_index = (open_index - 10 + (int)items.size()) % (int)items.size();
+    bg_genre_index = items[open_index]->genre_index;
+    set_positions(false, 166);
+    items[open_index]->expand_box();
+    background_fade_change->start();
+}
+
+void Navigator::skip_right() {
+    items[open_index]->close_box();
+    last_bg_genre_index = bg_genre_index;
+    open_index = (open_index + 10 + (int)items.size()) % (int)items.size();
     bg_genre_index = items[open_index]->genre_index;
     set_positions(false, 166);
     items[open_index]->expand_box();

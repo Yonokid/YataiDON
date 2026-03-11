@@ -46,6 +46,7 @@ public:
     bool is_voice_playing();
     //void on_song_selected(SongFile* selected_song);
 
+    SongSelectState select_song();
     SongSelectState handle_input_browsing(double current_ms);
     SongSelectState handle_input_selecting();
     std::optional<std::pair<int,int>> handle_input_diff_sort(DiffSortSelect* diff_sort_selector);

@@ -19,7 +19,6 @@ BaseBox::BaseBox(const fs::path& path, const BoxDef& box_def)
     open_fade = new FadeAnimation(200, 0.0f, false, false, 1.0f, 133);
     move = std::make_unique<MoveAnimation>(133, 0, false, false, 0, 0.0, std::nullopt, std::nullopt, "cubic");
     move->start();
-    genre_index = GenreIndex::NAMCO;
 
     fade_in(100);
 }

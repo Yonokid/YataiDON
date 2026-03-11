@@ -76,6 +76,9 @@ public:
     void move_left();
     void move_right();
 
+    void skip_left();
+    void skip_right();
+
     void update(double current_ms);
 
     void draw(bool is_ura);
