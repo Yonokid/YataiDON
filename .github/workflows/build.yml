@@ -107,7 +107,7 @@ jobs:
             -DCMAKE_C_COMPILER=gcc
 
       - name: Build
-        run: cmake --build build --config Debug
+        run: cmake --build build --config Release
 
       - name: Prepare release package
         run: |
