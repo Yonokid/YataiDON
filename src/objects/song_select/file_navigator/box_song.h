@@ -2,6 +2,7 @@
 #include "box_base.h"
 
 #include "../../libs/texture.h"
+#include "../../libs/audio.h"
 
 class SongBox : public BaseBox {
 public:
@@ -12,6 +13,7 @@ public:
     std::string text_subtitle;
     std::unique_ptr<OutlinedText> subtitle;
     std::unique_ptr<OutlinedText> name_black;
+    bool music_playing;
 
     SongBox(const fs::path& path, const BoxDef& box_def, TJAParser tja);
 
@@ -22,6 +24,7 @@ public:
     void update(double current_time) override;
     //void draw_score_history() override;
     void enter_box() override;
+    virtual void close_box() override;
     std::vector<Difficulty> get_diffs();
 
 protected:

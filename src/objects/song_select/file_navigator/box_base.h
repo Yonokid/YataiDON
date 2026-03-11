@@ -53,7 +53,7 @@ public:
     virtual void reset();
     void set_position(float target_position);
     virtual void expand_box();
-    void close_box();
+    virtual void close_box();
 
     virtual void enter_box();
     virtual void exit_box();

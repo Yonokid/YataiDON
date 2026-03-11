@@ -19,6 +19,8 @@ SongBox::SongBox(const fs::path& path, const BoxDef& box_def, TJAParser parser)
 void SongBox::reset() {
     BaseBox::reset();
     diff_fade_in = (FadeAnimation*)tex.get_animation(12);
+    audio->unload_music_stream("preview");
+    music_playing = false;
 }
 
 std::vector<Difficulty> SongBox::get_diffs() {
@@ -104,6 +106,24 @@ void SongBox::load_text() {
 void SongBox::update(double current_time) {
     BaseBox::update(current_time);
     diff_fade_in->update(current_time);
+
+    if (yellow_box.has_value() && (yellow_box->left_out != nullptr) && yellow_box->left_out->is_finished && fs::exists(parser.metadata.wave) && !music_playing) {
+        music_playing = true;
+        audio->stop_sound("bgm");
+        audio->load_music_stream(parser.metadata.wave, "preview");
+        audio->play_music_stream("preview", "music");
+        audio->seek_music_stream("preview", parser.metadata.demostart);
+    }
+}
+
+void SongBox::close_box() {
+    BaseBox::close_box();
+    if (music_playing) {
+        audio->stop_music_stream("preview");
+        audio->unload_music_stream("preview");
+        audio->play_sound("bgm", "music");
+        music_playing = false;
+    }
 }
 
 void SongBox::enter_box() {
