@@ -154,11 +154,6 @@ jobs:
           pattern: YataiDON-*
           merge-multiple: true
 
-      - name: Zip artifacts
-        run: |
-          zip -r YataiDON-Linux.zip YataiDON-Linux/
-          zip -r YataiDON-Windows.zip YataiDON-Windows/
-
       - name: Upload Release
         uses: softprops/action-gh-release@v2
         with:
