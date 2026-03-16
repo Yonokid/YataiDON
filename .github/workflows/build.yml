@@ -154,8 +154,10 @@ jobs:
           pattern: YataiDON-*
           merge-multiple: true
 
-      - name: List downloaded files
-        run: ls -la
+      - name: Repackage artifacts
+        run: |
+          zip -r YataiDON-Linux.zip YataiDON Skins shader config.toml
+          zip -r YataiDON-Windows.zip YataiDON.exe Skins shader config.toml
 
       - name: Upload Release
         uses: softprops/action-gh-release@v2
@@ -164,5 +166,4 @@ jobs:
           name: "YataiDON [Latest Release]"
           tag_name: "latest"
           make_latest: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
