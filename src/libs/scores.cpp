@@ -1,7 +1,7 @@
 #include "scores.h"
 
 ScoresManager::ScoresManager(const fs::path& db_path) {
-    sqlite3_open(db_path.c_str(), &db_fsd);
+    sqlite3_open(db_path.string().c_str(), &db_fsd);
 
     int version = 0;
     auto callback = [](void* data, int, char** argv, char**) -> int {
@@ -84,7 +84,7 @@ void ScoresManager::py_taiko_import(const fs::path& old_db_path) {
 
     // Open old DB
     sqlite3* old_db;
-    if (sqlite3_open(old_db_path.c_str(), &old_db) != SQLITE_OK) {
+    if (sqlite3_open(old_db_path.string().c_str(), &old_db) != SQLITE_OK) {
         spdlog::error("py_taiko_import: failed to open old DB at {}", old_db_path.string());
         return;
     }
