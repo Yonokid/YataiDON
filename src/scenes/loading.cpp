@@ -111,7 +111,7 @@ void LoadingScreen::load_song_hashes() {
 
     auto worker = [&](int start, int end) {
         for (int i = start; i < end; i++) {
-            const std::string& path = songs[i];
+            const std::string& path = songs[i].string();
             auto mtime = std::filesystem::last_write_time(path);
 
             std::array<std::string, 5> hashes;
