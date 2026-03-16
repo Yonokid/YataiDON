@@ -3,6 +3,7 @@
 #include "../libs/screen.h"
 #include "../libs/parsers/tja.h"
 #include "../libs/video.h"
+#include "../libs/scores.h"
 
 #include "../objects/game/player.h"
 #include "../objects/game/song_info.h"
@@ -19,6 +20,7 @@ private:
     double start_delay;
     bool song_started;
     bool paused;
+    bool score_saved;
     int pause_time;
     float bpm;
 

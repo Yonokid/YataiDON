@@ -1,7 +1,5 @@
 #pragma once
 
-#include <unordered_map>
-
 #include "config.h"
 
 namespace fs = std::filesystem;
@@ -38,6 +36,18 @@ enum class Crown {
     CLEAR = 1,
     FC = 2,
     DFC = 3
+};
+
+//underscore to avoid conflict with raylib colors
+enum class Rank {
+    _NONE = 0,
+    _WHITE = 1,
+    _BRONZE = 2,
+    _SILVER = 3,
+    _GOLD = 4,
+    _PINK = 5,
+    _PURPLE = 6,
+    _RAINBOW = 7
 };
 
 struct Modifiers {
@@ -116,10 +126,6 @@ struct GlobalData {
     int songs_played = 0;
     CameraConfig camera;
     Config* config = nullptr;  // Using pointer, initialize appropriately
-    std::unordered_map<std::string, std::vector<std::unordered_map<std::string, std::string>>> song_hashes;  // Hash to metadata
-    std::unordered_map<fs::path, std::string> song_paths;  // Path to hash
-    std::string score_db;
-    float song_progress = 0.0f;
     int total_songs = 0;
     std::vector<int> hit_sound = {0, 0, 0};
     PlayerNum player_num = PlayerNum::P1;

@@ -4,6 +4,7 @@
 #include <filesystem>
 #include "libs/ray.h"
 #include "libs/global_data.h"
+#include "libs/scores.h"
 #include "libs/screen.h"
 #include "libs/config.h"
 #include "libs/script.h"
@@ -211,11 +212,13 @@ int main(int argc, char* argv[]) {
         spdlog::warn("Skin directory not found, skipping script initialization");
     }
 
-    if (global_data.config->general.score_method == ScoreMethod::GEN3) {
+    /*if (global_data.config->general.score_method == ScoreMethod::GEN3) {
         global_data.score_db = "scores_gen3.db";
     } else {
         global_data.score_db = "scores.db";
-    }
+        }*/
+    scores_manager.player_1 = scores_manager.add_player(global_data.config->nameplate_1p.name);
+    scores_manager.player_2 = scores_manager.add_player(global_data.config->nameplate_2p.name);
     spdlog::info("Starting YataiDON");
     int screen_width = 1280;// * tex.screen_width;
     int screen_height = 720;// * tex.screen_height;

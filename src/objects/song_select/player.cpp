@@ -61,15 +61,6 @@ bool SongSelectPlayer::is_voice_playing() {
     return audio->is_sound_playing("voice_start_song_" + std::to_string((int)player_num) + "p");
 }
 
-/*void SongSelectPlayer::on_song_selected(SongFile* song) {
-    if (song->parser->metadata.course_data.find((int)Difficulty::URA) == song->parser->metadata.course_data.end()) {
-        is_ura = false;
-    } else if (song->parser->metadata.course_data.find((int)Difficulty::URA) != song->parser->metadata.course_data.end() &&
-               song->parser->metadata.course_data.find((int)Difficulty::ONI) == song->parser->metadata.course_data.end()) {
-        is_ura = true;
-    }
-    }*/
-
 SongSelectState SongSelectPlayer::select_song() {
     audio->play_sound("don", "sound");
     BaseBox* item = navigator.get_current_item();

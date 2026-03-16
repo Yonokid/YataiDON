@@ -11,6 +11,7 @@ void GameScreen::on_screen_start() {
     JudgePos::Y = 256 * tex.screen_scale;
     song_started = false;
     paused = false;
+    score_saved = false;
     pause_time = 0;
     if (global_data.config->general.nijiiro_notes) {
         tex.textures["game"].erase("notes");
@@ -200,11 +201,41 @@ std::optional<Screens> GameScreen::update() {
     else if (current_ms >= players[0]->end_time) {
         global_data.session_data[(int)global_data.player_num].result_data = players[0]->get_result_score();
         if (end_ms != 0) {
-            if (current_time >= end_ms + 1000) {
+            if (current_time >= end_ms + 1000 && !score_saved) {
+                Score score;
+                score.score = global_data.session_data[(int)global_data.player_num].result_data.score;
+                score.good = global_data.session_data[(int)global_data.player_num].result_data.good;
+                score.ok = global_data.session_data[(int)global_data.player_num].result_data.ok;
+                score.bad = global_data.session_data[(int)global_data.player_num].result_data.bad;
+                score.max_combo = global_data.session_data[(int)global_data.player_num].result_data.max_combo;
+                score.drumroll = global_data.session_data[(int)global_data.player_num].result_data.total_drumroll;
+                if (score.ok == 0 && score.bad == 0) {
+                    score.crown = Crown::DFC;
+                } else if (score.bad == 0) {
+                    score.crown = Crown::FC;
+                } else {
+                    score.crown = Crown::CLEAR;
+                }
+                if (score.score >= 1000000) {
+                    score.rank = Rank::_RAINBOW;
+                } else if (score.score >= 950000) {
+                    score.rank = Rank::_PURPLE;
+                } else if (score.score >= 900000) {
+                    score.rank = Rank::_PINK;
+                } else if (score.score >= 800000) {
+                    score.rank = Rank::_GOLD;
+                } else if (score.score >= 700000) {
+                    score.rank = Rank::_SILVER;
+                } else if (score.score >= 600000) {
+                    score.rank = Rank::_BRONZE;
+                } else {
+                    score.rank = Rank::_WHITE;
+                }
+                scores_manager.save_score(global_data.session_data[(int)global_data.player_num].song_hash, global_data.session_data[(int)global_data.player_num].selected_difficulty, 1, score);
                 /*if self.player_1.ending_anim is None:
                     self.write_score()
-                    logger.info("Score written and ending animations spawned")
                     self.spawn_ending_anims()*/
+                score_saved = true;
             }
             if (current_time >= end_ms + 8533.34) {
                 if (!result_transition.is_started) {

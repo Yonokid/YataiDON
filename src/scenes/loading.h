@@ -2,13 +2,14 @@
 
 #include "../libs/screen.h"
 #include "../objects/global/allnet_indicator.h"
-#include "../objects/song_select/file_navigator/navigator.h"
+#include "../libs/parsers/tja.h"
+#include "../libs/scores.h"
 
 class LoadingScreen : public Screen {
 private:
-    std::atomic<bool> songs_loaded = false;
-    std::atomic<bool> navigator_started = false;
-    std::atomic<bool> loading_complete = false;
+    std::atomic<bool> loading_complete{false};
+    std::atomic<float> progress{0.0f};
+    std::vector<fs::path> songs;
 
     float progress_bar_width;
     float progress_bar_height;
@@ -16,7 +17,6 @@ private:
     float progress_bar_y;
 
     std::thread loading_thread;
-    std::thread navigator_thread;
 
     FadeAnimation* fade_in;
     AllNetIcon allnet_indicator;

@@ -2,6 +2,7 @@
 
 #include "../../libs/animation.h"
 #include "../../libs/texture.h"
+#include <unordered_map>
 
 class Combo {
 private:

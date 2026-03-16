@@ -129,15 +129,6 @@ enum class GenreIndex : int {
     DIFFICULTY  = 14
 };
 
-struct ScoreRow {
-    int score    = 0;
-    int good     = 0;
-    int ok       = 0;
-    int bad      = 0;
-    int drumroll = 0;
-    Crown crown  = Crown::NONE;
-};
-
 const std::map<std::string, TextureIndex> TEXTURE_MAP = {
     {"VOCALOID",    TextureIndex::VOCALOID},
     {"ボーカロイド", TextureIndex::VOCALOID},

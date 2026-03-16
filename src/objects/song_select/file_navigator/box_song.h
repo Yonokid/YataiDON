@@ -3,11 +3,12 @@
 
 #include "../../libs/texture.h"
 #include "../../libs/audio.h"
+#include "../../libs/scores.h"
 
 class SongBox : public BaseBox {
 public:
-    std::map<int, ScoreRow*> scores;
-    std::map<int, std::string> hash;
+    std::array<std::string, 5> hashes;
+    std::array<std::optional<Score>, 5> scores;
     TJAParser parser;
     bool is_favorite;
     std::string text_subtitle;
@@ -20,7 +21,6 @@ public:
     void reset() override;
 
     void load_text() override;
-    //void get_scores() override;
     void update(double current_time) override;
     //void draw_score_history() override;
     void enter_box() override;

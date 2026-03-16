@@ -274,6 +274,8 @@ public:
 
     std::tuple<NoteList, std::deque<NoteList>, std::deque<NoteList>, std::deque<NoteList>>
     notes_to_position(int diff);
+    std::string get_song_hash();
+    std::string get_diff_hash(int difficulty);
 
 private:
     volatile double current_ms;

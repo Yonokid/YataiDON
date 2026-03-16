@@ -319,6 +319,9 @@ void TJAParser::get_metadata() {
 
 std::tuple<NoteList, std::deque<NoteList>, std::deque<NoteList>, std::deque<NoteList>>
 TJAParser::notes_to_position(int diff) {
+    if (metadata.course_data.count(diff) == 0) {
+        return std::make_tuple(NoteList(), std::deque<NoteList>(), std::deque<NoteList>(), std::deque<NoteList>());
+    }
     auto commands = build_command_registry();
     auto notes = data_to_notes(diff);
 
@@ -1260,4 +1263,53 @@ std::vector<std::pair<int, int>> find_streams(const std::deque<Note>& modded_not
     }
 
     return streams;
+}
+
+std::string TJAParser::get_song_hash() {
+    get_metadata();
+    digestpp::md5 hasher;
+    for (const auto& [course, course_data] : metadata.course_data) {
+        for (int diff = course; diff < 4; diff++) {
+            auto [notes, branch_m, branch_e, branch_n] = notes_to_position(diff);
+
+            auto absorb_notes = [&](const NoteList& note_list) {
+                for (const Note& note : note_list.notes) {
+                    auto h = note.hash();
+                    hasher.absorb(reinterpret_cast<const char*>(&h), sizeof(h));
+                }
+            };
+
+            absorb_notes(notes);
+            for (const NoteList& nl : branch_m) absorb_notes(nl);
+            for (const NoteList& nl : branch_e) absorb_notes(nl);
+            for (const NoteList& nl : branch_n) absorb_notes(nl);
+        }
+    }
+    return hasher.hexdigest();
+}
+
+std::string TJAParser::get_diff_hash(int difficulty) {
+    get_metadata();
+    digestpp::md5 hasher;
+    auto [notes, branch_m, branch_e, branch_n] = notes_to_position(difficulty);
+    auto total_notes = notes.notes.size();
+    for (const NoteList& nl : branch_m) total_notes += nl.notes.size();
+    for (const NoteList& nl : branch_e) total_notes += nl.notes.size();
+    for (const NoteList& nl : branch_n) total_notes += nl.notes.size();
+
+    if (total_notes == 0)
+        return "";
+
+    auto absorb_notes = [&](const NoteList& note_list) {
+        for (const Note& note : note_list.notes) {
+            auto h = note.hash();
+            hasher.absorb(reinterpret_cast<const char*>(&h), sizeof(h));
+        }
+    };
+
+    absorb_notes(notes);
+    for (const NoteList& nl : branch_m) absorb_notes(nl);
+    for (const NoteList& nl : branch_e) absorb_notes(nl);
+    for (const NoteList& nl : branch_n) absorb_notes(nl);
+    return hasher.hexdigest();
 }

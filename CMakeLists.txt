@@ -22,6 +22,7 @@ include(FetchContent)
 find_package(PkgConfig QUIET)
 if(PkgConfig_FOUND)
     pkg_check_modules(SDL2 QUIET sdl2)
+    pkg_check_modules(SQLITE3 QUIET sqlite3)
 endif()
 
 if(SDL2_FOUND)
@@ -46,6 +47,22 @@ else()
         GIT_SHALLOW TRUE
     )
     FetchContent_MakeAvailable(SDL2)
+endif()
+
+if(SQLITE3_FOUND)
+    message(STATUS "Using system SQLite3")
+    add_library(SQLite3::SQLite3 INTERFACE IMPORTED)
+    target_include_directories(SQLite3::SQLite3 INTERFACE ${SQLITE3_INCLUDE_DIRS})
+    target_link_libraries(SQLite3::SQLite3 INTERFACE ${SQLITE3_LINK_LIBRARIES})
+else()
+    message(STATUS "System SQLite3 not found, fetching amalgamation")
+    FetchContent_Declare(
+        sqlite3
+        URL https://www.sqlite.org/2024/sqlite-amalgamation-3460100.zip
+    )
+    FetchContent_MakeAvailable(sqlite3)
+    add_library(SQLite3::SQLite3 INTERFACE IMPORTED)
+    target_include_directories(SQLite3::SQLite3 INTERFACE ${sqlite3_SOURCE_DIR})
 endif()
 
 # raylib
@@ -336,6 +353,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     FFmpeg::swscale
     FFmpeg::avutil
     FFmpeg::swresample
+    SQLite3::SQLite3
 )
 
 # Platform specific (Thanks GPT)

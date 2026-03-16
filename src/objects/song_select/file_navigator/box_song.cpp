@@ -14,6 +14,10 @@ SongBox::SongBox(const fs::path& path, const BoxDef& box_def, TJAParser parser)
 
     is_favorite = false;
     diff_fade_in = (FadeAnimation*)tex.get_animation(12);
+    hashes = scores_manager.get_hashes(path);
+    for (int i = 0; i < 5; i++) {
+        scores[i] = scores_manager.get_score(hashes[i], i, 1);
+    }
 }
 
 void SongBox::reset() {
@@ -44,64 +48,6 @@ void SongBox::load_text() {
     name_black = make_unique<OutlinedText>(text_name, font_size, ray::WHITE, ray::BLACK, true);
     text_loaded = true;
 }
-
-/*void SongBox::get_scores() {
-    if (parser->metadata.course_data.empty()) return;
-
-    std::vector<std::string> hash_values;
-    for (const auto& [diff, course] : parser->metadata.course_data) {
-        if (hash.count(diff))
-            hash_values.push_back(hash.at(diff));
-    }
-    if (hash_values.empty()) return;
-
-    sqlite3* db;
-    if (sqlite3_open(global_data.score_db.c_str(), &db) != SQLITE_OK) return;
-
-    std::string placeholders;
-    for (size_t i = 0; i < hash_values.size(); i++) {
-        if (i > 0) placeholders += ",";
-        placeholders += "?";
-    }
-
-    std::string query =
-        "SELECT hash, score, good, ok, bad, drumroll, clear "
-        "FROM Scores WHERE hash IN (" + placeholders + ")";
-
-    sqlite3_stmt* stmt;
-    if (sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, nullptr) != SQLITE_OK) {
-        sqlite3_close(db);
-        return;
-    }
-
-    for (int i = 0; i < (int)hash_values.size(); i++)
-        sqlite3_bind_text(stmt, i + 1, hash_values[i].c_str(), -1, SQLITE_STATIC);
-
-    std::map<std::string, ScoreRow*> hash_to_score;
-    while (sqlite3_step(stmt) == SQLITE_ROW) {
-        std::string row_hash = (const char*)sqlite3_column_text(stmt, 0);
-        auto* row = new ScoreRow();
-        row->score    = sqlite3_column_int(stmt, 1);
-        row->good     = sqlite3_column_int(stmt, 2);
-        row->ok       = sqlite3_column_int(stmt, 3);
-        row->bad      = sqlite3_column_int(stmt, 4);
-        row->drumroll = sqlite3_column_int(stmt, 5);
-        row->crown    = static_cast<Crown>(sqlite3_column_int(stmt, 6));
-        hash_to_score[row_hash] = row;
-    }
-    sqlite3_finalize(stmt);
-    sqlite3_close(db);
-
-    for (auto& [diff, row] : scores) delete row;
-    scores.clear();
-
-    for (const auto& [diff, course] : parser->metadata.course_data) {
-        if (!hash.count(diff)) continue;
-        const std::string& diff_hash = hash.at(diff);
-        scores[diff] = hash_to_score.count(diff_hash) ? hash_to_score.at(diff_hash) : nullptr;
-    }
-    score_history = nullptr;
-    }*/
 
 void SongBox::update(double current_time) {
     BaseBox::update(current_time);
@@ -143,18 +89,17 @@ void SongBox::draw_closed() {
     if (parser.ex_data.new_song)
         tex.draw_texture("yellow_box", "ex_data_new_song_balloon", {.x=position, .fade=fade->attribute});
 
-    /*int highest_key = -1;
-    for (const auto& [diff, row] : scores) {
-        if (row != nullptr) highest_key = std::max(highest_key, diff);
+    int highest_key = -1;
+    for (int i = 0; i < (int)scores.size(); ++i) {
+        if (scores[i].has_value()) highest_key = std::max(highest_key, i);
     }
-
     if (highest_key >= 0) {
-        ScoreRow* score = scores.at(highest_key);
+        Score score = scores[highest_key].value();
         int frame = std::min((int)Difficulty::URA, highest_key);
-        if      (score->crown == Crown::DFC)           tex.draw_texture("yellow_box", "crown_dfc",   {.frame=frame, .x=x, .y=y, .fade=outer_fade_override});
-        else if (score->crown == Crown::FC)            tex.draw_texture("yellow_box", "crown_fc",    {.frame=frame, .x=x, .y=y, .fade=outer_fade_override});
-        else if (score->crown >= Crown::CLEAR)         tex.draw_texture("yellow_box", "crown_clear", {.frame=frame, .x=x, .y=y, .fade=outer_fade_override});
-        }*/
+        if      (score.crown == Crown::DFC)   tex.draw_texture("yellow_box", "crown_dfc",   {.frame=frame, .x=position, .fade=fade->attribute});
+        else if (score.crown == Crown::FC)    tex.draw_texture("yellow_box", "crown_fc",    {.frame=frame, .x=position, .fade=fade->attribute});
+        else if (score.crown >= Crown::CLEAR) tex.draw_texture("yellow_box", "crown_clear", {.frame=frame, .x=position, .fade=fade->attribute});
+    }
 }
 
 void SongBox::draw_diff_select(bool is_ura) {
@@ -167,16 +112,16 @@ void SongBox::draw_diff_select(bool is_ura) {
     float offset_y     = tex.skin_config["yb_diff_offset_diff_select"].y;
     float crown_offset = tex.skin_config["yb_diff_offset_crown"].x;
 
-    /*for (const auto& [diff, course] : tja->metadata.course_data) {
+    for (const auto& [diff, course] : parser.metadata.course_data) {
         if (Difficulty(diff) >= Difficulty::URA) continue;
         float cx = (diff * offset_x) + crown_offset;
-        if (scores.count(diff) && scores[diff] != nullptr) {
-            if      (scores[diff]->crown == Crown::DFC)   tex.draw_texture("yellow_box", "s_crown_dfc",   {.x=cx, .y=offset_y, });
-            else if (scores[diff]->crown == Crown::FC)    tex.draw_texture("yellow_box", "s_crown_fc",    {.x=cx, .y=offset_y, });
-            else if (scores[diff]->crown >= Crown::CLEAR) tex.draw_texture("yellow_box", "s_crown_clear", {.x=cx, .y=offset_y, });
+        tex.draw_texture("yellow_box", "s_crown_outline", {.x=cx, .y=offset_y, .fade=std::min((float)diff_fade_in->attribute, 0.25f)});
+        if (scores[diff].has_value()) {
+            if      (scores[diff]->crown == Crown::DFC)   tex.draw_texture("yellow_box", "s_crown_dfc",   {.x=cx, .y=offset_y, .fade=diff_fade_in->attribute});
+            else if (scores[diff]->crown == Crown::FC)    tex.draw_texture("yellow_box", "s_crown_fc",    {.x=cx, .y=offset_y, .fade=diff_fade_in->attribute});
+            else if (scores[diff]->crown >= Crown::CLEAR) tex.draw_texture("yellow_box", "s_crown_clear", {.x=cx, .y=offset_y, .fade=diff_fade_in->attribute});
         }
-        tex.draw_texture("yellow_box", "s_crown_outline", {.x=cx, .y=offset_y, .fade=std::min((float)fade_in->attribute, 0.25f)});
-    }*/
+    }
 
     for (int i = 0; i < 4; i++) {
         if (i == (int)Difficulty::ONI && is_ura) {
@@ -221,15 +166,15 @@ void SongBox::draw_open() {
 
     float offset = tex.skin_config["yb_diff_offset"].x;
 
-    /*for (const auto& [diff, course] : parser->metadata.course_data) {
+    for (const auto& [diff, course] : parser.metadata.course_data) {
         if (Difficulty(diff) >= Difficulty::URA) continue;
-        if (scores.count(diff) && scores[diff] != nullptr) {
-            if      (scores[diff]->crown == Crown::DFC)           tex.draw_texture("yellow_box", "s_crown_dfc",   {.color=color, .x=diff*offset});
-            else if (scores[diff]->crown == Crown::FC)            tex.draw_texture("yellow_box", "s_crown_fc",    {.color=color, .x=diff*offset});
-            else if (scores[diff]->crown >= Crown::CLEAR)         tex.draw_texture("yellow_box", "s_crown_clear", {.color=color, .x=diff*offset});
+        tex.draw_texture("yellow_box", "s_crown_outline", {.x=diff*offset, .fade=std::min((float)open_fade->attribute, 0.25f)});
+        if (scores[diff].has_value()) {
+            if      (scores[diff]->crown == Crown::DFC)           tex.draw_texture("yellow_box", "s_crown_dfc",   {.x=diff*offset, .fade=open_fade->attribute});
+            else if (scores[diff]->crown == Crown::FC)            tex.draw_texture("yellow_box", "s_crown_fc",    {.x=diff*offset, .fade=open_fade->attribute});
+            else if (scores[diff]->crown >= Crown::CLEAR)         tex.draw_texture("yellow_box", "s_crown_clear", {.x=diff*offset, .fade=open_fade->attribute});
         }
-        tex.draw_texture("yellow_box", "s_crown_outline", {.x=diff*offset, .fade=std::min(fade_val, 0.25f)});
-    }*/
+    }
 
     if      (parser.ex_data.new_audio)     tex.draw_texture("yellow_box", "ex_data_new_audio",     {.fade=open_fade->attribute});
     else if (parser.ex_data.old_audio)     tex.draw_texture("yellow_box", "ex_data_old_audio",     {.fade=open_fade->attribute});
