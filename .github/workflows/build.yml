@@ -154,6 +154,9 @@ jobs:
           pattern: YataiDON-*
           merge-multiple: true
 
+      - name: List downloaded files
+        run: ls -la
+
       - name: Upload Release
         uses: softprops/action-gh-release@v2
         with:
