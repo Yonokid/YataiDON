@@ -144,15 +144,20 @@ jobs:
           echo "All builds completed successfully!"
 
   release:
-    needs: build
+    needs: [build-linux, build-windows]
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch'
     steps:
       - name: Download All Artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: yataidon-*
+          pattern: YataiDON-*
           merge-multiple: true
+
+      - name: Zip artifacts
+        run: |
+          zip -r YataiDON-Linux.zip YataiDON-Linux/
+          zip -r YataiDON-Windows.zip YataiDON-Windows/
 
       - name: Upload Release
         uses: softprops/action-gh-release@v2
