@@ -29,6 +29,11 @@ ClearAnimation::ClearAnimation(bool is_2p)
     audio->play_sound("clear", "sound");
 }
 
+ClearAnimation::~ClearAnimation() {
+    for (auto* p : clear_separate_fade_in) delete p;
+    for (auto* p : clear_separate_stretch) delete p;
+}
+
 void ClearAnimation::update(double current_ms) {
     bachio_fade_in->update(current_ms);
     bachio_texture_change->update(current_ms);

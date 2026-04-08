@@ -2,6 +2,7 @@
 #include "box_base.h"
 #include "../../libs/text.h"
 #include "../../libs/audio.h"
+#include "../../libs/scores.h"
 
 class FolderBox : public BaseBox {
 public:
@@ -9,11 +10,13 @@ public:
     std::map<int, Crown> crown;
     bool entered = false;
     FadeAnimation* enter_fade;
+    std::optional<ray::Texture> box_texture;
 
     std::unique_ptr<OutlinedText> hori_name;
     std::unique_ptr<OutlinedText> tja_count_text;
 
-    FolderBox(const fs::path& path, const BoxDef& box_def, int tja_count = 0);
+    FolderBox(const fs::path& path, const BoxDef& box_def, int tja_count, std::map<std::pair<std::string, std::string>, fs::path>& song_files);
+    ~FolderBox() override;
 
     void load_text() override;
     void update(double current_time) override;

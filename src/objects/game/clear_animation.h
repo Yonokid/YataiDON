@@ -22,6 +22,7 @@ private:
 
 public:
     ClearAnimation(bool is_2p);
+    ~ClearAnimation();
 
     void update(double current_ms);
     void draw();

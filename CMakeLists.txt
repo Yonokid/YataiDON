@@ -423,10 +423,10 @@ elseif(UNIX)
         target_compile_definitions(${PROJECT_NAME} PRIVATE HAVE_JACK)
     endif()
     find_library(PULSE_LIB pulse)
-        if(PULSE_LIB)
-            target_link_libraries(${PROJECT_NAME} PUBLIC ${PULSE_LIB})
-            target_compile_definitions(${PROJECT_NAME} PRIVATE HAVE_PULSE)
-        endif()
+    if(PULSE_LIB)
+        target_link_libraries(${PROJECT_NAME} PUBLIC ${PULSE_LIB})
+        target_compile_definitions(${PROJECT_NAME} PRIVATE HAVE_PULSE)
+    endif()
 endif()
 
 # AddressSanitizer for Debug builds
@@ -459,10 +459,9 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     endif()
 else()
     target_compile_options(${PROJECT_NAME} PRIVATE
-        -O3  # Maximum optimization
+        -O2
         -march=native  # Optimize for current CPU
         -DNDEBUG  # Disable assertions
-        -ffast-math  # Fast floating-point math
         -flto  # Link-time optimization
     )
     target_link_options(${PROJECT_NAME} PRIVATE

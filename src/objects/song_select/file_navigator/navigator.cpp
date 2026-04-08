@@ -10,8 +10,16 @@ Navigator::~Navigator() {
 
 void Navigator::init(std::vector<fs::path> songs_paths) {
     if (!is_init) {
+        root_paths = songs_paths;
         open_index = 0;
         for (fs::path& root_path : songs_paths) {
+            for (const fs::directory_entry& entry : fs::recursive_directory_iterator(root_path)) {
+                if (is_song_file(entry)) {
+                    TJAParser parsed_entry = TJAParser(entry.path());
+                    parsed_entry.get_metadata();
+                    song_files[std::make_pair(parsed_entry.metadata.title["en"], parsed_entry.metadata.subtitle["en"])] = entry.path();
+                }
+            }
             load_current_directory(root_path);
         }
         is_init = true;
@@ -69,11 +77,39 @@ void Navigator::flush_pending_boxes() {
     }
 
     if (loading_complete.load()) {
+        if (open_index >= items.size()) open_index = 0;
         set_positions(false, 800);
         items[open_index]->expand_box();
         is_processing = false;
         loading_complete = false;
     }
+}
+
+void Navigator::parse_song_list(const fs::path& path, BoxDef box_def, bool inline_mode) {
+    std::ifstream file(path);
+    std::string line;
+    while (std::getline(file, line)) {
+        std::vector<std::string> fields;
+        std::stringstream ss(line);
+        std::string field;
+        while (std::getline(ss, field, '|')) {
+            fields.push_back(field);
+        }
+        if (fields.size() < 3) continue;  // guard against malformed lines
+        std::string title    = fields[1];
+        std::string subtitle = fields[2];
+        for (const auto& [key, value] : song_files) {
+            if (key.first == title && key.second == subtitle) {
+                auto box = std::make_unique<SongBox>(value, box_def, TJAParser(value));
+                if (inline_mode)
+                    enqueue_inline_box(std::move(box));
+                else
+                    enqueue_box(std::move(box));
+            }
+        }
+    }
+    file.close();
+    return;
 }
 
 void Navigator::load_current_directory_async(const fs::path path) {
@@ -85,13 +121,18 @@ void Navigator::load_current_directory_async(const fs::path path) {
         if (abort_loading) break;
         const fs::path& curr_path = entry.path();
         if (!fs::is_directory(curr_path)) {
+            if (curr_path.filename() == "song_list.txt") {
+                BoxDef entry_box_def = parse_box_def(curr_path);
+                parse_song_list(curr_path, entry_box_def, false);
+                continue;
+            }
             if (is_song_file(curr_path))
                 enqueue_box(std::make_unique<SongBox>(curr_path, box_def, TJAParser(curr_path)));
             continue;
         }
         if (has_def_file(curr_path)) {
             BoxDef entry_box_def = parse_box_def(curr_path);
-            enqueue_box(std::make_unique<FolderBox>(curr_path, entry_box_def, get_tja_count(curr_path)));
+            enqueue_box(std::make_unique<FolderBox>(curr_path, entry_box_def, get_tja_count(curr_path), song_files));
         } else {
             for (const auto& song : fs::recursive_directory_iterator(curr_path)) {
                 if (abort_loading) break;
@@ -103,7 +144,7 @@ void Navigator::load_current_directory_async(const fs::path path) {
     loading_complete = true;
 }
 
-void Navigator::load_songs_inline_async(const fs::path path, const BoxDef box_def) {
+void Navigator::load_songs_inline_async(const fs::path path, BoxDef box_def) {
     int songs_added = 0;
 
     auto add_song = [&](const fs::path& song_path) {
@@ -125,6 +166,10 @@ void Navigator::load_songs_inline_async(const fs::path path, const BoxDef box_de
         if (abort_loading) break;
         const fs::path& curr_path = entry.path();
         if (!fs::is_directory(curr_path)) {
+            if (curr_path.filename() == "song_list.txt") {
+                parse_song_list(curr_path, box_def, true);
+                continue;
+            }
             if (is_song_file(curr_path))
                 enqueue_inline_box(std::make_unique<SongBox>(curr_path, box_def, TJAParser(curr_path)));
             continue;
@@ -189,6 +234,13 @@ int Navigator::get_tja_count(const std::filesystem::path& path) {
     int count = 0;
     for (const auto& entry : std::filesystem::recursive_directory_iterator(path)) {
         if (entry.path().extension() == ".tja") count++;
+        if (entry.path().filename() == "song_list.txt") {
+            std::ifstream file(entry.path());
+            std::string line;
+            while (std::getline(file, line)) {
+                count++;
+            }
+        }
     }
     return count;
 }
@@ -422,7 +474,7 @@ void Navigator::update(double current_ms) {
     flush_pending_boxes();
 
     if (pending_inline_path) {
-        if (genre_bg->is_finished()) {
+        if (genre_bg.has_value() && genre_bg->is_finished()) {
             inline_state->saved_folder_box = std::unique_ptr<FolderBox>(
                 static_cast<FolderBox*>(items[open_index].release())
             );
@@ -485,7 +537,8 @@ void Navigator::draw(bool is_ura) {
         float start_pos;
         float end_pos;
 
-        if (is_processing || !items[open_index]->fade->is_finished) {
+        if ((is_processing || !items[open_index]->fade->is_finished) &&
+            pending_inline_folder != nullptr && genre_bg_end_pos.has_value()) {
             start_pos = pending_inline_folder->left_bound;
             end_pos = genre_bg_end_pos.value();  // approximation while loading
         } else {

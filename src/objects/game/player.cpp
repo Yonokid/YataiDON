@@ -57,7 +57,7 @@ ResultData Player::get_result_score() {
     result.bad = bad_count;
     result.max_combo = max_combo;
     result.total_drumroll = total_drumroll;
-    result.gauge_length = gauge->gauge_length;
+    if (gauge.has_value()) result.gauge_length = gauge->gauge_length;
     return result;
 }
 
@@ -155,7 +155,7 @@ void Player::evaluate_branch(double current_ms) {
     if (current_ms >= end_time) {
         is_branch = false;
         if (branch_condition == "p") {
-            branch_condition_count = std::max(std::min((int)((double)branch_condition_count / branch_note_count * 100), 100), 0);
+            branch_condition_count = branch_note_count != 0 ? std::max(std::min((int)((double)branch_condition_count / branch_note_count * 100), 100), 0) : 0;
         } else if (branch_condition == "r") {
             branch_condition_count = std::max(curr_drumroll_count, (int)branch_condition_count);
         }
@@ -361,6 +361,11 @@ void Player::get_load_time(Note& note) {
     float base_pixels_per_ms = (note.bpm / 240000 * abs(note.scroll_x) * travel_distance);
     if (base_pixels_per_ms == 0) {
         base_pixels_per_ms = (note.bpm / 240000 * abs(note.scroll_y) * travel_distance);
+    }
+    if (base_pixels_per_ms == 0) {
+        note.load_ms = note.hit_ms;
+        note.unload_ms = note.hit_ms;
+        return;
     }
     float normal_travel_ms = (travel_distance + note_half_w) / base_pixels_per_ms;
 

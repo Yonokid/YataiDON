@@ -28,7 +28,9 @@ using Statistics = std::map<int, std::map<int, CourseStats>>;
 
 class Navigator {
 private:
+    std::vector<fs::path> root_paths;
     std::vector<std::unique_ptr<BaseBox>> items;
+    std::map<std::pair<std::string, std::string>, fs::path> song_files;
     int open_index;
     bool is_init = false;
 
@@ -65,8 +67,9 @@ private:
 
     void enqueue_box(std::unique_ptr<BaseBox> box);
     void enqueue_inline_box(std::unique_ptr<BaseBox> box);
+    void parse_song_list(const fs::path& path, BoxDef box_def, bool inline_mode);
     void load_current_directory_async(const fs::path path);
-    void load_songs_inline_async(const fs::path path, const BoxDef box_def);
+    void load_songs_inline_async(const fs::path path, BoxDef box_def);
     void join_loader();
     void flush_pending_boxes();
     void exit_inline();
