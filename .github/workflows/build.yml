@@ -39,7 +39,6 @@ jobs:
         with:
           ffmpeg-version: release
           architecture: "x64"
-          linking-type: static
           github-token: ${{ github.server_url == 'https://github.com' && github.token || '' }}
 
       - name: Configure CMake
