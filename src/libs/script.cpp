@@ -34,6 +34,7 @@ void ScriptManager::register_lua_bindings() {
         "unpause", &BaseAnimation::unpause,
         "reset", &BaseAnimation::reset,
         "attribute", &BaseAnimation::attribute,
+        "duration", &BaseAnimation::duration,
         "is_finished", &BaseAnimation::is_finished,
         "is_started", &BaseAnimation::is_started,
         "isFinished", &BaseAnimation::isFinished,

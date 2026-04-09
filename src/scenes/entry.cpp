@@ -15,7 +15,7 @@ void EntryScreen::on_screen_start() {
     screen_init = true;
 
     side_select_fade = (FadeAnimation*)tex.get_animation(0);
-    bg_flicker = (TextureChangeAnimation*)tex.get_animation(1);
+    bg_flicker = (FadeAnimation*)tex.get_animation(1);
     side_select_fade->start();
 
     //chara = new Chara2D(0);

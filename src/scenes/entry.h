@@ -37,7 +37,7 @@ private:
 
     bool screen_init;
     FadeAnimation* side_select_fade;
-    TextureChangeAnimation* bg_flicker;
+    FadeAnimation* bg_flicker;
     //Chara2D* chara;
     bool announce_played;
     std::vector<EntryPlayer*> players;

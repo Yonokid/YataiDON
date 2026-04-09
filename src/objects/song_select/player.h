@@ -34,7 +34,7 @@ public:
     MoveAnimation* selected_diff_bounce;
     FadeAnimation* selected_diff_fadein;
     FadeAnimation* selected_diff_highlight_fade;
-    MoveAnimation* selected_diff_text_resize;
+    TextureResizeAnimation* selected_diff_text_resize;
     FadeAnimation* selected_diff_text_fadein;
 
     //Chara2D chara;

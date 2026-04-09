@@ -404,7 +404,13 @@ void TextureWrapper::draw_texture(const std::string& subset, const std::string& 
     if (params.src.has_value()) {
         source_rect = params.src.value();
     } else if (tex_obj->crop_data.has_value()) {
-        source_rect = tex_obj->crop_data->at(params.frame);
+        try {
+            source_rect = tex_obj->crop_data->at(params.frame);
+        } catch (const std::out_of_range& e) {
+            ray::TraceLog(ray::LOG_ERROR, "Frame index out of range for texture %s", tex_obj->name.c_str());
+            ray::TraceLog(ray::LOG_ERROR, "Frame index: %d, Number of frames: %zu", params.frame, tex_obj->crop_data->size());
+            throw;
+        }
     } else {
         const float width = static_cast<float>(tex_obj->width);
         const float height = static_cast<float>(tex_obj->height);

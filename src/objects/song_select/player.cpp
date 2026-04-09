@@ -27,7 +27,7 @@ SongSelectPlayer::SongSelectPlayer(PlayerNum player_num)
     selected_diff_bounce          = (MoveAnimation*)tex.get_animation(33, true);
     selected_diff_fadein          = (FadeAnimation*)tex.get_animation(34, true);
     selected_diff_highlight_fade  = (FadeAnimation*)tex.get_animation(35, true);
-    selected_diff_text_resize     = (MoveAnimation*)tex.get_animation(36, true);
+    selected_diff_text_resize     = (TextureResizeAnimation*)tex.get_animation(36, true);
     selected_diff_text_fadein     = (FadeAnimation*)tex.get_animation(37, true);
 }
 
