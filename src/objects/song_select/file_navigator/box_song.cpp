@@ -161,6 +161,11 @@ void SongBox::draw_text() {
 }
 
 void SongBox::draw_open() {
+    tex.draw_texture("yellow_box", "shadow_bottom_left", {.x=position, .fade=open_fade->attribute, .index=1});
+    tex.draw_texture("yellow_box", "shadow_bottom", {.x=position, .fade=open_fade->attribute, .index=1});
+    tex.draw_texture("yellow_box", "shadow_bottom_right", {.x=position, .fade=open_fade->attribute, .index=1});
+    tex.draw_texture("yellow_box", "shadow_right", {.x=position, .fade=open_fade->attribute, .index=1});
+    tex.draw_texture("yellow_box", "shadow_top_right", {.x=position, .fade=open_fade->attribute, .index=1});
     if (yellow_box.has_value())
         yellow_box->draw();
 

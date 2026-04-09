@@ -120,6 +120,12 @@ void FolderBox::draw_closed() {
 }
 
 void FolderBox::draw_open_bg(float fade) {
+    float shadow_fade = std::min(fade, (float)open_fade->attribute);
+    tex.draw_texture("yellow_box", "shadow_bottom_left", {.x=position, .fade=shadow_fade, .index=1});
+    tex.draw_texture("yellow_box", "shadow_bottom", {.x=position, .fade=shadow_fade, .index=1});
+    tex.draw_texture("yellow_box", "shadow_bottom_right", {.x=position, .fade=shadow_fade, .index=1});
+    tex.draw_texture("yellow_box", "shadow_right", {.x=position, .fade=shadow_fade, .index=1});
+    tex.draw_texture("yellow_box", "shadow_top_right", {.x=position, .fade=shadow_fade, .index=1});
     int frame = (int)texture_index;
     bool use_shader = shader_loaded && texture_index == TextureIndex::NONE;
 

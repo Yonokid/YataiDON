@@ -127,6 +127,12 @@ void BaseBox::update(double current_time) {
 }
 
 void BaseBox::draw_closed() {
+    tex.draw_texture("yellow_box", "shadow_bottom_left", {.x=position, .fade=fade->attribute, .index=0});
+    tex.draw_texture("yellow_box", "shadow_bottom", {.x=position, .fade=fade->attribute, .index=0});
+    tex.draw_texture("yellow_box", "shadow_bottom_right", {.x=position, .fade=fade->attribute, .index=0});
+    tex.draw_texture("yellow_box", "shadow_right", {.x=position, .fade=fade->attribute, .index=0});
+    tex.draw_texture("yellow_box", "shadow_top_right", {.x=position, .fade=fade->attribute, .index=0});
+
     if (shader_loaded && texture_index == TextureIndex::NONE)
         ray::BeginShaderMode(shader);
 
@@ -144,8 +150,9 @@ void BaseBox::draw_closed() {
 }
 
 void BaseBox::draw_open() {
-    if (yellow_box.has_value())
+    if (yellow_box.has_value()) {
         yellow_box->draw();
+    }
 }
 
 void BaseBox::draw_diff_select(bool is_ura) {

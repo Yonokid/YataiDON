@@ -11,6 +11,11 @@ void BackBox::draw_closed() {
 
 void BackBox::draw_open() {
     float mfade = std::min(fade->attribute, open_fade->attribute);
+    tex.draw_texture("yellow_box", "shadow_bottom_left", {.x=position, .fade=mfade, .index=1});
+    tex.draw_texture("yellow_box", "shadow_bottom", {.x=position, .fade=mfade, .index=1});
+    tex.draw_texture("yellow_box", "shadow_bottom_right", {.x=position, .fade=mfade, .index=1});
+    tex.draw_texture("yellow_box", "shadow_right", {.x=position, .fade=mfade, .index=1});
+    tex.draw_texture("yellow_box", "shadow_top_right", {.x=position, .fade=mfade, .index=1});
     if (yellow_box.has_value())
         yellow_box->draw(mfade);
     float x = position + (yellow_box->right_out->attribute*0.85 - (yellow_box->right_out->start_position*0.85)) + yellow_box->right_out_2->attribute - yellow_box->right_out_2->start_position;
