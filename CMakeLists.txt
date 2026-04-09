@@ -53,18 +53,19 @@ endif()
 
 if(SQLITE3_FOUND)
   message(STATUS "Using system SQLite3")
-  add_library(SQLite3::SQLite3 INTERFACE IMPORTED)
-  target_include_directories(SQLite3::SQLite3 INTERFACE ${SQLITE3_INCLUDE_DIRS})
-  target_link_libraries(SQLite3::SQLite3 INTERFACE ${SQLITE3_LINK_LIBRARIES})
+  add_library(SQLite3_lib INTERFACE IMPORTED)
+  target_include_directories(SQLite3_lib INTERFACE ${SQLITE3_INCLUDE_DIRS})
+  target_link_libraries(SQLite3_lib INTERFACE ${SQLITE3_LINK_LIBRARIES})
 else()
   message(STATUS "System SQLite3 not found, fetching amalgamation")
   FetchContent_Declare(
-        sqlite3
-        URL https://www.sqlite.org/2024/sqlite-amalgamation-3460100.zip
-    )
+      sqlite3
+      URL https://www.sqlite.org/2024/sqlite-amalgamation-3460100.zip
+  )
   FetchContent_MakeAvailable(sqlite3)
-  add_library(SQLite3::SQLite3 INTERFACE IMPORTED)
-  target_include_directories(SQLite3::SQLite3 INTERFACE ${sqlite3_SOURCE_DIR})
+
+  add_library(SQLite3_lib STATIC ${sqlite3_SOURCE_DIR}/sqlite3.c)
+  target_include_directories(SQLite3_lib PUBLIC ${sqlite3_SOURCE_DIR})
 endif()
 
 # raylib
@@ -355,7 +356,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     FFmpeg::swscale
     FFmpeg::avutil
     FFmpeg::swresample
-    SQLite3::SQLite3
+    SQLite3_lib
 )
 
 # Platform specific (Thanks GPT)
