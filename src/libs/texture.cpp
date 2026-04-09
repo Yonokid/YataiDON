@@ -404,7 +404,7 @@ void TextureWrapper::draw_texture(const std::string& subset, const std::string& 
     if (params.src.has_value()) {
         source_rect = params.src.value();
     } else if (tex_obj->crop_data.has_value()) {
-        source_rect = (*tex_obj->crop_data)[params.frame];
+        source_rect = tex_obj->crop_data->at(params.frame);
     } else {
         const float width = static_cast<float>(tex_obj->width);
         const float height = static_cast<float>(tex_obj->height);
