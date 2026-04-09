@@ -32,14 +32,13 @@ jobs:
             libjack-dev \
             libsdl2-dev \
             liblua5.4-dev \
-
-      - uses: actions/checkout@v3
-      - uses: FedericoCarboni/setup-ffmpeg@v3
-        id: setup-ffmpeg
-        with:
-          ffmpeg-version: release
-          architecture: "x64"
-          github-token: ${{ github.server_url == 'https://github.com' && github.token || '' }}
+            libavcodec-dev \
+            libavformat-dev \
+            libavutil-dev \
+            libswscale-dev \
+            libswresample-dev \
+            libavfilter-dev \
+            libavdevice-dev
 
       - name: Configure CMake
         run: |
