@@ -1,4 +1,4 @@
-name: Build YataiDON
+name: Build YataiDON (Debug)
 
 on:
   workflow_dispatch:
@@ -143,28 +143,3 @@ jobs:
           fi
 
           echo "All builds completed successfully!"
-
-  release:
-    needs: [build-linux, build-windows]
-    runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
-    steps:
-      - name: Download All Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: YataiDON-*
-          merge-multiple: true
-
-      - name: Repackage artifacts
-        run: |
-          zip -r YataiDON-Linux.zip YataiDON Skins shader config.toml
-          zip -r YataiDON-Windows.zip YataiDON.exe Skins shader config.toml *.dll
-
-      - name: Upload Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: YataiDON-*.zip
-          name: "YataiDON [Latest Release]"
-          tag_name: "latest"
-          make_latest: true
-          token: ${{ secrets.GITHUB_TOKEN }}
