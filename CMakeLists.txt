@@ -341,7 +341,6 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
     raylib
-    SDL2::SDL2main
     SDL2::SDL2-static
     sndfile
     samplerate
@@ -430,6 +429,9 @@ elseif(UNIX)
     target_link_libraries(${PROJECT_NAME} PUBLIC ${PULSE_LIB})
     target_compile_definitions(${PROJECT_NAME} PRIVATE HAVE_PULSE)
   endif()
+  target_compile_definitions(${PROJECT_NAME} PRIVATE
+      SDL_MAIN_HANDLED
+  )
 endif()
 
 # AddressSanitizer for Debug builds
