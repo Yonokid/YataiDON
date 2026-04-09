@@ -10,6 +10,9 @@ void FontManager::init(const fs::path& font_path) {
     for (int i = 32; i < 127; i++)
         codepoint_cache.insert(i);
     std::vector<int> codepoints(codepoint_cache.begin(), codepoint_cache.end());
+    if (!exists(font_path)) {
+        throw std::runtime_error("Failed to load font: " + font_path.string());
+    }
     font = ray::LoadFontEx(font_path.string().c_str(), max_font_size,
                            codepoints.data(), (int)codepoints.size());
     ray::SetTextureFilter(font.texture, ray::TEXTURE_FILTER_BILINEAR);

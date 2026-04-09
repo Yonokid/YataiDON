@@ -10,6 +10,9 @@ VideoPlayer::VideoPlayer(fs::path path)
     }
 
     container    = av::AVContainer::open(path);
+    if (!container) {
+        throw std::runtime_error("Failed to open video: " + path.string());
+    }
     video_stream = container->streams().video(0);
     audio_stream = container->streams().audio(0);
 

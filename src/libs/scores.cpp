@@ -3,6 +3,10 @@
 ScoresManager::ScoresManager(const fs::path& db_path) {
     sqlite3_open(db_path.string().c_str(), &db_fsd);
 
+    if (db_fsd == nullptr) {
+        throw std::runtime_error("Failed to open database: " + db_path.string());
+    }
+
     int version = 0;
     auto callback = [](void* data, int, char** argv, char**) -> int {
         *static_cast<int*>(data) = std::atoi(argv[0]);

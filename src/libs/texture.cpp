@@ -250,6 +250,10 @@ void TextureWrapper::load_animations(const std::string& screen_name) {
         Document doc;
         doc.ParseStream(isw);
 
+        if (doc.HasParseError()) {
+            throw std::runtime_error(&"Failed to parse animation.json: " [ doc.GetParseError()]);
+        }
+
         AnimationParser parser;
         animations = parser.parse_animations(doc);
         ray::TraceLog(ray::LOG_INFO, "Animations loaded for screen: %s", screen_name.c_str());
@@ -299,6 +303,10 @@ void TextureWrapper::load_folder(const std::string& screen_name, const std::stri
         IStreamWrapper isw(ifs);
         Document doc;
         doc.ParseStream(isw);
+
+        if (doc.HasParseError()) {
+            throw std::runtime_error(&"Failed to parse texture.json: " [ doc.GetParseError()]);
+        }
 
         textures[folder.stem().string()] = {};
 
