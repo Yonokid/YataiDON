@@ -10,7 +10,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Debug)
+  set(CMAKE_BUILD_TYPE Debug)
 endif()
 
 # Dependency management
@@ -20,51 +20,51 @@ include(FetchContent)
 
 # SDL2
 if(NOT WIN32)
-    find_package(PkgConfig QUIET)
-    if(PkgConfig_FOUND)
-        pkg_check_modules(SDL2 QUIET sdl2)
-        pkg_check_modules(SQLITE3 QUIET sqlite3)
-    endif()
+  find_package(PkgConfig QUIET)
+  if(PkgConfig_FOUND)
+    pkg_check_modules(SDL2 QUIET sdl2)
+    pkg_check_modules(SQLITE3 QUIET sqlite3)
+  endif()
 endif()
 
 if(SDL2_FOUND)
-    message(STATUS "Using system SDL2")
-    add_library(SDL2::SDL2-static INTERFACE IMPORTED)
-    target_include_directories(SDL2::SDL2-static INTERFACE ${SDL2_INCLUDE_DIRS})
-    target_link_libraries(SDL2::SDL2-static INTERFACE ${SDL2_LIBRARIES})
-    target_link_directories(SDL2::SDL2-static INTERFACE ${SDL2_LIBRARY_DIRS})
+  message(STATUS "Using system SDL2")
+  add_library(SDL2::SDL2-static INTERFACE IMPORTED)
+  target_include_directories(SDL2::SDL2-static INTERFACE ${SDL2_INCLUDE_DIRS})
+  target_link_libraries(SDL2::SDL2-static INTERFACE ${SDL2_LIBRARIES})
+  target_link_directories(SDL2::SDL2-static INTERFACE ${SDL2_LIBRARY_DIRS})
 
-    # SDL2main is usually part of the same package on MSYS2
-    add_library(SDL2::SDL2main INTERFACE IMPORTED)
-    target_link_libraries(SDL2::SDL2main INTERFACE SDL2::SDL2-static)
+  # SDL2main is usually part of the same package on MSYS2
+  add_library(SDL2::SDL2main INTERFACE IMPORTED)
+  target_link_libraries(SDL2::SDL2main INTERFACE SDL2::SDL2-static)
 else()
-    message(STATUS "System SDL2 not found, fetching from source")
-    set(SDL_SHARED OFF CACHE BOOL "" FORCE)
-    set(SDL_STATIC ON CACHE BOOL "" FORCE)
-    set(SDL_TEST OFF CACHE BOOL "" FORCE)
-    FetchContent_Declare(
+  message(STATUS "System SDL2 not found, fetching from source")
+  set(SDL_SHARED OFF CACHE BOOL "" FORCE)
+  set(SDL_STATIC ON CACHE BOOL "" FORCE)
+  set(SDL_TEST OFF CACHE BOOL "" FORCE)
+  FetchContent_Declare(
         SDL2
         GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
-        GIT_TAG release-2.30.0
+        GIT_TAG release-2.30.10
         GIT_SHALLOW TRUE
     )
-    FetchContent_MakeAvailable(SDL2)
+  FetchContent_MakeAvailable(SDL2)
 endif()
 
 if(SQLITE3_FOUND)
-    message(STATUS "Using system SQLite3")
-    add_library(SQLite3::SQLite3 INTERFACE IMPORTED)
-    target_include_directories(SQLite3::SQLite3 INTERFACE ${SQLITE3_INCLUDE_DIRS})
-    target_link_libraries(SQLite3::SQLite3 INTERFACE ${SQLITE3_LINK_LIBRARIES})
+  message(STATUS "Using system SQLite3")
+  add_library(SQLite3::SQLite3 INTERFACE IMPORTED)
+  target_include_directories(SQLite3::SQLite3 INTERFACE ${SQLITE3_INCLUDE_DIRS})
+  target_link_libraries(SQLite3::SQLite3 INTERFACE ${SQLITE3_LINK_LIBRARIES})
 else()
-    message(STATUS "System SQLite3 not found, fetching amalgamation")
-    FetchContent_Declare(
+  message(STATUS "System SQLite3 not found, fetching amalgamation")
+  FetchContent_Declare(
         sqlite3
         URL https://www.sqlite.org/2024/sqlite-amalgamation-3460100.zip
     )
-    FetchContent_MakeAvailable(sqlite3)
-    add_library(SQLite3::SQLite3 INTERFACE IMPORTED)
-    target_include_directories(SQLite3::SQLite3 INTERFACE ${sqlite3_SOURCE_DIR})
+  FetchContent_MakeAvailable(sqlite3)
+  add_library(SQLite3::SQLite3 INTERFACE IMPORTED)
+  target_include_directories(SQLite3::SQLite3 INTERFACE ${sqlite3_SOURCE_DIR})
 endif()
 
 # raylib
@@ -132,142 +132,142 @@ FetchContent_MakeAvailable(sol2)
 
 # libsndfile
 if(WIN32)
-    message(STATUS "Using local libsndfile on Windows")
-    set(SNDFILE_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/src/libs/audio")
-    set(SNDFILE_LIBRARY "${CMAKE_SOURCE_DIR}/src/libs/audio/libsndfile.a")
+  message(STATUS "Using local libsndfile on Windows")
+  set(SNDFILE_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/src/libs/audio")
+  set(SNDFILE_LIBRARY "${CMAKE_SOURCE_DIR}/src/libs/audio/libsndfile.a")
 
-    if(NOT EXISTS ${SNDFILE_LIBRARY})
-        message(FATAL_ERROR "libsndfile not found: ${SNDFILE_LIBRARY}")
-    endif()
+  if(NOT EXISTS ${SNDFILE_LIBRARY})
+    message(FATAL_ERROR "libsndfile not found: ${SNDFILE_LIBRARY}")
+  endif()
 
-    add_library(sndfile STATIC IMPORTED)
-    set_target_properties(sndfile PROPERTIES
+  add_library(sndfile STATIC IMPORTED)
+  set_target_properties(sndfile PROPERTIES
         IMPORTED_LOCATION ${SNDFILE_LIBRARY}
         INTERFACE_INCLUDE_DIRECTORIES ${SNDFILE_INCLUDE_DIR}
     )
 else()
-    find_package(PkgConfig QUIET)
-    if(PkgConfig_FOUND)
-        pkg_check_modules(SNDFILE QUIET sndfile)
-    endif()
+  find_package(PkgConfig QUIET)
+  if(PkgConfig_FOUND)
+    pkg_check_modules(SNDFILE QUIET sndfile)
+  endif()
 
-    if(SNDFILE_FOUND)
-        message(STATUS "Using system libsndfile")
-        add_library(sndfile INTERFACE IMPORTED)
-        target_include_directories(sndfile INTERFACE ${SNDFILE_INCLUDE_DIRS})
-        target_link_libraries(sndfile INTERFACE ${SNDFILE_LINK_LIBRARIES})
-        target_link_directories(sndfile INTERFACE ${SNDFILE_LIBRARY_DIRS})
-    else()
-        message(STATUS "System libsndfile not found, fetching from source")
-        set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-        set(ENABLE_EXTERNAL_LIBS ON CACHE BOOL "" FORCE)
-        set(ENABLE_MPEG ON CACHE BOOL "" FORCE)
-        set(ENABLE_OPUS ON CACHE BOOL "" FORCE)
-        set(ENABLE_FLAC ON CACHE BOOL "" FORCE)
-        set(ENABLE_VORBIS ON CACHE BOOL "" FORCE)
-        set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
-        FetchContent_Declare(
+  if(SNDFILE_FOUND)
+    message(STATUS "Using system libsndfile")
+    add_library(sndfile INTERFACE IMPORTED)
+    target_include_directories(sndfile INTERFACE ${SNDFILE_INCLUDE_DIRS})
+    target_link_libraries(sndfile INTERFACE ${SNDFILE_LINK_LIBRARIES})
+    target_link_directories(sndfile INTERFACE ${SNDFILE_LIBRARY_DIRS})
+  else()
+    message(STATUS "System libsndfile not found, fetching from source")
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+    set(ENABLE_EXTERNAL_LIBS ON CACHE BOOL "" FORCE)
+    set(ENABLE_MPEG ON CACHE BOOL "" FORCE)
+    set(ENABLE_OPUS ON CACHE BOOL "" FORCE)
+    set(ENABLE_FLAC ON CACHE BOOL "" FORCE)
+    set(ENABLE_VORBIS ON CACHE BOOL "" FORCE)
+    set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+    FetchContent_Declare(
             libsndfile
             GIT_REPOSITORY https://github.com/libsndfile/libsndfile.git
             GIT_TAG 1.2.2
             GIT_SHALLOW TRUE
         )
-        FetchContent_MakeAvailable(libsndfile)
-    endif()
+    FetchContent_MakeAvailable(libsndfile)
+  endif()
 endif()
 
 # libsamplerate
 if(WIN32)
-    message(STATUS "Using local libsamplerate on Windows")
-    set(SAMPLERATE_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/src/libs/audio")
-    set(SAMPLERATE_LIBRARY "${CMAKE_SOURCE_DIR}/src/libs/audio/libsamplerate.a")
+  message(STATUS "Using local libsamplerate on Windows")
+  set(SAMPLERATE_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/src/libs/audio")
+  set(SAMPLERATE_LIBRARY "${CMAKE_SOURCE_DIR}/src/libs/audio/libsamplerate.a")
 
-    if(NOT EXISTS ${SAMPLERATE_LIBRARY})
-        message(FATAL_ERROR "libsamplerate not found: ${SAMPLERATE_LIBRARY}")
-    endif()
+  if(NOT EXISTS ${SAMPLERATE_LIBRARY})
+    message(FATAL_ERROR "libsamplerate not found: ${SAMPLERATE_LIBRARY}")
+  endif()
 
-    add_library(samplerate STATIC IMPORTED)
-    set_target_properties(samplerate PROPERTIES
+  add_library(samplerate STATIC IMPORTED)
+  set_target_properties(samplerate PROPERTIES
         IMPORTED_LOCATION ${SAMPLERATE_LIBRARY}
         INTERFACE_INCLUDE_DIRECTORIES ${SAMPLERATE_INCLUDE_DIR}
     )
 else()
-    find_package(PkgConfig QUIET)
-    if(PkgConfig_FOUND)
-        pkg_check_modules(SAMPLERATE QUIET samplerate)
-    endif()
+  find_package(PkgConfig QUIET)
+  if(PkgConfig_FOUND)
+    pkg_check_modules(SAMPLERATE QUIET samplerate)
+  endif()
 
-    if(SAMPLERATE_FOUND)
-        message(STATUS "Using system libsamplerate")
-        add_library(samplerate INTERFACE IMPORTED)
-        target_include_directories(samplerate INTERFACE ${SAMPLERATE_INCLUDE_DIRS})
-        target_link_libraries(samplerate INTERFACE ${SAMPLERATE_LINK_LIBRARIES})
-        target_link_directories(samplerate INTERFACE ${SAMPLERATE_LIBRARY_DIRS})
-    else()
-        message(STATUS "System libsamplerate not found, fetching from source")
-        set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-        set(LIBSAMPLERATE_EXAMPLES OFF CACHE BOOL "" FORCE)
-        set(LIBSAMPLERATE_INSTALL OFF CACHE BOOL "" FORCE)
-        set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
-        FetchContent_Declare(
+  if(SAMPLERATE_FOUND)
+    message(STATUS "Using system libsamplerate")
+    add_library(samplerate INTERFACE IMPORTED)
+    target_include_directories(samplerate INTERFACE ${SAMPLERATE_INCLUDE_DIRS})
+    target_link_libraries(samplerate INTERFACE ${SAMPLERATE_LINK_LIBRARIES})
+    target_link_directories(samplerate INTERFACE ${SAMPLERATE_LIBRARY_DIRS})
+  else()
+    message(STATUS "System libsamplerate not found, fetching from source")
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+    set(LIBSAMPLERATE_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(LIBSAMPLERATE_INSTALL OFF CACHE BOOL "" FORCE)
+    set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+    FetchContent_Declare(
             libsamplerate
             GIT_REPOSITORY https://github.com/libsndfile/libsamplerate.git
             GIT_TAG 0.2.2
             GIT_SHALLOW TRUE
         )
-        FetchContent_MakeAvailable(libsamplerate)
-    endif()
+    FetchContent_MakeAvailable(libsamplerate)
+  endif()
 endif()
 
 # FFmpeg (libavformat, libavcodec, libavutil, libswscale)
 if(WIN32)
-    FetchContent_Declare(
+  FetchContent_Declare(
         ffmpeg_prebuilt
         URL https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl-shared.zip
     )
-    FetchContent_MakeAvailable(ffmpeg_prebuilt)
+  FetchContent_MakeAvailable(ffmpeg_prebuilt)
 
-    file(GLOB_RECURSE FFMPEG_LIBS "${ffmpeg_prebuilt_SOURCE_DIR}/*.lib")
-    message(STATUS "FFmpeg prebuilt source dir: ${ffmpeg_prebuilt_SOURCE_DIR}")
-    message(STATUS "FFmpeg libs found: ${FFMPEG_LIBS}")
+  file(GLOB_RECURSE FFMPEG_LIBS "${ffmpeg_prebuilt_SOURCE_DIR}/*.lib")
+  message(STATUS "FFmpeg prebuilt source dir: ${ffmpeg_prebuilt_SOURCE_DIR}")
+  message(STATUS "FFmpeg libs found: ${FFMPEG_LIBS}")
 
-    set(FFMPEG_INCLUDE_DIR "${ffmpeg_prebuilt_SOURCE_DIR}/include")
-    set(FFMPEG_LIB_DIR     "${ffmpeg_prebuilt_SOURCE_DIR}/lib")
+  set(FFMPEG_INCLUDE_DIR "${ffmpeg_prebuilt_SOURCE_DIR}/include")
+  set(FFMPEG_LIB_DIR     "${ffmpeg_prebuilt_SOURCE_DIR}/lib")
 
-    foreach(_lib avformat avcodec avutil swscale swresample)
-        set(_libfile "${FFMPEG_LIB_DIR}/lib${_lib}.dll.a")
-        if(NOT EXISTS "${_libfile}")
-            message(FATAL_ERROR "FFmpeg lib not found: ${_libfile}")
-        endif()
-        add_library(FFmpeg::${_lib} SHARED IMPORTED)
-        set_target_properties(FFmpeg::${_lib} PROPERTIES
+  foreach(_lib avformat avcodec avutil swscale swresample)
+    set(_libfile "${FFMPEG_LIB_DIR}/lib${_lib}.dll.a")
+    if(NOT EXISTS "${_libfile}")
+      message(FATAL_ERROR "FFmpeg lib not found: ${_libfile}")
+    endif()
+    add_library(FFmpeg::${_lib} SHARED IMPORTED)
+    set_target_properties(FFmpeg::${_lib} PROPERTIES
             IMPORTED_LOCATION             "${FFMPEG_LIB_DIR}/../bin/${_lib}.dll"
             IMPORTED_IMPLIB               "${_libfile}"
             INTERFACE_INCLUDE_DIRECTORIES "${FFMPEG_INCLUDE_DIR}"
         )
-    endforeach()
+  endforeach()
 else()
-    find_package(PkgConfig REQUIRED)
-    pkg_check_modules(AVFORMAT REQUIRED libavformat)
-    pkg_check_modules(AVCODEC  REQUIRED libavcodec)
-    pkg_check_modules(AVUTIL   REQUIRED libavutil)
-    pkg_check_modules(SWSCALE  REQUIRED libswscale)
-    pkg_check_modules(SWRESAMPLE REQUIRED libswresample)
+  find_package(PkgConfig REQUIRED)
+  pkg_check_modules(AVFORMAT REQUIRED libavformat)
+  pkg_check_modules(AVCODEC  REQUIRED libavcodec)
+  pkg_check_modules(AVUTIL   REQUIRED libavutil)
+  pkg_check_modules(SWSCALE  REQUIRED libswscale)
+  pkg_check_modules(SWRESAMPLE REQUIRED libswresample)
 
-    foreach(_lib avformat avcodec avutil swscale swresample)
-        string(TOUPPER ${_lib} _LIB)
-        add_library(FFmpeg::${_lib} INTERFACE IMPORTED)
-        target_include_directories(FFmpeg::${_lib} INTERFACE ${${_LIB}_INCLUDE_DIRS})
-        target_link_libraries(FFmpeg::${_lib}      INTERFACE ${${_LIB}_LINK_LIBRARIES})
-        target_link_directories(FFmpeg::${_lib}    INTERFACE ${${_LIB}_LIBRARY_DIRS})
-    endforeach()
+  foreach(_lib avformat avcodec avutil swscale swresample)
+    string(TOUPPER ${_lib} _LIB)
+    add_library(FFmpeg::${_lib} INTERFACE IMPORTED)
+    target_include_directories(FFmpeg::${_lib} INTERFACE ${${_LIB}_INCLUDE_DIRS})
+    target_link_libraries(FFmpeg::${_lib}      INTERFACE ${${_LIB}_LINK_LIBRARIES})
+    target_link_directories(FFmpeg::${_lib}    INTERFACE ${${_LIB}_LIBRARY_DIRS})
+  endforeach()
 
-    message(STATUS "Using system FFmpeg")
-    message(STATUS "  libavformat ${AVFORMAT_VERSION}")
-    message(STATUS "  libavcodec  ${AVCODEC_VERSION}")
-    message(STATUS "  libavutil   ${AVUTIL_VERSION}")
-    message(STATUS "  libswscale  ${SWSCALE_VERSION}")
-    message(STATUS "  libswresample ${SWRESAMPLE_VERSION}")
+  message(STATUS "Using system FFmpeg")
+  message(STATUS "  libavformat ${AVFORMAT_VERSION}")
+  message(STATUS "  libavcodec  ${AVCODEC_VERSION}")
+  message(STATUS "  libavutil   ${AVUTIL_VERSION}")
+  message(STATUS "  libswscale  ${SWSCALE_VERSION}")
+  message(STATUS "  libswresample ${SWRESAMPLE_VERSION}")
 endif()
 
 # digestpp
@@ -282,11 +282,11 @@ FetchContent_MakeAvailable(digestpp)
 ### PortAudio (local prebuilt library)
 # Determine platform-specific library name
 if(WIN32)
-    set(PORTAUDIO_LIB_NAME "libportaudio-win.a")
+  set(PORTAUDIO_LIB_NAME "libportaudio-win.a")
 elseif(APPLE)
-    set(PORTAUDIO_LIB_NAME "libportaudio-macos.a")
+  set(PORTAUDIO_LIB_NAME "libportaudio-macos.a")
 elseif(UNIX)
-    set(PORTAUDIO_LIB_NAME "libportaudio-linux.a")
+  set(PORTAUDIO_LIB_NAME "libportaudio-linux.a")
 endif()
 
 set(PORTAUDIO_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/src/libs/audio")
@@ -294,7 +294,7 @@ set(PORTAUDIO_LIBRARY "${CMAKE_SOURCE_DIR}/src/libs/audio/${PORTAUDIO_LIB_NAME}"
 
 # Check if PortAudio library exists
 if(NOT EXISTS ${PORTAUDIO_LIBRARY})
-    message(FATAL_ERROR "PortAudio library not found: ${PORTAUDIO_LIBRARY}")
+  message(FATAL_ERROR "PortAudio library not found: ${PORTAUDIO_LIBRARY}")
 endif()
 
 # Create imported library target for PortAudio
@@ -316,18 +316,18 @@ message(STATUS "C++ files found: ${CppFiles}")
 add_executable(${PROJECT_NAME} ${CppFiles} ${HeaderFiles})
 
 if(WIN32)
-    foreach(_lib avformat avcodec avutil swscale swresample)
-        file(GLOB _dll "${FFMPEG_LIB_DIR}/../bin/${_lib}*.dll")
-        if(_dll)
-            add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+  foreach(_lib avformat avcodec avutil swscale swresample)
+    file(GLOB _dll "${FFMPEG_LIB_DIR}/../bin/${_lib}*.dll")
+    if(_dll)
+      add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
                 COMMAND ${CMAKE_COMMAND} -E copy_if_different
                     ${_dll}
                     "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
             )
-        else()
-            message(WARNING "FFmpeg DLL not found for ${_lib}")
-        endif()
-    endforeach()
+    else()
+      message(WARNING "FFmpeg DLL not found for ${_lib}")
+    endif()
+  endforeach()
 endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE
@@ -361,7 +361,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 # Platform specific (Thanks GPT)
 
 if(WIN32)
-    target_link_libraries(${PROJECT_NAME} PRIVATE
+  target_link_libraries(${PROJECT_NAME} PRIVATE
         opengl32
         gdi32
         winmm
@@ -380,17 +380,17 @@ if(WIN32)
         secur32
         ws2_32
     )
-    # Static linking on Windows
-    target_link_options(${PROJECT_NAME} PRIVATE
+  # Static linking on Windows
+  target_link_options(${PROJECT_NAME} PRIVATE
         -static
         -static-libgcc
         -static-libstdc++
     )
-    set_target_properties(${PROJECT_NAME} PROPERTIES
+  set_target_properties(${PROJECT_NAME} PROPERTIES
         LINK_FLAGS "-Wl,--allow-multiple-definition"
     )
 elseif(APPLE)
-    target_link_libraries(${PROJECT_NAME} PRIVATE
+  target_link_libraries(${PROJECT_NAME} PRIVATE
         "-framework CoreVideo"
         "-framework IOKit"
         "-framework Cocoa"
@@ -405,7 +405,7 @@ elseif(APPLE)
         "-framework CoreMedia"
     )
 elseif(UNIX)
-    target_link_libraries(${PROJECT_NAME} PRIVATE
+  target_link_libraries(${PROJECT_NAME} PRIVATE
         GL
         m
         pthread
@@ -414,59 +414,59 @@ elseif(UNIX)
         X11
         asound
     )
-    # Set rpath for audio library
-    set_target_properties(${PROJECT_NAME} PROPERTIES
+  # Set rpath for audio library
+  set_target_properties(${PROJECT_NAME} PROPERTIES
         BUILD_RPATH "${CMAKE_SOURCE_DIR}/src/libs/audio"
         INSTALL_RPATH "${CMAKE_SOURCE_DIR}/src/libs/audio"
     )
-    find_library(JACK_LIB jack)
-    if(JACK_LIB)
-        target_link_libraries(${PROJECT_NAME} PUBLIC ${JACK_LIB})
-        target_compile_definitions(${PROJECT_NAME} PRIVATE HAVE_JACK)
-    endif()
-    find_library(PULSE_LIB pulse)
-    if(PULSE_LIB)
-        target_link_libraries(${PROJECT_NAME} PUBLIC ${PULSE_LIB})
-        target_compile_definitions(${PROJECT_NAME} PRIVATE HAVE_PULSE)
-    endif()
+  find_library(JACK_LIB jack)
+  if(JACK_LIB)
+    target_link_libraries(${PROJECT_NAME} PUBLIC ${JACK_LIB})
+    target_compile_definitions(${PROJECT_NAME} PRIVATE HAVE_JACK)
+  endif()
+  find_library(PULSE_LIB pulse)
+  if(PULSE_LIB)
+    target_link_libraries(${PROJECT_NAME} PUBLIC ${PULSE_LIB})
+    target_compile_definitions(${PROJECT_NAME} PRIVATE HAVE_PULSE)
+  endif()
 endif()
 
 # AddressSanitizer for Debug builds
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    if(NOT WIN32)
-        target_compile_options(${PROJECT_NAME} PRIVATE
-            -O0  # No optimization for debug
-            -g   # Debug symbols
-            -fmax-errors=0
-            -fsanitize=address
-            -fsanitize=leak
-            -fsanitize=undefined
-            -fno-omit-frame-pointer
-        )
-    else()
-        target_compile_options(${PROJECT_NAME} PRIVATE
-            -O0  # No optimization for debug
-            -g   # Debug symbols
-            -fmax-errors=0
-            -fno-omit-frame-pointer
-        )
-    endif()
-    if(NOT WIN32)
-        target_link_options(${PROJECT_NAME} PRIVATE
-            -fsanitize=address
-            -fsanitize=leak
-            -fsanitize=undefined
-        )
-        message(STATUS "AddressSanitizer enabled for Debug build")
-    endif()
-else()
+  if(NOT WIN32)
     target_compile_options(${PROJECT_NAME} PRIVATE
+            -O0  # No optimization for debug
+            -g   # Debug symbols
+            -fmax-errors=0
+            -fsanitize=address
+            -fsanitize=leak
+            -fsanitize=undefined
+            -fno-omit-frame-pointer
+        )
+  else()
+    target_compile_options(${PROJECT_NAME} PRIVATE
+            -O0  # No optimization for debug
+            -g   # Debug symbols
+            -fmax-errors=0
+            -fno-omit-frame-pointer
+        )
+  endif()
+  if(NOT WIN32)
+    target_link_options(${PROJECT_NAME} PRIVATE
+            -fsanitize=address
+            -fsanitize=leak
+            -fsanitize=undefined
+        )
+    message(STATUS "AddressSanitizer enabled for Debug build")
+  endif()
+else()
+  target_compile_options(${PROJECT_NAME} PRIVATE
         -O2
         -march=native  # Optimize for current CPU
         -DNDEBUG  # Disable assertions
         -flto  # Link-time optimization
     )
-    target_link_options(${PROJECT_NAME} PRIVATE
+  target_link_options(${PROJECT_NAME} PRIVATE
         -flto  # Link-time optimization
         -s  # Strip symbols
     )
@@ -492,7 +492,7 @@ message(STATUS "Platform: ${CMAKE_SYSTEM_NAME}")
 message(STATUS "PortAudio Library: ${PORTAUDIO_LIBRARY}")
 message(STATUS "SDL2: ${SDL2_VERSION}")
 if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT WIN32)
-    message(STATUS "Sanitizers: AddressSanitizer, LeakSanitizer, UndefinedBehaviorSanitizer")
+  message(STATUS "Sanitizers: AddressSanitizer, LeakSanitizer, UndefinedBehaviorSanitizer")
 endif()
 message(STATUS "===============================================================")
 message(STATUS "")
