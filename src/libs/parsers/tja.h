@@ -284,6 +284,7 @@ private:
     std::deque<NoteList> branch_m;
     std::deque<NoteList> branch_e;
     std::deque<NoteList> branch_n;
+    static const std::regex complex_number_regex;
 
     std::vector<std::string> read_file_lines(const std::filesystem::path& path,
                                              const std::string& encoding);

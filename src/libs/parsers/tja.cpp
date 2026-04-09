@@ -5,6 +5,9 @@ double get_ms_per_measure(double bpm_val, double time_sig) {
     return 60000 * (time_sig * 4) / bpm_val;
 }
 
+const std::regex TJAParser::complex_number_regex(
+    R"(([+-]?[0-9]*\.?[0-9]+)?([+-][0-9]*\.?[0-9]+)?j?)"
+);
 
 int calculate_base_score(const NoteList& notes) {
     int total_notes = 0;
@@ -716,10 +719,9 @@ void TJAParser::handle_SCROLL(const std::string& value, ParserState& state) {
         replace_all(normalized, "i", "j");
         replace_all(normalized, ",", "");
 
-        std::regex complex_regex(R"(([+-]?[0-9]*\.?[0-9]+)?([+-][0-9]*\.?[0-9]+)?j?)");
         std::smatch match;
 
-        if (std::regex_match(normalized, match, complex_regex)) {
+        if (std::regex_match(normalized, match, complex_number_regex)) {
             double real = 0.0f;
             double imag = 0.0f;
 
@@ -872,9 +874,8 @@ void TJAParser::handle_JPOSSCROLL(const std::string& part, ParserState& state) {
         replace_all(normalized, "i", "j");
         replace_all(normalized, ",", "");
 
-        std::regex complex_regex(R"(([+-]?[0-9]*\.?[0-9]+)?([+-][0-9]*\.?[0-9]+)?j?)");
         std::smatch match;
-        if (std::regex_match(normalized, match, complex_regex)) {
+        if (std::regex_match(normalized, match, complex_number_regex)) {
             if (match[1].length() > 0 && match[1].str().back() != 'j') {
                 delta_x = std::stof(match[1]);
             }
