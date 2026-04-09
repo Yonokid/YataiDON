@@ -2,6 +2,8 @@
 
 void TitleScreen::on_screen_start() {
     Screen::on_screen_start();
+    op_video_list.clear();
+    attract_video_list.clear();
     fs::path videos_path = fs::path("Skins" / global_data.config->paths.skin / "Videos");
     for (const auto& entry : fs::recursive_directory_iterator(videos_path / "op_videos")) {
         if (entry.path().extension() == ".mp4") {
@@ -21,12 +23,11 @@ void TitleScreen::on_screen_start() {
 }
 
 Screens TitleScreen::on_screen_end(Screens next_screen) {
-    if (op_video.has_value()) {
-        op_video->stop();
-    }
-    if (attract_video.has_value()) {
-        attract_video->stop();
-    }
+    // Destroy the VideoPlayer objects (their destructors call stop()).
+    // Resetting the optionals ensures scene_manager creates a fresh
+    // VideoPlayer on the next visit rather than updating a stopped one.
+    op_video.reset();
+    attract_video.reset();
     return Screen::on_screen_end(next_screen);
 }
 

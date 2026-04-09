@@ -204,6 +204,12 @@ void VideoPlayer::draw() {
 }
 
 void VideoPlayer::stop() {
+    // Reset the decoder before closing the container so AVFrameDecoder's
+    // fmt_ctx_ pointer is never left dangling.
+    frame_generator.reset();
+    current_decoded_frame.reset();
+    start_ms.reset();
+
     if (is_static) {
         if (texture.has_value()) {
             ray::UnloadTexture(texture.value());

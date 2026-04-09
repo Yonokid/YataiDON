@@ -245,8 +245,12 @@ private:
 class AVAudioStream {
 public:
     // Normal constructor – wraps a real stream from the container.
+    // Stores the URL independently so encoded_bytes() can open its own
+    // AVFormatContext and never disturb the shared video context.
     explicit AVAudioStream(::AVStream* stream, ::AVFormatContext* fmt_ctx)
-        : stream_(stream), fmt_ctx_(fmt_ctx), silent_(false), silent_duration_(0.0) {}
+        : stream_(stream),
+          url_(fmt_ctx && fmt_ctx->url ? fmt_ctx->url : ""),
+          silent_(false), silent_duration_(0.0) {}
 
     // Silent constructor – no real stream, generates silence on demand.
     static std::unique_ptr<AVAudioStream> make_silent(double duration_seconds) {
@@ -271,25 +275,50 @@ public:
 private:
     // Private default constructor used only by make_silent().
     AVAudioStream()
-        : stream_(nullptr), fmt_ctx_(nullptr), silent_(false), silent_duration_(0.0) {}
+        : stream_(nullptr), url_(""), silent_(false), silent_duration_(0.0) {}
 
         std::vector<uint8_t> remux_to_wav() const {
-        // 1. Decode audio stream to raw PCM, then write a WAV into memory.
+        // Open a private AVFormatContext so we never advance or corrupt the
+        // shared context that AVFrameDecoder uses for video decoding.
+        ::AVFormatContext* fmt_ctx = nullptr;
+        check(avformat_open_input(&fmt_ctx, url_.c_str(), nullptr, nullptr),
+              "remux_to_wav: avformat_open_input");
+        check(avformat_find_stream_info(fmt_ctx, nullptr),
+              "remux_to_wav: avformat_find_stream_info");
+
+        // Find the first audio stream in this private context.
+        int audio_idx = -1;
+        for (unsigned i = 0; i < fmt_ctx->nb_streams; ++i) {
+            if (fmt_ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
+                audio_idx = static_cast<int>(i);
+                break;
+            }
+        }
+        if (audio_idx < 0) {
+            avformat_close_input(&fmt_ctx);
+            return make_silence_wav(1.0);
+        }
+        ::AVStream* astream = fmt_ctx->streams[audio_idx];
 
         // --- Find decoder ---
-        const ::AVCodec* codec = avcodec_find_decoder(stream_->codecpar->codec_id);
-        if (!codec) throw std::runtime_error("remux_to_wav: no decoder found");
+        const ::AVCodec* codec = avcodec_find_decoder(astream->codecpar->codec_id);
+        if (!codec) {
+            avformat_close_input(&fmt_ctx);
+            throw std::runtime_error("remux_to_wav: no decoder found");
+        }
 
         ::AVCodecContext* dec_ctx = avcodec_alloc_context3(codec);
-        if (!dec_ctx) throw std::runtime_error("remux_to_wav: avcodec_alloc_context3");
+        if (!dec_ctx) {
+            avformat_close_input(&fmt_ctx);
+            throw std::runtime_error("remux_to_wav: avcodec_alloc_context3");
+        }
 
-        check(avcodec_parameters_to_context(dec_ctx, stream_->codecpar),
+        check(avcodec_parameters_to_context(dec_ctx, astream->codecpar),
                 "remux_to_wav: avcodec_parameters_to_context");
         check(avcodec_open2(dec_ctx, codec, nullptr), "remux_to_wav: avcodec_open2");
 
         // --- Set up SwrContext for conversion to S16 interleaved ---
         SwrContext* swr = nullptr;
-        // Use the channel layout from the codec context
         AVChannelLayout out_layout = AV_CHANNEL_LAYOUT_STEREO;
         check(swr_alloc_set_opts2(
                     &swr,
@@ -302,29 +331,28 @@ private:
         // --- Decode all packets ---
         std::vector<int16_t> pcm;
 
-        // Seek to start
-        av_seek_frame(fmt_ctx_, stream_->index, 0, AVSEEK_FLAG_BACKWARD);
-        avcodec_flush_buffers(dec_ctx);
-
         ::AVPacket* pkt   = av_packet_alloc();
         ::AVFrame*  frame = av_frame_alloc();
-        if (!pkt || !frame) throw std::runtime_error("remux_to_wav: alloc failed");
+        if (!pkt || !frame) {
+            swr_free(&swr);
+            avcodec_free_context(&dec_ctx);
+            avformat_close_input(&fmt_ctx);
+            throw std::runtime_error("remux_to_wav: alloc failed");
+        }
 
-        auto flush_decoder = [&](bool flushing) {
+        auto flush_decoder = [&](bool) {
             while (true) {
                 int ret = avcodec_receive_frame(dec_ctx, frame);
                 if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) break;
                 check(ret, "remux_to_wav: avcodec_receive_frame");
 
-                // How many output samples will swr produce?
                 int64_t out_samples = swr_get_out_samples(swr, frame->nb_samples);
-
-                std::vector<int16_t> tmp(out_samples * 2); // stereo
+                std::vector<int16_t> tmp(out_samples * 2);
                 uint8_t* out_ptr = reinterpret_cast<uint8_t*>(tmp.data());
 
                 int converted = swr_convert(
                     swr,
-                    &out_ptr,                           out_samples,
+                    &out_ptr,                              out_samples,
                     (const uint8_t**)frame->extended_data, frame->nb_samples);
                 if (converted > 0)
                     pcm.insert(pcm.end(), tmp.begin(), tmp.begin() + converted * 2);
@@ -333,14 +361,13 @@ private:
             }
         };
 
-        while (av_read_frame(fmt_ctx_, pkt) >= 0) {
-            if (pkt->stream_index == stream_->index) {
+        while (av_read_frame(fmt_ctx, pkt) >= 0) {
+            if (pkt->stream_index == audio_idx) {
                 avcodec_send_packet(dec_ctx, pkt);
                 flush_decoder(false);
             }
             av_packet_unref(pkt);
         }
-        // Flush
         avcodec_send_packet(dec_ctx, nullptr);
         flush_decoder(true);
 
@@ -357,8 +384,8 @@ private:
         av_frame_free(&frame);
         swr_free(&swr);
         avcodec_free_context(&dec_ctx);
+        avformat_close_input(&fmt_ctx);
 
-        // --- Build WAV from PCM ---
         return make_pcm_wav(pcm, 44100, 2);
     }
 
@@ -452,7 +479,7 @@ private:
     }
 
     ::AVStream*        stream_;          // non-owning; nullptr for silent streams
-    ::AVFormatContext* fmt_ctx_;         // non-owning; nullptr for silent streams
+    std::string        url_;             // file path for silent streams is ""
     bool               silent_;
     double             silent_duration_;
 };
