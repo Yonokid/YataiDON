@@ -1,4 +1,5 @@
 #include "player.h"
+#include "modifier.h"
 
 SongSelectPlayer::SongSelectPlayer(PlayerNum player_num)
     : player_num(player_num)
@@ -61,6 +62,12 @@ bool SongSelectPlayer::is_voice_playing() {
     return audio->is_sound_playing("voice_start_song_" + std::to_string((int)player_num) + "p");
 }
 
+void SongSelectPlayer::start_background_diffs() {
+    selected_diff_text_resize->start();
+    selected_diff_text_fadein->start();
+    selected_diff_highlight_fade->start();
+}
+
 SongSelectState SongSelectPlayer::select_song() {
     audio->play_sound("don", "sound");
     BaseBox* item = navigator.get_current_item();
@@ -69,6 +76,8 @@ SongSelectState SongSelectPlayer::select_song() {
         selected_song = true;
         SongBox* song_item = (SongBox*)item;
         curr_diffs = song_item->get_diffs();
+        selected_diff_bounce->start();
+        selected_diff_fadein->start();
         return SongSelectState::SONG_SELECTED;
     } else if (navigator.is_directory(item)) {
         navigator.load_current_directory(item->path);
@@ -151,15 +160,48 @@ SongSelectState SongSelectPlayer::handle_input_selecting() {
     bool r_don = is_r_don_pressed(player_num);
 
     if (l_kat) {
-        audio->play_sound("kat", "sound");
-        navigate_difficulty_left();
+        if (modifier_selector.has_value()) {
+            audio->play_sound("kat", "sound");
+            modifier_selector->left();
+        } else if (neiro_selector.has_value()) {
+            neiro_selector->left();
+        } else {
+            audio->play_sound("kat", "sound");
+            navigate_difficulty_left();
+            if (selected_difficulty >= Difficulty::EASY) {
+                selected_diff_bounce->start();
+                selected_diff_fadein->start();
+            }
+        }
     } else if (r_kat) {
-        audio->play_sound("kat", "sound");
-        navigate_difficulty_right();
+        if (modifier_selector.has_value()) {
+            audio->play_sound("kat", "sound");
+            modifier_selector->right();
+        } else if (neiro_selector.has_value()) {
+            neiro_selector->right();
+        } else {
+            audio->play_sound("kat", "sound");
+            navigate_difficulty_right();
+            if (selected_difficulty >= Difficulty::EASY) {
+                selected_diff_bounce->start();
+                selected_diff_fadein->start();
+            }
+        }
     } else if (l_don || r_don) {
         audio->play_sound("don", "sound");
-        if (selected_difficulty >= Difficulty::EASY || selected_difficulty == Difficulty::BACK) {
-            is_ready = true;
+        if (modifier_selector.has_value()) {
+            modifier_selector->confirm();
+        } else if (neiro_selector.has_value()) {
+            neiro_selector->confirm();
+        } else {
+            if (selected_difficulty == Difficulty::MODIFIER) {
+                modifier_selector = ModifierSelector(player_num);
+            } else if (selected_difficulty == Difficulty::NEIRO) {
+                neiro_selector = NeiroSelector(player_num);
+            } else if (selected_difficulty >= Difficulty::EASY || selected_difficulty == Difficulty::BACK) {
+                is_ready = true;
+                start_background_diffs();
+            }
         }
     }
     return SongSelectState::SONG_SELECTED;
@@ -304,8 +346,9 @@ void SongSelectPlayer::draw_background_diffs(SongSelectState state) {
 }
 
 void SongSelectPlayer::draw(SongSelectState state, bool is_half) {
-    if (selected_song && state == SongSelectState::SONG_SELECTED)
+    if (selected_song && state == SongSelectState::SONG_SELECTED) {
         draw_selector(is_half);
+    }
 
     float offset = 0.0f;
     if (neiro_selector.has_value()) {

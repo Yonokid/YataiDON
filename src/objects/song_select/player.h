@@ -60,4 +60,5 @@ private:
     void navigate_difficulty_left();
     void navigate_difficulty_right();
     void toggle_ura_mode();
+    void start_background_diffs();
 };

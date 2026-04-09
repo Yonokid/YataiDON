@@ -136,6 +136,7 @@ void SongSelectScreen::draw_overlays() {
 }
 
 void SongSelectScreen::draw() {
+    player->draw_background_diffs(state);
     if (screen_init) navigator.draw(player->is_ura);
     tex.draw_texture("global", "footer", {});
 

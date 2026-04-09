@@ -98,6 +98,49 @@ ray::Font FontManager::copy_font(const std::string& text, int font_size) {
     return deep_copy_font(font);
 }
 
+// Characters placed to the right of the preceding glyph at the same y,
+// rather than stacked below it (terminal punctuation, etc.).
+static bool is_beside_prev_char(const std::string& s) {
+    static const std::unordered_set<std::string> beside_set = {
+        ".", ",", "'", "\"",
+        "\xe3\x80\x82",  // 。
+        "\xe3\x80\x81",  // 、
+        "\xe3\x83\xbb",  // ・
+    };
+    return beside_set.count(s) > 0;
+}
+
+// Extra downward draw offset for beside chars whose glyphs sit near the top
+// of their cell (e.g. apostrophes), so they appear vertically centred.
+static float beside_y_offset(const std::string& s, float char_height) {
+    if (s == "'" || s == "\"") return char_height * 0.7f;
+    return 0.0f;
+}
+
+static bool needs_less_spacing_above(const std::string& s) {
+    static const std::unordered_set<std::string> alphabet = {
+        " ", "a", "c", "e", "g", "m", "n", "o", "p", "q", "r", "s", "u", "v", "w", "x", "z",
+    };
+    static const std::unordered_set<std::string> sutegana = {
+        // Small hiragana
+        "ぁ", "ぃ", "ぅ", "ぇ", "ぉ", "っ", "ゃ", "ゅ", "ょ", "ゎ", "ゕ", "ゖ",
+        // Small katakana
+        "ァ", "ィ", "ゥ", "ェ", "ォ", "ッ", "ャ", "ュ", "ョ", "ヮ", "ヵ", "ヶ",
+    };
+    return sutegana.count(s) > 0 || alphabet.count(s) > 0;
+}
+
+// Consecutive runs of 2+ of these are drawn horizontally side-by-side.
+static bool is_hgroup_char(const std::string& s) {
+    static const std::unordered_set<std::string> hgroup_set = {
+        "!", "?",
+        "\xef\xbc\x81",  // ！
+        "\xef\xbc\x9f",  // ？
+        "\xe2\x80\xa0", // chaos time the dark
+    };
+    return hgroup_set.count(s) > 0;
+}
+
 static bool in_rotate_set(const std::string& s) {
     static const std::unordered_set<std::string> rotate_set = {
         "-", "\xe2\x80\x90",
@@ -197,65 +240,163 @@ OutlinedText::BuildData OutlinedText::build_horizontal_text(
 OutlinedText::BuildData OutlinedText::build_vertical_text(
     ray::Color color, ray::Color outline_color, float spacing)
 {
-    float char_height    = ray::MeasureTextEx(worker_font, "A", font_size, spacing).y;
-    float max_char_width = 0.0f;
+    float char_height = ray::MeasureTextEx(worker_font, "A", font_size, spacing).y;
 
-    std::vector<std::string> chars;
-    const char* ptr = text.c_str();
-    while (*ptr) {
-        int cp_size = 0;
-        ray::GetCodepointNext(ptr, &cp_size);
-        chars.emplace_back(ptr, cp_size);
-        ptr += cp_size;
+    // Parse the text into items. Consecutive runs of 2+ hgroup chars (!, ?)
+    // become a single item drawn horizontally; everything else is one item.
+    struct TextItem {
+        std::vector<std::string> chars;
+        bool  is_hgroup;
+        float width;  // total render width
+    };
+
+    std::vector<std::string> raw_chars;
+    {
+        const char* ptr = text.c_str();
+        while (*ptr) {
+            int cp_size = 0;
+            ray::GetCodepointNext(ptr, &cp_size);
+            raw_chars.emplace_back(ptr, cp_size);
+            ptr += cp_size;
+        }
     }
-    for (const auto& s : chars) {
-        float cw = ray::MeasureTextEx(worker_font, s.c_str(), font_size, spacing).x;
-        if (cw > max_char_width) max_char_width = cw;
+
+    std::vector<TextItem> items;
+    for (int i = 0; i < (int)raw_chars.size(); ) {
+        if (is_hgroup_char(raw_chars[i])) {
+            int j = i;
+            while (j < (int)raw_chars.size() && is_hgroup_char(raw_chars[j])) j++;
+            TextItem item;
+            item.is_hgroup = (j - i >= 2);
+            item.chars.assign(raw_chars.begin() + i, raw_chars.begin() + j);
+            item.width = 0.0f;
+            for (const auto& s : item.chars)
+                item.width += ray::MeasureTextEx(worker_font, s.c_str(), font_size, spacing).x;
+            items.push_back(std::move(item));
+            i = j;
+        } else {
+            TextItem item;
+            item.is_hgroup = false;
+            item.chars     = { raw_chars[i] };
+            item.width     = ray::MeasureTextEx(worker_font, raw_chars[i].c_str(), font_size, spacing).x;
+            items.push_back(std::move(item));
+            ++i;
+        }
     }
+
+    float max_item_width = 0.0f;
+    for (const auto& item : items)
+        if (item.width > max_item_width) max_item_width = item.width;
 
     int pad   = (int)outline_thickness + 2;
-    int img_w = (int)(max_char_width + pad * 2);
-    int img_h = (int)(char_height * (float)chars.size() + pad * 2);
+    int img_w = (int)(max_item_width + pad * 2);
 
-    ray::Image img = ray::GenImageColor(img_w, img_h, ray::BLANK);
+    // Pre-compute y position for each item.
+    static constexpr float small_char_advance_factor = 0.8f;
+    static constexpr float beside_advance_factor     = 0.3f;
+    std::vector<float> y_positions(items.size(), (float)pad);
+    float current_y = (float)pad;
+    for (int i = 1; i < (int)items.size(); i++) {
+        float advance;
+        const auto& first = items[i].chars[0];
+        if (items[i].is_hgroup)
+            advance = char_height;
+        else if (is_beside_prev_char(first))
+            advance = char_height * beside_advance_factor;
+        else if (needs_less_spacing_above(first))
+            advance = char_height * small_char_advance_factor;
+        else
+            advance = char_height;
+        current_y     += advance;
+        y_positions[i] = current_y;
+    }
+    int img_h = items.empty()
+                ? pad * 2
+                : (int)(y_positions.back() + char_height + pad);
 
-    for (int i = 0; i < (int)chars.size(); i++) {
-        const auto& s = chars[i];
-        float y          = pad + i * char_height;
-        float char_width = ray::MeasureTextEx(worker_font, s.c_str(), font_size, spacing).x;
-        float x          = pad + (max_char_width - char_width) / 2.0f;
+    ray::Image img         = ray::GenImageColor(img_w, img_h, ray::BLANK);
+    ray::Image outline_img = ray::GenImageColor(img_w, img_h, ray::BLANK);
 
-        if (in_rotate_set(s)) {
-            int tmp_w = (int)char_width + pad * 2;
-            int tmp_h = (int)char_height + pad * 2;
-            ray::Image tmp = ray::GenImageColor(tmp_w, tmp_h, ray::BLANK);
+    // Two passes: 0 = outlines onto outline_img, 1 = fills onto img.
+    for (int pass = 0; pass < 2; pass++) {
+        ray::Image* target = (pass == 0) ? &outline_img : &img;
 
-            for (float angle = 0; angle < 2 * PI; angle += (PI / 8)) {
-                float ox = cosf(angle) * outline_thickness;
-                float oy = sinf(angle) * outline_thickness;
-                ray::ImageDrawTextEx(&tmp, worker_font, s.c_str(),
-                                     {(float)pad + ox, (float)pad + oy},
-                                     font_size, spacing, outline_color);
+        for (int i = 0; i < (int)items.size(); i++) {
+            const auto& item = items[i];
+            float y = y_positions[i];
+
+            if (item.is_hgroup) {
+                // Chars drawn left-to-right, group centred in max_item_width.
+                float cx = pad + (max_item_width - item.width) / 2.0f;
+                for (const auto& s : item.chars) {
+                    float cw = ray::MeasureTextEx(worker_font, s.c_str(), font_size, spacing).x;
+                    if (pass == 0) {
+                        for (float angle = 0; angle < 2 * PI; angle += (PI / 8)) {
+                            float ox = cosf(angle) * outline_thickness;
+                            float oy = sinf(angle) * outline_thickness;
+                            ray::ImageDrawTextEx(target, worker_font, s.c_str(),
+                                                 {cx + ox, y + oy}, font_size, spacing, outline_color);
+                        }
+                    } else {
+                        ray::ImageDrawTextEx(target, worker_font, s.c_str(),
+                                             {cx, y}, font_size, spacing, color);
+                    }
+                    cx += cw;
+                }
+            } else {
+                const auto& s    = item.chars[0];
+                float char_width = item.width;
+                float x = is_beside_prev_char(s)
+                          ? pad + (max_item_width - char_width)
+                          : pad + (max_item_width - char_width) / 2.0f;
+                float draw_y = y + beside_y_offset(s, char_height);
+
+                if (!is_beside_prev_char(s) && in_rotate_set(s)) {
+                    int tmp_w = (int)char_width + pad * 2;
+                    int tmp_h = (int)char_height + pad * 2;
+                    ray::Image tmp = ray::GenImageColor(tmp_w, tmp_h, ray::BLANK);
+
+                    if (pass == 0) {
+                        for (float angle = 0; angle < 2 * PI; angle += (PI / 8)) {
+                            float ox = cosf(angle) * outline_thickness;
+                            float oy = sinf(angle) * outline_thickness;
+                            ray::ImageDrawTextEx(&tmp, worker_font, s.c_str(),
+                                                 {(float)pad + ox, (float)pad + oy},
+                                                 font_size, spacing, outline_color);
+                        }
+                    } else {
+                        ray::ImageDrawTextEx(&tmp, worker_font, s.c_str(),
+                                             {(float)pad, (float)pad}, font_size, spacing, color);
+                    }
+                    ray::ImageRotateCW(&tmp);
+
+                    float dx = x + (char_width  - (float)tmp.width)  / 2.0f;
+                    float dy = draw_y + (char_height - (float)tmp.height) / 2.0f;
+                    ray::Rectangle src = {0, 0, (float)tmp.width, (float)tmp.height};
+                    ray::Rectangle dst = {dx, dy, (float)tmp.width, (float)tmp.height};
+                    ray::ImageDraw(target, tmp, src, dst, ray::WHITE);
+                    ray::UnloadImage(tmp);
+                } else {
+                    if (pass == 0) {
+                        for (float angle = 0; angle < 2 * PI; angle += (PI / 8)) {
+                            float ox = cosf(angle) * outline_thickness;
+                            float oy = sinf(angle) * outline_thickness;
+                            ray::ImageDrawTextEx(target, worker_font, s.c_str(),
+                                                 {x + ox, draw_y + oy}, font_size, spacing, outline_color);
+                        }
+                    } else {
+                        ray::ImageDrawTextEx(target, worker_font, s.c_str(),
+                                             {x, draw_y}, font_size, spacing, color);
+                    }
+                }
             }
-            ray::ImageDrawTextEx(&tmp, worker_font, s.c_str(),
-                                 {(float)pad, (float)pad}, font_size, spacing, color);
-            ray::ImageRotateCW(&tmp);
+        }
 
-            float dx = x + (char_width  - (float)tmp.width)  / 2.0f;
-            float dy = y + (char_height - (float)tmp.height) / 2.0f;
-            ray::Rectangle src = {0, 0, (float)tmp.width, (float)tmp.height};
-            ray::Rectangle dst = {dx, dy, (float)tmp.width, (float)tmp.height};
-            ray::ImageDraw(&img, tmp, src, dst, ray::WHITE);
-            ray::UnloadImage(tmp);
-        } else {
-            for (float angle = 0; angle < 2 * PI; angle += (PI / 8)) {
-                float ox = cosf(angle) * outline_thickness;
-                float oy = sinf(angle) * outline_thickness;
-                ray::ImageDrawTextEx(&img, worker_font, s.c_str(),
-                                     {x + ox, y + oy}, font_size, spacing, outline_color);
-            }
-            ray::ImageDrawTextEx(&img, worker_font, s.c_str(),
-                                 {x, y}, font_size, spacing, color);
+        if (pass == 0) {
+            ray::ImageDraw(&img, outline_img,
+                           {0, 0, (float)img_w, (float)img_h},
+                           {0, 0, (float)img_w, (float)img_h}, ray::WHITE);
+            ray::UnloadImage(outline_img);
         }
     }
 

@@ -30,26 +30,26 @@ void Judgment::update(double current_ms) {
 void Judgment::draw(float judge_x, float judge_y) {
     float y = move_animation->attribute;
     int index = static_cast<int>(texture_animation->attribute);
-    float hit_fade = fade_animation_1->attribute;
+    float hit_fade = std::min(0.75, fade_animation_1->attribute);
     float fade = fade_animation_2->attribute;
 
     if (type == Judgments::GOOD) {
         if (big) {
             tex.draw_texture("hit_effect", "hit_effect_good_big", {.x=judge_x, .y=judge_y, .fade=fade});
-            tex.draw_texture("hit_effect", "outer_good_big",{.x=judge_x, .y=judge_y, .fade=hit_fade});
+            tex.draw_texture("hit_effect", "outer_good_big",{.frame=index, .x=judge_x, .y=judge_y, .fade=hit_fade});
         } else {
             tex.draw_texture("hit_effect", "hit_effect_good", {.x=judge_x, .y=judge_y, .fade=fade});
-            tex.draw_texture("hit_effect", "outer_good", {.x=judge_x, .y=judge_y, .fade=hit_fade});
+            tex.draw_texture("hit_effect", "outer_good", {.frame=index, .x=judge_x, .y=judge_y, .fade=hit_fade});
         }
-        tex.draw_texture("hit_effect", "judge_good", {.x=judge_x, .y=y + judge_y, .fade=fade});
+        tex.draw_texture("hit_effect", "judge_good", {.frame=index, .x=judge_x, .y=y + judge_y, .fade=fade});
     }
     else if (type == Judgments::OK) {
         if (big) {
             tex.draw_texture("hit_effect", "hit_effect_ok_big", {.x=judge_x, .y=judge_y, .fade=fade});
-            tex.draw_texture("hit_effect", "outer_ok_big", {.x=judge_x, .y=judge_y, .fade=hit_fade});
+            tex.draw_texture("hit_effect", "outer_ok_big", {.frame=index, .x=judge_x, .y=judge_y, .fade=hit_fade});
         } else {
             tex.draw_texture("hit_effect", "hit_effect_ok", {.x=judge_x, .y=judge_y, .fade=fade});
-            tex.draw_texture("hit_effect", "outer_ok", {.x=judge_x, .y=judge_y, .fade=hit_fade});
+            tex.draw_texture("hit_effect", "outer_ok", {.frame=index, .x=judge_x, .y=judge_y, .fade=hit_fade});
         }
         tex.draw_texture("hit_effect", "judge_ok", {.x=judge_x, .y=y + judge_y, .fade=fade});
     }

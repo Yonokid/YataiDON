@@ -29,8 +29,8 @@ public:
 
     NeiroSelector(PlayerNum player_num);
     void update(double current_ms);
-    void move_left();
-    void move_right();
+    void left();
+    void right();
     void confirm();
     void draw();
 };

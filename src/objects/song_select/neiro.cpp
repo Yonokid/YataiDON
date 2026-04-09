@@ -45,7 +45,7 @@ void NeiroSelector::load_sound() {
     }
 }
 
-void NeiroSelector::move_left() {
+void NeiroSelector::left() {
     if (move->is_started && !move->is_finished) return;
     selected_sound = ((selected_sound - 1) % (int)sounds.size() + (int)sounds.size()) % (int)sounds.size();
     audio->unload_sound(curr_sound);
@@ -62,7 +62,7 @@ void NeiroSelector::move_left() {
     audio->play_sound(curr_sound, "hitsound");
 }
 
-void NeiroSelector::move_right() {
+void NeiroSelector::right() {
     if (move->is_started && !move->is_finished) return;
     selected_sound = (selected_sound + 1) % (int)sounds.size();
     audio->unload_sound(curr_sound);

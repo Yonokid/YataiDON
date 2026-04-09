@@ -19,10 +19,12 @@ include(FetchContent)
 ### Dependencies
 
 # SDL2
-find_package(PkgConfig QUIET)
-if(PkgConfig_FOUND)
-    pkg_check_modules(SDL2 QUIET sdl2)
-    pkg_check_modules(SQLITE3 QUIET sqlite3)
+if(NOT WIN32)
+    find_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND)
+        pkg_check_modules(SDL2 QUIET sdl2)
+        pkg_check_modules(SQLITE3 QUIET sqlite3)
+    endif()
 endif()
 
 if(SDL2_FOUND)

@@ -56,6 +56,42 @@ void Navigator::enqueue_inline_box(std::unique_ptr<BaseBox> box) {
     pending_inline_boxes.push(std::move(box));
 }
 
+void sort_items(std::vector<std::unique_ptr<BaseBox>>& items, int first_index, int last_index) {
+    if (first_index >= 0 && last_index > first_index &&
+        last_index < static_cast<int>(items.size())) {
+
+        auto begin = items.begin() + first_index;
+        auto end   = items.begin() + last_index + 1;
+
+        std::vector<int> back_box_positions;
+        std::vector<std::unique_ptr<BaseBox>> sortable;
+
+        for (int i = first_index; i <= last_index; i++) {
+            if (items[i]->text_name == "BACK_BOX") {
+                back_box_positions.push_back(i - first_index);
+            } else {
+                sortable.push_back(std::move(items[i]));
+            }
+        }
+
+        std::sort(sortable.begin(), sortable.end(),
+            [](const std::unique_ptr<BaseBox>& a, const std::unique_ptr<BaseBox>& b) {
+                return a->text_name < b->text_name;
+            });
+
+        int sortable_idx = 0;
+        for (int i = first_index; i <= last_index; i++) {
+            int relative = i - first_index;
+            if (std::find(back_box_positions.begin(), back_box_positions.end(), relative)
+                != back_box_positions.end()) {
+                // BACK_BOX slot — item was never moved, nothing to do
+            } else {
+                items[i] = std::move(sortable[sortable_idx++]);
+            }
+        }
+    }
+}
+
 void Navigator::flush_pending_boxes() {
     std::lock_guard<std::mutex> lock(pending_mutex);
 
@@ -78,6 +114,7 @@ void Navigator::flush_pending_boxes() {
 
     if (loading_complete.load()) {
         if (open_index >= items.size()) open_index = 0;
+        sort_items(items, genre_bg_start, genre_bg_end);
         set_positions(false, 800);
         items[open_index]->expand_box();
         is_processing = false;

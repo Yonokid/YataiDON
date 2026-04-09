@@ -113,6 +113,8 @@ jobs:
         run: |
           mkdir -p release/YataiDON-Windows
           cp build/bin/YataiDON.exe release/YataiDON-Windows/
+          # Copy FFmpeg DLLs (placed here by CMake POST_BUILD command)
+          cp build/bin/*.dll release/YataiDON-Windows/ 2>/dev/null || true
           cp -r Skins release/YataiDON-Windows/
           cp -r shader release/YataiDON-Windows/
           cp config.toml release/YataiDON-Windows/
