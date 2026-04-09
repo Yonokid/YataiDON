@@ -451,7 +451,7 @@ void Navigator::skip_left() {
     last_bg_genre_index = bg_genre_index;
     open_index = (open_index - 10 + (int)items.size()) % (int)items.size();
     bg_genre_index = items[open_index]->genre_index;
-    set_positions(false, 166);
+    set_positions(true, 166);
     items[open_index]->expand_box();
     background_fade_change->start();
 }
@@ -461,7 +461,7 @@ void Navigator::skip_right() {
     last_bg_genre_index = bg_genre_index;
     open_index = (open_index + 10 + (int)items.size()) % (int)items.size();
     bg_genre_index = items[open_index]->genre_index;
-    set_positions(false, 166);
+    set_positions(true, 166);
     items[open_index]->expand_box();
     background_fade_change->start();
 }
