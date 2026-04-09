@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# YataiDON Fast Debug Build Script
+# YataiDON Fast Rebuild Script
 # Rebuilds without cleaning and copies the executable to root
 
 set -e  # Exit on error
 
-echo "Building YataiDON (Fast Debug Build)..."
+echo "Building YataiDON (Rebuild)..."
 echo ""
 
 # Build without cleaning

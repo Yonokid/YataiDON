@@ -119,7 +119,7 @@ static float beside_y_offset(const std::string& s, float char_height) {
 
 static bool needs_less_spacing_above(const std::string& s) {
     static const std::unordered_set<std::string> alphabet = {
-        " ", "a", "c", "e", "g", "m", "n", "o", "p", "q", "r", "s", "u", "v", "w", "x", "z",
+        " ", "a", "c", "e", "g", "m", "n", "o", "p", "q", "r", "s", "u", "v", "w", "x", "y", "z",
     };
     static const std::unordered_set<std::string> sutegana = {
         // Small hiragana

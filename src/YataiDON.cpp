@@ -106,7 +106,7 @@ void set_config_flags() {
     }
     ray::SetConfigFlags(ray::FLAG_MSAA_4X_HINT);
     ray::SetConfigFlags(ray::FLAG_WINDOW_RESIZABLE);
-    ray::SetTraceLogLevel(ray::LOG_WARNING);
+    ray::SetTraceLogLevel(ray::LOG_ERROR);
 }
 
 Screens check_args(int argc, char* argv[]) {
@@ -261,8 +261,6 @@ int main(int argc, char* argv[]) {
         spdlog::info("Target FPS set to {}", target_fps);
     }
     auto target_duration = std::chrono::duration<double>(1.0 / target_fps);
-
-    //create_song_db()
 
     std::unique_ptr<TitleScreen> title_screen = std::make_unique<TitleScreen>();
     std::unique_ptr<EntryScreen> entry_screen = std::make_unique<EntryScreen>();
