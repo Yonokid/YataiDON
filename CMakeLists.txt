@@ -340,8 +340,8 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
     raylib
-    SDL2::SDL2-static
     SDL2::SDL2main
+    SDL2::SDL2-static
     sndfile
     samplerate
     portaudio
