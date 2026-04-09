@@ -1,4 +1,5 @@
 #include "navigator.h"
+#include "raylib.h"
 #include <filesystem>
 
 Navigator::Navigator() {
@@ -28,7 +29,10 @@ void Navigator::init(std::vector<fs::path> songs_paths) {
             item->reset();
             item->fade_in(0);
         }
-        if (pending_inline_folder != nullptr) pending_inline_folder->reset();
+        if (pending_inline_folder != nullptr) {
+            pending_inline_folder->reset();
+            pending_inline_folder->expand_box();
+        }
         set_positions(false, 0);
         get_current_item()->expand_box();
     }

@@ -44,12 +44,12 @@ jobs:
         run: |
           cmake -B build \
             -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_CXX_COMPILER=g++ \
             -DCMAKE_C_COMPILER=gcc
 
       - name: Build
-        run: cmake --build build --config Release
+        run: cmake --build build --config Debug
 
       - name: Prepare release package
         run: |
@@ -102,12 +102,12 @@ jobs:
         run: |
           cmake -B build \
             -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_CXX_COMPILER=g++ \
             -DCMAKE_C_COMPILER=gcc
 
       - name: Build
-        run: cmake --build build --config Release
+        run: cmake --build build --config Debug
 
       - name: Prepare release package
         run: |

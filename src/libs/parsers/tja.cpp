@@ -441,6 +441,10 @@ std::vector<std::string> TJAParser::read_file_lines(const std::filesystem::path&
             throw std::runtime_error("Could not open file: " + path.string());
         }
 
+        if (encoding == "utf-8-sig") {
+            file.seekg(3);  // skip 3-byte UTF-8 BOM
+        }
+
         std::vector<std::string> lines;
         std::string line;
 

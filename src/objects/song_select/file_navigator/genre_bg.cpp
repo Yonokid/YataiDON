@@ -281,7 +281,10 @@ void GenreBG::draw(float start_position, float end_position, FolderBox* folder) 
         }
     }
 
-    if (!(start_position < center || center < end_position)) return;
+    if (!(start_position < center || center < end_position)) {
+        if (shader_loaded) ray::EndShaderMode();
+        return;
+    }
 
     tex.draw_texture("box", "folder_background_folder_edge", {
         .frame=(int)texture_index, .mirror="horizontal",
