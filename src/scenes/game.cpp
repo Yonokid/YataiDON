@@ -187,6 +187,10 @@ std::optional<Screens> GameScreen::update() {
     } else {
         start_ms = current_time - parser->metadata.offset*1000;
     }
+    if (song_started) {
+        float audio_ms = audio->get_music_time_played(song_music.value()) * 1000.0f;
+        current_ms = audio_ms + (parser->metadata.offset * 1000 + start_delay);
+    }
     update_background(current_time);
 
     for (Player* player : players) {

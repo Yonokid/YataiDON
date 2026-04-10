@@ -807,7 +807,7 @@ float AudioEngine::get_music_time_length(const std::string& name) const {
     float length = 0.0f;
     if (it != music_streams.end()) {
         const music& mus = it->second;
-        length = static_cast<float>(mus.file_info.frames) / static_cast<float>(mus.file_info.samplerate);
+        length = static_cast<float>(mus.file_info.frames) / static_cast<float>(target_sample_rate);
     } else {
         spdlog::warn("Music stream {} not found", name);
     }
@@ -821,7 +821,7 @@ float AudioEngine::get_music_time_played(const std::string& name) const {
     float time = 0.0f;
     if (it != music_streams.end()) {
         const music& mus = it->second;
-        time = static_cast<float>(mus.current_frame) / static_cast<float>(mus.file_info.samplerate);
+        time = static_cast<float>(mus.current_frame) / static_cast<float>(target_sample_rate);
     } else {
         spdlog::warn("Music stream {} not found", name);
     }

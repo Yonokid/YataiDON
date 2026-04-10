@@ -384,6 +384,5 @@ int main(int argc, char* argv[]) {
     ray::CloseWindow();
     audio->close_audio_device();
     global_tex.unload_textures();
-    //screen_mapping[current_screen].on_screen_end("LOADING")
     spdlog::info("Window closed and audio device shut down");
 }
