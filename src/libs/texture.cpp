@@ -273,6 +273,15 @@ void TextureWrapper::load_animations(const std::string& screen_name) {
                         anim["total_distance"].SetDouble(val * screen_scale);
                     }
                 }
+                if (anim.HasMember("start_position") && !anim["start_position"].IsObject()) {
+                    if (anim["start_position"].IsInt()) {
+                        int val = anim["start_position"].GetInt();
+                        anim["start_position"].SetInt(static_cast<int>(val * screen_scale));
+                    } else if (anim["start_position"].IsDouble()) {
+                        double val = anim["start_position"].GetDouble();
+                        anim["start_position"].SetDouble(val * screen_scale);
+                    }
+                }
             }
         }
 
@@ -288,84 +297,81 @@ void TextureWrapper::load_folder(const std::string& screen_name, const std::stri
         return;
     }
 
-    fs::path folder = graphics_path / screen_name / subset;
-    float tex_scale = 1.0f;
+    // Load all textures from a given folder path into textures[subset], applying scale to coordinates.
+    // Existing entries are overwritten, so calling with parent first then child gives child priority.
+    // The map key is the last path component of subset (e.g. "donbg/0_0" -> "0_0")
+    const std::string tex_key = fs::path(subset).filename().string();
 
-    fs::path tex_json = folder / "texture.json";
-    if (!fs::exists(tex_json) && parent_graphics_path != graphics_path) {
-        fs::path parent_folder = parent_graphics_path / screen_name / subset;
-        if (fs::exists(parent_folder / "texture.json")) {
-            folder = parent_folder;
-            tex_json = folder / "texture.json";
-            tex_scale = screen_scale;
-            ray::TraceLog(ray::LOG_INFO, "Loading folder %s/%s from parent skin", screen_name.c_str(), subset.c_str());
-        }
-    }
+    auto load_from_path = [&](const fs::path& folder, float tex_scale) {
+        fs::path tex_json = folder / "texture.json";
+        if (!fs::exists(tex_json)) return;
 
-    try {
-        if (!fs::exists(tex_json)) {
-            throw std::runtime_error("texture.json file missing from " + folder.string());
-        }
+        try {
+            std::ifstream ifs(tex_json);
+            IStreamWrapper isw(ifs);
+            Document doc;
+            doc.ParseStream(isw);
 
-        std::ifstream ifs(tex_json);
-        IStreamWrapper isw(ifs);
-        Document doc;
-        doc.ParseStream(isw);
-
-        if (doc.HasParseError()) {
-            throw std::runtime_error(&"Failed to parse texture.json: " [ doc.GetParseError()]);
-        }
-
-        textures[folder.stem().string()] = {};
-
-        for (auto& m : doc.GetObject()) {
-            std::string tex_name = m.name.GetString();
-            const Value& tex_mapping = m.value;
-
-            fs::path tex_dir = folder / tex_name;
-            fs::path tex_file = folder / (tex_name + ".png");
-
-            if (fs::is_directory(tex_dir)) {
-                // Load framed texture
-                std::vector<fs::path> frames;
-                for (const auto& entry : fs::directory_iterator(tex_dir)) {
-                    if (entry.is_regular_file()) {
-                        frames.push_back(entry.path());
-                    }
-                }
-
-                // Sort frames by numeric stem
-                std::sort(frames.begin(), frames.end(), [](const fs::path& a, const fs::path& b) {
-                    return std::stoi(a.stem().string()) < std::stoi(b.stem().string());
-                });
-
-                std::vector<ray::Texture2D> loaded_frames;
-                for (const auto& frame : frames) {
-                    loaded_frames.push_back(ray::LoadTexture(frame.string().c_str()));
-                }
-
-                auto framed = std::make_shared<FramedTexture>(tex_name, loaded_frames);
-                read_tex_obj_data(tex_mapping, framed.get(), tex_scale);
-                textures[folder.stem().string()][tex_name] = framed;
-
-            } else if (fs::exists(tex_file)) {
-                // Load single texture
-                ray::Texture2D tex = ray::LoadTexture(tex_file.string().c_str());
-                auto single = std::make_shared<SingleTexture>(tex_name, tex);
-                read_tex_obj_data(tex_mapping, single.get(), tex_scale);
-                textures[folder.stem().string()][tex_name] = single;
-
-            } else {
-                ray::TraceLog(ray::LOG_ERROR, "Texture %s was not found in %s",
-                       tex_name.c_str(), folder.string().c_str());
+            if (doc.HasParseError()) {
+                throw std::runtime_error("Failed to parse texture.json in " + folder.string());
             }
+
+            for (auto& m : doc.GetObject()) {
+                std::string tex_name = m.name.GetString();
+                const Value& tex_mapping = m.value;
+
+                fs::path tex_dir = folder / tex_name;
+                fs::path tex_file = folder / (tex_name + ".png");
+
+                if (fs::is_directory(tex_dir)) {
+                    std::vector<fs::path> frames;
+                    for (const auto& entry : fs::directory_iterator(tex_dir)) {
+                        if (entry.is_regular_file()) {
+                            frames.push_back(entry.path());
+                        }
+                    }
+                    std::sort(frames.begin(), frames.end(), [](const fs::path& a, const fs::path& b) {
+                        return std::stoi(a.stem().string()) < std::stoi(b.stem().string());
+                    });
+
+                    std::vector<ray::Texture2D> loaded_frames;
+                    for (const auto& frame : frames) {
+                        loaded_frames.push_back(ray::LoadTexture(frame.string().c_str()));
+                    }
+
+                    auto framed = std::make_shared<FramedTexture>(tex_name, loaded_frames);
+                    read_tex_obj_data(tex_mapping, framed.get(), tex_scale);
+                    textures[tex_key][tex_name] = framed;
+
+                } else if (fs::exists(tex_file)) {
+                    ray::Texture2D tex = ray::LoadTexture(tex_file.string().c_str());
+                    auto single = std::make_shared<SingleTexture>(tex_name, tex);
+                    read_tex_obj_data(tex_mapping, single.get(), tex_scale);
+                    textures[tex_key][tex_name] = single;
+
+                } else {
+                    ray::TraceLog(ray::LOG_ERROR, "Texture %s was not found in %s",
+                           tex_name.c_str(), folder.string().c_str());
+                }
+            }
+
+            ray::TraceLog(ray::LOG_INFO, "Textures loaded from folder: %s", folder.string().c_str());
+
+        } catch (const std::exception& e) {
+            ray::TraceLog(ray::LOG_ERROR, "Failed to load textures from folder %s: %s",
+                   folder.string().c_str(), e.what());
         }
+    };
 
-        ray::TraceLog(ray::LOG_INFO, "Textures loaded from folder: %s", folder.string().c_str());
+    // Load parent textures first, then child on top — child entries override parent,
+    // but parent-only textures are preserved.
+    if (parent_graphics_path != graphics_path) {
+        load_from_path(parent_graphics_path / screen_name / subset, screen_scale);
+    }
+    load_from_path(graphics_path / screen_name / subset, 1.0f);
 
-    } catch (const std::exception& e) {
-        ray::TraceLog(ray::LOG_ERROR, "Failed to load textures from folder %s: %s",
-               folder.string().c_str(), e.what());
+    if (textures.find(tex_key) == textures.end() || textures[tex_key].empty()) {
+        ray::TraceLog(ray::LOG_ERROR, "No textures loaded for %s/%s", screen_name.c_str(), subset.c_str());
     }
 }
 

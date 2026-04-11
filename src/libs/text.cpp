@@ -173,7 +173,7 @@ OutlinedText::OutlinedText(std::string text, int font_size,
                            float spacing)
     : text(std::move(text)),
       font_size(static_cast<float>(font_size)),
-      outline_thickness(static_cast<float>(outline_thickness))
+      outline_thickness(static_cast<float>(outline_thickness * global_tex.screen_scale))
 {
     worker_font = font_manager.copy_font(this->text, font_size);
 

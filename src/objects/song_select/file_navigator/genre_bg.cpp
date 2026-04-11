@@ -18,9 +18,9 @@ GenreBG::GenreBG(std::string& text_name, std::optional<ray::Color> color, Textur
         shader_loaded = true;
     }
 
-    stretch = new MoveAnimation(333, 20, false, false, 0, 0, 0, std::nullopt, "cubic");
+    stretch = new MoveAnimation(333, 20 * tex.screen_scale, false, false, 0, 0, 0, std::nullopt, "cubic");
     scale = new TextureResizeAnimation(100, 0.9f, false, false, 1.0);
-    move = new MoveAnimation(600, std::min((float)tex.screen_width, distance), false, false, 0, stretch->duration*1.5);
+    move = new MoveAnimation(600, std::min((float)tex.screen_width, distance) * tex.screen_scale, false, false, 0, stretch->duration*1.5);
     fade = new FadeAnimation(100, 0.0, false, false, 1.0);
     stretch->start();
     scale->start();
@@ -34,8 +34,8 @@ void GenreBG::exit(float left_position, float right_position, FolderBox* center_
     float left_start  = (left_position  < 0.f || left_position  > tex.screen_width) ? 0.f              : left_position;
     float right_start = (right_position < 0.f || right_position > tex.screen_width) ? tex.screen_width : right_position;
 
-    int left_distance  = (int)(442.f - left_start);
-    int right_distance = (int)(835.f - right_start);
+    int left_distance  = (int)(442.f - left_start) * tex.screen_scale;
+    int right_distance = (int)(835.f - right_start) * tex.screen_scale;
 
     move_left  = new MoveAnimation(200, left_distance,  false, false, (int)left_start,  166);
     move_right = new MoveAnimation(200, right_distance, false, false, (int)right_start, 166);
@@ -190,7 +190,7 @@ void GenreBG::draw_exit_anim(float start_position, float end_position, FolderBox
 
     float edge_width_top = tex.textures["box"]["folder_background_folder_edge"]->width;
     float dest_width = std::min(tex.skin_config["genre_bg_title"].width, name->width);
-    float center = 638.5f;
+    float center = 638.5f * tex.screen_scale;
 
     tex.draw_texture("box", "folder_background_folder_edge", {
         .frame=(int)texture_index, .mirror="horizontal",
@@ -231,15 +231,15 @@ void GenreBG::draw(float start_position, float end_position, FolderBox* folder) 
 
     float edge_width_top = tex.textures["box"]["folder_background_folder_edge"]->width;
     float dest_width = std::min(tex.skin_config["genre_bg_title"].width, name->width);
-    float center = 638.5f;
+    float center = 638.5f * tex.screen_scale;
 
     float bg_start_pos = start_position;
     float bg_end_pos = end_position;
-    if (442 < start_position && start_position < center) {
-        bg_start_pos = 442;
+    if ((442 * tex.screen_scale) < start_position && start_position < center) {
+        bg_start_pos = 442 * tex.screen_scale;
     }
-    if (center < end_position && end_position < 835) {
-        bg_end_pos = 835;
+    if (center < end_position && end_position < (835 * tex.screen_scale)) {
+        bg_end_pos = (835 * tex.screen_scale);
     }
 
     if (shader_loaded) ray::BeginShaderMode(shader);

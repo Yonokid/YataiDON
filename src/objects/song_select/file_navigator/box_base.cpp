@@ -86,7 +86,7 @@ void BaseBox::set_position(float target_position) {
 void BaseBox::move_box(float target_position, float duration) {
     this->target_position = target_position;
     float delta = target_position - position;
-    move = std::make_unique<MoveAnimation>(duration, delta / tex.screen_scale, false, false, 0, 0.0, std::nullopt, std::nullopt, "cubic");
+    move = std::make_unique<MoveAnimation>(duration, delta, false, false, 0, 0.0, std::nullopt, std::nullopt, "cubic");
     move->start();
 }
 

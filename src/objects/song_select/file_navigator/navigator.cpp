@@ -414,10 +414,10 @@ void Navigator::set_positions(bool init, float duration) {
         float side_offset_l = 0 * tex.screen_scale;
         float side_offset_r = 300 * tex.screen_scale;
 
-        float position = (594 - center_offset) + (offset * base_spacing);
-        if (position == 594 - center_offset) {
+        float position = ((594 * tex.screen_scale) - center_offset) + (offset * base_spacing);
+        if (position == (594 * tex.screen_scale) - center_offset) {
             position += center_offset;
-        } else if (position > 594 - center_offset) {
+        } else if (position > (594 * tex.screen_scale) - center_offset) {
             position += side_offset_r;
         } else {
             position -= side_offset_l;
@@ -477,8 +477,8 @@ void Navigator::enter_diff_select() {
         bool on_screen = box->position > -100 && box->position < tex.screen_width + 100;
         if (on_screen and i != open_index) {
             float duration = 800;
-            float distance = 150;
-            if (box->position < 594) {
+            float distance = (150 * tex.screen_scale);
+            if (box->position < (594 * tex.screen_scale)) {
                 box->move_box(-distance, duration);
             } else {
                 box->move_box(tex.screen_width + distance, duration);
