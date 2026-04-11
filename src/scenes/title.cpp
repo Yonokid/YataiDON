@@ -23,9 +23,6 @@ void TitleScreen::on_screen_start() {
 }
 
 Screens TitleScreen::on_screen_end(Screens next_screen) {
-    // Destroy the VideoPlayer objects (their destructors call stop()).
-    // Resetting the optionals ensures scene_manager creates a fresh
-    // VideoPlayer on the next visit rather than updating a stopped one.
     op_video.reset();
     attract_video.reset();
     return Screen::on_screen_end(next_screen);

@@ -212,21 +212,17 @@ int main(int argc, char* argv[]) {
         spdlog::warn("Skin directory not found, skipping script initialization");
     }
 
-    /*if (global_data.config->general.score_method == ScoreMethod::GEN3) {
-        global_data.score_db = "scores_gen3.db";
-    } else {
-        global_data.score_db = "scores.db";
-        }*/
     scores_manager.player_1 = scores_manager.add_player(global_data.config->nameplate_1p.name);
     scores_manager.player_2 = scores_manager.add_player(global_data.config->nameplate_2p.name);
     spdlog::info("Starting YataiDON");
-    int screen_width = 1280;// * tex.screen_width;
-    int screen_height = 720;// * tex.screen_height;
+    spdlog::info("Screen size: " + std::to_string(tex.screen_width) + "x" + std::to_string(tex.screen_height));
+    int screen_width = tex.screen_width;
+    int screen_height = tex.screen_height;
 
     set_config_flags();
     ray::InitWindow(screen_width, screen_height, "YataiDON");
 
-    fs::path font_path = fs::path("Skins") / global_data.config->paths.skin / "Graphics/Modified-DFPKanteiryu-XB.ttf";
+    fs::path font_path = fs::path("Skins") / global_data.config->paths.skin / "Graphics/font.ttf";
     if (fs::exists(font_path)) {
         font_manager.init(font_path);
     } else {
@@ -381,8 +377,16 @@ int main(int argc, char* argv[]) {
     if (input_thread.joinable()) {
         input_thread.join();
     }
+    global_tex.unload_textures();
+    tex.unload_textures();
+    script_manager.tex.unload_textures();
     ray::CloseWindow();
     audio->close_audio_device();
-    global_tex.unload_textures();
     spdlog::info("Window closed and audio device shut down");
+
+    // Explicitly close the Lua state while still in main(), before static
+    // destructors run. sol2 registers usertype metadata as static locals; if
+    // lua_close() is deferred to ScriptManager's global destructor those
+    // statics are already freed, causing a heap-use-after-free in the Lua GC.
+    script_manager.lua = sol::state{};
 }

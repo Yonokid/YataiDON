@@ -113,7 +113,7 @@ public:
 
     BaseAnimation* get_animation(const int id, bool is_copy = false);
 
-    void read_tex_obj_data(const Value& tex_mapping, TextureObject* tex_obj);
+    void read_tex_obj_data(const Value& tex_mapping, TextureObject* tex_obj, float scale = 1.0f);
 
     void load_animations(const std::string& screen_name);
 

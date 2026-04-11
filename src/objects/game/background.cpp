@@ -3,11 +3,13 @@
 Background::Background(PlayerNum player_num, float bpm, const std::string& scene_preset) {
     sol::state& lua = script_manager.lua;
 
-    std::string script_path = script_manager.get_lua_script_path("background");
-    auto result = lua.script_file(script_path);
-    if (!result.valid()) {
-        sol::error err = result;
-        spdlog::error("Error loading background.lua: {}", err.what());
+    if (!lua["Background"].valid()) {
+        std::string script_path = script_manager.get_lua_script_path("background");
+        auto result = lua.script_file(script_path);
+        if (!result.valid()) {
+            sol::error err = result;
+            spdlog::error("Error loading background.lua: {}", err.what());
+        }
     }
 
     sol::table background_class = lua["Background"];
@@ -19,6 +21,15 @@ Background::Background(PlayerNum player_num, float bpm, const std::string& scene
         spdlog::error("Error calling Background.new: {}", err.what());
     } else {
         lua_object = call_result;
+        fn_update        = lua_object["update"];
+        fn_handle_good   = lua_object["handle_good"];
+        fn_handle_ok     = lua_object["handle_ok"];
+        fn_handle_bad    = lua_object["handle_bad"];
+        fn_handle_drumroll = lua_object["handle_drumroll"];
+        fn_handle_balloon  = lua_object["handle_balloon"];
+        fn_handle_gauge  = lua_object["handle_gauge"];
+        fn_draw_back     = lua_object["draw_back"];
+        fn_draw_fore     = lua_object["draw_fore"];
     }
 }
 
@@ -34,8 +45,7 @@ Background::~Background() {
 }
 
 void Background::update(double current_ms, float bpm) {
-    sol::protected_function update_func = lua_object["update"];
-    auto result = update_func(lua_object, current_ms, bpm);
+    auto result = fn_update(lua_object, current_ms, bpm);
     if (!result.valid()) {
         sol::error err = result;
         spdlog::error("Error calling update: {}", err.what());
@@ -43,8 +53,7 @@ void Background::update(double current_ms, float bpm) {
 }
 
 void Background::handle_good(PlayerNum player_num) {
-    sol::protected_function func = lua_object["handle_good"];
-    auto result = func(lua_object, static_cast<int>(player_num));
+    auto result = fn_handle_good(lua_object, static_cast<int>(player_num));
     if (!result.valid()) {
         sol::error err = result;
         spdlog::error("Error calling handle_good: {}", err.what());
@@ -52,8 +61,7 @@ void Background::handle_good(PlayerNum player_num) {
 }
 
 void Background::handle_ok(PlayerNum player_num) {
-    sol::protected_function func = lua_object["handle_ok"];
-    auto result = func(lua_object, static_cast<int>(player_num));
+    auto result = fn_handle_ok(lua_object, static_cast<int>(player_num));
     if (!result.valid()) {
         sol::error err = result;
         spdlog::error("Error calling handle_ok: {}", err.what());
@@ -61,8 +69,7 @@ void Background::handle_ok(PlayerNum player_num) {
 }
 
 void Background::handle_bad(PlayerNum player_num) {
-    sol::protected_function func = lua_object["handle_bad"];
-    auto result = func(lua_object, static_cast<int>(player_num));
+    auto result = fn_handle_bad(lua_object, static_cast<int>(player_num));
     if (!result.valid()) {
         sol::error err = result;
         spdlog::error("Error calling handle_bad: {}", err.what());
@@ -70,8 +77,7 @@ void Background::handle_bad(PlayerNum player_num) {
 }
 
 void Background::handle_drumroll(PlayerNum player_num) {
-    sol::protected_function func = lua_object["handle_drumroll"];
-    auto result = func(lua_object, static_cast<int>(player_num));
+    auto result = fn_handle_drumroll(lua_object, static_cast<int>(player_num));
     if (!result.valid()) {
         sol::error err = result;
         spdlog::error("Error calling handle_drumroll: {}", err.what());
@@ -79,8 +85,7 @@ void Background::handle_drumroll(PlayerNum player_num) {
 }
 
 void Background::handle_balloon(PlayerNum player_num) {
-    sol::protected_function func = lua_object["handle_balloon"];
-    auto result = func(lua_object, static_cast<int>(player_num));
+    auto result = fn_handle_balloon(lua_object, static_cast<int>(player_num));
     if (!result.valid()) {
         sol::error err = result;
         spdlog::error("Error calling handle_balloon: {}", err.what());
@@ -88,8 +93,7 @@ void Background::handle_balloon(PlayerNum player_num) {
 }
 
 void Background::handle_gauge(PlayerNum player_num, float progress, bool is_clear, bool is_rainbow) {
-    sol::protected_function func = lua_object["handle_gauge"];
-    auto result = func(lua_object, static_cast<int>(player_num), progress, is_clear, is_rainbow);
+    auto result = fn_handle_gauge(lua_object, static_cast<int>(player_num), progress, is_clear, is_rainbow);
     if (!result.valid()) {
         sol::error err = result;
         spdlog::error("Error calling handle_gauge: {}", err.what());
@@ -97,8 +101,7 @@ void Background::handle_gauge(PlayerNum player_num, float progress, bool is_clea
 }
 
 void Background::draw_back() {
-    sol::protected_function func = lua_object["draw_back"];
-    auto result = func(lua_object);
+    auto result = fn_draw_back(lua_object);
     if (!result.valid()) {
         sol::error err = result;
         spdlog::error("Error calling draw_back: {}", err.what());
@@ -106,8 +109,7 @@ void Background::draw_back() {
 }
 
 void Background::draw_fore() {
-    sol::protected_function func = lua_object["draw_fore"];
-    auto result = func(lua_object);
+    auto result = fn_draw_fore(lua_object);
     if (!result.valid()) {
         sol::error err = result;
         spdlog::error("Error calling draw_fore: {}", err.what());

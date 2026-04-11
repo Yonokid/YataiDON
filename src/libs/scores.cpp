@@ -301,4 +301,6 @@ int ScoresManager::add_player(const std::string& name) {
     return id;
 }
 
+//std::string score_path = (global_data.config->general.score_method == ScoreMethod::GEN3) ? "scores_gen3.db" : "scores.db";
+
 ScoresManager scores_manager("scores.db");

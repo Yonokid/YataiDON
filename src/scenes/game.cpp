@@ -268,14 +268,14 @@ void GameScreen::draw_overlay() {
 
 void GameScreen::draw_players() {
     if (players.size() == 1) {
-        players[0]->draw(current_ms, 0, 184, mask_shader);
+        players[0]->draw(current_ms, 0, 184 * tex.screen_scale, mask_shader);
     } else if (players.size() == 2) {
-        players[0]->draw(current_ms, 0, 184, mask_shader);
-        players[1]->draw(current_ms, 0, 360, mask_shader);
+        players[0]->draw(current_ms, 0, 184 * tex.screen_scale, mask_shader);
+        players[1]->draw(current_ms, 0, 360 * tex.screen_scale, mask_shader);
     } else {
-        float gap = ((float)tex.screen_height - (players.size() * 176)) / (players.size() + 1);
+        float gap = ((float)tex.screen_height - (players.size() * 176 * tex.screen_scale)) / (players.size() + 1);
         for (int i = 0; i < players.size(); i++) {
-            float position = gap + i * (176 + gap);
+            float position = gap + i * ((176 * tex.screen_scale) + gap);
             players[i]->draw(current_ms, 0, position, mask_shader);
         }
     }

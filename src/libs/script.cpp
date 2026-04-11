@@ -78,7 +78,7 @@ void ScriptManager::register_lua_bindings() {
     // Animation creation helper functions
     sol::table anim = lua.create_table();
 
-    anim.set_function("fade", [](double duration, sol::optional<sol::table> params) -> FadeAnimation* {
+    anim.set_function("fade", [](double duration, sol::optional<sol::table> params) -> std::unique_ptr<FadeAnimation> {
         double initial_opacity = 1.0;
         double final_opacity = 0.0;
         double delay = 0.0;
@@ -106,10 +106,10 @@ void ScriptManager::register_lua_bindings() {
             if (reverse_delay_opt) reverse_delay = reverse_delay_opt.value();
         }
 
-        return new FadeAnimation(duration, initial_opacity, loop, lock_input, final_opacity, delay, ease_in, ease_out, reverse_delay);
+        return std::make_unique<FadeAnimation>(duration, initial_opacity, loop, lock_input, final_opacity, delay, ease_in, ease_out, reverse_delay);
     });
 
-    anim.set_function("move", [](double duration, sol::optional<sol::table> params) -> MoveAnimation* {
+    anim.set_function("move", [](double duration, sol::optional<sol::table> params) -> std::unique_ptr<MoveAnimation> {
         int total_distance = 0;
         int start_position = 0;
         double delay = 0.0;
@@ -137,10 +137,10 @@ void ScriptManager::register_lua_bindings() {
             if (ease_out_opt) ease_out = ease_out_opt.value();
         }
 
-        return new MoveAnimation(duration, total_distance, loop, lock_input, start_position, delay, reverse_delay, ease_in, ease_out);
+        return std::make_unique<MoveAnimation>(duration, total_distance, loop, lock_input, start_position, delay, reverse_delay, ease_in, ease_out);
     });
 
-    anim.set_function("texture_change", [](double duration, sol::table textures_table, sol::optional<sol::table> params) -> TextureChangeAnimation* {
+    anim.set_function("texture_change", [](double duration, sol::table textures_table, sol::optional<sol::table> params) -> std::unique_ptr<TextureChangeAnimation> {
         std::vector<std::tuple<double, double, int>> keyframes;
 
         for (size_t i = 1; i <= textures_table.size(); ++i) {
@@ -162,10 +162,10 @@ void ScriptManager::register_lua_bindings() {
             lock_input = t["lock_input"].get_or(lock_input);
         }
 
-        return new TextureChangeAnimation(duration, keyframes, loop, lock_input, delay);
+        return std::make_unique<TextureChangeAnimation>(duration, keyframes, loop, lock_input, delay);
     });
 
-    anim.set_function("text_stretch", [](double duration, sol::optional<sol::table> params) -> TextStretchAnimation* {
+    anim.set_function("text_stretch", [](double duration, sol::optional<sol::table> params) -> std::unique_ptr<TextStretchAnimation> {
         double delay = 0.0;
         bool loop = false;
         bool lock_input = false;
@@ -177,10 +177,10 @@ void ScriptManager::register_lua_bindings() {
             lock_input = t["lock_input"].get_or(lock_input);
         }
 
-        return new TextStretchAnimation(duration, delay, loop, lock_input);
+        return std::make_unique<TextStretchAnimation>(duration, delay, loop, lock_input);
     });
 
-    anim.set_function("texture_resize", [](double duration, sol::optional<sol::table> params) -> TextureResizeAnimation* {
+    anim.set_function("texture_resize", [](double duration, sol::optional<sol::table> params) -> std::unique_ptr<TextureResizeAnimation> {
         double initial_size = 1.0;
         double final_size = 0.0;
         double delay = 0.0;
@@ -208,7 +208,7 @@ void ScriptManager::register_lua_bindings() {
             if (ease_out_opt) ease_out = ease_out_opt.value();
         }
 
-        return new TextureResizeAnimation(duration, initial_size, loop, lock_input, final_size, delay, reverse_delay, ease_in, ease_out);
+        return std::make_unique<TextureResizeAnimation>(duration, initial_size, loop, lock_input, final_size, delay, reverse_delay, ease_in, ease_out);
     });
 
     lua["anim"] = anim;

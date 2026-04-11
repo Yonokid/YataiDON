@@ -15,7 +15,6 @@ void TextureWrapper::init(const fs::path& skin_path) {
         throw std::runtime_error("Skin is missing a skin_config.json");
     }
 
-    // Load skin config
     std::ifstream ifs(config_file);
     IStreamWrapper isw(ifs);
     Document doc;
@@ -25,7 +24,6 @@ void TextureWrapper::init(const fs::path& skin_path) {
         throw std::runtime_error("Failed to parse skin_config.json");
     }
 
-    // Parse skin config
     for (auto& m : doc.GetObject()) {
         std::string key = m.name.GetString();
         const Value& v = m.value;
@@ -50,10 +48,9 @@ void TextureWrapper::init(const fs::path& skin_path) {
     screen_height = static_cast<int>(skin_config["screen"].height);
     screen_scale = screen_width / 1280.0f;
 
-    // Handle parent skin
     if (doc.HasMember("screen") && doc["screen"].HasMember("parent")) {
         std::string parent = doc["screen"]["parent"].GetString();
-        parent_graphics_path = fs::path("Skins") / parent;
+        parent_graphics_path = fs::path("Skins") / parent / "Graphics";
 
         fs::path parent_config = parent_graphics_path / "skin_config.json";
         std::ifstream parent_ifs(parent_config);
@@ -141,7 +138,7 @@ BaseAnimation* TextureWrapper::get_animation(const int id, bool is_copy) {
     return animations[id].get();
 }
 
-void TextureWrapper::read_tex_obj_data(const Value& tex_mapping, TextureObject* tex_obj) {
+void TextureWrapper::read_tex_obj_data(const Value& tex_mapping, TextureObject* tex_obj, float scale) {
     if (tex_mapping.IsArray()) {
         // Check if crop data exists in the first mapping (index 0)
         bool has_crop_in_first = tex_mapping.Size() > 0 &&
@@ -167,10 +164,10 @@ void TextureWrapper::read_tex_obj_data(const Value& tex_mapping, TextureObject* 
         for (SizeType i = 0; i < tex_mapping.Size(); i++) {
             const Value& mapping = tex_mapping[i];
 
-            int x = mapping.HasMember("x") ? mapping["x"].GetInt() : 0;
-            int y = mapping.HasMember("y") ? mapping["y"].GetInt() : 0;
-            int x2 = mapping.HasMember("x2") ? mapping["x2"].GetInt() : tex_obj->width;
-            int y2 = mapping.HasMember("y2") ? mapping["y2"].GetInt() : tex_obj->height;
+            int x = static_cast<int>((mapping.HasMember("x") ? mapping["x"].GetInt() : 0) * scale);
+            int y = static_cast<int>((mapping.HasMember("y") ? mapping["y"].GetInt() : 0) * scale);
+            int x2 = static_cast<int>((mapping.HasMember("x2") ? mapping["x2"].GetInt() : tex_obj->width) * scale);
+            int y2 = static_cast<int>((mapping.HasMember("y2") ? mapping["y2"].GetInt() : tex_obj->height) * scale);
 
             if (i == 0) {
                 tex_obj->x[0] = x;
@@ -199,8 +196,8 @@ void TextureWrapper::read_tex_obj_data(const Value& tex_mapping, TextureObject* 
 
             // Apply crop dimensions to all indices if crop exists in first mapping
             if (has_crop_in_first) {
-                tex_obj->x2[i] = crops[0].width;
-                tex_obj->y2[i] = crops[0].height;
+                tex_obj->x2[i] = static_cast<int>(crops[0].width * scale);
+                tex_obj->y2[i] = static_cast<int>(crops[0].height * scale);
             }
         }
     } else if (tex_mapping.IsObject()) {
@@ -218,10 +215,10 @@ void TextureWrapper::read_tex_obj_data(const Value& tex_mapping, TextureObject* 
             tex_obj->height = static_cast<int>(crops[0].height);
         }
 
-        tex_obj->x = {tex_mapping.HasMember("x") ? tex_mapping["x"].GetInt() : 0};
-        tex_obj->y = {tex_mapping.HasMember("y") ? tex_mapping["y"].GetInt() : 0};
-        tex_obj->x2 = {tex_mapping.HasMember("x2") ? tex_mapping["x2"].GetInt() : tex_obj->width};
-        tex_obj->y2 = {tex_mapping.HasMember("y2") ? tex_mapping["y2"].GetInt() : tex_obj->height};
+        tex_obj->x = {static_cast<int>((tex_mapping.HasMember("x") ? tex_mapping["x"].GetInt() : 0) * scale)};
+        tex_obj->y = {static_cast<int>((tex_mapping.HasMember("y") ? tex_mapping["y"].GetInt() : 0) * scale)};
+        tex_obj->x2 = {static_cast<int>((tex_mapping.HasMember("x2") ? tex_mapping["x2"].GetInt() : tex_obj->width) * scale)};
+        tex_obj->y2 = {static_cast<int>((tex_mapping.HasMember("y2") ? tex_mapping["y2"].GetInt() : tex_obj->height) * scale)};
 
         // Handle frame_order
         if (tex_mapping.HasMember("frame_order") && tex_mapping["frame_order"].IsArray()) {
@@ -286,15 +283,26 @@ void TextureWrapper::load_animations(const std::string& screen_name) {
 }
 
 void TextureWrapper::load_folder(const std::string& screen_name, const std::string& subset) {
-    fs::path folder = graphics_path / screen_name / subset;
-
     if (textures.find(screen_name) != textures.end() &&
         textures[screen_name].find(subset) != textures[screen_name].end()) {
         return;
     }
 
+    fs::path folder = graphics_path / screen_name / subset;
+    float tex_scale = 1.0f;
+
+    fs::path tex_json = folder / "texture.json";
+    if (!fs::exists(tex_json) && parent_graphics_path != graphics_path) {
+        fs::path parent_folder = parent_graphics_path / screen_name / subset;
+        if (fs::exists(parent_folder / "texture.json")) {
+            folder = parent_folder;
+            tex_json = folder / "texture.json";
+            tex_scale = screen_scale;
+            ray::TraceLog(ray::LOG_INFO, "Loading folder %s/%s from parent skin", screen_name.c_str(), subset.c_str());
+        }
+    }
+
     try {
-        fs::path tex_json = folder / "texture.json";
         if (!fs::exists(tex_json)) {
             throw std::runtime_error("texture.json file missing from " + folder.string());
         }
@@ -337,14 +345,14 @@ void TextureWrapper::load_folder(const std::string& screen_name, const std::stri
                 }
 
                 auto framed = std::make_shared<FramedTexture>(tex_name, loaded_frames);
-                read_tex_obj_data(tex_mapping, framed.get());
+                read_tex_obj_data(tex_mapping, framed.get(), tex_scale);
                 textures[folder.stem().string()][tex_name] = framed;
 
             } else if (fs::exists(tex_file)) {
                 // Load single texture
                 ray::Texture2D tex = ray::LoadTexture(tex_file.string().c_str());
                 auto single = std::make_shared<SingleTexture>(tex_name, tex);
-                read_tex_obj_data(tex_mapping, single.get());
+                read_tex_obj_data(tex_mapping, single.get(), tex_scale);
                 textures[folder.stem().string()][tex_name] = single;
 
             } else {
@@ -363,17 +371,32 @@ void TextureWrapper::load_folder(const std::string& screen_name, const std::stri
 
 void TextureWrapper::load_screen_textures(const std::string& screen_name) {
     fs::path screen_path = graphics_path / screen_name;
+    fs::path parent_screen_path = parent_graphics_path / screen_name;
 
-    if (!fs::exists(screen_path)) {
+    bool child_exists = fs::exists(screen_path);
+    bool parent_exists = parent_graphics_path != graphics_path && fs::exists(parent_screen_path);
+
+    if (!child_exists && !parent_exists) {
         ray::TraceLog(ray::LOG_WARNING, "Textures for Screen %s do not exist", screen_name.c_str());
         return;
     }
 
     load_animations(screen_name);
 
-    for (const auto& entry : fs::directory_iterator(screen_path)) {
-        if (entry.is_directory()) {
-            load_folder(screen_name, entry.path().stem().string());
+    if (child_exists) {
+        for (const auto& entry : fs::directory_iterator(screen_path)) {
+            if (entry.is_directory()) {
+                load_folder(screen_name, entry.path().stem().string());
+            }
+        }
+    }
+
+    // Load subsets from parent that are not present in the child skin
+    if (parent_exists) {
+        for (const auto& entry : fs::directory_iterator(parent_screen_path)) {
+            if (entry.is_directory()) {
+                load_folder(screen_name, entry.path().stem().string());
+            }
         }
     }
 

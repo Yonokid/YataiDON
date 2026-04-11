@@ -7,6 +7,15 @@
 class Background {
 private:
     sol::table lua_object;
+    sol::protected_function fn_update;
+    sol::protected_function fn_handle_good;
+    sol::protected_function fn_handle_ok;
+    sol::protected_function fn_handle_bad;
+    sol::protected_function fn_handle_drumroll;
+    sol::protected_function fn_handle_balloon;
+    sol::protected_function fn_handle_gauge;
+    sol::protected_function fn_draw_back;
+    sol::protected_function fn_draw_fore;
 
 public:
     Background(PlayerNum player_num, float bpm, const std::string& scene_preset);
