@@ -17,6 +17,7 @@ private:
     CoinOverlay coin_overlay;
 
     std::optional<ResultBackground> background;
+    std::optional<ray::Texture2D> loading_graphic;
     double start_ms = 0;
     double skipped_time = 0;
     std::optional<ResultPlayer> player_1;

@@ -40,6 +40,9 @@ void GameScreen::on_screen_start() {
         spdlog::info("Movie initialized");
     }
     transition.emplace(session_data.song_title, session_data.song_subtitle, true);
+    if (exists(session_data.selected_song.parent_path() / "Loading.png")) {
+        transition->add_loading_graphic((session_data.selected_song.parent_path() / "Loading.png").string());
+    }
     transition->start();
 }
 

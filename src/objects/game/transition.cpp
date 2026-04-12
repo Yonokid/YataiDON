@@ -8,8 +8,20 @@ Transition::Transition(const std::string& title, const std::string& subtitle, bo
     song_info_fade = (FadeAnimation*)global_tex.get_animation(3);
     song_info_fade_out = (FadeAnimation*)global_tex.get_animation(4);
 
-    this->title = new OutlinedText(title, global_tex.skin_config["transition_title"].font_size, ray::WHITE, ray::BLACK, false, 5);
-    this->subtitle = new OutlinedText(subtitle, global_tex.skin_config["transition_subtitle"].font_size, ray::WHITE, ray::BLACK, false, 5);
+    this->title = std::make_unique<OutlinedText>(title, global_tex.skin_config["transition_title"].font_size, ray::WHITE, ray::BLACK, false, 5);
+    this->subtitle = std::make_unique<OutlinedText>(subtitle, global_tex.skin_config["transition_subtitle"].font_size, ray::WHITE, ray::BLACK, false, 5);
+}
+
+Transition::~Transition() {
+    if (loading_graphic.has_value()) {
+        ray::UnloadTexture(loading_graphic.value());
+    }
+}
+
+void Transition::add_loading_graphic(const std::string& path) {
+    loading_graphic.emplace(ray::LoadTexture(path.c_str()));
+    ray::GenTextureMipmaps(&loading_graphic.value());
+    ray::SetTextureFilter(loading_graphic.value(), ray::TEXTURE_FILTER_TRILINEAR);
 }
 
 void Transition::start() {
@@ -52,9 +64,7 @@ void Transition::draw_song_info() {
     subtitle->draw({.x = x, .y = y, .fade = fade_1});
 }
 
-void Transition::draw() {
-    float total_offset = 0;
-    if (is_second) total_offset = global_tex.skin_config["transition_offset"].y;
+void Transition::draw_default(float total_offset) {
     global_tex.draw_texture("rainbow_transition", "rainbow_bg_bottom", {.y=(float)-rainbow_up->attribute - total_offset});
     global_tex.draw_texture("rainbow_transition", "rainbow_bg_top", {.y=(float)-rainbow_up->attribute - total_offset});
     global_tex.draw_texture("rainbow_transition", "rainbow_bg", {.y=(float)-rainbow_up->attribute - total_offset});
@@ -67,6 +77,18 @@ void Transition::draw() {
     global_tex.draw_texture("rainbow_transition", "chara_left", {.x=(float)-mini_up->attribute/2 - chara_offset, .y=(float)-mini_up->attribute + offset - total_offset});
     global_tex.draw_texture("rainbow_transition", "chara_right", {.x=(float)mini_up->attribute/2 + chara_offset, .y=(float)-mini_up->attribute + offset - total_offset});
     global_tex.draw_texture("rainbow_transition", "chara_center", {.y=(float)-rainbow_up->attribute + offset - total_offset});
+}
+
+void Transition::draw() {
+    float total_offset = 0;
+    if (is_second) total_offset = global_tex.skin_config["transition_offset"].y;
+    if (loading_graphic.has_value()) {
+        ray::Rectangle src = {0, 0, (float)loading_graphic.value().width, (float)loading_graphic.value().height};
+        ray::Rectangle dst = {0, global_tex.screen_height + (global_tex.skin_config["transition_offset"].y - global_tex.screen_height) - (float)rainbow_up->attribute - total_offset, (float)global_tex.screen_width, (float)global_tex.screen_height};
+        ray::DrawTexturePro(loading_graphic.value(), src, dst, {0,0}, 0, ray::WHITE);
+    } else {
+        draw_default(total_offset);
+    }
 
     draw_song_info();
 }

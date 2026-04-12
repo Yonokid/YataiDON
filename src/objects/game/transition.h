@@ -6,9 +6,11 @@
 class Transition {
 private:
     bool is_second;
-    OutlinedText* title;
-    OutlinedText* subtitle;
+    std::unique_ptr<OutlinedText> title;
+    std::unique_ptr<OutlinedText> subtitle;
+    std::optional<ray::Texture2D> loading_graphic;
     void draw_song_info();
+    void draw_default(float total_offset);
 
     MoveAnimation* rainbow_up;
     MoveAnimation* mini_up;
@@ -18,7 +20,9 @@ private:
 public:
 
     Transition(const std::string& title, const std::string& subtitle, bool is_second);
+    ~Transition();
     void start();
+    void add_loading_graphic(const std::string& path);
     void update(double current_ms);
     void draw();
 

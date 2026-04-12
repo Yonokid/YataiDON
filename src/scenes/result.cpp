@@ -7,13 +7,20 @@ void ResultScreen::on_screen_start() {
     fade_out = (FadeAnimation*)tex.get_animation(0);
     fade_in.emplace(global_data.player_num);
     start_ms = get_current_ms();
-    background.emplace(global_data.player_num, tex.screen_width);
+    fs::path loading_graphic_path = global_data.session_data[(int)global_data.player_num].selected_song.parent_path() / "Loading.png";
+    if (exists(loading_graphic_path)) {
+        loading_graphic.emplace(ray::LoadTexture(loading_graphic_path.string().c_str()));
+    } else {
+        background.emplace(global_data.player_num, tex.screen_width);
+    }
     player_1.emplace(global_data.player_num, false, false);
     song_num = new SongNum(global_data.songs_played+1);
 }
 
 Screens ResultScreen::on_screen_end(Screens next_screen) {
     global_data.songs_played += 1;
+    ray::UnloadTexture(loading_graphic.value());
+    loading_graphic.reset();
     reset_session();
     return Screen::on_screen_end(next_screen);
 }
@@ -64,6 +71,11 @@ void ResultScreen::draw_song_info() {
 
 void ResultScreen::draw() {
     if (background.has_value()) background->draw();
+    if (loading_graphic.has_value()) {
+        ray::Rectangle src = {0, 0, (float)loading_graphic.value().width, (float)loading_graphic.value().height};
+        ray::Rectangle dst = {0, 0, (float)tex.screen_width, (float)tex.screen_height};
+        ray::DrawTexturePro(loading_graphic.value(), src, dst, {0,0}, 0, ray::WHITE);
+    }
     draw_song_info();
     if (player_1.has_value()) player_1->draw();
     draw_overlay();
