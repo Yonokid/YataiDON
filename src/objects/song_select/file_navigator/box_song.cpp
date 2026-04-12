@@ -46,6 +46,7 @@ void SongBox::load_text() {
     if (utf8_char_count(text_name) >= 30)
         font_size -= (int)(10 * tex.screen_scale);
     name_black = make_unique<OutlinedText>(text_name, font_size, ray::WHITE, ray::BLACK, true);
+    bpm_text = make_unique<OutlinedText>("BPM\n" + std::to_string(static_cast<int>(parser.metadata.bpm)), tex.skin_config["song_box_bpm"].font_size, ray::WHITE, ray::BLACK, false);
     text_loaded = true;
 }
 
@@ -86,7 +87,9 @@ void SongBox::draw_closed() {
     float name_h = std::min((float)this->name->height, tex.skin_config["song_box_name"].height);
     this->name->draw({.x = name_x, .y = name_y, .y2 = name_h - this->name->height, .fade=fade->attribute});
 
-    if (parser.ex_data.new_song)
+    if (parser.ex_data.limited_time)
+        tex.draw_texture("yellow_box", "ex_data_limited_time_balloon", {.x=position, .fade=fade->attribute});
+    else if (is_new)
         tex.draw_texture("yellow_box", "ex_data_new_song_balloon", {.x=position, .fade=fade->attribute});
 
     int highest_key = -1;
@@ -184,7 +187,10 @@ void SongBox::draw_open() {
     if      (parser.ex_data.new_audio)     tex.draw_texture("yellow_box", "ex_data_new_audio",     {.fade=open_fade->attribute});
     else if (parser.ex_data.old_audio)     tex.draw_texture("yellow_box", "ex_data_old_audio",     {.fade=open_fade->attribute});
     else if (parser.ex_data.limited_time)  tex.draw_texture("yellow_box", "ex_data_limited_time",  {.fade=open_fade->attribute});
-    else if (parser.ex_data.new_song)      tex.draw_texture("yellow_box", "ex_data_new_song",      {.fade=open_fade->attribute});
+    else if (is_new)      tex.draw_texture("yellow_box", "ex_data_new_song",      {.fade=open_fade->attribute});
+    if (global_data.config->general.display_bpm) {
+        bpm_text->draw({.x = tex.skin_config["song_box_bpm"].x, .y = tex.skin_config["song_box_bpm"].y, .fade=open_fade->attribute});
+    }
 
     if (is_favorite)
         tex.draw_texture("yellow_box", "favorite_" + std::to_string((int)global_data.player_num) + "p", {.fade=open_fade->attribute});

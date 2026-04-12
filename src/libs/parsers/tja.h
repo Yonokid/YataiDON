@@ -210,7 +210,6 @@ struct TJAEXData {
     bool new_audio = false;
     bool old_audio = false;
     bool limited_time = false;
-    bool new_song = false;
 };
 
 struct ParserState {

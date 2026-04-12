@@ -27,6 +27,7 @@ struct GeneralConfig {
     bool fake_online;
     int practice_mode_bar_delay;
     std::string score_method;
+    bool display_bpm;
 };
 
 struct NameplateConfig {

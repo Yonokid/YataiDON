@@ -9,6 +9,9 @@
 #include "box_back.h"
 #include "box_song.h"
 #include "genre_bg.h"
+#include <chrono>
+
+namespace ch = std::chrono;
 
 struct CourseStats {
     int total       = 0;

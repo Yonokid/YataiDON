@@ -144,6 +144,17 @@ static bool is_hgroup_char(const std::string& s) {
     return hgroup_set.count(s) > 0;
 }
 
+static std::vector<std::string> split_lines(const std::string& text) {
+    std::vector<std::string> lines;
+    size_t start = 0, pos;
+    while ((pos = text.find('\n', start)) != std::string::npos) {
+        lines.push_back(text.substr(start, pos - start));
+        start = pos + 1;
+    }
+    lines.push_back(text.substr(start));
+    return lines;
+}
+
 static bool in_rotate_set(const std::string& s) {
     static const std::unordered_set<std::string> rotate_set = {
         "-", "\xe2\x80\x90",
@@ -197,8 +208,16 @@ OutlinedText::OutlinedText(std::string text, int font_size,
     } else {
         float sp = (spacing < 0) ? 0.0f : spacing;
         int pad  = (int)this->outline_thickness + 2;
-        width    = ray::MeasureTextEx(worker_font, this->text.c_str(), font_size, sp).x + pad * 2;
-        height   = ray::MeasureTextEx(worker_font, this->text.c_str(), font_size, sp).y + pad * 2;
+        auto lines = split_lines(this->text);
+        float line_h      = ray::MeasureTextEx(worker_font, "A", font_size, sp).y;
+        float line_advance = line_h + this->outline_thickness * 2;
+        float max_w  = 0.0f;
+        for (const auto& line : lines) {
+            float lw = ray::MeasureTextEx(worker_font, line.c_str(), font_size, sp).x;
+            if (lw > max_w) max_w = lw;
+        }
+        width  = max_w + pad * 2;
+        height = line_advance * (float)(lines.size() - 1) + line_h + pad * 2;
     }
 
     if (is_vertical) {
@@ -222,20 +241,32 @@ OutlinedText::BuildData OutlinedText::build_horizontal_text(
     ray::Color color, ray::Color outline_color, float spacing)
 {
     float sp = (spacing < 0) ? 0.0f : spacing;
-    float w  = ray::MeasureTextEx(worker_font, text.c_str(), font_size, sp).x;
-    float h  = ray::MeasureTextEx(worker_font, text.c_str(), font_size, sp).y;
+    auto lines = split_lines(text);
+    float line_h       = ray::MeasureTextEx(worker_font, "A", font_size, sp).y;
+    float line_advance = line_h + outline_thickness * 2;
+    float max_w  = 0.0f;
+    for (const auto& line : lines)  {
+        float lw = ray::MeasureTextEx(worker_font, line.c_str(), font_size, sp).x;
+        if (lw > max_w) max_w = lw;
+    }
 
     int pad = (int)outline_thickness + 2;
-    ray::Image img = ray::GenImageColor((int)w + pad * 2, (int)h + pad * 2, ray::BLANK);
+    ray::Image img = ray::GenImageColor(
+        (int)max_w + pad * 2,
+        (int)(line_advance * (float)(lines.size() - 1) + line_h) + pad * 2,
+        ray::BLANK);
 
-    for (float angle = 0; angle < 2 * PI; angle += (PI / 8)) {
-        float ox = cosf(angle) * outline_thickness;
-        float oy = sinf(angle) * outline_thickness;
-        ray::ImageDrawTextEx(&img, worker_font, text.c_str(),
-                             {pad + ox, pad + oy}, font_size, spacing, outline_color);
+    for (int li = 0; li < (int)lines.size(); li++) {
+        float y = pad + li * line_advance;
+        for (float angle = 0; angle < 2 * PI; angle += (PI / 8)) {
+            float ox = cosf(angle) * outline_thickness;
+            float oy = sinf(angle) * outline_thickness;
+            ray::ImageDrawTextEx(&img, worker_font, lines[li].c_str(),
+                                 {pad + ox, y + oy}, font_size, sp, outline_color);
+        }
+        ray::ImageDrawTextEx(&img, worker_font, lines[li].c_str(),
+                             {(float)pad, y}, font_size, sp, color);
     }
-    ray::ImageDrawTextEx(&img, worker_font, text.c_str(),
-                         {(float)pad, (float)pad}, font_size, spacing, color);
 
     return {img};
 }

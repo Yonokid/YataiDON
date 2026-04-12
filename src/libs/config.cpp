@@ -211,6 +211,7 @@ Config get_config() {
         config.general.fake_online = (*general)["fake_online"].value_or(false);
         config.general.practice_mode_bar_delay = (*general)["practice_mode_bar_delay"].value_or(0);
         config.general.score_method = (*general)["score_method"].value_or("standard");
+        config.general.display_bpm = (*general)["display_bpm"].value_or(false);
     }
 
     // Parse nameplate_1p

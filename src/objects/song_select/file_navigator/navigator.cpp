@@ -52,6 +52,12 @@ void Navigator::join_loader() {
 
 void Navigator::enqueue_box(std::unique_ptr<BaseBox> box) {
     std::lock_guard<std::mutex> lock(pending_mutex);
+    auto last_write = fs::last_write_time(box->path);
+    auto last_write_sys = ch::clock_cast<ch::system_clock>(last_write);
+    auto two_weeks_ago = ch::system_clock::now() - ch::weeks(2);
+    if (last_write_sys < two_weeks_ago) {
+        box->is_new = true;
+    }
     pending_boxes.push(std::move(box));
 }
 
