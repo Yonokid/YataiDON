@@ -385,10 +385,4 @@ int main(int argc, char* argv[]) {
     ray::CloseWindow();
     audio->close_audio_device();
     spdlog::info("Window closed and audio device shut down");
-
-    // Explicitly close the Lua state while still in main(), before static
-    // destructors run. sol2 registers usertype metadata as static locals; if
-    // lua_close() is deferred to ScriptManager's global destructor those
-    // statics are already freed, causing a heap-use-after-free in the Lua GC.
-    script_manager.lua = sol::state{};
 }
