@@ -206,6 +206,14 @@ void TJAParser::get_metadata() {
                     metadata.movieoffset = std::stof(data_str);
                 }
             }
+            else if (item.find("PREIMAGE") == 0) {
+                std::string data_str = split_after_colon(item);
+                if (data_str.empty()) {
+                    metadata.preimage = std::filesystem::path();
+                } else {
+                    metadata.preimage = file_path.parent_path() / trim(data_str);
+                }
+            }
             else if (item.find("SCENEPRESET") == 0) {
                 metadata.scene_preset = split_after_colon(item);
             }

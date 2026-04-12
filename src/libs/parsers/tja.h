@@ -201,6 +201,7 @@ struct TJAMetadata {
     double bpm = 120.0f;
     fs::path bgmovie;
     double movieoffset = 0.0f;
+    fs::path preimage;
     std::string scene_preset = "";
     std::map<int, CourseData> course_data;
 };

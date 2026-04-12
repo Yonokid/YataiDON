@@ -1,4 +1,5 @@
 #include "box_song.h"
+#include "raylib.h"
 
 SongBox::SongBox(const fs::path& path, const BoxDef& box_def, TJAParser parser)
     : BaseBox(path, box_def)
@@ -47,6 +48,11 @@ void SongBox::load_text() {
         font_size -= (int)(10 * tex.screen_scale);
     name_black = make_unique<OutlinedText>(text_name, font_size, ray::WHITE, ray::BLACK, true);
     bpm_text = make_unique<OutlinedText>("BPM\n" + std::to_string(static_cast<int>(parser.metadata.bpm)), tex.skin_config["song_box_bpm"].font_size, ray::WHITE, ray::BLACK, false);
+    if (exists(parser.metadata.preimage)) {
+        preimage = ray::LoadTexture(parser.metadata.preimage.c_str());
+        ray::GenTextureMipmaps(&preimage.value());
+        ray::SetTextureFilter(preimage.value(), ray::TEXTURE_FILTER_TRILINEAR);
+    }
     text_loaded = true;
 }
 
@@ -87,7 +93,12 @@ void SongBox::draw_closed() {
     float name_h = std::min((float)this->name->height, tex.skin_config["song_box_name"].height);
     this->name->draw({.x = name_x, .y = name_y, .y2 = name_h - this->name->height, .fade=fade->attribute});
 
-    if (parser.ex_data.limited_time)
+    if (preimage.has_value()) {
+        tex.draw_texture("yellow_box", "preimage_bg", {.x=position, .fade=fade->attribute});
+        ray::Rectangle src = {0, 0, (float)preimage->width, (float)preimage->height};
+        ray::Rectangle dest = {position + tex.skin_config["preimage"].x, tex.skin_config["preimage"].y, tex.skin_config["preimage"].width, tex.skin_config["preimage"].height};
+        ray::DrawTexturePro(preimage.value(), src, dest, {0,0}, 0, ray::Fade(ray::WHITE, fade->attribute));
+    } else if (parser.ex_data.limited_time)
         tex.draw_texture("yellow_box", "ex_data_limited_time_balloon", {.x=position, .fade=fade->attribute});
     else if (is_new)
         tex.draw_texture("yellow_box", "ex_data_new_song_balloon", {.x=position, .fade=fade->attribute});

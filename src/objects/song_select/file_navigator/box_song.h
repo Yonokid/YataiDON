@@ -15,6 +15,7 @@ public:
     std::unique_ptr<OutlinedText> subtitle;
     std::unique_ptr<OutlinedText> name_black;
     std::unique_ptr<OutlinedText> bpm_text;
+    std::optional<ray::Texture2D> preimage;
     bool music_playing = false;
 
     SongBox(const fs::path& path, const BoxDef& box_def, TJAParser tja);
