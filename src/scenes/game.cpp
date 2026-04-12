@@ -235,10 +235,10 @@ std::optional<Screens> GameScreen::update() {
                 } else {
                     score.rank = Rank::_WHITE;
                 }
-                scores_manager.save_score(global_data.session_data[(int)global_data.player_num].song_hash, global_data.session_data[(int)global_data.player_num].selected_difficulty, 1, score);
-                /*if self.player_1.ending_anim is None:
-                    self.write_score()
-                    self.spawn_ending_anims()*/
+                for (Player* player : players) {
+                    player->spawn_ending_anim();
+                    scores_manager.save_score(global_data.session_data[(int)player->player_num].song_hash, global_data.session_data[(int)player->player_num].selected_difficulty, 1, score);
+                }
                 score_saved = true;
             }
             if (current_time >= end_ms + 8533.34) {

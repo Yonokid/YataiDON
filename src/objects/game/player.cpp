@@ -35,7 +35,6 @@ Player::Player(std::optional<TJAParser>& parser_ref, PlayerNum player_num_param,
         branch_indicator = BranchIndicator();
         }
     }
-    //self.ending_anim: Optional[FailAnimation | ClearAnimation | FCAnimation] = None
     NameplateConfig plate_info;
     if (is_2p) {
         plate_info = global_data.config->nameplate_2p;
@@ -59,6 +58,17 @@ ResultData Player::get_result_score() {
     result.total_drumroll = total_drumroll;
     if (gauge.has_value()) result.gauge_length = gauge->gauge_length;
     return result;
+}
+
+void Player::spawn_ending_anim() {
+    if (!gauge.has_value()) return;
+    if (!gauge->get_is_clear()) {
+        ending_anim = FailAnimation(is_2p);
+    } else if (bad_count == 0) {
+        ending_anim = FCAnimation(is_2p);
+    } else {
+        ending_anim = ClearAnimation(is_2p);
+    }
 }
 
 void Player::handle_timeline(double ms_from_start) {
@@ -310,8 +320,9 @@ void Player::update(double ms_from_start, double current_ms, std::optional<Backg
     if (branch_indicator.has_value()) {
         branch_indicator->update(current_ms);
     }
-    //if self.ending_anim is not None:
-        //self.ending_anim.update(current_ms)
+    if (ending_anim.has_value()) {
+        std::visit([&current_ms](auto& anim) { anim.update(current_ms); }, ending_anim.value());
+    }
 
     if (is_branch) {
         evaluate_branch(ms_from_start);
@@ -1268,8 +1279,9 @@ void Player::draw_overlays(float y, const ray::Shader& mask_shader) {
     tex.draw_texture("lane", std::to_string((int)player_num) + "p_lane_cover", {.y=y});
     if (is_dan) tex.draw_texture("lane", "dan_lane_cover", {.y=y});
     tex.draw_texture("lane", "drum", {.y=y});
-    //if self.ending_anim is not None:
-        //self.ending_anim.draw()
+    if (ending_anim.has_value()) {
+        std::visit([](auto& anim) { anim.draw(); }, ending_anim.value());
+    }
 
     for (DrumHitEffect anim : draw_drum_hit_list) {
         anim.draw(y);

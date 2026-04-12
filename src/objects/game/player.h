@@ -24,6 +24,10 @@
 #include "score_counter.h"
 #include "score_counter_animation.h"
 #include "background.h"
+#include "fail_animation.h"
+#include "clear_animation.h"
+#include "fc_animation.h"
+#include <variant>
 
 namespace JudgePos {
     inline float X = 414 * tex.screen_scale;
@@ -43,11 +47,14 @@ class Player {
 public:
     double end_time;
     float bpm;
+    PlayerNum player_num;
 
     Player(std::optional<TJAParser>& parser_ref, PlayerNum player_num_param, int difficulty_param,
            bool is_2p_param, const Modifiers& modifiers_param);
 
     ResultData get_result_score();
+
+    void spawn_ending_anim();
 
     void update(double ms_from_start, double current_ms, std::optional<Background>& background);
 
@@ -56,7 +63,6 @@ public:
 private:
     bool is_2p;
     bool is_dan;
-    PlayerNum player_num;
     int difficulty;
     int visual_offset;
     std::string score_method;
@@ -136,6 +142,7 @@ private:
     std::optional<BranchIndicator> branch_indicator;
     std::optional<JudgeCounter> judge_counter;
     std::optional<Gauge> gauge;
+    std::optional<std::variant<FailAnimation, ClearAnimation, FCAnimation>> ending_anim;
 
     void get_load_time(Note& note);
 
