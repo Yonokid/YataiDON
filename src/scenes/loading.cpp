@@ -134,6 +134,7 @@ void LoadingScreen::load_song_hashes() {
 
             // Cache miss — parse and hash normally
             TJAParser parser(path);
+            spdlog::info("Parsing TJA: {}", path);
             parser.get_metadata();
             for (const auto& [course, course_data] : parser.metadata.course_data) {
                 for (int diff = course; diff < 5; diff++) {
@@ -194,7 +195,6 @@ std::optional<Screens> LoadingScreen::update() {
 
 void LoadingScreen::draw() {
     ray::DrawRectangle(0, 0, tex.screen_width, tex.screen_height, ray::BLACK);
-    tex.draw_texture("kidou", "warning");
 
     ray::DrawRectangle(progress_bar_x, progress_bar_y, progress_bar_width, progress_bar_height, ray::Color(101, 0, 0, 255));
 
@@ -203,6 +203,7 @@ void LoadingScreen::draw() {
     if (fill_width > 0) {
         ray::DrawRectangle(progress_bar_x, progress_bar_y, fill_width, progress_bar_height, ray::RED);
     }
+    tex.draw_texture("kidou", "warning");
 
     ray::DrawRectangle(0, 0, tex.screen_width, tex.screen_height, ray::Fade(ray::WHITE, fade_in->attribute));
     allnet_indicator.draw();

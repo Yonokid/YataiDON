@@ -13,6 +13,7 @@
 #include "libs/logging.h"
 #include "objects/global/fps_counter.h"
 
+#include "raylib.h"
 #include "scenes/game.h"
 #include "scenes/result.h"
 #include "scenes/title.h"
@@ -59,7 +60,7 @@ void update_camera_for_window_size(ray::Camera2D& camera, int virtual_width, int
         return;
     }
 
-    float scale = std::min(screen_width / virtual_width, screen_height / virtual_height);
+    float scale = std::min((float)screen_width / virtual_width, (float)screen_height / virtual_height);
 
     float base_offset_x = (screen_width - (virtual_width * scale)) * 0.5;
     float base_offset_y = (screen_height - (virtual_height * scale)) * 0.5;

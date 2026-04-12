@@ -51,7 +51,7 @@ struct TimelineObject {
     std::optional<double> delta_x;
     std::optional<double> delta_y;
 
-    std::string lyric = "";
+    std::optional<std::string> lyric;
 
 };
 

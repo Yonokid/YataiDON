@@ -1,4 +1,5 @@
 #include "tja.h"
+#include "spdlog/spdlog.h"
 
 double get_ms_per_measure(double bpm_val, double time_sig) {
     if (bpm_val == 0) return 0;
@@ -108,8 +109,6 @@ TJAParser::TJAParser(const std::filesystem::path& path, int start_delay)
 
     metadata = TJAMetadata();
     ex_data = TJAEXData();
-
-    // logger.debug("Parsing TJA file: " + file_path.string());
 
     get_metadata();
 
@@ -503,7 +502,16 @@ std::vector<int> TJAParser::parse_balloon_data(const std::string& data) {
 
         while (std::getline(ss, token, ',')) {
             if (!token.empty()) {
-                result.push_back(std::stoi(token));
+                int parsed_token;
+                try {
+                    parsed_token = std::stoi(token);
+                } catch (const std::invalid_argument&) {
+                    throw std::invalid_argument("Invalid balloon data: " + token);
+                } catch (const std::out_of_range&) {
+                    spdlog::error("Balloon data out of range: {}", token);
+                    parsed_token = std::numeric_limits<int>::max();
+                }
+                result.push_back(parsed_token);
             }
         }
 
@@ -693,6 +701,7 @@ std::map<std::string, TJAParser::CommandHandler> TJAParser::build_command_regist
         REGISTER_HANDLER(HBSCROLL)
         REGISTER_HANDLER(SUDDEN)
         REGISTER_HANDLER(JPOSSCROLL)
+        REGISTER_HANDLER(LYRIC)
 
         return registry;
 }
@@ -707,6 +716,16 @@ void TJAParser::handle_MEASURE(const std::string& value, ParserState& state) {
         if (den != 0.0f) {
             state.time_signature = num / den;
         }
+    }
+}
+
+double safe_stof(const std::string& str) {
+    try {
+        return std::stof(str);
+    } catch (const std::invalid_argument&) {
+        return std::numeric_limits<double>::max();
+    } catch (const std::out_of_range&) {
+        return std::numeric_limits<double>::max();
     }
 }
 
@@ -726,14 +745,14 @@ void TJAParser::handle_SCROLL(const std::string& value, ParserState& state) {
             double imag = 0.0f;
 
             if (match[1].length() > 0 && match[1].str().back() != 'j') {
-                real = std::stof(match[1]);
+                real = safe_stof(match[1]);
             }
             if (match[2].length() > 0) {
                 std::string imag_str = match[2];
-                imag = std::stof(imag_str);
+                imag = safe_stof(imag_str);
             } else if (match[1].length() > 0 && normalized.back() == 'j') {
                 // Purely imaginary number
-                imag = std::stof(match[1]);
+                imag = safe_stof(match[1]);
                 real = 0.0f;
             }
             state.scroll_x_modifier = real;
@@ -743,7 +762,7 @@ void TJAParser::handle_SCROLL(const std::string& value, ParserState& state) {
             state.scroll_y_modifier = 0.0f;
         }
     } else {
-        state.scroll_x_modifier = std::stof(value);
+        state.scroll_x_modifier = safe_stof(value);
         state.scroll_y_modifier = 0.0f;
     }
 }
@@ -1042,7 +1061,11 @@ Note TJAParser::add_note(const std::string& item, ParserState& state) {
     note.hit_ms = this->current_ms;
     state.delay_last_note_ms = this->current_ms;
     note.display = true;
-    note.type = NoteType(std::stof(item));
+    if (std::isalpha(std::stoi(item))) {
+        note.type = NoteType::ROLL_HEAD_L;
+    } else {
+        note.type = NoteType(std::stof(item));
+    }
     note.index = state.index;
     note.bpm = state.bpm;
     note.scroll_x = state.scroll_x_modifier;
@@ -1063,10 +1086,6 @@ Note TJAParser::add_note(const std::string& item, ParserState& state) {
             state.balloons.erase(state.balloons.begin());
         }
         return note;
-    } else if (note.type == NoteType::TAIL) {
-        if (!state.prev_note.has_value()) {
-            throw std::runtime_error("No previous note found");
-        }
     }
 
     return note;

@@ -76,6 +76,7 @@ void Player::handle_timeline(double ms_from_start) {
         handle_judgeposition(ms_from_start, timeline_object, i);
         handle_gogotime(ms_from_start, timeline_object, i);
         handle_branch_param(ms_from_start, timeline_object, i);
+        handle_lyric(ms_from_start, timeline_object, i);
     }
 }
 
@@ -654,6 +655,19 @@ void Player::handle_branch_param(double ms_from_start, const TimelineObject& tim
             spdlog::info("branch condition measures started with conditions {}, {}, {}, starting at {} and ending at {}", branch_cond, e_req, m_req, timeline_object.start_time, branch_condition_end_time);
         }
     }
+    timeline_buffer.erase(timeline_buffer.begin() + buffer_index);
+}
+
+void Player::handle_lyric(double ms_from_start, const TimelineObject& timeline_object, int buffer_index) {
+    if (timeline_object.start_time > ms_from_start) return;
+    if (!timeline_object.lyric.has_value()) return;
+
+    if (current_lyric.has_value()) {
+        current_lyric.reset();
+        //this->lyric->unload();
+    }
+
+    current_lyric.emplace(timeline_object.lyric.value(), 40, ray::WHITE, ray::BLUE, false, 4.0);
     timeline_buffer.erase(timeline_buffer.begin() + buffer_index);
 }
 
@@ -1266,6 +1280,7 @@ void Player::draw_overlays(float y, const ray::Shader& mask_shader) {
     for (GaugeHitEffect anim : gauge_hit_effect) {
         anim.draw(y);
     }
+    draw_modifiers(y);
 
     combo_display.draw(y);
     if (combo_announce.has_value()) {
@@ -1291,7 +1306,6 @@ void Player::draw_overlays(float y, const ray::Shader& mask_shader) {
     } else {
         nameplate.draw(tex.skin_config["game_nameplate_1p"].x, y + tex.skin_config["game_nameplate_1p"].y);
     }
-    draw_modifiers(y);
     //self.chara.draw(y=(self.is_2p*tex.skin_config["game_2p_offset"].y))
 
     if (drumroll_counter.has_value()) {
@@ -1306,5 +1320,8 @@ void Player::draw_overlays(float y, const ray::Shader& mask_shader) {
     score_counter.draw(y);
     for (ScoreCounterAnimation anim : base_score_list) {
         anim.draw(y);
+    }
+    if (current_lyric.has_value()) {
+        current_lyric->draw({.x=(int)(tex.screen_width/2) - current_lyric->width/2, .y=static_cast<float>(tex.screen_height - (int)(current_lyric->height*1.5))});
     }
 }

@@ -93,6 +93,10 @@ SongSelectState SongSelectPlayer::handle_input_browsing(double current_ms) {
     bool r_don = is_r_don_pressed(player_num);
     float wheel = ray::GetMouseWheelMove();
 
+    if (ray::IsKeyPressed(ray::KEY_F5)) {
+        navigator.load_current_directory(navigator.current_path);
+    }
+
     if (ray::IsKeyPressed(ray::KEY_LEFT_CONTROL) || (l_kat && current_ms <= last_moved + 50)) {
         audio->play_sound("skip", "sound");
         navigator.skip_left();

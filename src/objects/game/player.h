@@ -106,6 +106,8 @@ private:
     int curr_balloon_count;
     int balloon_index;
 
+    std::optional<OutlinedText> current_lyric;
+
     bool is_branch;
     std::tuple<float, float, double> curr_branch_reqs;
     float branch_condition_count;
@@ -156,6 +158,7 @@ private:
     void handle_judgeposition(double ms_from_start, const TimelineObject& timeline_object, int buffer_index);
     void handle_bpmchange(double ms_from_start, const TimelineObject& timeline_object, int buffer_index);
     void handle_branch_param(double ms_from_start, const TimelineObject& timeline_object, int buffer_index);
+    void handle_lyric(double ms_from_start, const TimelineObject& timeline_object, int buffer_index);
 
     void play_note_manager(double current_ms, std::optional<Background>& background);
 

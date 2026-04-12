@@ -183,6 +183,7 @@ void Navigator::load_current_directory_async(const fs::path path) {
         }
     }
     loading_complete = true;
+    current_path = path;
 }
 
 void Navigator::load_songs_inline_async(const fs::path path, BoxDef box_def) {

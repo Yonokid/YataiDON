@@ -80,6 +80,7 @@ struct AudioConfig {
 };
 
 struct VolumeConfig {
+    float global;
     float sound;
     float music;
     float voice;

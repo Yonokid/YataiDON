@@ -79,6 +79,7 @@ public:
     ~Navigator();
 
     bool is_processing = false;
+    fs::path current_path;
 
     void init(std::vector<fs::path> songs_paths);
     void load_current_directory(const fs::path path);
