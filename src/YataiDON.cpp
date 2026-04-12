@@ -20,6 +20,7 @@
 #include "scenes/loading.h"
 #include "scenes/entry.h"
 #include "scenes/song_select.h"
+#include "scenes/settings.h"
 
 #ifdef _WIN32
     #include <windows.h>
@@ -272,7 +273,7 @@ int main(int argc, char* argv[]) {
     //ai_game_screen = AIBattleGameScreen('game')
     std::unique_ptr<ResultScreen> result_screen = std::make_unique<ResultScreen>();
     //result_screen_2p = TwoPlayerResultScreen('result')
-    //settings_screen = SettingsScreen('settings')
+    std::unique_ptr<SettingsScreen> settings_screen = std::make_unique<SettingsScreen>();
     //dan_select_screen = DanSelectScreen('dan_select')
     //game_screen_dan = DanGameScreen('game_dan')
     //dan_result_screen = DanResultScreen('dan_result')
@@ -290,7 +291,7 @@ int main(int argc, char* argv[]) {
         //{Screens::AI_GAME,        &ai_game_screen},
         {Screens::RESULT,         result_screen.get()},
         //{Screens::RESULT_2P,      &result_screen_2p},
-        //{Screens::SETTINGS,       &settings_screen},
+        {Screens::SETTINGS,       settings_screen.get()},
         //{Screens::DAN_SELECT,     &dan_select_screen},
         //{Screens::GAME_DAN,       &game_screen_dan},
         //{Screens::DAN_RESULT,     &dan_result_screen},

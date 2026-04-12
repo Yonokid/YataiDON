@@ -1,6 +1,6 @@
 #include "config.h"
 
-static std::string getKeyString(int key_code) {
+std::string getKeyString(int key_code) {
     // Handle alphanumeric keys
     if (key_code >= 65 && key_code <= 90) {
         return std::string(1, static_cast<char>(key_code));
@@ -327,7 +327,7 @@ Config get_config() {
     return config;
 }
 
-static void save_config(const Config& config) {
+void save_config(const Config& config) {
     fs::path config_path = fs::exists("dev-config.toml") ?
                             fs::path("dev-config.toml") :
                             fs::path("config.toml");
@@ -419,12 +419,11 @@ static void save_config(const Config& config) {
         {"right_kat", right_kat_2p}
     });
 
-    // Gamepad
     toml::array gp_left_kat, gp_left_don, gp_right_don, gp_right_kat;
-    for (int key : config.gamepad.left_kat) gp_left_kat.push_back(getKeyString(key));
-    for (int key : config.gamepad.left_don) gp_left_don.push_back(getKeyString(key));
-    for (int key : config.gamepad.right_don) gp_right_don.push_back(getKeyString(key));
-    for (int key : config.gamepad.right_kat) gp_right_kat.push_back(getKeyString(key));
+    for (int btn : config.gamepad.left_kat)  gp_left_kat.push_back(btn);
+    for (int btn : config.gamepad.left_don)  gp_left_don.push_back(btn);
+    for (int btn : config.gamepad.right_don) gp_right_don.push_back(btn);
+    for (int btn : config.gamepad.right_kat) gp_right_kat.push_back(btn);
 
     config_table.insert("gamepad", toml::table{
         {"left_kat", gp_left_kat},

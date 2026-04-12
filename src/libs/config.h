@@ -110,7 +110,7 @@ struct Config {
     VideoConfig video;
 };
 
-static std::string getKeyString(int key_code);
+std::string getKeyString(int key_code);
 
 static int getKeyCode(const std::string& key);
 
@@ -122,4 +122,4 @@ static std::vector<fs::path> parsePathArray(const toml::array& arr);
 
 Config get_config();
 
-static void save_config(const Config& config);
+void save_config(const Config& config);

@@ -675,7 +675,6 @@ void Player::handle_lyric(double ms_from_start, const TimelineObject& timeline_o
 
     if (current_lyric.has_value()) {
         current_lyric.reset();
-        //this->lyric->unload();
     }
 
     current_lyric.emplace(timeline_object.lyric.value(), 40, ray::WHITE, ray::BLUE, false, 4.0);

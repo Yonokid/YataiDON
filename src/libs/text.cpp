@@ -237,6 +237,12 @@ OutlinedText::OutlinedText(std::string text, int font_size,
     }
 }
 
+OutlinedText::~OutlinedText() {
+    if (texture.has_value()) {
+        ray::UnloadTexture(texture.value());
+    }
+}
+
 OutlinedText::BuildData OutlinedText::build_horizontal_text(
     ray::Color color, ray::Color outline_color, float spacing)
 {

@@ -51,6 +51,8 @@ public:
                  int outline_thickness = 5,
                  float spacing = 2.0f);
 
+    ~OutlinedText();
+
     bool upload_pending();
 
     bool is_ready() const { return texture.has_value(); }
