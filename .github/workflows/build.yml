@@ -27,6 +27,7 @@ jobs:
             libxinerama-dev \
             libxcursor-dev \
             libxi-dev \
+            libxtst-dev \
             libgl1-mesa-dev \
             libasound2-dev \
             libpulse-dev \

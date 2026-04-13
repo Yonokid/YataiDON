@@ -7,6 +7,7 @@ cmake_policy(SET CMP0079 NEW)  # Allow target_link_libraries() everywhere
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-dev")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 if(NOT CMAKE_BUILD_TYPE)
@@ -27,27 +28,22 @@ if(NOT WIN32)
   endif()
 endif()
 
+find_package(SDL3 QUIET CONFIG)
+
 if(SDL3_FOUND)
   message(STATUS "Using system SDL3")
-  add_library(SDL3::SDL3-static INTERFACE IMPORTED)
-  target_include_directories(SDL3::SDL3-static INTERFACE ${SDL3_INCLUDE_DIRS})
-  target_link_libraries(SDL3::SDL3-static INTERFACE ${SDL3_LIBRARIES})
-  target_link_directories(SDL3::SDL3-static INTERFACE ${SDL3_LIBRARY_DIRS})
-
-  # SDL3main is usually part of the same package on MSYS2
-  add_library(SDL3::SDL3main INTERFACE IMPORTED)
-  target_link_libraries(SDL3::SDL3main INTERFACE SDL3::SDL3-static)
 else()
   message(STATUS "System SDL3 not found, fetching from source")
   set(SDL_SHARED OFF CACHE BOOL "" FORCE)
   set(SDL_STATIC ON CACHE BOOL "" FORCE)
-  set(SDL_TEST OFF CACHE BOOL "" FORCE)
+  set(SDL_TEST  OFF CACHE BOOL "" FORCE)
   FetchContent_Declare(
-        SDL3
-        GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
-        GIT_TAG release-3.4.4
-        GIT_SHALLOW TRUE
-    )
+    SDL3
+    GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
+    GIT_TAG        release-3.4.4
+    GIT_SHALLOW    TRUE
+    OVERRIDE_FIND_PACKAGE
+  )
   FetchContent_MakeAvailable(SDL3)
 endif()
 
