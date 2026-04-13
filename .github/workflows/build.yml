@@ -61,23 +61,23 @@ jobs:
           cp config.toml release/YataiDON-Linux/
           chmod +x release/YataiDON-Linux/YataiDON
 
-          # Bundle FFmpeg shared libraries so users don't need matching system versions
+          # Bundle FFmpeg shared libraries into lib/ so they don't clutter the root
+          mkdir -p release/YataiDON-Linux/lib
           ldd build/bin/YataiDON | grep -E "(libav|libsw).*=>" | awk '{print $3}' | \
-            xargs -I{} cp -L {} release/YataiDON-Linux/
+            xargs -I{} cp -L {} release/YataiDON-Linux/lib/
 
           # Bundle transitive deps of the FFmpeg libs (e.g. libbz2, liblzma, libxml2)
           # excluding truly universal system libs that every distro provides
-          for so in release/YataiDON-Linux/lib{av,sw}*.so*; do
+          for so in release/YataiDON-Linux/lib/lib{av,sw}*.so*; do
             ldd "$so" 2>/dev/null | grep "=>" | awk '{print $3}' | grep -v "^$" | \
               grep -vE "lib(c\.so|m\.so|dl\.so|rt\.so|pthread\.so|gcc_s\.so|stdc\+\+\.so|X11\.so|GL\.so|asound\.so|pulse\.so|jack\.so|Xi\.so|Xrandr\.so|xcb)" | \
               grep -v "ld-linux" | \
-              xargs -I{} cp -L {} release/YataiDON-Linux/ 2>/dev/null || true
+              xargs -I{} cp -L {} release/YataiDON-Linux/lib/ 2>/dev/null || true
           done
 
-          # Set RPATH to $ORIGIN on the binary AND all bundled .so files so that
-          # transitive deps (e.g. libbz2 loaded by libavcodec) are also found
-          patchelf --set-rpath '$ORIGIN' release/YataiDON-Linux/YataiDON
-          for so in release/YataiDON-Linux/*.so*; do
+          # Binary looks in $ORIGIN/lib; bundled .so files look in $ORIGIN (their own dir)
+          patchelf --set-rpath '$ORIGIN/lib' release/YataiDON-Linux/YataiDON
+          for so in release/YataiDON-Linux/lib/*.so*; do
             [ -f "$so" ] && patchelf --set-rpath '$ORIGIN' "$so" 2>/dev/null || true
           done
 
@@ -178,7 +178,7 @@ jobs:
 
       - name: Repackage artifacts
         run: |
-          zip -r YataiDON-Linux.zip YataiDON Skins shader config.toml *.so*
+          zip -r YataiDON-Linux.zip YataiDON Skins shader config.toml lib/
           zip -r YataiDON-Windows.zip YataiDON.exe Skins shader config.toml *.dll
 
       - name: Upload Release
