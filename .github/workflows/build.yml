@@ -21,6 +21,7 @@ jobs:
             cmake \
             ninja-build \
             pkg-config \
+            patchelf \
             libx11-dev \
             libxrandr-dev \
             libxinerama-dev \
@@ -59,6 +60,13 @@ jobs:
           cp -r shader release/YataiDON-Linux/
           cp config.toml release/YataiDON-Linux/
           chmod +x release/YataiDON-Linux/YataiDON
+
+          # Bundle FFmpeg shared libraries so users don't need matching system versions
+          ldd build/bin/YataiDON | grep -E "(libav|libsw).*=>" | awk '{print $3}' | \
+            xargs -I{} cp -L {} release/YataiDON-Linux/
+
+          # Set RPATH to $ORIGIN so the binary finds the bundled libs at runtime
+          patchelf --set-rpath '$ORIGIN' release/YataiDON-Linux/YataiDON
 
       - name: Upload Linux package
         uses: actions/upload-artifact@v4
@@ -157,7 +165,7 @@ jobs:
 
       - name: Repackage artifacts
         run: |
-          zip -r YataiDON-Linux.zip YataiDON Skins shader config.toml
+          zip -r YataiDON-Linux.zip YataiDON Skins shader config.toml *.so*
           zip -r YataiDON-Windows.zip YataiDON.exe Skins shader config.toml *.dll
 
       - name: Upload Release
