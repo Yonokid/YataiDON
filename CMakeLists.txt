@@ -18,37 +18,37 @@ include(FetchContent)
 
 ### Dependencies
 
-# SDL2
+# SDL3
 if(NOT WIN32)
   find_package(PkgConfig QUIET)
   if(PkgConfig_FOUND)
-    pkg_check_modules(SDL2 QUIET sdl2)
+    pkg_check_modules(SDL3 QUIET sdl3)
     pkg_check_modules(SQLITE3 QUIET sqlite3)
   endif()
 endif()
 
-if(SDL2_FOUND)
-  message(STATUS "Using system SDL2")
-  add_library(SDL2::SDL2-static INTERFACE IMPORTED)
-  target_include_directories(SDL2::SDL2-static INTERFACE ${SDL2_INCLUDE_DIRS})
-  target_link_libraries(SDL2::SDL2-static INTERFACE ${SDL2_LIBRARIES})
-  target_link_directories(SDL2::SDL2-static INTERFACE ${SDL2_LIBRARY_DIRS})
+if(SDL3_FOUND)
+  message(STATUS "Using system SDL3")
+  add_library(SDL3::SDL3-static INTERFACE IMPORTED)
+  target_include_directories(SDL3::SDL3-static INTERFACE ${SDL3_INCLUDE_DIRS})
+  target_link_libraries(SDL3::SDL3-static INTERFACE ${SDL3_LIBRARIES})
+  target_link_directories(SDL3::SDL3-static INTERFACE ${SDL3_LIBRARY_DIRS})
 
-  # SDL2main is usually part of the same package on MSYS2
-  add_library(SDL2::SDL2main INTERFACE IMPORTED)
-  target_link_libraries(SDL2::SDL2main INTERFACE SDL2::SDL2-static)
+  # SDL3main is usually part of the same package on MSYS2
+  add_library(SDL3::SDL3main INTERFACE IMPORTED)
+  target_link_libraries(SDL3::SDL3main INTERFACE SDL3::SDL3-static)
 else()
-  message(STATUS "System SDL2 not found, fetching from source")
+  message(STATUS "System SDL3 not found, fetching from source")
   set(SDL_SHARED OFF CACHE BOOL "" FORCE)
   set(SDL_STATIC ON CACHE BOOL "" FORCE)
   set(SDL_TEST OFF CACHE BOOL "" FORCE)
   FetchContent_Declare(
-        SDL2
+        SDL3
         GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
-        GIT_TAG release-2.30.10
+        GIT_TAG release-3.4.4
         GIT_SHALLOW TRUE
     )
-  FetchContent_MakeAvailable(SDL2)
+  FetchContent_MakeAvailable(SDL3)
 endif()
 
 if(SQLITE3_FOUND)
@@ -342,7 +342,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
     raylib
-    SDL2::SDL2-static
+    SDL3::SDL3-static
     sndfile
     samplerate
     portaudio
@@ -494,7 +494,7 @@ message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "C++ Standard: ${CMAKE_CXX_STANDARD}")
 message(STATUS "Platform: ${CMAKE_SYSTEM_NAME}")
 message(STATUS "PortAudio Library: ${PORTAUDIO_LIBRARY}")
-message(STATUS "SDL2: ${SDL2_VERSION}")
+message(STATUS "SDL3: ${SDL3_VERSION}")
 if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT WIN32)
   message(STATUS "Sanitizers: AddressSanitizer, LeakSanitizer, UndefinedBehaviorSanitizer")
 endif()
