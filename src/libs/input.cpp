@@ -200,26 +200,37 @@ void input_polling_thread() {
         }
 
 #else
-        ray::PollInputEvents();
-
+        // SDL3 requires SDL_PollEvent() (called by PollInputEvents) to be driven
+        // from the main thread. The main loop handles that. Here we just read the
+        // state array that SDL keeps updated, detecting edge transitions ourselves.
         for (int key = 32; key < 349; key++) {
-            if (ray::IsKeyPressed(key)) {
+            bool current_state = ray::IsKeyDown(key);
+            bool previous_state = previous_key_states[key];
+
+            if (current_state && !previous_state) {
                 local_pressed.push_back(key);
             }
-            if (ray::IsKeyReleased(key)) {
+            if (!current_state && previous_state) {
                 local_released.push_back(key);
             }
+
+            previous_key_states[key] = current_state;
         }
 
         // Check gamepad buttons (use offset 10000 to differentiate from keyboard)
         if (ray::IsGamepadAvailable(0)) {
             for (int button = 0; button < 32; button++) {
-                if (ray::IsGamepadButtonPressed(0, button)) {
+                bool current_state = ray::IsGamepadButtonDown(0, button);
+                bool previous_state = previous_key_states[10000 + button];
+
+                if (current_state && !previous_state) {
                     local_pressed.push_back(10000 + button);
                 }
-                if (ray::IsGamepadButtonReleased(0, button)) {
+                if (!current_state && previous_state) {
                     local_released.push_back(10000 + button);
                 }
+
+                previous_key_states[10000 + button] = current_state;
             }
         }
 #endif

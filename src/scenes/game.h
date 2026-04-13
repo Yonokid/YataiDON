@@ -36,6 +36,9 @@ private:
     AllNetIcon allnet_indicator;
 
 
+protected:
+    GameScreen(const std::string& name) : Screen(name) {}
+
 public:
     GameScreen() : Screen("game") {
     }

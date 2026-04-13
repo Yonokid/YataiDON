@@ -58,6 +58,9 @@ Screens SettingsScreen::on_screen_end(Screens next_screen) {
 }
 
 std::optional<Screens> SettingsScreen::handle_input() {
+    if (ray::IsKeyPressed(ray::KEY_F1)) {
+        return on_screen_end(Screens::INPUT_CALI);
+    }
     if (is_l_kat_pressed()) {
         audio->play_sound("kat", "sound");
         box_manager->move_left();

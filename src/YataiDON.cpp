@@ -21,6 +21,7 @@
 #include "scenes/entry.h"
 #include "scenes/song_select.h"
 #include "scenes/settings.h"
+#include "scenes/input_cali.h"
 
 #ifdef _WIN32
     #include <windows.h>
@@ -274,6 +275,7 @@ int main(int argc, char* argv[]) {
     std::unique_ptr<ResultScreen> result_screen = std::make_unique<ResultScreen>();
     //result_screen_2p = TwoPlayerResultScreen('result')
     std::unique_ptr<SettingsScreen> settings_screen = std::make_unique<SettingsScreen>();
+    std::unique_ptr<InputCaliScreen> input_cali_screen = std::make_unique<InputCaliScreen>();
     //dan_select_screen = DanSelectScreen('dan_select')
     //game_screen_dan = DanGameScreen('game_dan')
     //dan_result_screen = DanResultScreen('dan_result')
@@ -292,6 +294,7 @@ int main(int argc, char* argv[]) {
         {Screens::RESULT,         result_screen.get()},
         //{Screens::RESULT_2P,      &result_screen_2p},
         {Screens::SETTINGS,       settings_screen.get()},
+        {Screens::INPUT_CALI,     input_cali_screen.get()},
         //{Screens::DAN_SELECT,     &dan_select_screen},
         //{Screens::GAME_DAN,       &game_screen_dan},
         //{Screens::DAN_RESULT,     &dan_result_screen},
@@ -315,8 +318,8 @@ int main(int argc, char* argv[]) {
 
 
     while (!ray::WindowShouldClose()) {
-        #ifdef _WIN32
         ray::PollInputEvents();
+        #ifdef _WIN32
         poll_gamepad_events();
         #endif
 

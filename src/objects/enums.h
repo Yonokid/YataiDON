@@ -25,7 +25,8 @@ enum class Screens {
     AI_GAME,
     SETTINGS,
     DEV_MENU,
-    LOADING
+    LOADING,
+    INPUT_CALI
 };
 
 enum class DrumType {
@@ -73,7 +74,7 @@ inline std::string branch_diff_to_string(BranchDifficulty difficulty) {
 }
 
 inline std::string screens_to_string(Screens screen) {
-    static const std::array<std::string, 24> names = {
+    static const std::array<std::string, 25> names = {
         "TITLE",
         "ENTRY",
         "SONG_SELECT",
@@ -92,6 +93,7 @@ inline std::string screens_to_string(Screens screen) {
         "SETTINGS",
         "DEV_MENU",
         "LOADING",
+        "INPUT_CALI",
         "LOADING",
         "LOADING",
         "LOADING",
