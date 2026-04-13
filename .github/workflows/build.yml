@@ -81,21 +81,24 @@ jobs:
           cp config.toml release/YataiDON-Linux/
           chmod +x release/YataiDON-Linux/YataiDON
 
-          # Bundle FFmpeg shared libraries into lib/ so they don't clutter the root
+          # Bundle FFmpeg shared libraries into lib/
           mkdir -p release/YataiDON-Linux/lib
           ldd build/bin/YataiDON | grep -E "(libav|libsw).*=>" | awk '{print $3}' | \
             xargs -I{} cp -L {} release/YataiDON-Linux/lib/
 
-          # Bundle transitive deps of the FFmpeg libs (e.g. libbz2, liblzma, libxml2)
-          # excluding truly universal system libs that every distro provides
-          for so in release/YataiDON-Linux/lib/lib{av,sw}*.so*; do
+          # Bundle sndfile codec dependencies (ogg, vorbis, FLAC, opus, mp3, etc.)
+          ldd build/bin/YataiDON | grep -E "(libsndfile|libogg|libvorbis|libFLAC|libopus|libmp3lame|libmpg123|libspeex).*=>" | awk '{print $3}' | \
+            grep -v "^$" | xargs -I{} cp -L {} release/YataiDON-Linux/lib/ 2>/dev/null || true
+
+          # Bundle transitive deps of FFmpeg AND sndfile codec libs
+          for so in release/YataiDON-Linux/lib/lib{av,sw,ogg,vorbis,FLAC,opus,mp3lame,mpg123,speex}*.so*; do
             ldd "$so" 2>/dev/null | grep "=>" | awk '{print $3}' | grep -v "^$" | \
               grep -vE "lib(c\.so|m\.so|dl\.so|rt\.so|pthread\.so|gcc_s\.so|stdc\+\+\.so|X11\.so|GL\.so|asound\.so|pulse\.so|jack\.so|Xi\.so|Xrandr\.so|xcb)" | \
               grep -v "ld-linux" | \
               xargs -I{} cp -L {} release/YataiDON-Linux/lib/ 2>/dev/null || true
           done
 
-          # Binary looks in $ORIGIN/lib; bundled .so files look in $ORIGIN (their own dir)
+          # Patch rpath: binary looks in $ORIGIN/lib, bundled .so files look in $ORIGIN
           patchelf --set-rpath '$ORIGIN/lib' release/YataiDON-Linux/YataiDON
           for so in release/YataiDON-Linux/lib/*.so*; do
             [ -f "$so" ] && patchelf --set-rpath '$ORIGIN' "$so" 2>/dev/null || true

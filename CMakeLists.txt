@@ -458,7 +458,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
 else()
   target_compile_options(${PROJECT_NAME} PRIVATE
         -O2
-        -march=native  # Optimize for current CPU
+        -march=x86-64
         -DNDEBUG  # Disable assertions
         -flto  # Link-time optimization
     )
