@@ -69,6 +69,17 @@ else()
   target_include_directories(SQLite3_lib PUBLIC ${sqlite3_SOURCE_DIR})
 endif()
 
+if(TARGET SDL3::SDL3)
+  message(STATUS "SDL3::SDL3 target EXISTS before raylib")
+else()
+  message(STATUS "SDL3::SDL3 target MISSING before raylib")
+endif()
+if(TARGET SDL3::SDL3-static)
+  message(STATUS "SDL3::SDL3-static target EXISTS before raylib")
+else()
+  message(STATUS "SDL3::SDL3-static target MISSING before raylib")
+endif()
+
 # raylib
 FetchContent_Declare(
     raylib
