@@ -74,8 +74,12 @@ jobs:
               xargs -I{} cp -L {} release/YataiDON-Linux/ 2>/dev/null || true
           done
 
-          # Set RPATH to $ORIGIN so the binary finds the bundled libs at runtime
+          # Set RPATH to $ORIGIN on the binary AND all bundled .so files so that
+          # transitive deps (e.g. libbz2 loaded by libavcodec) are also found
           patchelf --set-rpath '$ORIGIN' release/YataiDON-Linux/YataiDON
+          for so in release/YataiDON-Linux/*.so*; do
+            [ -f "$so" ] && patchelf --set-rpath '$ORIGIN' "$so" 2>/dev/null || true
+          done
 
       - name: Upload Linux package
         uses: actions/upload-artifact@v4
