@@ -34,6 +34,7 @@ jobs:
             libjack-dev \
             libunwind-dev \
             libusb-1.0-0-dev \
+            libxss-dev \
             liblua5.4-dev \
             libavcodec-dev \
             libavformat-dev \
