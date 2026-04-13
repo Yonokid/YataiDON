@@ -154,34 +154,21 @@ if(WIN32)
         INTERFACE_INCLUDE_DIRECTORIES ${SNDFILE_INCLUDE_DIR}
     )
 else()
-  find_package(PkgConfig QUIET)
-  if(PkgConfig_FOUND)
-    pkg_check_modules(SNDFILE QUIET sndfile)
-  endif()
-
-  if(SNDFILE_FOUND)
-    message(STATUS "Using system libsndfile")
-    add_library(sndfile INTERFACE IMPORTED)
-    target_include_directories(sndfile INTERFACE ${SNDFILE_INCLUDE_DIRS})
-    target_link_libraries(sndfile INTERFACE ${SNDFILE_LINK_LIBRARIES})
-    target_link_directories(sndfile INTERFACE ${SNDFILE_LIBRARY_DIRS})
-  else()
-    message(STATUS "System libsndfile not found, fetching from source")
-    set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-    set(ENABLE_EXTERNAL_LIBS ON CACHE BOOL "" FORCE)
-    set(ENABLE_MPEG ON CACHE BOOL "" FORCE)
-    set(ENABLE_OPUS ON CACHE BOOL "" FORCE)
-    set(ENABLE_FLAC ON CACHE BOOL "" FORCE)
-    set(ENABLE_VORBIS ON CACHE BOOL "" FORCE)
-    set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
-    FetchContent_Declare(
-            libsndfile
-            GIT_REPOSITORY https://github.com/libsndfile/libsndfile.git
-            GIT_TAG 1.2.2
-            GIT_SHALLOW TRUE
-        )
-    FetchContent_MakeAvailable(libsndfile)
-  endif()
+  message(STATUS "Fetching libsndfile from source")
+  set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+  set(ENABLE_EXTERNAL_LIBS ON CACHE BOOL "" FORCE)
+  set(ENABLE_MPEG ON CACHE BOOL "" FORCE)
+  set(ENABLE_OPUS ON CACHE BOOL "" FORCE)
+  set(ENABLE_FLAC ON CACHE BOOL "" FORCE)
+  set(ENABLE_VORBIS ON CACHE BOOL "" FORCE)
+  set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+  FetchContent_Declare(
+    libsndfile
+    GIT_REPOSITORY https://github.com/libsndfile/libsndfile.git
+    GIT_TAG 1.2.2
+    GIT_SHALLOW TRUE
+  )
+  FetchContent_MakeAvailable(libsndfile)
 endif()
 
 # libsamplerate
