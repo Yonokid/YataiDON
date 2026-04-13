@@ -65,6 +65,15 @@ jobs:
           ldd build/bin/YataiDON | grep -E "(libav|libsw).*=>" | awk '{print $3}' | \
             xargs -I{} cp -L {} release/YataiDON-Linux/
 
+          # Bundle transitive deps of the FFmpeg libs (e.g. libbz2, liblzma, libxml2)
+          # excluding truly universal system libs that every distro provides
+          for so in release/YataiDON-Linux/lib{av,sw}*.so*; do
+            ldd "$so" 2>/dev/null | grep "=>" | awk '{print $3}' | grep -v "^$" | \
+              grep -vE "lib(c\.so|m\.so|dl\.so|rt\.so|pthread\.so|gcc_s\.so|stdc\+\+\.so|X11\.so|GL\.so|asound\.so|pulse\.so|jack\.so|Xi\.so|Xrandr\.so|xcb)" | \
+              grep -v "ld-linux" | \
+              xargs -I{} cp -L {} release/YataiDON-Linux/ 2>/dev/null || true
+          done
+
           # Set RPATH to $ORIGIN so the binary finds the bundled libs at runtime
           patchelf --set-rpath '$ORIGIN' release/YataiDON-Linux/YataiDON
 
