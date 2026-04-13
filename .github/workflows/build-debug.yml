@@ -21,16 +21,20 @@ jobs:
             cmake \
             ninja-build \
             pkg-config \
+            patchelf \
             libx11-dev \
             libxrandr-dev \
             libxinerama-dev \
             libxcursor-dev \
             libxi-dev \
+            libxtst-dev \
             libgl1-mesa-dev \
             libasound2-dev \
             libpulse-dev \
             libjack-dev \
-            libsdl2-dev \
+            libunwind-dev \
+            libusb-1.0-0-dev \
+            libxss-dev \
             liblua5.4-dev \
             libavcodec-dev \
             libavformat-dev \
@@ -38,7 +42,23 @@ jobs:
             libswscale-dev \
             libswresample-dev \
             libavfilter-dev \
-            libavdevice-dev
+            libavdevice-dev \
+            libogg-dev \
+            libvorbis-dev \
+            libflac-dev \
+            libopus-dev \
+            libmp3lame-dev \
+            libmpg123-dev \
+            libspeex-dev \
+            libwayland-dev \
+            libegl-dev \
+            libxkbcommon-dev \
+            libfribidi-dev \
+            libthai-dev \
+            libdrm-dev \
+            libgbm-dev \
+            libsndio-dev \
+            libpipewire-0.3-dev
 
       - name: Configure CMake
         run: |
@@ -46,7 +66,8 @@ jobs:
             -G Ninja \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_CXX_COMPILER=g++ \
-            -DCMAKE_C_COMPILER=gcc
+            -DCMAKE_C_COMPILER=gcc \
+            -DFETCH_SDL3=ON
 
       - name: Build
         run: cmake --build build --config Debug
@@ -59,6 +80,29 @@ jobs:
           cp -r shader release/YataiDON-Linux/
           cp config.toml release/YataiDON-Linux/
           chmod +x release/YataiDON-Linux/YataiDON
+
+          # Bundle FFmpeg shared libraries into lib/
+          mkdir -p release/YataiDON-Linux/lib
+          ldd build/bin/YataiDON | grep -E "(libav|libsw).*=>" | awk '{print $3}' | \
+            xargs -I{} cp -L {} release/YataiDON-Linux/lib/
+
+          # Bundle sndfile codec dependencies (ogg, vorbis, FLAC, opus, mp3, etc.)
+          ldd build/bin/YataiDON | grep -E "(libsndfile|libogg|libvorbis|libFLAC|libopus|libmp3lame|libmpg123|libspeex).*=>" | awk '{print $3}' | \
+            grep -v "^$" | xargs -I{} cp -L {} release/YataiDON-Linux/lib/ 2>/dev/null || true
+
+          # Bundle transitive deps of FFmpeg AND sndfile codec libs
+          for so in release/YataiDON-Linux/lib/lib{av,sw,ogg,vorbis,FLAC,opus,mp3lame,mpg123,speex}*.so*; do
+            ldd "$so" 2>/dev/null | grep "=>" | awk '{print $3}' | grep -v "^$" | \
+              grep -vE "lib(c\.so|m\.so|dl\.so|rt\.so|pthread\.so|gcc_s\.so|stdc\+\+\.so|X11\.so|GL\.so|asound\.so|pulse\.so|jack\.so|Xi\.so|Xrandr\.so|xcb)" | \
+              grep -v "ld-linux" | \
+              xargs -I{} cp -L {} release/YataiDON-Linux/lib/ 2>/dev/null || true
+          done
+
+          # Patch rpath: binary looks in $ORIGIN/lib, bundled .so files look in $ORIGIN
+          patchelf --set-rpath '$ORIGIN/lib' release/YataiDON-Linux/YataiDON
+          for so in release/YataiDON-Linux/lib/*.so*; do
+            [ -f "$so" ] && patchelf --set-rpath '$ORIGIN' "$so" 2>/dev/null || true
+          done
 
       - name: Upload Linux package
         uses: actions/upload-artifact@v4
@@ -93,8 +137,8 @@ jobs:
             mingw-w64-x86_64-pkg-config
             mingw-w64-x86_64-libsndfile
             mingw-w64-x86_64-libsamplerate
-            mingw-w64-x86_64-SDL2
             mingw-w64-x86_64-lua
+            mingw-w64-x86_64-sdl3
             mingw-w64-x86_64-ffmpeg
             make
 
@@ -102,12 +146,13 @@ jobs:
         run: |
           cmake -B build \
             -G Ninja \
-            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_CXX_COMPILER=g++ \
-            -DCMAKE_C_COMPILER=gcc
+            -DCMAKE_C_COMPILER=gcc \
+            -DFETCH_SDL3=OFF
 
       - name: Build
-        run: cmake --build build --config Debug
+        run: cmake --build build --config Release
 
       - name: Prepare release package
         run: |

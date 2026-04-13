@@ -79,6 +79,26 @@ FetchContent_Declare(
 FetchContent_GetProperties(raylib)
 if(NOT raylib_POPULATED)
   FetchContent_Populate(raylib)
+
+  # Patch raylib's SDL3 backend: SDL_JOYDEVICEADDED handler has two bugs:
+  #   1. Bounds check order is wrong — OOB array read before jid < MAX_GAMEPADS guard.
+  #   2. SDL_GameControllerNameForIndex(jid) treats jid as a 0-based index, but in SDL3
+  #      jid is a JoystickID (instance ID starting at 1), so it always returns NULL for
+  #      the first connected controller, causing strncpy(dst, NULL) to crash with
+  #      "buffer overflow detected". Fixed by using SDL_GameControllerName(handle) instead.
+  set(_sdl_backend "${raylib_SOURCE_DIR}/src/platforms/rcore_desktop_sdl.c")
+  file(READ "${_sdl_backend}" _sdl_src)
+  string(REPLACE
+    "if (!CORE.Input.Gamepad.ready[jid] && (jid < MAX_GAMEPADS))"
+    "if ((jid < MAX_GAMEPADS) && !CORE.Input.Gamepad.ready[jid])"
+    _sdl_src "${_sdl_src}")
+  string(REPLACE
+    "                        strncpy(CORE.Input.Gamepad.name[jid], SDL_GameControllerNameForIndex(jid), 63);\n                        CORE.Input.Gamepad.name[jid][63] = '\\0';"
+    "                        const char *gpname = SDL_GameControllerName(platform.gamepad[jid]);\n                        if (gpname) { strncpy(CORE.Input.Gamepad.name[jid], gpname, 63); CORE.Input.Gamepad.name[jid][63] = '\\0'; }"
+    _sdl_src "${_sdl_src}")
+  file(WRITE "${_sdl_backend}" "${_sdl_src}")
+  unset(_sdl_src)
+
   add_subdirectory(${raylib_SOURCE_DIR} ${raylib_BINARY_DIR} EXCLUDE_FROM_ALL)
 endif()
 set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
