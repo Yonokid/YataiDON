@@ -49,7 +49,7 @@ void SongBox::load_text() {
     name_black = make_unique<OutlinedText>(text_name, font_size, ray::WHITE, ray::BLACK, true);
     bpm_text = make_unique<OutlinedText>("BPM\n" + std::to_string(static_cast<int>(parser.metadata.bpm)), tex.skin_config["song_box_bpm"].font_size, ray::WHITE, ray::BLACK, false);
     if (exists(parser.metadata.preimage)) {
-        preimage = ray::LoadTexture(parser.metadata.preimage.c_str());
+        preimage = ray::LoadTexture(parser.metadata.preimage.string().c_str());
         ray::GenTextureMipmaps(&preimage.value());
         ray::SetTextureFilter(preimage.value(), ray::TEXTURE_FILTER_TRILINEAR);
     }
