@@ -28,23 +28,29 @@ if(NOT WIN32)
   endif()
 endif()
 
-find_package(SDL3 QUIET CONFIG)
+option(FETCH_SDL3 "Fetch SDL3 via FetchContent instead of using system package" ON)
 
-if(SDL3_FOUND)
+if(NOT FETCH_SDL3)
+  find_package(SDL3 REQUIRED CONFIG)
   message(STATUS "Using system SDL3")
 else()
-  message(STATUS "System SDL3 not found, fetching from source")
-  set(SDL_SHARED OFF CACHE BOOL "" FORCE)
-  set(SDL_STATIC ON CACHE BOOL "" FORCE)
-  set(SDL_TEST  OFF CACHE BOOL "" FORCE)
-  FetchContent_Declare(
-    SDL3
-    GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
-    GIT_TAG        release-3.4.4
-    GIT_SHALLOW    TRUE
-    OVERRIDE_FIND_PACKAGE
-  )
-  FetchContent_MakeAvailable(SDL3)
+  find_package(SDL3 QUIET CONFIG)
+  if(SDL3_FOUND)
+    message(STATUS "Using system SDL3")
+  else()
+    message(STATUS "Fetching SDL3 from source")
+    set(SDL_SHARED OFF CACHE BOOL "" FORCE)
+    set(SDL_STATIC ON CACHE BOOL "" FORCE)
+    set(SDL_TEST   OFF CACHE BOOL "" FORCE)
+    FetchContent_Declare(
+      SDL3
+      GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
+      GIT_TAG        release-3.4.4
+      GIT_SHALLOW    TRUE
+      OVERRIDE_FIND_PACKAGE
+    )
+    FetchContent_MakeAvailable(SDL3)
+  endif()
 endif()
 
 if(SQLITE3_FOUND)

@@ -35,7 +35,6 @@ jobs:
             libunwind-dev \
             libusb-1.0-0-dev \
             libxss-dev \
-            libsdl3-dev \
             liblua5.4-dev \
             libavcodec-dev \
             libavformat-dev \
@@ -51,7 +50,8 @@ jobs:
             -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_CXX_COMPILER=g++ \
-            -DCMAKE_C_COMPILER=gcc
+            -DCMAKE_C_COMPILER=gcc \
+            -DFETCH_SDL3=ON
 
       - name: Build
         run: cmake --build build --config Release
@@ -129,7 +129,8 @@ jobs:
             -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_CXX_COMPILER=g++ \
-            -DCMAKE_C_COMPILER=gcc
+            -DCMAKE_C_COMPILER=gcc \
+            -DFETCH_SDL3=OFF
 
       - name: Build
         run: cmake --build build --config Release
