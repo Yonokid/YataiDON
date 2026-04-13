@@ -42,7 +42,23 @@ jobs:
             libswscale-dev \
             libswresample-dev \
             libavfilter-dev \
-            libavdevice-dev
+            libavdevice-dev \
+            libogg-dev \
+            libvorbis-dev \
+            libflac-dev \
+            libopus-dev \
+            libmp3lame-dev \
+            libmpg123-dev \
+            libspeex-dev \
+            libwayland-dev \
+            libegl-dev \
+            libxkbcommon-dev \
+            libfribidi-dev \
+            libthai-dev \
+            libdrm-dev \
+            libgbm-dev \
+            libsndio-dev \
+            libpipewire-0.3-dev
 
       - name: Configure CMake
         run: |
