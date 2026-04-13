@@ -35,6 +35,7 @@ jobs:
             libunwind-dev \
             libusb-1.0-0-dev \
             libxss-dev \
+            libsdl3-dev \
             liblua5.4-dev \
             libavcodec-dev \
             libavformat-dev \
@@ -118,6 +119,7 @@ jobs:
             mingw-w64-x86_64-libsndfile
             mingw-w64-x86_64-libsamplerate
             mingw-w64-x86_64-lua
+            mingw-w64-x86_64-sdl3
             mingw-w64-x86_64-ffmpeg
             make
 
