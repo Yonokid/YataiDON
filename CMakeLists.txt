@@ -69,24 +69,18 @@ else()
   target_include_directories(SQLite3_lib PUBLIC ${sqlite3_SOURCE_DIR})
 endif()
 
-if(TARGET SDL3::SDL3)
-  message(STATUS "SDL3::SDL3 target EXISTS before raylib")
-else()
-  message(STATUS "SDL3::SDL3 target MISSING before raylib")
-endif()
-if(TARGET SDL3::SDL3-static)
-  message(STATUS "SDL3::SDL3-static target EXISTS before raylib")
-else()
-  message(STATUS "SDL3::SDL3-static target MISSING before raylib")
-endif()
-
 # raylib
-FetchContent_Declare(
-    raylib
-    GIT_REPOSITORY https://github.com/raysan5/raylib.git
-    GIT_TAG 5.5
-    GIT_SHALLOW TRUE
+cmakeFetchContent_Declare(
+  raylib
+  GIT_REPOSITORY https://github.com/raysan5/raylib.git
+  GIT_TAG        5.5
+  GIT_SHALLOW    TRUE
 )
+FetchContent_GetProperties(raylib)
+if(NOT raylib_POPULATED)
+  FetchContent_Populate(raylib)
+  add_subdirectory(${raylib_SOURCE_DIR} ${raylib_BINARY_DIR} EXCLUDE_FROM_ALL)
+endif()
 set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(BUILD_GAMES OFF CACHE BOOL "" FORCE)
 set(PLATFORM "SDL" CACHE STRING "" FORCE)
