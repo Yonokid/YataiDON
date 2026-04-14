@@ -62,9 +62,7 @@ jobs:
             -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_CXX_COMPILER=g++ \
-            -DCMAKE_C_COMPILER=gcc \
-            -DFETCH_SDL3=OFF \
-            -DCMAKE_PREFIX_PATH=${{ steps.sdl.outputs.prefix }}
+            -DCMAKE_C_COMPILER=gcc
 
       - name: Build
         run: cmake --build build --config Release
@@ -145,9 +143,7 @@ jobs:
             -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_CXX_COMPILER=g++ \
-            -DCMAKE_C_COMPILER=gcc \
-            -DFETCH_SDL3=OFF \
-            -DCMAKE_PREFIX_PATH=${{ steps.sdl.outputs.prefix }}
+            -DCMAKE_C_COMPILER=gcc
 
       - name: Build
         run: cmake --build build --config Release
