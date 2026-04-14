@@ -39,7 +39,7 @@ else()
   else()
     message(STATUS "Fetching SDL3 from source")
     set(SDL_SHARED OFF CACHE BOOL "" FORCE)
-    set(SDL_STATIC ON CACHE BOOL "" FORCE)
+    set(SDL_STATIC OFF CACHE BOOL "" FORCE)
     set(SDL_TEST   OFF CACHE BOOL "" FORCE)
     FetchContent_Declare(
       SDL3
