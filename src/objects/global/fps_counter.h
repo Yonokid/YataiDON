@@ -6,7 +6,7 @@ private:
     static const int SAMPLE_SIZE = 60;
     float frameTimes[SAMPLE_SIZE];
     int currentFrame = 0;
-    long lastTime;
+    double lastTime;
 
 public:
     FPSCounter();
