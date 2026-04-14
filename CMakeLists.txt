@@ -39,7 +39,7 @@ else()
   else()
     message(STATUS "Fetching SDL3 from source")
     set(SDL_SHARED OFF CACHE BOOL "" FORCE)
-    set(SDL_STATIC OFF CACHE BOOL "" FORCE)
+    set(SDL_STATIC ON CACHE BOOL "" FORCE)
     set(SDL_TEST   OFF CACHE BOOL "" FORCE)
     FetchContent_Declare(
       SDL3
@@ -87,7 +87,17 @@ FetchContent_Declare(
   GIT_SHALLOW    TRUE
 )
 FetchContent_GetProperties(raylib)
-FetchContent_MakeAvailable(raylib)
+if(NOT raylib_POPULATED)
+  FetchContent_Populate(raylib)
+  # Patch LibraryConfigurations.cmake: raylib 5.5 SDL platform targets SDL2;
+  # swap it to SDL3::SDL3-static so it matches the SDL3 we provide.
+  set(_raylib_lib_cfg "${raylib_SOURCE_DIR}/cmake/LibraryConfigurations.cmake")
+  file(READ "${_raylib_lib_cfg}" _cfg)
+  string(REPLACE "find_package(SDL2 REQUIRED)" "find_package(SDL3 REQUIRED CONFIG)" _cfg "${_cfg}")
+  string(REPLACE "set(LIBS_PRIVATE SDL2::SDL2)" "set(LIBS_PRIVATE SDL3::SDL3-static)" _cfg "${_cfg}")
+  file(WRITE "${_raylib_lib_cfg}" "${_cfg}")
+  add_subdirectory(${raylib_SOURCE_DIR} ${raylib_BINARY_DIR} EXCLUDE_FROM_ALL)
+endif()
 
 # RapidJSON
 set(RAPIDJSON_BUILD_DOC OFF CACHE BOOL "" FORCE)
