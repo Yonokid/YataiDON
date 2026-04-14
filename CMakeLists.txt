@@ -393,6 +393,11 @@ if(WIN32)
         secur32
         ws2_32
     )
+  if(TARGET SDL3::SDL3-static)
+    target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3-static)
+  elseif(TARGET SDL3::SDL3)
+    target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3)
+  endif()
   # Static linking on Windows
   target_link_options(${PROJECT_NAME} PRIVATE
         -static
