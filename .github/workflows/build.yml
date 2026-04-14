@@ -14,6 +14,12 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Setup SDL3
+        uses: libsdl-org/setup-sdl@main
+        with:
+          version: 3-head
+          build-type: Release
+
       - name: Install dependencies
         run: |
           sudo apt-get update
@@ -67,7 +73,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_CXX_COMPILER=g++ \
             -DCMAKE_C_COMPILER=gcc \
-            -DFETCH_SDL3=ON
+            -DFETCH_SDL3=OFF
 
       - name: Build
         run: cmake --build build --config Release

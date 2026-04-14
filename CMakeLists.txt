@@ -84,10 +84,7 @@ FetchContent_Declare(
   GIT_SHALLOW    TRUE
 )
 FetchContent_GetProperties(raylib)
-if(NOT raylib_POPULATED)
-  FetchContent_Populate(raylib)
-  add_subdirectory(${raylib_SOURCE_DIR} ${raylib_BINARY_DIR} EXCLUDE_FROM_ALL)
-endif()
+FetchContent_MakeAvailable(raylib)
 
 # RapidJSON
 set(RAPIDJSON_BUILD_DOC OFF CACHE BOOL "" FORCE)
