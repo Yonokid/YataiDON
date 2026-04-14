@@ -38,9 +38,6 @@ jobs:
             libasound2-dev \
             libpulse-dev \
             libjack-dev \
-            libunwind-dev \
-            libusb-1.0-0-dev \
-            libxss-dev \
             liblua5.4-dev \
             libavcodec-dev \
             libavformat-dev \
@@ -55,16 +52,7 @@ jobs:
             libopus-dev \
             libmp3lame-dev \
             libmpg123-dev \
-            libspeex-dev \
-            libwayland-dev \
-            libegl-dev \
-            libxkbcommon-dev \
-            libfribidi-dev \
-            libthai-dev \
-            libdrm-dev \
-            libgbm-dev \
-            libsndio-dev \
-            libpipewire-0.3-dev
+            libspeex-dev
 
       - name: Configure CMake
         run: |
