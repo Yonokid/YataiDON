@@ -14,12 +14,6 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Setup SDL3
-        uses: libsdl-org/setup-sdl@main
-        with:
-          version: 3-head
-          build-type: Release
-
       - name: Install dependencies
         run: |
           sudo apt-get update
@@ -53,6 +47,13 @@ jobs:
             libmp3lame-dev \
             libmpg123-dev \
             libspeex-dev
+
+      - name: Setup SDL3
+        uses: libsdl-org/setup-sdl@main
+        with:
+          install-linux-dependencies: true
+          version: 3-head
+          build-type: Release
 
       - name: Configure CMake
         run: |
@@ -132,7 +133,6 @@ jobs:
             mingw-w64-x86_64-libsndfile
             mingw-w64-x86_64-libsamplerate
             mingw-w64-x86_64-lua
-            mingw-w64-x86_64-sdl3
             mingw-w64-x86_64-ffmpeg
             make
 
@@ -143,7 +143,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_CXX_COMPILER=g++ \
             -DCMAKE_C_COMPILER=gcc \
-            -DFETCH_SDL3=OFF
+            -DFETCH_SDL3=ON
 
       - name: Build
         run: cmake --build build --config Release
