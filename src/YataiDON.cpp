@@ -253,6 +253,9 @@ int main(int argc, char* argv[]) {
 
     init_audio();
 
+    init_sdl_gamepads();
+    spdlog::info("SDL3 gamepad input initialized");
+
     Screens current_screen = check_args(argc, argv);
 
     double target_fps = global_data.config->video.target_fps;
@@ -318,10 +321,8 @@ int main(int argc, char* argv[]) {
 
 
     while (!ray::WindowShouldClose()) {
+        poll_sdl_gamepads();
         ray::PollInputEvents();
-        #ifdef _WIN32
-        poll_gamepad_events();
-        #endif
 
         auto frame_start = std::chrono::steady_clock::now();
 

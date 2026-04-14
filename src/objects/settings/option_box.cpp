@@ -1,5 +1,6 @@
 #include "option_box.h"
 #include "../../libs/audio.h"
+#include "../../libs/input.h"
 #include "raylib.h"
 
 std::string getKeyString(int key_code);
@@ -380,8 +381,8 @@ void KeyBindControllerOptionBox::confirm() {
 void KeyBindControllerOptionBox::update(double current_time) {
     flicker_fade->update(current_time);
     if (is_highlighted) {
-        int btn = ray::GetGamepadButtonPressed();
-        if (btn > 0) {
+        int btn = get_any_controller_pressed();
+        if (btn >= 0) {
             value = {btn};
             confirm();
             audio->play_sound("don", "sound");

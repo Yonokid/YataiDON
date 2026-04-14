@@ -427,6 +427,15 @@ elseif(UNIX)
         X11
         asound
     )
+  # Explicit SDL3 link so input.cpp can include <SDL3/SDL.h> and call the gamepad
+  # API directly (bypassing raylib's broken SDL3 gamepad backend).
+  # Target name differs: fetched SDL3 builds SDL3::SDL3-static; system installs
+  # typically provide SDL3::SDL3 (shared).
+  if(TARGET SDL3::SDL3-static)
+    target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3-static)
+  elseif(TARGET SDL3::SDL3)
+    target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3)
+  endif()
   # Set rpath for audio library
   set_target_properties(${PROJECT_NAME} PROPERTIES
         BUILD_RPATH "${CMAKE_SOURCE_DIR}/src/libs/audio"

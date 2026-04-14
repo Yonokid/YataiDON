@@ -15,8 +15,8 @@ extern std::vector<int> released_keys;
 // Start the input polling thread (called automatically in main)
 void input_polling_thread();
 
-// Windows only
-void poll_gamepad_events();
+void init_sdl_gamepads();
+void poll_sdl_gamepads();
 
 // Check if a key was pressed since the last check
 // This consumes the key press event
@@ -29,6 +29,10 @@ bool check_key_released(int key);
 // Clear all buffered input events
 // Useful when changing screens or locking input
 void clear_input_buffers();
+
+// Returns the raw config value of the first controller input pressed this frame,
+// or -1 if none. Consumes the event.
+int get_any_controller_pressed();
 
 bool is_input_key_pressed(const std::vector<int>& keys, const std::vector<int>& gamepad_buttons);
 bool is_l_don_pressed(PlayerNum player_num = PlayerNum::ALL);
