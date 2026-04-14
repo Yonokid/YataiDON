@@ -94,6 +94,12 @@ if(NOT raylib_POPULATED)
   string(REPLACE "find_package(SDL2 REQUIRED)" "find_package(SDL3 REQUIRED CONFIG)" _cfg "${_cfg}")
   string(REPLACE "set(LIBS_PRIVATE SDL2::SDL2)" "set(LIBS_PRIVATE SDL3::SDL3)" _cfg "${_cfg}")
   file(WRITE "${_raylib_lib_cfg}" "${_cfg}")
+  # Patch rcore_desktop_sdl.c: fix SDL2-style headers to SDL3
+  set(_raylib_sdl_src "${raylib_SOURCE_DIR}/src/platforms/rcore_desktop_sdl.c")
+  file(READ "${_raylib_sdl_src}" _sdl_src)
+  string(REPLACE "#include \"SDL.h\"" "#include <SDL3/SDL.h>" _sdl_src "${_sdl_src}")
+  string(REPLACE "#include \"SDL_opengl.h\"" "#include <SDL3/SDL_opengl.h>" _sdl_src "${_sdl_src}")
+  file(WRITE "${_raylib_sdl_src}" "${_sdl_src}")
   add_subdirectory(${raylib_SOURCE_DIR} ${raylib_BINARY_DIR} EXCLUDE_FROM_ALL)
 endif()
 
