@@ -89,12 +89,10 @@ FetchContent_Declare(
 FetchContent_GetProperties(raylib)
 if(NOT raylib_POPULATED)
   FetchContent_Populate(raylib)
-  # Patch LibraryConfigurations.cmake: raylib 5.5 SDL platform targets SDL2;
-  # swap it to SDL3::SDL3-static so it matches the SDL3 we provide.
   set(_raylib_lib_cfg "${raylib_SOURCE_DIR}/cmake/LibraryConfigurations.cmake")
   file(READ "${_raylib_lib_cfg}" _cfg)
   string(REPLACE "find_package(SDL2 REQUIRED)" "find_package(SDL3 REQUIRED CONFIG)" _cfg "${_cfg}")
-  string(REPLACE "set(LIBS_PRIVATE SDL2::SDL2)" "set(LIBS_PRIVATE SDL3::SDL3-static)" _cfg "${_cfg}")
+  string(REPLACE "set(LIBS_PRIVATE SDL2::SDL2)" "set(LIBS_PRIVATE SDL3::SDL3)" _cfg "${_cfg}")
   file(WRITE "${_raylib_lib_cfg}" "${_cfg}")
   add_subdirectory(${raylib_SOURCE_DIR} ${raylib_BINARY_DIR} EXCLUDE_FROM_ALL)
 endif()
