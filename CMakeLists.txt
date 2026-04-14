@@ -19,7 +19,7 @@ include(FetchContent)
 
 ### Dependencies
 
-# SDL3
+# Sqlite3
 if(NOT WIN32)
   find_package(PkgConfig QUIET)
   if(PkgConfig_FOUND)
@@ -27,32 +27,23 @@ if(NOT WIN32)
   endif()
 endif()
 
-option(FETCH_SDL3 "Fetch SDL3 via FetchContent instead of using system package" ON)
-
-if(NOT FETCH_SDL3)
-  find_package(SDL3 REQUIRED CONFIG)
+# SDL3
+find_package(SDL3 QUIET CONFIG)
+if(SDL3_FOUND)
   message(STATUS "Using system SDL3")
 else()
-  find_package(SDL3 QUIET CONFIG)
-  if(SDL3_FOUND)
-    message(STATUS "Using system SDL3")
-  else()
-    message(STATUS "Fetching SDL3 from source")
-    set(SDL_SHARED OFF CACHE BOOL "" FORCE)
-    set(SDL_STATIC ON CACHE BOOL "" FORCE)
-    set(SDL_TEST   OFF CACHE BOOL "" FORCE)
-    FetchContent_Declare(
-      SDL3
-      GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
-      GIT_TAG        release-3.4.4
-      GIT_SHALLOW    TRUE
-      OVERRIDE_FIND_PACKAGE
-    )
-    FetchContent_MakeAvailable(SDL3)
-  endif()
-endif()
-if(TARGET SDL3::SDL3-static AND NOT TARGET SDL3::SDL3)
-  add_library(SDL3::SDL3 ALIAS SDL3::SDL3-static)
+  message(STATUS "Fetching SDL3 from source")
+  set(SDL_SHARED OFF CACHE BOOL "" FORCE)
+  set(SDL_STATIC ON CACHE BOOL "" FORCE)
+  set(SDL_TEST   OFF CACHE BOOL "" FORCE)
+  FetchContent_Declare(
+    SDL3
+    GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
+    GIT_TAG        release-3.4.4
+    GIT_SHALLOW    TRUE
+    OVERRIDE_FIND_PACKAGE
+  )
+  FetchContent_MakeAvailable(SDL3)
 endif()
 
 if(SQLITE3_FOUND)
@@ -88,21 +79,6 @@ FetchContent_Declare(
 )
 FetchContent_GetProperties(raylib)
 FetchContent_MakeAvailable(raylib)
-#if(NOT raylib_POPULATED)
-#FetchContent_Populate(raylib)
-#set(_raylib_lib_cfg "${raylib_SOURCE_DIR}/cmake/LibraryConfigurations.cmake")
-#file(READ "${_raylib_lib_cfg}" _cfg)
-#string(REPLACE "find_package(SDL2 REQUIRED)" "find_package(SDL3 REQUIRED CONFIG)" _cfg "${_cfg}")
-#string(REPLACE "set(LIBS_PRIVATE SDL2::SDL2)" "set(LIBS_PRIVATE SDL3::SDL3)" _cfg "${_cfg}")
-#file(WRITE "${_raylib_lib_cfg}" "${_cfg}")
-# Patch rcore_desktop_sdl.c: fix SDL2-style headers to SDL3
-#set(_raylib_sdl_src "${raylib_SOURCE_DIR}/src/platforms/rcore_desktop_sdl.c")
-#file(READ "${_raylib_sdl_src}" _sdl_src)
-#string(REPLACE "#include \"SDL.h\"" "#include <SDL3/SDL.h>" _sdl_src "${_sdl_src}")
-#string(REPLACE "#include \"SDL_opengl.h\"" "#include <SDL3/SDL_opengl.h>" _sdl_src "${_sdl_src}")
-#file(WRITE "${_raylib_sdl_src}" "${_sdl_src}")
-#add_subdirectory(${raylib_SOURCE_DIR} ${raylib_BINARY_DIR} EXCLUDE_FROM_ALL)
-#endif()
 
 # RapidJSON
 set(RAPIDJSON_BUILD_DOC OFF CACHE BOOL "" FORCE)
