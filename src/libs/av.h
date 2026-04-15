@@ -1,5 +1,7 @@
 #pragma once
 
+#ifndef __EMSCRIPTEN__
+
 // ---------------------------------------------------------------------------
 // av.h  –  Thin C++ wrapper around libavformat / libavcodec / libswscale
 //           designed to replace the PyAV usage in VideoPlayer.
@@ -584,3 +586,5 @@ private:
 };
 
 } // namespace av
+
+#endif  // __EMSCRIPTEN__

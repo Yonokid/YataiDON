@@ -18,8 +18,6 @@ struct GeneralConfig {
     int audio_offset;
     int visual_offset;
     std::string language;
-    int hard_judge;
-    bool touch_enabled;
     bool timer_frozen;
     bool judge_counter;
     bool nijiiro_notes;

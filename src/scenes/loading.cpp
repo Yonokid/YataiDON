@@ -16,7 +16,11 @@ void LoadingScreen::on_screen_start() {
             }
         }
     }
+#ifndef __EMSCRIPTEN__
     loading_thread = std::thread(&LoadingScreen::load_song_hashes, this);
+#else
+    load_song_hashes();
+#endif
 }
 
 struct SongCacheEntry {
@@ -105,7 +109,11 @@ void LoadingScreen::load_song_hashes() {
     const std::string cache_path = "song_cache.bin";
     hash_cache = load_hash_cache(cache_path);
     std::atomic<int> songs_loaded = 0;
+#ifndef __EMSCRIPTEN__
     const int thread_count = std::max(1u, std::thread::hardware_concurrency());
+#else
+    const int thread_count = 1;
+#endif
     std::vector<std::thread> threads;
     std::mutex scores_mutex;
 
@@ -155,6 +163,7 @@ void LoadingScreen::load_song_hashes() {
         }
     };
 
+#ifndef __EMSCRIPTEN__
     int chunk = songs.size() / thread_count;
     for (int i = 0; i < thread_count; i++) {
         int start = i * chunk;
@@ -162,6 +171,9 @@ void LoadingScreen::load_song_hashes() {
         threads.emplace_back(worker, start, end);
     }
     for (auto& t : threads) t.join();
+#else
+    worker(0, songs.size());
+#endif
 
     save_hash_cache(hash_cache, cache_path);
     if (fs::exists(fs::path("scores_pytaiko.db"))) {
@@ -172,9 +184,11 @@ void LoadingScreen::load_song_hashes() {
 }
 
 Screens LoadingScreen::on_screen_end(Screens next_screen) {
+#ifndef __EMSCRIPTEN__
     if (loading_thread.joinable()) {
         loading_thread.join();
     }
+#endif
     return Screen::on_screen_end(next_screen);
 }
 

@@ -42,6 +42,7 @@ Screens SettingsScreen::on_screen_end(Screens next_screen) {
     save_config(*global_data.config);
     spdlog::info("Settings saved");
 
+#ifndef AUDIO_BACKEND_RAYLIB
     audio->close_audio_device();
     audio = std::make_unique<AudioEngine>(
         global_data.config->audio.device_type,
@@ -50,6 +51,7 @@ Screens SettingsScreen::on_screen_end(Screens next_screen) {
         global_data.config->volume
     );
     audio->init_audio_device();
+#endif
 
     delete box_manager;
     box_manager = nullptr;

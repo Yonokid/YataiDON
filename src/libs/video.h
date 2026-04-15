@@ -2,6 +2,28 @@
 #include "config.h"
 #include "audio.h"
 #include "texture.h"
+
+#ifdef __EMSCRIPTEN__
+
+#include <filesystem>
+namespace fs = std::filesystem;
+
+// Video playback is not supported on web. All methods are no-ops.
+class VideoPlayer {
+public:
+    VideoPlayer(fs::path) {}
+    ~VideoPlayer() = default;
+    void start(double) {}
+    bool is_finished() const { return true; }
+    bool is_started()  const { return false; }
+    void set_volume(float) {}
+    void update(double) {}
+    void draw() {}
+    void stop() {}
+};
+
+#else  // !__EMSCRIPTEN__
+
 #include "av.h"
 
 #include <array>
@@ -57,3 +79,5 @@ public:
     void draw();
     void stop();
 };
+
+#endif  // __EMSCRIPTEN__

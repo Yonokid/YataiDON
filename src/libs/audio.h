@@ -1,5 +1,9 @@
 #pragma once
 
+#include "audio_engine.h"
+
+#ifndef AUDIO_BACKEND_RAYLIB
+
 #include <mutex>
 #include <unordered_map>
 
@@ -62,40 +66,37 @@ struct music {
 };
 
 
-class AudioEngine {
+class AudioEngine : public IAudioEngine {
 public:
     AudioEngine(int device_type, float sample_rate, unsigned long buffer_size, const VolumeConfig& volume_presets);
-    ~AudioEngine();
+    ~AudioEngine() override;
 
-    fs::path sounds_path;
+    bool  init_audio_device()      override;
+    void  close_audio_device()     override;
+    bool  is_audio_device_ready() const override;
+    void  set_master_volume(float volume) override;
+    float get_master_volume()      override;
 
-    bool init_audio_device();
-    void close_audio_device();
-    bool is_audio_device_ready() const;
-    void set_master_volume(float volume);
-    float get_master_volume();
+    std::string load_sound(const fs::path& file_path, const std::string& name) override;
+    void unload_sound(const std::string& name)  override;
+    void unload_all_sounds() override;
+    void play_sound(const std::string& name, const std::string& volume_preset = "") override;
+    void stop_sound(const std::string& name)    override;
+    bool is_sound_playing(const std::string& name) override;
+    void set_sound_volume(const std::string& name, float volume) override;
+    void set_sound_pan(const std::string& name,   float pan)    override;
 
-    std::string load_sound(const fs::path& file_path, const std::string& name);
-    void unload_sound(const std::string& name);
-    void load_screen_sounds(const std::string& screen_name);
-    void unload_all_sounds();
-    void play_sound(const std::string& name, const std::string& volume_preset = "");
-    void stop_sound(const std::string& name);
-    bool is_sound_playing(const std::string& name);
-    void set_sound_volume(const std::string& name, float volume);
-    void set_sound_pan(const std::string& name, float pan);
-
-    std::string load_music_stream(const fs::path& file_path, const std::string& name);
-    std::string load_music_stream_memory(const av::AVAudioStream& audio_stream, const std::string& name);
-    void play_music_stream(const std::string& name, const std::string& volume_preset = "");
-    float get_music_time_length(const std::string& name) const;
-    float get_music_time_played(const std::string& name) const;
-    void set_music_volume(const std::string& name, float volume);
-    bool is_music_stream_playing(const std::string& name) const;
-    void stop_music_stream(const std::string& name);
-    void unload_music_stream(const std::string& name);
-    void unload_all_music();
-    void seek_music_stream(const std::string& name, float position);
+    std::string load_music_stream(const fs::path& file_path, const std::string& name) override;
+    std::string load_music_stream_memory(const av::AVAudioStream& audio_stream, const std::string& name) override;
+    void  play_music_stream(const std::string& name, const std::string& volume_preset = "") override;
+    float get_music_time_length(const std::string& name) const override;
+    float get_music_time_played(const std::string& name) const override;
+    void  set_music_volume(const std::string& name, float volume) override;
+    bool  is_music_stream_playing(const std::string& name) const override;
+    void  stop_music_stream(const std::string& name)    override;
+    void  unload_music_stream(const std::string& name)  override;
+    void  unload_all_music() override;
+    void  seek_music_stream(const std::string& name, float position) override;
 
 private:
     int host_api_index;
@@ -112,9 +113,6 @@ private:
     std::unordered_map<std::string, sound> sounds;
     std::unordered_map<std::string, music> music_streams;
 
-    std::string don;
-    std::string kat;
-
     static int port_audio_callback(const void *inputBuffer, void *outputBuffer,
                                 unsigned long framesPerBuffer,
                                 const PaStreamCallbackTimeInfo* timeInfo,
@@ -124,4 +122,4 @@ private:
     std::string path_to_string(const fs::path& path) const;
 };
 
-extern std::unique_ptr<AudioEngine> audio;
+#endif  // AUDIO_BACKEND_RAYLIB

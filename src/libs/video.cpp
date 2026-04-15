@@ -1,5 +1,7 @@
 #include "video.h"
 
+#ifndef __EMSCRIPTEN__
+
 VideoPlayer::VideoPlayer(fs::path path)
     : is_finished_arr{false, false}
 {
@@ -230,3 +232,5 @@ void VideoPlayer::stop() {
     audio->stop_music_stream(audio_s);
     audio->unload_music_stream(audio_s);
 }
+
+#endif  // __EMSCRIPTEN__

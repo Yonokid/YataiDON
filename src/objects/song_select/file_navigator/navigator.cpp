@@ -53,7 +53,13 @@ void Navigator::join_loader() {
 void Navigator::enqueue_box(std::unique_ptr<BaseBox> box) {
     std::lock_guard<std::mutex> lock(pending_mutex);
     auto last_write = fs::last_write_time(box->path);
+#ifdef __EMSCRIPTEN__
+    auto last_write_sys = ch::system_clock::time_point(
+        ch::duration_cast<ch::system_clock::duration>(last_write.time_since_epoch())
+    );
+#else
     auto last_write_sys = ch::clock_cast<ch::system_clock>(last_write);
+#endif
     auto two_weeks_ago = ch::system_clock::now() - ch::weeks(2);
     if (last_write_sys < two_weeks_ago) {
         box->is_new = true;
@@ -363,7 +369,11 @@ void Navigator::load_current_directory(const fs::path path) {
     loading_complete = false;
 
     join_loader();
+#ifndef __EMSCRIPTEN__
     loader_thread = std::thread(&Navigator::load_current_directory_async, this, path);
+#else
+    load_current_directory_async(path);
+#endif
 }
 
 void Navigator::setup_back_box(const fs::path& path, bool has_children) {
@@ -532,8 +542,12 @@ void Navigator::update(double current_ms) {
             join_loader();
             loading_complete = false;
             is_inline = true;
+#ifndef __EMSCRIPTEN__
             loader_thread = std::thread(&Navigator::load_songs_inline_async, this,
                                         *pending_inline_path, pending_inline_box_def);
+#else
+            load_songs_inline_async(*pending_inline_path, pending_inline_box_def);
+#endif
             inline_state->songs_count = 0; // will be updated as boxes arrive
             pending_inline_path.reset();
             is_processing = false; // flush_pending_boxes will finalise

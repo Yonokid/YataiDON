@@ -202,8 +202,6 @@ Config get_config() {
         config.general.audio_offset = (*general)["audio_offset"].value_or(0);
         config.general.visual_offset = (*general)["visual_offset"].value_or(0);
         config.general.language = (*general)["language"].value_or("en");
-        config.general.hard_judge = (*general)["hard_judge"].value_or(0);
-        config.general.touch_enabled = (*general)["touch_enabled"].value_or(false);
         config.general.timer_frozen = (*general)["timer_frozen"].value_or(false);
         config.general.judge_counter = (*general)["judge_counter"].value_or(false);
         config.general.nijiiro_notes = (*general)["nijiiro_notes"].value_or(false);
@@ -340,8 +338,6 @@ void save_config(const Config& config) {
         {"audio_offset", config.general.audio_offset},
         {"visual_offset", config.general.visual_offset},
         {"language", config.general.language},
-        {"hard_judge", config.general.hard_judge},
-        {"touch_enabled", config.general.touch_enabled},
         {"timer_frozen", config.general.timer_frozen},
         {"judge_counter", config.general.judge_counter},
         {"nijiiro_notes", config.general.nijiiro_notes},

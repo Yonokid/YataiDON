@@ -1,3 +1,4 @@
+#ifndef AUDIO_BACKEND_RAYLIB
 #include "audio.h"
 
 //for use with load_music_stream_memory
@@ -506,42 +507,6 @@ void AudioEngine::unload_all_sounds() {
     spdlog::info("All sounds unloaded");
 }
 
-void AudioEngine::load_screen_sounds(const std::string& screen_name) {
-    fs::path path = sounds_path / screen_name;
-    if (!fs::exists(path)) {
-        spdlog::warn("Sounds for screen {} not found", screen_name);
-        return;
-    }
-
-    std::string don_path = path_to_string(sounds_path / "don.wav");
-    don = load_sound(don_path.c_str(), "don");
-
-    std::string kat_path = path_to_string(sounds_path / "ka.wav");
-    kat = load_sound(kat_path.c_str(), "kat");
-
-    for (const auto& entry : fs::directory_iterator(path)) {
-        if (entry.is_directory()) {
-            for (const auto& file : fs::directory_iterator(entry.path())) {
-                load_sound(file.path(), entry.path().stem().string() + "_" + file.path().stem().string());
-            }
-        } else if (entry.is_regular_file()) {
-            load_sound(entry.path(), entry.path().stem().string());
-        }
-    }
-
-    fs::path global_path = sounds_path / "global";
-    if (fs::exists(global_path)) {
-        for (const auto& entry : fs::directory_iterator(global_path)) {
-            if (entry.is_directory()) {
-                for (const auto& file : fs::directory_iterator(entry.path())) {
-                    load_sound(file.path(), entry.path().stem().string() + "_" + file.path().stem().string());
-                }
-            } else if (entry.is_regular_file()) {
-                load_sound(entry.path(), entry.path().stem().string());
-            }
-        }
-    }
-}
 void AudioEngine::play_sound(const std::string& name, const std::string& volume_preset) {
     lock.lock();
     auto it = sounds.find(name);
@@ -943,4 +908,4 @@ void AudioEngine::seek_music_stream(const std::string& name, float position) {
     lock.unlock();
 }
 
-std::unique_ptr<AudioEngine> audio;
+#endif  // AUDIO_BACKEND_RAYLIB

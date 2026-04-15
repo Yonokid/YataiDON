@@ -6,10 +6,14 @@
 #ifdef _WIN32
 #include <windows.h>
 #endif
+#ifndef __EMSCRIPTEN__
 #include <SDL3/SDL.h>
+#endif
 
+#ifndef __EMSCRIPTEN__
 std::atomic<bool> input_thread_running{true};
 std::thread input_thread;
+#endif
 std::mutex input_mutex;
 std::vector<int> pressed_keys;
 std::vector<int> released_keys;
@@ -174,59 +178,49 @@ bool is_key_down_native(int raylib_key) {
 }
 #endif
 
-void input_polling_thread() {
-    std::vector<int> local_pressed;
-    std::vector<int> local_released;
-
-    // Reserve capacity to avoid reallocations during hot path
-    local_pressed.reserve(16);
-    local_released.reserve(16);
-
-    while (input_thread_running) {
-        local_pressed.clear();
-        local_released.clear();
+// Scan all keyboard keys once and push press/release events.
+// Used by the polling thread on desktop and called directly per-frame on web.
+void poll_keyboard_once() {
+    static std::vector<int> local_pressed;
+    static std::vector<int> local_released;
+    local_pressed.clear();
+    local_released.clear();
 
 #ifdef _WIN32
-        // Windows: Use native GetAsyncKeyState (thread-safe)
-        for (int key = 32; key < 349; key++) {
-            bool current_state = is_key_down_native(key);
-            bool previous_state = previous_key_states[key];
-
-            if (current_state && !previous_state) {
-                local_pressed.push_back(key);
-            }
-            if (!current_state && previous_state) {
-                local_released.push_back(key);
-            }
-
-            previous_key_states[key] = current_state;
-        }
-
+    for (int key = 32; key < 349; key++) {
+        bool current_state  = is_key_down_native(key);
+        bool previous_state = previous_key_states[key];
+        if (current_state  && !previous_state) local_pressed.push_back(key);
+        if (!current_state && previous_state)  local_released.push_back(key);
+        previous_key_states[key] = current_state;
+    }
 #else
-        for (int key = 32; key < 349; key++) {
-            bool current_state = ray::IsKeyDown(key);
-            bool previous_state = previous_key_states[key];
-
-            if (current_state && !previous_state) {
-                local_pressed.push_back(key);
-            }
-            if (!current_state && previous_state) {
-                local_released.push_back(key);
-            }
-
-            previous_key_states[key] = current_state;
-        }
+    for (int key = 32; key < 349; key++) {
+        bool current_state  = ray::IsKeyDown(key);
+        bool previous_state = previous_key_states[key];
+        if (current_state  && !previous_state) local_pressed.push_back(key);
+        if (!current_state && previous_state)  local_released.push_back(key);
+        previous_key_states[key] = current_state;
+    }
 #endif
 
-        if (!local_pressed.empty() || !local_released.empty()) {
-            std::lock_guard<std::mutex> lock(input_mutex);
-            pressed_keys.insert(pressed_keys.end(), local_pressed.begin(), local_pressed.end());
-            released_keys.insert(released_keys.end(), local_released.begin(), local_released.end());
-        }
+    if (!local_pressed.empty() || !local_released.empty()) {
+        std::lock_guard<std::mutex> lock(input_mutex);
+        pressed_keys.insert(pressed_keys.end(), local_pressed.begin(), local_pressed.end());
+        released_keys.insert(released_keys.end(), local_released.begin(), local_released.end());
+    }
+}
 
+#ifndef __EMSCRIPTEN__
+void input_polling_thread() {
+    while (input_thread_running) {
+        poll_keyboard_once();
         std::this_thread::sleep_for(std::chrono::microseconds(500));
     }
 }
+#endif
+
+#ifndef __EMSCRIPTEN__
 
 static SDL_Joystick*  sdl_joysticks[4]    = {};
 static SDL_JoystickID sdl_joystick_ids[4] = {};
@@ -369,6 +363,8 @@ void poll_sdl_gamepads() {
     for (int i = 0; i < n; i++)
         handle_joystick_event(&events[i]);
 }
+
+#endif  // __EMSCRIPTEN__
 
 int get_any_controller_pressed() {
     std::lock_guard<std::mutex> lock(input_mutex);

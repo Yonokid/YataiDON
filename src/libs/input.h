@@ -4,19 +4,27 @@
 #include "texture.h"
 #include <mutex>
 #include <atomic>
+#ifndef __EMSCRIPTEN__
 #include <thread>
 
 extern std::atomic<bool> input_thread_running;
 extern std::thread input_thread;
+#endif
+
 extern std::mutex input_mutex;
 extern std::vector<int> pressed_keys;
 extern std::vector<int> released_keys;
 
-// Start the input polling thread (called automatically in main)
+// Start the input polling thread (desktop only).
 void input_polling_thread();
 
+// On web, call this once per frame instead of spawning a thread.
+void poll_keyboard_once();
+
+#ifndef __EMSCRIPTEN__
 void init_sdl_gamepads();
 void poll_sdl_gamepads();
+#endif
 
 // Check if a key was pressed since the last check
 // This consumes the key press event
