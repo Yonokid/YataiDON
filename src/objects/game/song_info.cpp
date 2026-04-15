@@ -3,7 +3,7 @@
 SongInfo::SongInfo(const std::string& song_name, int genre)
     : song_name(song_name), genre(genre) {
 
-    song_title = new OutlinedText(song_name, tex.skin_config["song_info"].font_size, ray::WHITE, ray::BLACK, false, 5);
+    song_title = new OutlinedText(song_name, tex.skin_config[SC::SONG_INFO].font_size, ray::WHITE, ray::BLACK, false, 5);
     song_num = new SongNum(global_data.songs_played + 1);
     fade = (FadeAnimation*)tex.get_animation(3);
 }
@@ -13,24 +13,24 @@ void SongInfo::update(double current_ms) {
 }
 
 void SongInfo::draw() {
-    float text_x = tex.skin_config["song_info"].x;
-    float text_y = tex.skin_config["song_info"].y - song_title->height / 2.0f;
+    float text_x = tex.skin_config[SC::SONG_INFO].x;
+    float text_y = tex.skin_config[SC::SONG_INFO].y - song_title->height / 2.0f;
     song_num->draw(text_x - song_num->width, text_y, fade->attribute);
 
     song_title->draw({.x=text_x - song_title->width, .y=text_y, .fade=1 - fade->attribute});
 
     if (genre < 9) {
-        tex.draw_texture("song_info", "genre", {.frame = genre, .fade = 1 - fade->attribute,});
+        tex.draw_texture(SONG_INFO::GENRE, {.frame = genre, .fade = 1 - fade->attribute,});
     }
 }
 
 SongNum::SongNum(int song_num) {
-    std::string song_format = tex.skin_config["song_num"].text[global_data.config->general.language];
+    std::string song_format = tex.skin_config[SC::SONG_NUM].text[global_data.config->general.language];
     size_t pos = song_format.find("{0}");
     if (pos != std::string::npos) {
         song_format.replace(pos, 3, std::to_string(global_data.songs_played + 1));
     }
-    text = new OutlinedText(song_format, tex.skin_config["song_num"].font_size, ray::WHITE, ray::BLACK, false, 5);
+    text = new OutlinedText(song_format, tex.skin_config[SC::SONG_NUM].font_size, ray::WHITE, ray::BLACK, false, 5);
     width = text->width;
     height = text->height;
 }

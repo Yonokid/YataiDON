@@ -23,5 +23,5 @@ bool DanTransition::is_finished() {
 }
 
 void DanTransition::draw() {
-    tex.draw_texture("dan_transition", "background", {.x2=(float)slide_in->attribute});
+    tex.draw_texture(DAN_TRANSITION::BACKGROUND, {.x2=(float)slide_in->attribute});
 }

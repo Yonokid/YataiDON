@@ -57,17 +57,17 @@ void KusudamaCounter::update(double current_ms, int count) {
 void KusudamaCounter::draw() {
     float y = move_down->attribute - move_up->attribute;
     float renda_y = -renda_move_up->attribute + renda_move_down->attribute + renda_breathe->attribute;
-    tex.draw_texture("kusudama", "kusudama", {.frame=(int)open->attribute, .scale=(float)breathing->attribute, .center=true, .y=y, .fade=fade_out->attribute});
-    tex.draw_texture("kusudama", "renda", {.y=renda_y, .fade=std::min(renda_fade_in->attribute, renda_fade_out->attribute)});
+    tex.draw_texture(KUSUDAMA::KUSUDAMA, {.frame=(int)open->attribute, .scale=(float)breathing->attribute, .center=true, .y=y, .fade=fade_out->attribute});
+    tex.draw_texture(KUSUDAMA::RENDA, {.y=renda_y, .fade=std::min(renda_fade_in->attribute, renda_fade_out->attribute)});
 
     if (move_up->is_finished && !is_popped) {
         int int_counter = std::max(0, balloon_total - balloon_count);
         if (int_counter == 0) return;
         std::string counter = std::to_string(int_counter);
-        int total_width = counter.length() * tex.skin_config["kusudama_counter_margin"].x;
+        int total_width = counter.length() * tex.skin_config[SC::KUSUDAMA_COUNTER_MARGIN].x;
         for (int i = 0; i < counter.size(); i++) {
             char digit = counter[i];
-            tex.draw_texture("kusudama", "counter", {.frame=digit - '0', .x=-(total_width / 2.0f) + (i * tex.skin_config["kusudama_counter_margin"].x), .y=(float)-stretch->attribute, .y2=(float)stretch->attribute});
+            tex.draw_texture(KUSUDAMA::COUNTER, {.frame=digit - '0', .x=-(total_width / 2.0f) + (i * tex.skin_config[SC::KUSUDAMA_COUNTER_MARGIN].x), .y=(float)-stretch->attribute, .y2=(float)stretch->attribute});
         }
     }
 }

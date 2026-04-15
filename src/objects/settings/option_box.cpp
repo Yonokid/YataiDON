@@ -31,13 +31,13 @@ BaseOptionBox::~BaseOptionBox() {
 }
 
 void BaseOptionBox::draw_base() const {
-    tex.draw_texture("background", "overlay", {.scale=0.70f});
+    tex.draw_texture(BACKGROUND::OVERLAY, {.scale=0.70f});
     if (is_highlighted) {
-        tex.draw_texture("background", "title_highlight");
+        tex.draw_texture(BACKGROUND::TITLE_HIGHLIGHT);
     } else {
-        tex.draw_texture("background", "title");
+        tex.draw_texture(BACKGROUND::TITLE);
     }
-    auto& title_obj = tex.textures.at("background").at("title");
+    auto& title_obj = tex.textures[BACKGROUND::TITLE];
     float text_x = title_obj->x[0] + (title_obj->width  / 2.0f) - (name_text->width  / 2.0f);
     float text_y = title_obj->y[0] + (title_obj->height / 8.0f);
     name_text->draw({.x=text_x, .y=text_y});
@@ -73,21 +73,21 @@ void BoolOptionBox::move_right() { value = true;  }
 void BoolOptionBox::draw() {
     draw_base();
 
-    auto& btn = tex.textures.at("option").at("button_on");
+    auto& btn = tex.textures[OPTION::BUTTON_ON];
 
     if (!value) {
-        tex.draw_texture("option", "button_on",  {.index=0});
+        tex.draw_texture(OPTION::BUTTON_ON,  {.index=0});
     } else {
-        tex.draw_texture("option", "button_off", {.index=0});
+        tex.draw_texture(OPTION::BUTTON_OFF, {.index=0});
     }
     float ox = btn->x[0] + (btn->width / 2.0f) - (off_text->width  / 2.0f);
     float oy = btn->y[0] + (btn->height / 2.0f) - (off_text->height / 2.0f);
     off_text->draw({.x=ox, .y=oy});
 
     if (value) {
-        tex.draw_texture("option", "button_on",  {.index=1});
+        tex.draw_texture(OPTION::BUTTON_ON,  {.index=1});
     } else {
-        tex.draw_texture("option", "button_off", {.index=1});
+        tex.draw_texture(OPTION::BUTTON_OFF, {.index=1});
     }
     float nx = btn->x[1] + (btn->width / 2.0f) - (on_text->width  / 2.0f);
     float ny = btn->y[1] + (btn->height / 2.0f) - (on_text->height / 2.0f);
@@ -169,11 +169,11 @@ void IntOptionBox::move_right() {
 void IntOptionBox::draw() {
     draw_base();
 
-    tex.draw_texture("option", "button_off", {.index=2});
+    tex.draw_texture(OPTION::BUTTON_OFF, {.index=2});
     if (is_highlighted) {
-        tex.draw_texture("option", "button_on",  {.fade=flicker_fade->attribute, .index=2});
+        tex.draw_texture(OPTION::BUTTON_ON,  {.fade=flicker_fade->attribute, .index=2});
     }
-    auto& btn = tex.textures.at("option").at("button_on");
+    auto& btn = tex.textures[OPTION::BUTTON_ON];
     float tx = btn->x[2] + (btn->width  / 2.0f) - (value_text->width  / 2.0f);
     float ty = btn->y[2] + (btn->height / 2.0f) - (value_text->height / 2.0f);
     value_text->draw({.x=tx, .y=ty});
@@ -262,11 +262,11 @@ void StrOptionBox::move_right() {
 void StrOptionBox::draw() {
     draw_base();
 
-    tex.draw_texture("option", "button_off", {.index=2});
+    tex.draw_texture(OPTION::BUTTON_OFF, {.index=2});
     if (is_highlighted) {
-        tex.draw_texture("option", "button_on",  {.fade=flicker_fade->attribute, .index=2});
+        tex.draw_texture(OPTION::BUTTON_ON,  {.fade=flicker_fade->attribute, .index=2});
     }
-    auto& btn = tex.textures.at("option").at("button_on");
+    auto& btn = tex.textures[OPTION::BUTTON_ON];
     float tx = btn->x[2] + (btn->width  / 2.0f) - (value_text->width  / 2.0f);
     float ty = btn->y[2] + (btn->height / 2.0f) - (value_text->height / 2.0f);
     value_text->draw({.x=tx, .y=ty});
@@ -329,11 +329,11 @@ void KeybindOptionBox::update(double current_time) {
 void KeybindOptionBox::draw() {
     draw_base();
 
-    tex.draw_texture("option", "button_off", {.index=2});
+    tex.draw_texture(OPTION::BUTTON_OFF, {.index=2});
     if (is_highlighted) {
-        tex.draw_texture("option", "button_on",  {.fade=flicker_fade->attribute, .index=2});
+        tex.draw_texture(OPTION::BUTTON_ON,  {.fade=flicker_fade->attribute, .index=2});
     }
-    auto& btn = tex.textures.at("option").at("button_on");
+    auto& btn = tex.textures[OPTION::BUTTON_ON];
     float tx = btn->x[2] + (btn->width  / 2.0f) - (value_text->width  / 2.0f);
     float ty = btn->y[2] + (btn->height / 2.0f) - (value_text->height / 2.0f);
     value_text->draw({.x=tx, .y=ty});
@@ -395,11 +395,11 @@ void KeyBindControllerOptionBox::update(double current_time) {
 void KeyBindControllerOptionBox::draw() {
     draw_base();
 
-    tex.draw_texture("option", "button_off", {.index=2});
+    tex.draw_texture(OPTION::BUTTON_OFF, {.index=2});
     if (is_highlighted) {
-        tex.draw_texture("option", "button_on",  {.fade=flicker_fade->attribute, .index=2});
+        tex.draw_texture(OPTION::BUTTON_ON,  {.fade=flicker_fade->attribute, .index=2});
     }
-    auto& b = tex.textures.at("option").at("button_on");
+    auto& b = tex.textures[OPTION::BUTTON_ON];
     float tx = b->x[2] + (b->width  / 2.0f) - (value_text->width  / 2.0f);
     float ty = b->y[2] + (b->height / 2.0f) - (value_text->height / 2.0f);
     value_text->draw({.x=tx, .y=ty});
@@ -448,11 +448,11 @@ void FloatOptionBox::move_right() {
 void FloatOptionBox::draw() {
     draw_base();
 
-    tex.draw_texture("option", "button_off", {.index=2});
+    tex.draw_texture(OPTION::BUTTON_OFF, {.index=2});
     if (is_highlighted) {
-        tex.draw_texture("option", "button_on",  {.fade=flicker_fade->attribute, .index=2});
+        tex.draw_texture(OPTION::BUTTON_ON,  {.fade=flicker_fade->attribute, .index=2});
     }
-    auto& btn = tex.textures.at("option").at("button_on");
+    auto& btn = tex.textures[OPTION::BUTTON_ON];
     float tx = btn->x[2] + (btn->width  / 2.0f) - (value_text->width  / 2.0f);
     float ty = btn->y[2] + (btn->height / 2.0f) - (value_text->height / 2.0f);
     value_text->draw({.x=tx, .y=ty});

@@ -537,7 +537,7 @@ std::unique_ptr<BaseAnimation> AnimationParser::createAnimation(const Value& ani
     }
 }
 
-std::map<int, std::unique_ptr<BaseAnimation>> AnimationParser::parse_animations(const Value& animation_json) {
+std::unordered_map<int, std::unique_ptr<BaseAnimation>> AnimationParser::parse_animations(const Value& animation_json) {
     if (!animation_json.IsArray()) {
         throw std::runtime_error("Animation JSON must be an array");
     }
@@ -562,7 +562,7 @@ std::map<int, std::unique_ptr<BaseAnimation>> AnimationParser::parse_animations(
         raw_anims[id] = std::move(item_copy);
     }
 
-    std::map<int, std::unique_ptr<BaseAnimation>> anim_dict;
+    std::unordered_map<int, std::unique_ptr<BaseAnimation>> anim_dict;
 
     for (auto& [id, _] : raw_anims) {
         std::set<int> visited;
@@ -575,7 +575,7 @@ std::map<int, std::unique_ptr<BaseAnimation>> AnimationParser::parse_animations(
     return anim_dict;
 }
 
-std::map<int, std::unique_ptr<BaseAnimation>> AnimationParser::parseAnimationsFromString(const std::string& json_str) {
+std::unordered_map<int, std::unique_ptr<BaseAnimation>> AnimationParser::parseAnimationsFromString(const std::string& json_str) {
     Document doc;
     doc.Parse(json_str.c_str());
 

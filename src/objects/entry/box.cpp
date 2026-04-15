@@ -1,9 +1,9 @@
 #include "box.h"
 
 Box::Box(OutlinedText* text, Screens location) : text(text), location(location) {
-    x = tex.textures["mode_select"]["box"]->x[0];
-    y = tex.textures["mode_select"]["box"]->y[0];
-    width = tex.textures["mode_select"]["box"]->width;
+    x = tex.textures[MODE_SELECT::BOX]->x[0];
+    y = tex.textures[MODE_SELECT::BOX]->y[0];
+    width = tex.textures[MODE_SELECT::BOX]->width;
     move = (MoveAnimation*)tex.get_animation(10);
     open = (MoveAnimation*)tex.get_animation(11);
     is_selected = false;
@@ -16,7 +16,7 @@ void Box::set_positions(float x) {
     static_x = this->x;
     left_x = this->x;
     static_left = left_x;
-    right_x = left_x + tex.textures["mode_select"]["box"]->width - tex.textures["mode_select"]["box_highlight_right"]->width;
+    right_x = left_x + tex.textures[MODE_SELECT::BOX]->width - tex.textures[MODE_SELECT::BOX_HIGHLIGHT_RIGHT]->width;
     static_right = right_x;
 }
 
@@ -58,17 +58,17 @@ void Box::move_right() {
 }
 
 void Box::draw_highlighted(float fade) {
-    tex.draw_texture("mode_select", "box_highlight_center", {.x=left_x + tex.textures["mode_select"]["box_highlight_left"]->width, .y=y, .x2=right_x - left_x + tex.skin_config["entry_box_highlight_offset"].x, .fade=fade});
-    tex.draw_texture("mode_select", "box_highlight_left", {.x=left_x, .y=y, .fade=fade});
-    tex.draw_texture("mode_select", "box_highlight_right", {.x=right_x, .y=y, .fade=fade});
+    tex.draw_texture(MODE_SELECT::BOX_HIGHLIGHT_CENTER, {.x=left_x + tex.textures[MODE_SELECT::BOX_HIGHLIGHT_LEFT]->width, .y=y, .x2=right_x - left_x + tex.skin_config[SC::ENTRY_BOX_HIGHLIGHT_OFFSET].x, .fade=fade});
+    tex.draw_texture(MODE_SELECT::BOX_HIGHLIGHT_LEFT, {.x=left_x, .y=y, .fade=fade});
+    tex.draw_texture(MODE_SELECT::BOX_HIGHLIGHT_RIGHT, {.x=right_x, .y=y, .fade=fade});
 }
 
 void Box::draw_text(float fade) {
-    float text_x = x + ((float)tex.textures["mode_select"]["box"]->width / 2) - (text->width / 2);
+    float text_x = x + ((float)tex.textures[MODE_SELECT::BOX]->width / 2) - (text->width / 2);
     if (is_selected) {
         text_x += open->attribute;
     }
-    float text_y = y + tex.skin_config["entry_box_text_offset"].y;
+    float text_y = y + tex.skin_config[SC::ENTRY_BOX_TEXT_OFFSET].y;
     text->draw({.x=text_x, .y=text_y, .fade=fade});
 }
 
@@ -76,7 +76,7 @@ void Box::draw(float fade) {
     if (is_selected && move->is_finished) {
         draw_highlighted(fade);
     } else {
-        tex.draw_texture("mode_select", "box", {.x=x, .fade=fade});
+        tex.draw_texture(MODE_SELECT::BOX, {.x=x, .fade=fade});
     }
     draw_text(fade);
 }

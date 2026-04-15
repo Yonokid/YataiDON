@@ -88,11 +88,11 @@ std::optional<Screens> SettingsScreen::update() {
 }
 
 void SettingsScreen::draw() {
-    tex.draw_texture("background", "background");
+    tex.draw_texture(BACKGROUND::BACKGROUND);
     box_manager->draw();
-    tex.draw_texture("background", "footer");
-    indicator.draw(tex.skin_config["song_select_indicator"].x,
-                   tex.skin_config["song_select_indicator"].y);
+    tex.draw_texture(BACKGROUND::FOOTER);
+    indicator.draw(tex.skin_config[SC::SONG_SELECT_INDICATOR].x,
+                   tex.skin_config[SC::SONG_SELECT_INDICATOR].y);
     coin_overlay.draw();
     allnet_indicator.draw();
 }

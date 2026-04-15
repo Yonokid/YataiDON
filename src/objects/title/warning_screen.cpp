@@ -22,11 +22,11 @@ void WarningX::update(double current_ms) {
 }
 
 void WarningX::draw_bg() {
-    tex.draw_texture("warning", "x_lightred", {.fade=fade_in_2->attribute});
+    tex.draw_texture(WARNING::X_LIGHTRED, {.fade=fade_in_2->attribute});
 }
 
 void WarningX::draw_fg() {
-    tex.draw_texture("warning", "x_red", {.scale=(float)resize->attribute, .center=true, .fade=fade_in->attribute});
+    tex.draw_texture(WARNING::X_RED, {.scale=(float)resize->attribute, .center=true, .fade=fade_in->attribute});
 }
 
 
@@ -49,9 +49,9 @@ void WarningBachiHit::update(double current_ms) {
 }
 
 void WarningBachiHit::draw() {
-    tex.draw_texture("warning", "bachi_hit", {.scale=(float)resize->attribute, .center=true, .fade=fade_in->attribute});
+    tex.draw_texture(WARNING::BACHI_HIT, {.scale=(float)resize->attribute, .center=true, .fade=fade_in->attribute});
     if (resize->attribute > 0 && sound_played) {
-        tex.draw_texture("warning", "bachi");
+        tex.draw_texture(WARNING::BACHI);
     }
 }
 
@@ -78,14 +78,14 @@ void WarningCharacters::update(double current_ms) {
 }
 
 void WarningCharacters::draw(float fade, float fade_2, float y_pos) {
-    tex.draw_texture("warning", "chara_0_shadow", {.y=y_pos, .fade=fade_2});
-    tex.draw_texture("warning", "chara_0", {.frame=(int)chara_0_frame->attribute, .y=y_pos, .fade=fade});
+    tex.draw_texture(WARNING::CHARA_0_SHADOW, {.y=y_pos, .fade=fade_2});
+    tex.draw_texture(WARNING::CHARA_0, {.frame=(int)chara_0_frame->attribute, .y=y_pos, .fade=fade});
 
-    tex.draw_texture("warning", "chara_1_shadow", {.y=y_pos, .fade=fade_2});
+    tex.draw_texture(WARNING::CHARA_1_SHADOW, {.y=y_pos, .fade=fade_2});
     if (-1 < chara_1_frame->attribute-1 && chara_1_frame->attribute-1 < 7) {
-        tex.draw_texture("warning", "chara_1", {.frame=(int)chara_1_frame->attribute-1, .y=y_pos, .fade=shadow_fade->attribute});
+        tex.draw_texture(WARNING::CHARA_1, {.frame=(int)chara_1_frame->attribute-1, .y=y_pos, .fade=shadow_fade->attribute});
     }
-    tex.draw_texture("warning", "chara_1", {.frame=(int)chara_1_frame->attribute, .y=y_pos, .fade=fade});
+    tex.draw_texture(WARNING::CHARA_1, {.frame=(int)chara_1_frame->attribute, .y=y_pos, .fade=fade});
 }
 
 bool WarningCharacters::is_finished() {
@@ -116,7 +116,7 @@ void Board::update(double current_ms) {
 }
 
 void Board::draw() {
-    tex.draw_texture("warning", "warning_box", {.y=y_pos});
+    tex.draw_texture(WARNING::WARNING_BOX, {.y=y_pos});
 }
 
 WarningScreen::WarningScreen(double current_ms) : start_ms(current_ms) {
@@ -161,5 +161,5 @@ void WarningScreen::draw() {
     warning_x->draw_fg();
     warning_bachi_hit->draw();
 
-    tex.draw_texture("movie", "background", {.fade=fade_out->attribute});
+    tex.draw_texture(MOVIE::BACKGROUND, {.fade=fade_out->attribute});
 }

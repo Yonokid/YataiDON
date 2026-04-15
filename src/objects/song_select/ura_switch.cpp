@@ -19,5 +19,5 @@ void UraSwitchAnimation::update(double current_ms) {
 }
 
 void UraSwitchAnimation::draw() {
-    tex.draw_texture("diff_select", "ura_switch", {.frame=(int)texture_change->attribute, .fade=fade_out->attribute});
+    tex.draw_texture(DIFF_SELECT::URA_SWITCH, {.frame=(int)texture_change->attribute, .fade=fade_out->attribute});
 }

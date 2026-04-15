@@ -28,7 +28,7 @@ public:
             tex.load_screen_textures(screen_name);
             spdlog::info("Loaded textures for screen: {}", screen_name);
         } catch (const std::exception& e) {
-            ray::TraceLog(ray::LOG_WARNING, "Failed to load textures for screen %s: %s",
+            spdlog::warn("Failed to load textures for screen %s: %s",
                      screen_name.c_str(), e.what());
         }
 

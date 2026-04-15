@@ -36,9 +36,9 @@ void ResultCrown::draw(CrownType crown_type) {
     }
     float scale = resize->attribute;
     if (resize->is_finished) scale = resize_fix->attribute;
-    tex.draw_texture("crown", crown_name, {.scale=scale, .center=true, .index=is_2p});
-    tex.draw_texture("crown", "crown_fade", {.fade=white_fadein->attribute, .index=is_2p});
+    tex.draw_texture(tex_id_map.at("crown/" + (crown_name)), {.scale=scale, .center=true, .index=is_2p});
+    tex.draw_texture(CROWN::CROWN_FADE, {.fade=white_fadein->attribute, .index=is_2p});
     if (gleam->attribute >= 0) {
-        tex.draw_texture("crown", "gleam", {.frame=(int)gleam->attribute, .index=is_2p});
+        tex.draw_texture(CROWN::GLEAM, {.frame=(int)gleam->attribute, .index=is_2p});
     }
 }

@@ -588,11 +588,11 @@ void Navigator::update(double current_ms) {
 }
 
 void Navigator::draw(bool is_ura) {
-    int width = tex.textures["box"]["background"]->width;
+    int width = tex.textures[BOX::BACKGROUND]->width;
 
     for (int i = 0; i < width * 4; i += width) {
-        tex.draw_texture("box", "background", {.frame=(int)last_bg_genre_index, .x=(float)(i - background_move->attribute)});
-        tex.draw_texture("box", "background", {.frame=(int)bg_genre_index,  .x=(float)(i - background_move->attribute), .fade=1.0f - background_fade_change->attribute});
+        tex.draw_texture(BOX::BACKGROUND, {.frame=(int)last_bg_genre_index, .x=(float)(i - background_move->attribute)});
+        tex.draw_texture(BOX::BACKGROUND, {.frame=(int)bg_genre_index,  .x=(float)(i - background_move->attribute), .fade=1.0f - background_fade_change->attribute});
     }
 
     if (genre_bg.has_value()) {

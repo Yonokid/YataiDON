@@ -29,11 +29,6 @@ ClearAnimation::ClearAnimation(bool is_2p)
     audio->play_sound("clear", "sound");
 }
 
-ClearAnimation::~ClearAnimation() {
-    for (auto* p : clear_separate_fade_in) delete p;
-    for (auto* p : clear_separate_stretch) delete p;
-}
-
 void ClearAnimation::update(double current_ms) {
     bachio_fade_in->update(current_ms);
     bachio_texture_change->update(current_ms);
@@ -62,12 +57,12 @@ void ClearAnimation::update(double current_ms) {
 
 void ClearAnimation::draw() {
     if (draw_clear_full) {
-        tex.draw_texture("ending_anim", "clear", {
+        tex.draw_texture(ENDING_ANIM::CLEAR, {
             .index = (int)is_2p
         });
     } else {
         for (int i = 4; i >= 0; i--) {
-            tex.draw_texture("ending_anim", "clear_separated", {
+            tex.draw_texture(ENDING_ANIM::CLEAR_SEPARATED, {
                 .frame = i,
                 .x = (float)(i * 60 * tex.screen_scale),
                 .y = (float)(-clear_separate_stretch[i]->attribute),
@@ -78,19 +73,19 @@ void ClearAnimation::draw() {
         }
     }
 
-    tex.draw_texture("ending_anim", "clear_highlight", {
+    tex.draw_texture(ENDING_ANIM::CLEAR_HIGHLIGHT, {
         .fade = (float)(clear_highlight_fade_in->attribute),
         .index = (int)is_2p
     });
 
-    tex.draw_texture("ending_anim", "bachio_l_" + name, {
+    tex.draw_texture(tex_id_map.at("ending_anim/bachio_l_" + name), {
         .frame = frame,
         .x = (float)(-bachio_move_out->attribute),
         .fade = (float)(bachio_fade_in->attribute),
         .index = (int)is_2p
     });
 
-    tex.draw_texture("ending_anim", "bachio_r_" + name, {
+    tex.draw_texture(tex_id_map.at("ending_anim/bachio_r_" + name), {
         .frame = frame,
         .x = (float)(bachio_move_out->attribute),
         .fade = (float)(bachio_fade_in->attribute),

@@ -3,7 +3,7 @@
 ScoreCounterAnimation::ScoreCounterAnimation(PlayerNum player_num, int counter) : counter(counter) {
     direction = 1;
     counter_str = std::to_string(counter);
-    margin = tex.skin_config["score_counter_margin"].x;
+    margin = tex.skin_config[SC::SCORE_COUNTER_MARGIN].x;
     total_width = counter_str.length() * margin;
     y_pos_list.resize(counter_str.length(), 0.0f);
 
@@ -66,7 +66,7 @@ void ScoreCounterAnimation::draw(float y) {
 
         float y_offset = (y_pos * direction) + y;
 
-        tex.draw_texture("lane", "score_number", {
+        tex.draw_texture(LANE::SCORE_NUMBER, {
             .color = color,
             .frame = counter_str[i] - '0',
             .x = start_x + (i * margin),

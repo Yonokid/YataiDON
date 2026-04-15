@@ -16,9 +16,9 @@ void SearchBox::update(double current_ms) {
 
 void SearchBox::draw() {
     ray::DrawRectangle(0, 0, tex.screen_width, tex.screen_height, ray::Fade(ray::BLACK, 0.6));
-    tex.draw_texture("diff_sort", "background", {.scale=(float)bg_resize->attribute, .center=true});
+    tex.draw_texture(DIFF_SORT::BACKGROUND, {.scale=(float)bg_resize->attribute, .center=true});
 
-    TextureObject* background = tex.textures["diff_sort"]["background"].get();
+    TextureObject* background = tex.textures[DIFF_SORT::BACKGROUND].get();
     float fade = diff_fade_in->attribute;
 
     float text_box_width = 400 * tex.screen_scale;

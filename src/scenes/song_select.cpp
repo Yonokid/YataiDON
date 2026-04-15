@@ -118,30 +118,30 @@ Screens SongSelectScreen::on_screen_end(Screens next_screen) {
 
 void SongSelectScreen::draw_overlays() {
     if (state == SongSelectState::BROWSING) {
-        tex.draw_texture("global", "arrow", {.x=-((float)blue_arrow_move->attribute * 2), .fade=blue_arrow_fade->attribute, .index=0});
-        tex.draw_texture("global", "arrow", {.mirror="horizontal", .x=  (float)blue_arrow_move->attribute * 2,  .fade=blue_arrow_fade->attribute, .index=1});
+        tex.draw_texture(GLOBAL::ARROW, {.x=-((float)blue_arrow_move->attribute * 2), .fade=blue_arrow_fade->attribute, .index=0});
+        tex.draw_texture(GLOBAL::ARROW, {.mirror="horizontal", .x=  (float)blue_arrow_move->attribute * 2,  .fade=blue_arrow_fade->attribute, .index=1});
     }
 
-    tex.draw_texture("global", "song_num_bg", {.x=-(song_num->width-127), .x2=(song_num->width-127), .fade=0.75});
-    song_num->draw(tex.skin_config["song_num"].x-song_num->width, tex.skin_config["song_num"].y, 1.0);
+    tex.draw_texture(GLOBAL::SONG_NUM_BG, {.x=-(song_num->width-127), .x2=(song_num->width-127), .fade=0.75});
+    song_num->draw(tex.skin_config[SC::SONG_NUM].x-song_num->width, tex.skin_config[SC::SONG_NUM].y, 1.0);
     if (state == SongSelectState::SONG_SELECTED) {
-        tex.draw_texture("global", "difficulty_select", {.fade=text_fade_in->attribute});
-        tex.draw_texture("global", "song_select", {.fade=1 - text_fade_in->attribute});
+        tex.draw_texture(GLOBAL::DIFFICULTY_SELECT, {.fade=text_fade_in->attribute});
+        tex.draw_texture(GLOBAL::SONG_SELECT, {.fade=1 - text_fade_in->attribute});
         diff_select_timer->draw();
     } else {
-        tex.draw_texture("global", "difficulty_select", {.fade=1 - text_fade_in->attribute});
-        tex.draw_texture("global", "song_select", {.fade=text_fade_in->attribute});
+        tex.draw_texture(GLOBAL::DIFFICULTY_SELECT, {.fade=1 - text_fade_in->attribute});
+        tex.draw_texture(GLOBAL::SONG_SELECT, {.fade=text_fade_in->attribute});
         select_timer->draw();
     }
     allnet_indicator.draw();
     coin_overlay.draw();
-    indicator->draw(tex.skin_config["song_select_indicator"].x, tex.skin_config["song_select_indicator"].y);
+    indicator->draw(tex.skin_config[SC::SONG_SELECT_INDICATOR].x, tex.skin_config[SC::SONG_SELECT_INDICATOR].y);
 }
 
 void SongSelectScreen::draw() {
     player->draw_background_diffs(state);
     if (screen_init) navigator.draw(player->is_ura);
-    tex.draw_texture("global", "footer", {});
+    tex.draw_texture(GLOBAL::FOOTER, {});
 
     player->draw(state);
 

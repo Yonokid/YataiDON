@@ -241,7 +241,7 @@ void ScriptManager::register_lua_bindings() {
     });
 
     tex.set_function("get_skin_config", [](const std::string& config_key) -> sol::optional<sol::table> {
-        auto config_it = script_manager.tex.skin_config.find(config_key);
+        auto config_it = script_manager.tex.skin_config.find(skin_config_map.at(config_key));
         if (config_it == script_manager.tex.skin_config.end()) {
             return sol::nullopt;
         }
@@ -259,40 +259,33 @@ void ScriptManager::register_lua_bindings() {
     });
 
     tex.set_function("get_texture_keys", [](const std::string& subset) -> sol::optional<sol::table> {
-        auto subset_it = script_manager.tex.textures.find(subset);
-        if (subset_it == script_manager.tex.textures.end()) {
-            return sol::nullopt;
-        }
-
+        std::string prefix = subset + "/";
         sol::table keys = script_manager.lua.create_table();
         int index = 1;
-        for (const auto& [key, _] : subset_it->second) {
-            keys[index] = key;
-            ++index;
+        for (const auto& [path, id] : tex_id_map) {
+            if (path.size() > prefix.size() && path.substr(0, prefix.size()) == prefix) {
+                keys[index] = path.substr(prefix.size());
+                ++index;
+            }
         }
-
+        if (index == 1) return sol::nullopt;
         return keys;
     });
 
     tex.set_function("get_texture_info", [](const std::string& subset, const std::string& texture_name) -> sol::optional<sol::table> {
-        auto subset_it = script_manager.tex.textures.find(subset);
-        if (subset_it == script_manager.tex.textures.end()) {
-            return sol::nullopt;
-        }
+        auto it = tex_id_map.find(subset + "/" + texture_name);
+        if (it == tex_id_map.end()) return sol::nullopt;
 
-        auto texture_it = subset_it->second.find(texture_name);
-        if (texture_it == subset_it->second.end()) {
-            return sol::nullopt;
-        }
+        auto tex_it = script_manager.tex.textures.find(it->second);
+        if (tex_it == script_manager.tex.textures.end()) return sol::nullopt;
 
-        const auto& tex_obj = texture_it->second;
+        const auto& tex_obj = tex_it->second;
 
         sol::table info = script_manager.lua.create_table();
         info["name"] = tex_obj->name;
         info["width"] = tex_obj->width;
         info["height"] = tex_obj->height;
 
-        // Try to get frame count from the texture object
         int frame_count = 1;
         if (auto framed = dynamic_cast<FramedTexture*>(tex_obj.get())) {
             frame_count = framed->textures.size();
@@ -303,6 +296,9 @@ void ScriptManager::register_lua_bindings() {
     });
 
     tex.set_function("draw_texture", [](const std::string& subset, const std::string& texture_name, sol::optional<sol::table> params_table) {
+        auto it = tex_id_map.find(subset + "/" + texture_name);
+        if (it == tex_id_map.end()) return;
+
         DrawTextureParams params;
 
         if (params_table) {
@@ -354,7 +350,7 @@ void ScriptManager::register_lua_bindings() {
             }
         }
 
-        script_manager.tex.draw_texture(subset, texture_name, params);
+        script_manager.tex.draw_texture(it->second, params);
     });
 
     lua["tex"] = tex;

@@ -58,21 +58,21 @@ void Combo::draw(float y) {
     float margin;
     float total_width;
     if (combo < 100) {
-        margin = tex.skin_config["combo_margin"].x;
+        margin = tex.skin_config[SC::COMBO_MARGIN].x;
         total_width = counter.length() * margin;
-        tex.draw_texture("combo", "combo", {.y=y});
+        tex.draw_texture(COMBO::COMBO, {.y=y});
         for (int i = 0; i < counter.size(); i++) {
             char digit = counter[i];
-            tex.draw_texture("combo", "counter", {.frame=digit - '0', .x=-(total_width / 2) + (i * margin), .y=y + (float)-stretch->attribute, .y2=(float)stretch->attribute});
+            tex.draw_texture(COMBO::COUNTER, {.frame=digit - '0', .x=-(total_width / 2) + (i * margin), .y=y + (float)-stretch->attribute, .y2=(float)stretch->attribute});
         }
 
     } else {
-        margin = tex.skin_config["combo_margin"].y;
+        margin = tex.skin_config[SC::COMBO_MARGIN].y;
         total_width = counter.length() * margin;
-        tex.draw_texture("combo", "combo_100", {.y=y});
+        tex.draw_texture(COMBO::COMBO_100, {.y=y});
         for (int i = 0; i < counter.size(); i++) {
             char digit = counter[i];
-            tex.draw_texture("combo", "counter_100", {.frame=digit - '0', .x=-(total_width / 2) + (i * margin), .y=y + (float)-stretch->attribute, .y2=(float)stretch->attribute});
+            tex.draw_texture(COMBO::COUNTER_100, {.frame=digit - '0', .x=-(total_width / 2) + (i * margin), .y=y + (float)-stretch->attribute, .y2=(float)stretch->attribute});
         }
         std::vector<std::pair<float, float>> glimmer_positions = {
             {225 * tex.screen_scale, 210 * tex.screen_scale},
@@ -82,7 +82,7 @@ void Combo::draw(float y) {
         for (size_t j = 0; j < glimmer_positions.size(); j++) {
             auto [x, y_pos] = glimmer_positions[j];
             for (int i = 0; i < 3; i++) {
-                tex.draw_texture("combo", "gleam", {.color=color[j], .x=x+(i*tex.skin_config["combo_margin"].x), .y=y+y_pos+glimmer_map[j]});
+                tex.draw_texture(COMBO::GLEAM, {.color=color[j], .x=x+(i*tex.skin_config[SC::COMBO_MARGIN].x), .y=y+y_pos+glimmer_map[j]});
             }
         }
     }

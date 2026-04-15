@@ -31,7 +31,7 @@ void ComboAnnounce::draw(float y) {
     float fade_value = is_finished ? fade->attribute : 1 - fade->attribute;
 
     std::string bg_name = "announce_bg_" + std::to_string(static_cast<int>(player_num)) + "p";
-    tex.draw_texture("combo", bg_name, {.y=y, .fade = fade_value,});
+    tex.draw_texture(tex_id_map.at("combo/" + (bg_name)), {.y=y, .fade = fade_value,});
 
     if (combo >= 1000) {
         int thousands = combo / 1000;
@@ -40,20 +40,20 @@ void ComboAnnounce::draw(float y) {
         float hundreds_offset = 20;
 
         if (combo % 1000 == 0) {
-            tex.draw_texture("combo", "announce_number", {.frame = thousands - 1, .x = -23 * tex.screen_scale, .y = y, .fade = fade_value});
-            tex.draw_texture("combo", "announce_add", {.frame = 0, .x = 435 * tex.screen_scale, .y = y, .fade = fade_value});
+            tex.draw_texture(COMBO::ANNOUNCE_NUMBER, {.frame = thousands - 1, .x = -23 * tex.screen_scale, .y = y, .fade = fade_value});
+            tex.draw_texture(COMBO::ANNOUNCE_ADD, {.frame = 0, .x = 435 * tex.screen_scale, .y = y, .fade = fade_value});
         } else {
             if (thousands <= 5) {
-                tex.draw_texture("combo", "announce_add", {.frame = thousands, .x = 429 * tex.screen_scale + thousands_offset, .y = y, .fade = fade_value});
+                tex.draw_texture(COMBO::ANNOUNCE_ADD, {.frame = thousands, .x = 429 * tex.screen_scale + thousands_offset, .y = y, .fade = fade_value});
             }
             if (remaining_hundreds > 0) {
-                tex.draw_texture("combo", "announce_number", {.frame = remaining_hundreds - 1, .x = hundreds_offset, .y = y, .fade = fade_value});
+                tex.draw_texture(COMBO::ANNOUNCE_NUMBER, {.frame = remaining_hundreds - 1, .x = hundreds_offset, .y = y, .fade = fade_value});
             }
         }
         float text_offset = -30 * tex.screen_scale;
-        tex.draw_texture("combo", "announce_text", {.x = -text_offset / 2, .y = y, .fade = fade_value});
+        tex.draw_texture(COMBO::ANNOUNCE_TEXT, {.x = -text_offset / 2, .y = y, .fade = fade_value});
     } else {
-        tex.draw_texture("combo", "announce_number", {.frame = combo / 100 - 1, .x = 0, .y = y, .fade = fade_value});
-        tex.draw_texture("combo", "announce_text", {.x = 0, .y = y, .fade = fade_value});
+        tex.draw_texture(COMBO::ANNOUNCE_NUMBER, {.frame = combo / 100 - 1, .x = 0, .y = y, .fade = fade_value});
+        tex.draw_texture(COMBO::ANNOUNCE_TEXT, {.x = 0, .y = y, .fade = fade_value});
     }
 }

@@ -81,37 +81,37 @@ void FCAnimation::update(double current_ms) {
 
 void FCAnimation::draw() {
     if (draw_clear_full) {
-        tex.draw_texture("ending_anim", "full_combo_overlay", {
+        tex.draw_texture(ENDING_ANIM::FULL_COMBO_OVERLAY, {
             .y = (float)(-fc_highlight_up->attribute),
             .fade = 0.5f,
             .index = (int)is_2p
         });
 
-        tex.draw_texture("ending_anim", "full_combo", {
+        tex.draw_texture(ENDING_ANIM::FULL_COMBO, {
             .y = (float)(-fc_highlight_up->attribute),
             .index = (int)is_2p
         });
 
-        tex.draw_texture("ending_anim", "full_combo_highlight", {
+        tex.draw_texture(ENDING_ANIM::FULL_COMBO_HIGHLIGHT, {
             .y = (float)(-fc_highlight_up->attribute),
             .fade = (float)(fc_highlight_fade_out->attribute),
             .index = (int)is_2p
         });
 
-        tex.draw_texture("ending_anim", "fan_l", {
+        tex.draw_texture(ENDING_ANIM::FAN_L, {
             .frame = (int)fan_texture_change->attribute,
             .fade = (float)(fan_fade_in->attribute),
             .index = (int)is_2p
         });
 
-        tex.draw_texture("ending_anim", "fan_r", {
+        tex.draw_texture(ENDING_ANIM::FAN_R, {
             .frame = (int)fan_texture_change->attribute,
             .fade = (float)(fan_fade_in->attribute),
             .index = (int)is_2p
         });
     } else {
         for (int i = 4; i >= 0; i--) {
-            tex.draw_texture("ending_anim", "clear_separated", {
+            tex.draw_texture(ENDING_ANIM::CLEAR_SEPARATED, {
                 .frame = i,
                 .x = (float)(i * 60 * tex.screen_scale),
                 .y = (float)(-clear_separate_stretch[i]->attribute),
@@ -122,12 +122,12 @@ void FCAnimation::draw() {
         }
     }
 
-    tex.draw_texture("ending_anim", "clear_highlight", {
+    tex.draw_texture(ENDING_ANIM::CLEAR_HIGHLIGHT, {
         .fade = (float)(clear_highlight_fade_in->attribute),
         .index = (int)is_2p
     });
 
-    tex.draw_texture("ending_anim", "bachio_l_" + name, {
+    tex.draw_texture(tex_id_map.at("ending_anim/bachio_l_" + name), {
         .frame = frame,
         .x = (float)((-bachio_move_out->attribute - bachio_move_out_2->attribute) * 1.15f),
         .y = (float)(-bachio_move_up->attribute),
@@ -135,7 +135,7 @@ void FCAnimation::draw() {
         .index = (int)is_2p
     });
 
-    tex.draw_texture("ending_anim", "bachio_r_" + name, {
+    tex.draw_texture(tex_id_map.at("ending_anim/bachio_r_" + name), {
         .frame = frame,
         .x = (float)((bachio_move_out->attribute + bachio_move_out_2->attribute) * 1.15f),
         .y = (float)(-bachio_move_up->attribute),

@@ -1,9 +1,14 @@
 #pragma once
 
 #include <rapidjson/istreamwrapper.h>
+#include <unordered_map>
+#include <unordered_set>
 
 #include "animation.h"
 #include "config.h"
+#include "logging.h"
+
+#include "skin_config_generated.h"
 
 namespace fs = std::filesystem;
 using namespace rapidjson;
@@ -87,14 +92,15 @@ struct FramedTexture : public TextureObject {
 
 class TextureWrapper {
 private:
-    std::map<int, std::unique_ptr<BaseAnimation>> animations;
+    std::unordered_map<int, std::unique_ptr<BaseAnimation>> animations;
     std::vector<std::unique_ptr<BaseAnimation>> copied_animations;
     fs::path graphics_path;
     fs::path parent_graphics_path;
+    std::unordered_set<std::string> loaded_subsets;
 
 public:
-    std::map<std::string, std::map<std::string, std::shared_ptr<TextureObject>>> textures;
-    std::map<std::string, SkinInfo> skin_config;
+    std::unordered_map<uint32_t, std::shared_ptr<TextureObject>> textures;
+    std::unordered_map<SC, SkinInfo> skin_config;
     fs::path font_path;
     int screen_width;
     int screen_height;
@@ -125,9 +131,14 @@ public:
 
     void clear_screen(const ray::Color& color);
 
-    void draw_texture(const std::string& subset, const std::string& texture_name, const DrawTextureParams& = {});
+    void draw_texture(uint32_t id, const DrawTextureParams& = {});
 };
 
 extern TextureWrapper tex;
 
 extern TextureWrapper global_tex;
+
+// TexID enum, per-subset namespaces, and tex_id_map — auto-generated from skin texture.json files
+// Usage: tex.draw_texture(YELLOW_BOX::CROWN_FC, {...})
+//        tex.textures[YELLOW_BOX::CROWN_FC]->width
+#include "texture_ids_generated.h"

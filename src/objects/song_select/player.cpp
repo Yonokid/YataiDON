@@ -285,9 +285,9 @@ void SongSelectPlayer::draw_selector(bool is_half) {
     float fade = (neiro_selector.has_value() || modifier_selector.has_value())
         ? 0.5f : selected_diff_fadein->attribute;
     float direction = diff_select_move_right ? 1.0f : -1.0f;
-    float offset = tex.skin_config["selector_offset"].x;
-    float balloon_offset_1 = tex.skin_config["selector_balloon_offset_1"].x;
-    float balloon_offset_2 = tex.skin_config["selector_balloon_offset_2"].x;
+    float offset = tex.skin_config[SC::SELECTOR_OFFSET].x;
+    float balloon_offset_1 = tex.skin_config[SC::SELECTOR_BALLOON_OFFSET_1].x;
+    float balloon_offset_2 = tex.skin_config[SC::SELECTOR_BALLOON_OFFSET_2].x;
 
     std::string p = std::to_string((int)player_num) + "p";
     std::string half_suffix = is_half ? "_half" : "";
@@ -296,24 +296,24 @@ void SongSelectPlayer::draw_selector(bool is_half) {
         if (prev_diff == Difficulty::NEIRO && selected_difficulty >= Difficulty::EASY) {
             if (!diff_selector_move_2->is_finished) {
                 float bx = (((int)prev_diff + 3) * balloon_offset_2) + balloon_offset_1 + (diff_selector_move_2->attribute * direction);
-                tex.draw_texture("diff_select", p + "_balloon" + half_suffix,      {.x=bx, .fade=fade});
-                tex.draw_texture("diff_select", p + "_outline_back" + half_suffix, {.x=(((int)prev_diff + 3) * balloon_offset_2) + ((float)diff_selector_move_2->attribute * direction)});
+                tex.draw_texture(tex_id_map.at("diff_select/" + (p + "_balloon" + half_suffix)),      {.x=bx, .fade=fade});
+                tex.draw_texture(tex_id_map.at("diff_select/" + (p + "_outline_back" + half_suffix)), {.x=(((int)prev_diff + 3) * balloon_offset_2) + ((float)diff_selector_move_2->attribute * direction)});
             } else {
                 Difficulty difficulty = std::min(Difficulty::ONI, selected_difficulty);
-                tex.draw_texture("diff_select", p + "_balloon" + half_suffix, {.x=((int)difficulty * offset), .fade=fade});
-                tex.draw_texture("diff_select", p + "_outline" + half_suffix, {.x=((int)difficulty * offset)});
+                tex.draw_texture(tex_id_map.at("diff_select/" + (p + "_balloon" + half_suffix)), {.x=((int)difficulty * offset), .fade=fade});
+                tex.draw_texture(tex_id_map.at("diff_select/" + (p + "_outline" + half_suffix)), {.x=((int)difficulty * offset)});
             }
         } else if (!diff_selector_move_2->is_finished) {
-            tex.draw_texture("diff_select", p + "_outline_back" + half_suffix, {.x=(((int)prev_diff + 3) * balloon_offset_2) + ((float)diff_selector_move_2->attribute * direction)});
+            tex.draw_texture(tex_id_map.at("diff_select/" + (p + "_outline_back" + half_suffix)), {.x=(((int)prev_diff + 3) * balloon_offset_2) + ((float)diff_selector_move_2->attribute * direction)});
             if (selected_difficulty != Difficulty::BACK) {
                 float bx = (((int)prev_diff + 3) * balloon_offset_2) + balloon_offset_1 + (diff_selector_move_2->attribute * direction);
-                tex.draw_texture("diff_select", p + "_balloon" + half_suffix, {.x=bx, .fade=fade});
+                tex.draw_texture(tex_id_map.at("diff_select/" + (p + "_balloon" + half_suffix)), {.x=bx, .fade=fade});
             }
         } else {
-            tex.draw_texture("diff_select", p + "_outline_back" + half_suffix, {.x=(((int)selected_difficulty + 3) * balloon_offset_2)});
+            tex.draw_texture(tex_id_map.at("diff_select/" + (p + "_outline_back" + half_suffix)), {.x=(((int)selected_difficulty + 3) * balloon_offset_2)});
             if ((int)selected_difficulty != -3) {
                 float bx = (((int)selected_difficulty + 3) * balloon_offset_2) + balloon_offset_1;
-                tex.draw_texture("diff_select", p + "_balloon" + half_suffix, {.x=bx, .fade=fade});
+                tex.draw_texture(tex_id_map.at("diff_select/" + (p + "_balloon" + half_suffix)), {.x=bx, .fade=fade});
             }
         }
     } else {
@@ -321,12 +321,12 @@ void SongSelectPlayer::draw_selector(bool is_half) {
         if (!diff_selector_move_1->is_finished) {
             Difficulty difficulty = std::min(Difficulty::ONI, prev_diff);
             float bx = ((int)difficulty * offset) + (diff_selector_move_1->attribute * direction);
-            tex.draw_texture("diff_select", p + "_balloon" + half_suffix, {.x=bx, .fade=fade});
-            tex.draw_texture("diff_select", p + "_outline" + half_suffix, {.x=bx});
+            tex.draw_texture(tex_id_map.at("diff_select/" + (p + "_balloon" + half_suffix)), {.x=bx, .fade=fade});
+            tex.draw_texture(tex_id_map.at("diff_select/" + (p + "_outline" + half_suffix)), {.x=bx});
         } else {
             Difficulty difficulty = std::min(Difficulty::ONI, selected_difficulty);
-            tex.draw_texture("diff_select", p + "_balloon" + half_suffix, {.x=((int)difficulty * offset), .fade=fade});
-            tex.draw_texture("diff_select", p + "_outline" + half_suffix, {.x=((int)difficulty * offset)});
+            tex.draw_texture(tex_id_map.at("diff_select/" + (p + "_balloon" + half_suffix)), {.x=((int)difficulty * offset), .fade=fade});
+            tex.draw_texture(tex_id_map.at("diff_select/" + (p + "_outline" + half_suffix)), {.x=((int)difficulty * offset)});
         }
     }
 }
@@ -341,12 +341,12 @@ void SongSelectPlayer::draw_background_diffs(SongSelectState state) {
     int diff_frame     = (int)selected_difficulty;
     int diff_frame_oni = (int)(std::min(Difficulty::ONI, selected_difficulty));
 
-    tex.draw_texture("global", "background_diff", {.frame=diff_frame, .x=x_offset, .y=bounce_y,  .y2=bounce_y2, .fade=std::min(0.5f, (float)selected_diff_fadein->attribute)});
+    tex.draw_texture(GLOBAL::BACKGROUND_DIFF, {.frame=diff_frame, .x=x_offset, .y=bounce_y,  .y2=bounce_y2, .fade=std::min(0.5f, (float)selected_diff_fadein->attribute)});
     if (selected_diff_highlight_fade->is_reversing || selected_diff_highlight_fade->is_finished)
-        tex.draw_texture("global", "background_diff", {.frame=diff_frame, .x=x_offset, .y=bounce_y, .y2=bounce_y2});
-    tex.draw_texture("global", "background_diff_highlight",  {.frame=diff_frame_oni, .x=x_offset, .fade=selected_diff_highlight_fade->attribute});
-    tex.draw_texture("global", "bg_diff_text_bg", {.scale=(float)selected_diff_text_resize->attribute, .center=true, .x=x_offset, .fade=std::min(0.5f, (float)selected_diff_text_fadein->attribute)});
-    tex.draw_texture("global", "bg_diff_text",    {.frame=diff_frame_oni, .scale=(float)selected_diff_text_resize->attribute, .center=true, .x=x_offset, .fade=selected_diff_text_fadein->attribute});
+        tex.draw_texture(GLOBAL::BACKGROUND_DIFF, {.frame=diff_frame, .x=x_offset, .y=bounce_y, .y2=bounce_y2});
+    tex.draw_texture(GLOBAL::BACKGROUND_DIFF_HIGHLIGHT,  {.frame=diff_frame_oni, .x=x_offset, .fade=selected_diff_highlight_fade->attribute});
+    tex.draw_texture(GLOBAL::BG_DIFF_TEXT_BG, {.scale=(float)selected_diff_text_resize->attribute, .center=true, .x=x_offset, .fade=std::min(0.5f, (float)selected_diff_text_fadein->attribute)});
+    tex.draw_texture(GLOBAL::BG_DIFF_TEXT,    {.frame=diff_frame_oni, .scale=(float)selected_diff_text_resize->attribute, .center=true, .x=x_offset, .fade=selected_diff_text_fadein->attribute});
 }
 
 void SongSelectPlayer::draw(SongSelectState state, bool is_half) {
@@ -358,21 +358,21 @@ void SongSelectPlayer::draw(SongSelectState state, bool is_half) {
     if (neiro_selector.has_value()) {
         offset = neiro_selector->move->attribute;
         offset = neiro_selector->is_confirmed
-            ? offset + tex.skin_config["song_select_offset"].x
+            ? offset + tex.skin_config[SC::SONG_SELECT_OFFSET].x
             : -offset;
     }
     if (modifier_selector.has_value()) {
         offset = modifier_selector->move->attribute;
         offset = modifier_selector->is_confirmed
-            ? offset + tex.skin_config["song_select_offset"].x
+            ? offset + tex.skin_config[SC::SONG_SELECT_OFFSET].x
             : -offset;
     }
 
     if (player_num == PlayerNum::P1) {
-        nameplate.draw(tex.skin_config["song_select_nameplate_1p"].x, tex.skin_config["song_select_nameplate_1p"].y);
+        nameplate.draw(tex.skin_config[SC::SONG_SELECT_NAMEPLATE_1P].x, tex.skin_config[SC::SONG_SELECT_NAMEPLATE_1P].y);
         //chara.draw({.x=tex.skin_config["song_select_chara_1p"].x, .y=tex.skin_config["song_select_chara_1p"].y + (offset * 0.6f)});
     } else {
-        nameplate.draw(tex.skin_config["song_select_nameplate_2p"].x, tex.skin_config["song_select_nameplate_2p"].y);
+        nameplate.draw(tex.skin_config[SC::SONG_SELECT_NAMEPLATE_2P].x, tex.skin_config[SC::SONG_SELECT_NAMEPLATE_2P].y);
         //chara.draw({.mirror=true, .x=tex.skin_config["song_select_chara_2p"].x, .y=tex.skin_config["song_select_chara_2p"].y + (offset * 0.6f)});
     }
 

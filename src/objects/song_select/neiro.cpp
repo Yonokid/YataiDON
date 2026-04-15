@@ -29,8 +29,8 @@ NeiroSelector::NeiroSelector(PlayerNum player_num) : player_num(player_num) {
     move_sideways = (MoveAnimation*)tex.get_animation(31, true);
     fade_sideways = (FadeAnimation*)tex.get_animation(32, true);
 
-    text = new OutlinedText(sounds[selected_sound], tex.skin_config["neiro_text"].font_size, ray::WHITE, ray::BLACK, false);
-    text_2 = new OutlinedText(sounds[selected_sound], tex.skin_config["neiro_text"].font_size, ray::WHITE, ray::BLACK, false);
+    text = new OutlinedText(sounds[selected_sound], tex.skin_config[SC::NEIRO_TEXT].font_size, ray::WHITE, ray::BLACK, false);
+    text_2 = new OutlinedText(sounds[selected_sound], tex.skin_config[SC::NEIRO_TEXT].font_size, ray::WHITE, ray::BLACK, false);
 }
 
 void NeiroSelector::load_sound() {
@@ -55,7 +55,7 @@ void NeiroSelector::left() {
 
     delete text;
     text = text_2;
-    text_2 = new OutlinedText(sounds[selected_sound], tex.skin_config["neiro_text"].font_size, ray::WHITE, ray::BLACK, false);
+    text_2 = new OutlinedText(sounds[selected_sound], tex.skin_config[SC::NEIRO_TEXT].font_size, ray::WHITE, ray::BLACK, false);
 
     direction = -1;
     if (selected_sound == (int)sounds.size()) return;
@@ -72,7 +72,7 @@ void NeiroSelector::right() {
 
     delete text;
     text = text_2;
-    text_2 = new OutlinedText(sounds[selected_sound], tex.skin_config["neiro_text"].font_size, ray::WHITE, ray::BLACK, false);
+    text_2 = new OutlinedText(sounds[selected_sound], tex.skin_config[SC::NEIRO_TEXT].font_size, ray::WHITE, ray::BLACK, false);
 
     direction = 1;
     if (selected_sound == (int)sounds.size()) return;
@@ -101,39 +101,39 @@ void NeiroSelector::update(double current_ms) {
 
 void NeiroSelector::draw() {
     float y = is_confirmed
-        ? tex.skin_config["song_select_offset"].x + move->attribute
+        ? tex.skin_config[SC::SONG_SELECT_OFFSET].x + move->attribute
         : -move->attribute;
-    float x = ((int)player_num - 1) * tex.skin_config["option_p2"].x;
+    float x = ((int)player_num - 1) * tex.skin_config[SC::OPTION_P2].x;
 
-    tex.draw_texture("neiro", "background", {.x=x, .y=y});
-    tex.draw_texture("neiro", std::to_string((int)player_num) + "p", {.x=x, .y=y});
-    tex.draw_texture("neiro", "divisor", {.x=x, .y=y});
-    tex.draw_texture("neiro", "music_note", {.x=x + ((float)move_sideways->attribute * direction), .y=y, .fade=fade_sideways->attribute});
-    tex.draw_texture("neiro", "music_note", {.x=x + (direction * -tex.skin_config["option_text_in"].x) + ((float)move_sideways->attribute * direction), .y=y, .fade=1.0f - fade_sideways->attribute});
-    tex.draw_texture("neiro", "blue_arrow", {.x=x - (float)blue_arrow_move->attribute, .y=y, .fade=blue_arrow_fade->attribute});
-    tex.draw_texture("neiro", "blue_arrow", {.mirror="horizontal", .x=x + (tex.skin_config["option_text_in"].x * 2) + (float)blue_arrow_move->attribute, .y=y, .fade=blue_arrow_fade->attribute});
+    tex.draw_texture(NEIRO::BACKGROUND, {.x=x, .y=y});
+    tex.draw_texture(tex_id_map.at("neiro/" + (std::to_string((int)player_num) + "p")), {.x=x, .y=y});
+    tex.draw_texture(NEIRO::DIVISOR, {.x=x, .y=y});
+    tex.draw_texture(NEIRO::MUSIC_NOTE, {.x=x + ((float)move_sideways->attribute * direction), .y=y, .fade=fade_sideways->attribute});
+    tex.draw_texture(NEIRO::MUSIC_NOTE, {.x=x + (direction * -tex.skin_config[SC::OPTION_TEXT_IN].x) + ((float)move_sideways->attribute * direction), .y=y, .fade=1.0f - fade_sideways->attribute});
+    tex.draw_texture(NEIRO::BLUE_ARROW, {.x=x - (float)blue_arrow_move->attribute, .y=y, .fade=blue_arrow_fade->attribute});
+    tex.draw_texture(NEIRO::BLUE_ARROW, {.mirror="horizontal", .x=x + (tex.skin_config[SC::OPTION_TEXT_IN].x * 2) + (float)blue_arrow_move->attribute, .y=y, .fade=blue_arrow_fade->attribute});
 
     std::string counter = std::to_string(selected_sound + 1);
-    float margin = tex.skin_config["neiro_counter_margin"].x;
+    float margin = tex.skin_config[SC::NEIRO_COUNTER_MARGIN].x;
     float total_width = counter.size() * margin;
     for (int i = 0; i < (int)counter.size(); i++) {
         int digit = counter[i] - '0';
-        tex.draw_texture("neiro", "counter", {.frame=digit, .x=x - (total_width / 2) + (i * margin), .y=y});
+        tex.draw_texture(NEIRO::COUNTER, {.frame=digit, .x=x - (total_width / 2) + (i * margin), .y=y});
     }
 
     counter = std::to_string(sounds.size());
     total_width = counter.size() * margin;
     for (int i = 0; i < (int)counter.size(); i++) {
         int digit = counter[i] - '0';
-        tex.draw_texture("neiro", "counter", {.frame=digit, .x=x - (total_width / 2) + (i * margin) + (60 * tex.screen_scale), .y=y});
+        tex.draw_texture(NEIRO::COUNTER, {.frame=digit, .x=x - (total_width / 2) + (i * margin) + (60 * tex.screen_scale), .y=y});
     }
 
     text->draw({
-        .x = static_cast<float>(x + tex.skin_config["neiro_text"].x - (text->width / 2.0f) + (move_sideways->attribute * direction)),
-        .y = y + tex.skin_config["neiro_text"].y,
+        .x = static_cast<float>(x + tex.skin_config[SC::NEIRO_TEXT].x - (text->width / 2.0f) + (move_sideways->attribute * direction)),
+        .y = y + tex.skin_config[SC::NEIRO_TEXT].y,
         .fade = fade_sideways->attribute});
     text_2->draw({
-        .x = static_cast<float>(x + (direction * -tex.skin_config["option_text_in"].x) + tex.skin_config["neiro_text"].x - (text_2->width / 2.0f) + (move_sideways->attribute * direction)),
-        .y = y + tex.skin_config["neiro_text"].y,
+        .x = static_cast<float>(x + (direction * -tex.skin_config[SC::OPTION_TEXT_IN].x) + tex.skin_config[SC::NEIRO_TEXT].x - (text_2->width / 2.0f) + (move_sideways->attribute * direction)),
+        .y = y + tex.skin_config[SC::NEIRO_TEXT].y,
         .fade = 1.0f - fade_sideways->attribute});
 }

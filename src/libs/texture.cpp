@@ -4,7 +4,7 @@ void TextureWrapper::init(const fs::path& skin_path) {
     graphics_path = skin_path;
 
     if (!fs::exists(graphics_path)) {
-        ray::TraceLog(ray::LOG_ERROR, "No skin has been configured");
+        spdlog::error("No skin has been configured");
         return;
     }
 
@@ -25,7 +25,7 @@ void TextureWrapper::init(const fs::path& skin_path) {
     }
 
     for (auto& m : doc.GetObject()) {
-        std::string key = m.name.GetString();
+        SC key = skin_config_map.at(m.name.GetString());
         const Value& v = m.value;
 
         float x = v.HasMember("x") ? v["x"].GetFloat() : 0;
@@ -44,8 +44,8 @@ void TextureWrapper::init(const fs::path& skin_path) {
         skin_config[key] = SkinInfo(x, y, font_size, width, height, text_map);
     }
 
-    screen_width = static_cast<int>(skin_config["screen"].width);
-    screen_height = static_cast<int>(skin_config["screen"].height);
+    screen_width = static_cast<int>(skin_config[SC::SCREEN].width);
+    screen_height = static_cast<int>(skin_config[SC::SCREEN].height);
     screen_scale = screen_width / 1280.0f;
 
     if (doc.HasMember("screen") && doc["screen"].HasMember("parent")) {
@@ -59,7 +59,7 @@ void TextureWrapper::init(const fs::path& skin_path) {
         parent_doc.ParseStream(parent_isw);
 
         for (auto& m : parent_doc.GetObject()) {
-            std::string key = m.name.GetString();
+            SC key = skin_config_map.at(m.name.GetString());
             const Value& v = m.value;
 
             float x = (v.HasMember("x") ? v["x"].GetFloat() : 0) * screen_scale;
@@ -81,40 +81,11 @@ void TextureWrapper::init(const fs::path& skin_path) {
 }
 
 void TextureWrapper::unload_textures() {
-    std::map<unsigned int, std::string> ids;
-
-    for (auto& [subset, tex_map] : textures) {
-        for (auto& [name, tex_obj] : tex_map) {
-            auto* framed = dynamic_cast<FramedTexture*>(tex_obj.get());
-            if (framed) {
-                for (size_t i = 0; i < framed->textures.size(); i++) {
-                    unsigned int id = framed->textures[i].id;
-                    std::string tex_name = subset + "/" + name + "[" + std::to_string(i) + "]";
-
-                    if (ids.find(id) != ids.end()) {
-                    } else {
-                        ids[id] = tex_name;
-                    }
-                }
-            } else {
-                auto* single = dynamic_cast<SingleTexture*>(tex_obj.get());
-                if (single) {
-                    unsigned int id = single->texture.id;
-                    std::string tex_name = subset + "/" + name;
-
-                    if (ids.find(id) != ids.end()) {
-                    } else {
-                        ids[id] = tex_name;
-                    }
-                }
-            }
-        }
-    }
-
     textures.clear();
+    loaded_subsets.clear();
     animations.clear();
     copied_animations.clear();
-    ray::TraceLog(ray::LOG_INFO, "All textures unloaded");
+    spdlog::info("All textures unloaded");
 }
 
 BaseAnimation* TextureWrapper::get_animation(const int id, bool is_copy) {
@@ -253,7 +224,7 @@ void TextureWrapper::load_animations(const std::string& screen_name) {
 
         AnimationParser parser;
         animations = parser.parse_animations(doc);
-        ray::TraceLog(ray::LOG_INFO, "Animations loaded for screen: %s", screen_name.c_str());
+        spdlog::info("Animations loaded for screen: {}", screen_name);
     } else if (parent_graphics_path != graphics_path && fs::exists(parent_anim_file)) {
         std::ifstream ifs(parent_anim_file);
         IStreamWrapper isw(ifs);
@@ -287,20 +258,17 @@ void TextureWrapper::load_animations(const std::string& screen_name) {
 
         AnimationParser parser;
         animations = parser.parse_animations(doc);
-        ray::TraceLog(ray::LOG_INFO, "Animations loaded for screen: %s (from parent)", screen_name.c_str());
+        spdlog::info("Animations loaded for screen: {}", screen_name);
     }
 }
 
 void TextureWrapper::load_folder(const std::string& screen_name, const std::string& subset) {
-    if (textures.find(screen_name) != textures.end() &&
-        textures[screen_name].find(subset) != textures[screen_name].end()) {
-        return;
-    }
+    // Subset leaf name is the key used in tex_id_map (e.g. "notes_nijiiro" from "game/notes_nijiiro")
+    const std::string subset_key = fs::path(subset).filename().string();
 
-    // Load all textures from a given folder path into textures[subset], applying scale to coordinates.
-    // Existing entries are overwritten, so calling with parent first then child gives child priority.
-    // The map key is the last path component of subset (e.g. "donbg/0_0" -> "0_0")
-    const std::string tex_key = fs::path(subset).filename().string();
+    if (loaded_subsets.count(subset_key)) return;
+
+    int loaded_count = 0;
 
     auto load_from_path = [&](const fs::path& folder, float tex_scale) {
         fs::path tex_json = folder / "texture.json";
@@ -319,6 +287,15 @@ void TextureWrapper::load_folder(const std::string& screen_name, const std::stri
             for (auto& m : doc.GetObject()) {
                 std::string tex_name = m.name.GetString();
                 const Value& tex_mapping = m.value;
+
+                std::string map_key = subset_key + "/" + tex_name;
+                auto id_it = tex_id_map.find(map_key);
+                if (id_it == tex_id_map.end()) {
+                    spdlog::warn("Texture %s has no generated TexID — skipping",
+                                  map_key.c_str());
+                    continue;
+                }
+                uint32_t tex_id = static_cast<uint32_t>(id_it->second);
 
                 fs::path tex_dir = folder / tex_name;
                 fs::path tex_file = folder / (tex_name + ".png");
@@ -341,25 +318,27 @@ void TextureWrapper::load_folder(const std::string& screen_name, const std::stri
 
                     auto framed = std::make_shared<FramedTexture>(tex_name, loaded_frames);
                     read_tex_obj_data(tex_mapping, framed.get(), tex_scale);
-                    textures[tex_key][tex_name] = framed;
+                    textures[tex_id] = framed;
+                    ++loaded_count;
 
                 } else if (fs::exists(tex_file)) {
                     ray::Texture2D tex = ray::LoadTexture(tex_file.string().c_str());
                     auto single = std::make_shared<SingleTexture>(tex_name, tex);
                     read_tex_obj_data(tex_mapping, single.get(), tex_scale);
-                    textures[tex_key][tex_name] = single;
+                    textures[tex_id] = single;
+                    ++loaded_count;
 
                 } else {
-                    ray::TraceLog(ray::LOG_ERROR, "Texture %s was not found in %s",
+                    spdlog::error("Texture %s was not found in %s",
                            tex_name.c_str(), folder.string().c_str());
                 }
             }
 
-            ray::TraceLog(ray::LOG_INFO, "Textures loaded from folder: %s", folder.string().c_str());
+            spdlog::info("Textures loaded from folder: {}", folder.string());
 
         } catch (const std::exception& e) {
-            ray::TraceLog(ray::LOG_ERROR, "Failed to load textures from folder %s: %s",
-                   folder.string().c_str(), e.what());
+            spdlog::error("Failed to load textures from folder {}: {}",
+                   folder.string(), e.what());
         }
     };
 
@@ -370,8 +349,10 @@ void TextureWrapper::load_folder(const std::string& screen_name, const std::stri
     }
     load_from_path(graphics_path / screen_name / subset, 1.0f);
 
-    if (textures.find(tex_key) == textures.end() || textures[tex_key].empty()) {
-        ray::TraceLog(ray::LOG_ERROR, "No textures loaded for %s/%s", screen_name.c_str(), subset.c_str());
+    if (loaded_count == 0) {
+        spdlog::error("No textures loaded for {}/{}", screen_name, subset);
+    } else {
+        loaded_subsets.insert(subset_key);
     }
 }
 
@@ -383,7 +364,7 @@ void TextureWrapper::load_screen_textures(const std::string& screen_name) {
     bool parent_exists = parent_graphics_path != graphics_path && fs::exists(parent_screen_path);
 
     if (!child_exists && !parent_exists) {
-        ray::TraceLog(ray::LOG_WARNING, "Textures for Screen %s do not exist", screen_name.c_str());
+        spdlog::warn("Textures for Screen {} do not exist", screen_name);
         return;
     }
 
@@ -406,23 +387,18 @@ void TextureWrapper::load_screen_textures(const std::string& screen_name) {
         }
     }
 
-    ray::TraceLog(ray::LOG_INFO, "Screen textures loaded for: %s", screen_name.c_str());
+    spdlog::info("Screen textures loaded for: {}", screen_name);
 }
 
 void TextureWrapper::clear_screen(const ray::Color& color) {
     ray::ClearBackground(color);
 }
 
-void TextureWrapper::draw_texture(const std::string& subset, const std::string& texture_name,
-    const DrawTextureParams& params) {
+void TextureWrapper::draw_texture(uint32_t id, const DrawTextureParams& params) {
+    auto it = textures.find(id);
+    if (it == textures.end()) return;
 
-    auto subset_it = textures.find(subset);
-    if (subset_it == textures.end()) return;
-
-    auto texture_it = subset_it->second.find(texture_name);
-    if (texture_it == subset_it->second.end()) return;
-
-    TextureObject* tex_obj = texture_it->second.get();
+    TextureObject* tex_obj = it->second.get();
 
     const float mirror_x = (params.mirror == "horizontal") ? -1.0f : 1.0f;
     const float mirror_y = (params.mirror == "vertical") ? -1.0f : 1.0f;
@@ -436,8 +412,8 @@ void TextureWrapper::draw_texture(const std::string& subset, const std::string& 
         try {
             source_rect = tex_obj->crop_data->at(params.frame);
         } catch (const std::out_of_range& e) {
-            ray::TraceLog(ray::LOG_ERROR, "Frame index out of range for texture %s", tex_obj->name.c_str());
-            ray::TraceLog(ray::LOG_ERROR, "Frame index: %d, Number of frames: %zu", params.frame, tex_obj->crop_data->size());
+            spdlog::error("Frame index out of range for texture {}", tex_obj->name);
+            spdlog::error("Frame index: {}, Number of frames: {}", params.frame, tex_obj->crop_data->size());
             throw;
         }
     } else {

@@ -23,11 +23,11 @@ void ScoreCounter::draw(float y) {
 
     float x = 150 * tex.screen_scale;
     float y_pos = y + (185 * tex.screen_scale);
-    float margin = tex.skin_config["score_counter_margin"].x;
+    float margin = tex.skin_config[SC::SCORE_COUNTER_MARGIN].x;
     float total_width = counter.length() * margin;
     float start_x = x - total_width;
     for (int i = 0; i < counter.size(); i++) {
         char digit = counter[i];
-        tex.draw_texture("lane", "score_number", {.frame=digit - '0', .x=start_x + (i * margin), .y=(float)(y_pos - stretch->attribute), .y2=(float)stretch->attribute});
+        tex.draw_texture(LANE::SCORE_NUMBER, {.frame=digit - '0', .x=start_x + (i * margin), .y=(float)(y_pos - stretch->attribute), .y2=(float)stretch->attribute});
     }
 }

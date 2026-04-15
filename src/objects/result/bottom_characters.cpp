@@ -71,8 +71,8 @@ void BottomCharacters::update(ResultState state) {
 }
 
 void BottomCharacters::draw_flowers() {
-    tex.draw_texture("bottom","flowers", {.frame=flower_index, .y=(float)-flower_up->attribute});
-    tex.draw_texture("bottom","flowers", {.frame=flower_index, .mirror="horizontal", .x=tex.skin_config["result_flowers_offset"].x, .y=(float)-flower_up->attribute});
+    tex.draw_texture(BOTTOM::FLOWERS, {.frame=flower_index, .y=(float)-flower_up->attribute});
+    tex.draw_texture(BOTTOM::FLOWERS, {.frame=flower_index, .mirror="horizontal", .x=tex.skin_config[SC::RESULT_FLOWERS_OFFSET].x, .y=(float)-flower_up->attribute});
 }
 
 void BottomCharacters::draw() {
@@ -81,11 +81,11 @@ void BottomCharacters::draw() {
     float y = -move_up->attribute + move_down->attribute + bounce_up->attribute - bounce_down->attribute;
     if (state == ResultState::RAINBOW) {
         float center_y = c_bounce_up->attribute - c_bounce_down->attribute;
-        tex.draw_texture("bottom", "chara_center", {.y=(float)-move_center->attribute + center_y});
+        tex.draw_texture(BOTTOM::CHARA_CENTER, {.y=(float)-move_center->attribute + center_y});
     }
 
-    tex.draw_texture("bottom", "chara_0", {.frame=chara_0_index, .y=y});
-    tex.draw_texture("bottom", "chara_1", {.frame=chara_1_index, .y=y});
+    tex.draw_texture(BOTTOM::CHARA_0, {.frame=chara_0_index, .y=y});
+    tex.draw_texture(BOTTOM::CHARA_1, {.frame=chara_1_index, .y=y});
 }
 
 

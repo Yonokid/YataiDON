@@ -40,36 +40,36 @@ void ResultGauge::update(double current_ms) {
 void ResultGauge::draw() {
     float scale = 10.0/11.0;
     std::string player_str = std::to_string(static_cast<int>(player_num)) + "p";
-    tex.draw_texture("gauge", player_str + "_unfilled" + string_diff, {.scale=scale, .fade=gauge_fade_in->attribute, .index=is_2p});
-    float bar_width = tex.textures["gauge"][player_str + "_bar"]->width;
+    tex.draw_texture(tex_id_map.at("gauge/" + (player_str + "_unfilled" + string_diff)), {.scale=scale, .fade=gauge_fade_in->attribute, .index=is_2p});
+    float bar_width = tex.textures[tex_id_map.at("gauge/" + player_str + "_bar")]->width;
     if (gauge_length == gauge_max) {
         if (0 < rainbow_animation->attribute && rainbow_animation->attribute < 8) {
-            tex.draw_texture("gauge", "rainbow" + string_diff, {.frame=(int)rainbow_animation->attribute-1, .scale=scale, .fade=gauge_fade_in->attribute, .index=is_2p});
+            tex.draw_texture(tex_id_map.at("gauge/rainbow" + string_diff), {.frame=(int)rainbow_animation->attribute-1, .scale=scale, .fade=gauge_fade_in->attribute, .index=is_2p});
         }
-        tex.draw_texture("gauge", "rainbow" + string_diff, {.frame=(int)rainbow_animation->attribute, .scale=scale, .fade=gauge_fade_in->attribute, .index=is_2p});
+        tex.draw_texture(tex_id_map.at("gauge/rainbow" + string_diff), {.frame=(int)rainbow_animation->attribute, .scale=scale, .fade=gauge_fade_in->attribute, .index=is_2p});
     } else {
-        tex.draw_texture("gauge", player_str + "p_bar", {.scale=scale, .x2=(gauge_length*bar_width)-(bar_width*6), .fade=gauge_fade_in->attribute, .index=is_2p});
+        tex.draw_texture(tex_id_map.at("gauge/" + (player_str + "p_bar")), {.scale=scale, .x2=(gauge_length*bar_width)-(bar_width*6), .fade=gauge_fade_in->attribute, .index=is_2p});
         if (gauge_length >= clear_start[(int)difficulty] - 1) {
-            tex.draw_texture("gauge", player_str + "bar_clear_transition", {.scale=scale, .x=(clear_start[(int)difficulty]*bar_width)-(bar_width*7), .fade=gauge_fade_in->attribute, .index=is_2p});
-            tex.draw_texture("gauge", player_str + "bar_clear_top", {.scale=scale, .x=(clear_start[(int)difficulty]*bar_width)-(bar_width*6), .x2=(gauge_length - clear_start[(int)difficulty])*bar_width, .fade=gauge_fade_in->attribute, .index=is_2p});
-            tex.draw_texture("gauge", player_str + "bar_clear_bottom", {.scale=scale, .x=(clear_start[(int)difficulty]*bar_width)-(bar_width*6), .x2=(gauge_length - clear_start[(int)difficulty])*bar_width, .fade=gauge_fade_in->attribute, .index=is_2p});
+            tex.draw_texture(tex_id_map.at("gauge/" + (player_str + "bar_clear_transition")), {.scale=scale, .x=(clear_start[(int)difficulty]*bar_width)-(bar_width*7), .fade=gauge_fade_in->attribute, .index=is_2p});
+            tex.draw_texture(tex_id_map.at("gauge/" + (player_str + "bar_clear_top")), {.scale=scale, .x=(clear_start[(int)difficulty]*bar_width)-(bar_width*6), .x2=(gauge_length - clear_start[(int)difficulty])*bar_width, .fade=gauge_fade_in->attribute, .index=is_2p});
+            tex.draw_texture(tex_id_map.at("gauge/" + (player_str + "bar_clear_bottom")), {.scale=scale, .x=(clear_start[(int)difficulty]*bar_width)-(bar_width*6), .x2=(gauge_length - clear_start[(int)difficulty])*bar_width, .fade=gauge_fade_in->attribute, .index=is_2p});
         }
     }
-    tex.draw_texture("gauge", "overlay" + string_diff, {.scale=scale, .fade=std::min(0.15, gauge_fade_in->attribute), .index=is_2p});
-    tex.draw_texture("gauge", "footer", {.scale=scale, .fade=gauge_fade_in->attribute, .index=is_2p});
+    tex.draw_texture(tex_id_map.at("gauge/overlay" + string_diff), {.scale=scale, .fade=std::min(0.15, gauge_fade_in->attribute), .index=is_2p});
+    tex.draw_texture(GAUGE::FOOTER, {.scale=scale, .fade=gauge_fade_in->attribute, .index=is_2p});
 
     if (gauge_length >= clear_start[(int)difficulty] - 1) {
-        tex.draw_texture("gauge", "clear", {.scale=scale, .fade=gauge_fade_in->attribute, .index=(int)difficulty+(is_2p*3)});
+        tex.draw_texture(GAUGE::CLEAR, {.scale=scale, .fade=gauge_fade_in->attribute, .index=(int)difficulty+(is_2p*3)});
         if (state == ResultState::RAINBOW) {
-            tex.draw_texture("gauge", "tamashii_fire", {.frame=(int)tamashii_fire_change->attribute, .scale=(float)0.75 * scale, .center=true, .fade=gauge_fade_in->attribute, .index=is_2p});
+            tex.draw_texture(GAUGE::TAMASHII_FIRE, {.frame=(int)tamashii_fire_change->attribute, .scale=(float)0.75 * scale, .center=true, .fade=gauge_fade_in->attribute, .index=is_2p});
         }
-        tex.draw_texture("gauge", "tamashii", {.scale=scale, .fade=gauge_fade_in->attribute, .index=is_2p});
+        tex.draw_texture(GAUGE::TAMASHII, {.scale=scale, .fade=gauge_fade_in->attribute, .index=is_2p});
         int a = tamashii_fire_change->attribute;
         if (state == ResultState::RAINBOW && (a == 0 || a == 1 || a == 4 || a == 5)) {
-            tex.draw_texture("gauge", "tamashii_overlay", {.scale=scale, .fade=std::min(0.5, gauge_fade_in->attribute), .index=is_2p});
+            tex.draw_texture(GAUGE::TAMASHII_OVERLAY, {.scale=scale, .fade=std::min(0.5, gauge_fade_in->attribute), .index=is_2p});
         }
     } else {
-        tex.draw_texture("gauge", "clear_dark", {.scale=scale, .fade=gauge_fade_in->attribute, .index=(int)difficulty+(is_2p*3)});
-        tex.draw_texture("gauge", "tamashii_dark", {.scale=scale, .fade=gauge_fade_in->attribute, .index=is_2p});
+        tex.draw_texture(GAUGE::CLEAR_DARK, {.scale=scale, .fade=gauge_fade_in->attribute, .index=(int)difficulty+(is_2p*3)});
+        tex.draw_texture(GAUGE::TAMASHII_DARK, {.scale=scale, .fade=gauge_fade_in->attribute, .index=is_2p});
     }
 }

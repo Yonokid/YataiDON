@@ -164,7 +164,7 @@ void SettingsBox::update(double current_time_ms, bool selected) {
 }
 
 void SettingsBox::draw_text() const {
-    auto& box_tex = tex.textures.at("box").at("box");
+    auto& box_tex = tex.textures[BOX::BOX];
     float text_x = x + (box_tex->width  / 2.0f) - (label->width  / 2.0f);
     float text_y = y + (box_tex->height / 2.0f) - (label->height / 2.0f);
 
@@ -178,19 +178,19 @@ void SettingsBox::draw_text() const {
 }
 
 void SettingsBox::draw() {
-    tex.draw_texture("box", "box", {.x=x, .y=y});
+    tex.draw_texture(BOX::BOX, {.x=x, .y=y});
     if (is_selected) {
-        tex.draw_texture("box", "box_highlight", {.x=x, .y=y});
+        tex.draw_texture(BOX::BOX_HIGHLIGHT, {.x=x, .y=y});
     }
     if (in_box && !options.empty()) {
         options[option_index]->draw();
         if (!options[option_index]->is_highlighted) {
-            tex.draw_texture("background", "blue_arrow",
+            tex.draw_texture(BACKGROUND::BLUE_ARROW,
                 {.x=-(float)blue_arrow_move->attribute,
                  .fade=blue_arrow_fade->attribute,
                  .index=0});
             if (option_index != (int)options.size() - 1) {
-                tex.draw_texture("background", "blue_arrow",
+                tex.draw_texture(BACKGROUND::BLUE_ARROW,
                     {.mirror="horizontal",
                      .x=(float)blue_arrow_move->attribute,
                      .fade=blue_arrow_fade->attribute,

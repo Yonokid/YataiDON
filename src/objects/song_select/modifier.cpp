@@ -47,7 +47,7 @@ void ModifierSelector::set_bool(int mod_index, bool value) {
 }
 
 OutlinedText* ModifierSelector::make_text(const std::string& str) {
-    return new OutlinedText(str, tex.skin_config["modifier_text"].font_size, ray::WHITE, ray::BLACK, false, 3.5f);
+    return new OutlinedText(str, tex.skin_config[SC::MODIFIER_TEXT].font_size, ray::WHITE, ray::BLACK, false, 3.5f);
 }
 
 ModifierSelector::ModifierSelector(PlayerNum player_num) : player_num(player_num) {
@@ -70,17 +70,17 @@ ModifierSelector::ModifierSelector(PlayerNum player_num) : player_num(player_num
     for (const auto& name : MOD_NAMES)
         text_name.push_back(make_text(name_map.at(name)));
 
-    text_true      = make_text(tex.skin_config["modifier_text_true"].text.at(language));
-    text_false     = make_text(tex.skin_config["modifier_text_false"].text.at(language));
+    text_true      = make_text(tex.skin_config[SC::MODIFIER_TEXT_TRUE].text.at(language));
+    text_false     = make_text(tex.skin_config[SC::MODIFIER_TEXT_FALSE].text.at(language));
     text_speed     = make_text(std::to_string(global_data.modifiers[(int)player_num].speed));
-    text_kimagure  = make_text(tex.skin_config["modifier_text_kimagure"].text.at(language));
-    text_detarame  = make_text(tex.skin_config["modifier_text_detarame"].text.at(language));
+    text_kimagure  = make_text(tex.skin_config[SC::MODIFIER_TEXT_KIMAGURE].text.at(language));
+    text_detarame  = make_text(tex.skin_config[SC::MODIFIER_TEXT_DETARAME].text.at(language));
 
-    text_true_2     = make_text(tex.skin_config["modifier_text_true"].text.at(language));
-    text_false_2    = make_text(tex.skin_config["modifier_text_false"].text.at(language));
+    text_true_2     = make_text(tex.skin_config[SC::MODIFIER_TEXT_TRUE].text.at(language));
+    text_false_2    = make_text(tex.skin_config[SC::MODIFIER_TEXT_FALSE].text.at(language));
     text_speed_2    = make_text(std::to_string(global_data.modifiers[(int)player_num].speed));
-    text_kimagure_2 = make_text(tex.skin_config["modifier_text_kimagure"].text.at(language));
-    text_detarame_2 = make_text(tex.skin_config["modifier_text_detarame"].text.at(language));
+    text_kimagure_2 = make_text(tex.skin_config[SC::MODIFIER_TEXT_KIMAGURE].text.at(language));
+    text_detarame_2 = make_text(tex.skin_config[SC::MODIFIER_TEXT_DETARAME].text.at(language));
 }
 
 void ModifierSelector::update(double current_ms) {
@@ -117,22 +117,22 @@ void ModifierSelector::start_text_animation(int dir) {
         if (modifiers.random == 1) {
             delete text_kimagure;
             text_kimagure = text_kimagure_2;
-            text_kimagure_2 = make_text(tex.skin_config["modifier_text_kimagure"].text.at(language));
+            text_kimagure_2 = make_text(tex.skin_config[SC::MODIFIER_TEXT_KIMAGURE].text.at(language));
         } else if (modifiers.random == 2) {
             delete text_detarame;
             text_detarame = text_detarame_2;
-            text_detarame_2 = make_text(tex.skin_config["modifier_text_detarame"].text.at(language));
+            text_detarame_2 = make_text(tex.skin_config[SC::MODIFIER_TEXT_DETARAME].text.at(language));
         }
     } else {
         // bool mod
         if (get_bool(current_mod_index)) {
             delete text_true;
             text_true = text_true_2;
-            text_true_2 = make_text(tex.skin_config["modifier_text_true"].text.at(language));
+            text_true_2 = make_text(tex.skin_config[SC::MODIFIER_TEXT_TRUE].text.at(language));
         } else {
             delete text_false;
             text_false = text_false_2;
-            text_false_2 = make_text(tex.skin_config["modifier_text_false"].text.at(language));
+            text_false_2 = make_text(tex.skin_config[SC::MODIFIER_TEXT_FALSE].text.at(language));
         }
     }
 }
@@ -178,7 +178,7 @@ void ModifierSelector::draw_animated_text(OutlinedText* primary, OutlinedText* s
             .y = y,
             .fade = fade_sideways->attribute});
         secondary->draw({
-            .x = (direction * -tex.skin_config["option_text_in"].x) + x + ((float)move_sideways->attribute * direction),
+            .x = (direction * -tex.skin_config[SC::OPTION_TEXT_IN].x) + x + ((float)move_sideways->attribute * direction),
             .y = y,
             .fade = 1.0f - fade_sideways->attribute});
     } else {
@@ -188,14 +188,14 @@ void ModifierSelector::draw_animated_text(OutlinedText* primary, OutlinedText* s
 
 void ModifierSelector::draw() {
     float move_val = is_confirmed
-        ? move->attribute - tex.skin_config["song_select_offset"].x
+        ? move->attribute - tex.skin_config[SC::SONG_SELECT_OFFSET].x
         : -move->attribute;
-    float x = ((int)player_num - 1) * tex.skin_config["option_p2"].x;
-    float mod_offset_y = tex.skin_config["modifier_offset"].y;
+    float x = ((int)player_num - 1) * tex.skin_config[SC::OPTION_P2].x;
+    float mod_offset_y = tex.skin_config[SC::MODIFIER_OFFSET].y;
 
-    tex.draw_texture("modifier", "top",    {.x=x, .y=move_val});
-    tex.draw_texture("modifier", std::to_string((int)player_num) + "p", {.x=x, .y=move_val});
-    tex.draw_texture("modifier", "bottom", {.x=x, .y=move_val + ((int)MOD_NAMES.size() * mod_offset_y)});
+    tex.draw_texture(MODIFIER::TOP,    {.x=x, .y=move_val});
+    tex.draw_texture(tex_id_map.at("modifier/" + (std::to_string((int)player_num) + "p")), {.x=x, .y=move_val});
+    tex.draw_texture(MODIFIER::BOTTOM, {.x=x, .y=move_val + ((int)MOD_NAMES.size() * mod_offset_y)});
 
     for (int i = 0; i < (int)MOD_NAMES.size(); i++) {
         float row_y = move_val + (i * mod_offset_y);
@@ -203,36 +203,36 @@ void ModifierSelector::draw() {
         auto& modifiers = global_data.modifiers[(int)player_num];
         bool is_current = (i == current_mod_index);
 
-        tex.draw_texture("modifier", "background",                              {.x=x, .y=row_y});
-        tex.draw_texture("modifier", is_current ? "mod_bg_highlight" : "mod_bg", {.x=x, .y=row_y});
-        tex.draw_texture("modifier", "mod_box",                                 {.x=x, .y=row_y});
+        tex.draw_texture(MODIFIER::BACKGROUND,                              {.x=x, .y=row_y});
+        tex.draw_texture(tex_id_map.at(std::string("modifier/") + (is_current ? "mod_bg_highlight" : "mod_bg")), {.x=x, .y=row_y});
+        tex.draw_texture(MODIFIER::MOD_BOX,                                 {.x=x, .y=row_y});
 
         text_name[i]->draw({
-            .x = tex.skin_config["modifier_offset_2"].x + x,
-            .y = tex.skin_config["modifier_text"].y + row_y
+            .x = tex.skin_config[SC::MODIFIER_OFFSET_2].x + x,
+            .y = tex.skin_config[SC::MODIFIER_TEXT].y + row_y
         });
 
-        float text_base_x = tex.skin_config["modifier_text"].x;
-        float text_y = tex.skin_config["modifier_text"].y + row_y;
+        float text_base_x = tex.skin_config[SC::MODIFIER_TEXT].x;
+        float text_y = tex.skin_config[SC::MODIFIER_TEXT].y + row_y;
 
         if (mod_name == "speed") {
             float tx = text_base_x - (text_speed->width / 2.0f);
             draw_animated_text(text_speed, text_speed_2, tx + x, text_y, is_current);
 
             float spd = modifiers.speed;
-            if      (spd >= 4.0f) tex.draw_texture("modifier", "mod_yonbai",         {.x=x, .y=row_y});
-            else if (spd >= 3.0f) tex.draw_texture("modifier", "mod_sanbai",         {.x=x, .y=row_y});
-            else if (spd >  1.0f) tex.draw_texture("modifier", TEX_MAP.at(mod_name), {.x=x, .y=row_y});
+            if      (spd >= 4.0f) tex.draw_texture(MODIFIER::MOD_YONBAI,         {.x=x, .y=row_y});
+            else if (spd >= 3.0f) tex.draw_texture(MODIFIER::MOD_SANBAI,         {.x=x, .y=row_y});
+            else if (spd >  1.0f) tex.draw_texture(tex_id_map.at("modifier/" + (TEX_MAP.at(mod_name))), {.x=x, .y=row_y});
 
         } else if (mod_name == "random") {
             if (modifiers.random == 1) {
                 float tx = text_base_x - (text_kimagure->width / 2.0f);
                 draw_animated_text(text_kimagure, text_kimagure_2, tx + x, text_y, is_current);
-                tex.draw_texture("modifier", TEX_MAP.at(mod_name), {.x=x, .y=row_y});
+                tex.draw_texture(tex_id_map.at("modifier/" + (TEX_MAP.at(mod_name))), {.x=x, .y=row_y});
             } else if (modifiers.random == 2) {
                 float tx = text_base_x - (text_detarame->width / 2.0f);
                 draw_animated_text(text_detarame, text_detarame_2, tx + x, text_y, is_current);
-                tex.draw_texture("modifier", "mod_detarame", {.x=x, .y=row_y});
+                tex.draw_texture(MODIFIER::MOD_DETARAME, {.x=x, .y=row_y});
             } else {
                 float tx = text_base_x - (text_false->width / 2.0f);
                 draw_animated_text(text_false, text_false_2, tx + x, text_y, is_current);
@@ -241,7 +241,7 @@ void ModifierSelector::draw() {
         } else {
             // bool mod
             bool val = get_bool(i);
-            if (val) tex.draw_texture("modifier", TEX_MAP.at(mod_name), {.x=x, .y=row_y});
+            if (val) tex.draw_texture(tex_id_map.at("modifier/" + (TEX_MAP.at(mod_name))), {.x=x, .y=row_y});
             OutlinedText* primary   = val ? text_true   : text_false;
             OutlinedText* secondary = val ? text_true_2 : text_false_2;
             float tx = text_base_x - (primary->width / 2.0f);
@@ -249,8 +249,8 @@ void ModifierSelector::draw() {
         }
 
         if (is_current) {
-            tex.draw_texture("modifier", "blue_arrow", {.x=x - (float)blue_arrow_move->attribute, .y=row_y, .fade=blue_arrow_fade->attribute});
-            tex.draw_texture("modifier", "blue_arrow", {.mirror="horizontal", .x=x + tex.skin_config["modifier_offset_2"].y + (float)blue_arrow_move->attribute, .y=row_y, .fade=blue_arrow_fade->attribute});
+            tex.draw_texture(MODIFIER::BLUE_ARROW, {.x=x - (float)blue_arrow_move->attribute, .y=row_y, .fade=blue_arrow_fade->attribute});
+            tex.draw_texture(MODIFIER::BLUE_ARROW, {.mirror="horizontal", .x=x + tex.skin_config[SC::MODIFIER_OFFSET_2].y + (float)blue_arrow_move->attribute, .y=row_y, .fade=blue_arrow_fade->attribute});
         }
     }
 }

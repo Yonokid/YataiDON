@@ -56,8 +56,8 @@ FolderBox::~FolderBox() {
 
 void FolderBox::load_text() {
     BaseBox::load_text();
-    hori_name = std::make_unique<OutlinedText>(text_name, tex.skin_config["song_hori_name"].font_size, ray::WHITE, ray::BLACK, false);
-    tja_count_text = std::make_unique<OutlinedText>(std::to_string(tja_count), tex.skin_config["song_tja_count"].font_size, ray::WHITE, ray::BLACK, false);
+    hori_name = std::make_unique<OutlinedText>(text_name, tex.skin_config[SC::SONG_HORI_NAME].font_size, ray::WHITE, ray::BLACK, false);
+    tja_count_text = std::make_unique<OutlinedText>(std::to_string(tja_count), tex.skin_config[SC::SONG_TJA_COUNT].font_size, ray::WHITE, ray::BLACK, false);
     if (fs::exists(fs::path(path / "box.png")) && !box_texture.has_value()) {
         box_texture = ray::LoadTexture((path / "box.png").string().c_str());
         ray::GenTextureMipmaps(&box_texture.value());
@@ -95,15 +95,15 @@ void FolderBox::draw_closed() {
 
     if (shader_loaded && texture_index == TextureIndex::NONE)
         ray::BeginShaderMode(shader);
-    tex.draw_texture("box", "folder_clip", {.frame=(int)texture_index, .x=position-(1.0f * tex.screen_scale), .fade=fade->attribute});
+    tex.draw_texture(BOX::FOLDER_CLIP, {.frame=(int)texture_index, .x=position-(1.0f * tex.screen_scale), .fade=fade->attribute});
     if (shader_loaded && texture_index == TextureIndex::NONE)
         ray::EndShaderMode();
 
     if (!text_loaded) return;
-    float name_h = std::min((float)this->name->height, tex.skin_config["song_box_name"].height);
+    float name_h = std::min((float)this->name->height, tex.skin_config[SC::SONG_BOX_NAME].height);
     this->name->draw({
-        .x    = position + tex.skin_config["song_box_name"].x - (int)(this->name->width / 2.0f),
-        .y    = tex.skin_config["song_box_name"].y,
+        .x    = position + tex.skin_config[SC::SONG_BOX_NAME].x - (int)(this->name->width / 2.0f),
+        .y    = tex.skin_config[SC::SONG_BOX_NAME].y,
         .y2   = name_h - this->name->height,
         .fade = fade->attribute
     });
@@ -113,69 +113,69 @@ void FolderBox::draw_closed() {
             [](const auto& a, const auto& b) { return a.first < b.first; })->first;
         int frame = std::min((int)Difficulty::URA, highest_crown);
         Crown c = crown.at(highest_crown);
-        if      (c == Crown::DFC)   tex.draw_texture("yellow_box", "crown_dfc",   {.frame=frame, .x=position});
-        else if (c == Crown::FC)    tex.draw_texture("yellow_box", "crown_fc",    {.frame=frame, .x=position});
-        else                         tex.draw_texture("yellow_box", "crown_clear", {.frame=frame, .x=position});
+        if      (c == Crown::DFC)   tex.draw_texture(YELLOW_BOX::CROWN_DFC,   {.frame=frame, .x=position});
+        else if (c == Crown::FC)    tex.draw_texture(YELLOW_BOX::CROWN_FC,    {.frame=frame, .x=position});
+        else                         tex.draw_texture(YELLOW_BOX::CROWN_CLEAR, {.frame=frame, .x=position});
     }
 }
 
 void FolderBox::draw_open_bg(float fade) {
     float shadow_fade = std::min(fade, (float)open_fade->attribute);
-    tex.draw_texture("yellow_box", "shadow_bottom_left", {.x=position, .fade=shadow_fade, .index=1});
-    tex.draw_texture("yellow_box", "shadow_bottom", {.x=position, .fade=shadow_fade, .index=1});
-    tex.draw_texture("yellow_box", "shadow_bottom_right", {.x=position, .fade=shadow_fade, .index=1});
-    tex.draw_texture("yellow_box", "shadow_right", {.x=position, .fade=shadow_fade, .index=1});
-    tex.draw_texture("yellow_box", "shadow_top_right", {.x=position, .fade=shadow_fade, .index=1});
+    tex.draw_texture(YELLOW_BOX::SHADOW_BOTTOM_LEFT, {.x=position, .fade=shadow_fade, .index=1});
+    tex.draw_texture(YELLOW_BOX::SHADOW_BOTTOM, {.x=position, .fade=shadow_fade, .index=1});
+    tex.draw_texture(YELLOW_BOX::SHADOW_BOTTOM_RIGHT, {.x=position, .fade=shadow_fade, .index=1});
+    tex.draw_texture(YELLOW_BOX::SHADOW_RIGHT, {.x=position, .fade=shadow_fade, .index=1});
+    tex.draw_texture(YELLOW_BOX::SHADOW_TOP_RIGHT, {.x=position, .fade=shadow_fade, .index=1});
     int frame = (int)texture_index;
     bool use_shader = shader_loaded && texture_index == TextureIndex::NONE;
 
     if (open_anim->attribute >= (100.0f * tex.screen_scale)) {
         if (use_shader) ray::BeginShaderMode(shader);
-        tex.draw_texture("box", "folder_top_edge", {.frame=frame, .mirror="horizontal", .y=-(float)open_anim->attribute, .fade=fade});
-        tex.draw_texture("box", "folder_top",      {.frame=frame, .y=-(float)open_anim->attribute, .fade=fade});
-        tex.draw_texture("box", "folder_top_edge", {.frame=frame, .x=tex.skin_config["song_folder_top"].x, .y=-(float)open_anim->attribute, .fade=fade});
+        tex.draw_texture(BOX::FOLDER_TOP_EDGE, {.frame=frame, .mirror="horizontal", .y=-(float)open_anim->attribute, .fade=fade});
+        tex.draw_texture(BOX::FOLDER_TOP,      {.frame=frame, .y=-(float)open_anim->attribute, .fade=fade});
+        tex.draw_texture(BOX::FOLDER_TOP_EDGE, {.frame=frame, .x=tex.skin_config[SC::SONG_FOLDER_TOP].x, .y=-(float)open_anim->attribute, .fade=fade});
         if (use_shader) ray::EndShaderMode();
     }
 
     if (use_shader) ray::BeginShaderMode(shader);
-    tex.draw_texture("box", "folder_texture_left",  {.frame=frame, .x=position-(float)open_anim->attribute, .fade=fade});
-    tex.draw_texture("box", "folder_texture", {
+    tex.draw_texture(BOX::FOLDER_TEXTURE_LEFT,  {.frame=frame, .x=position-(float)open_anim->attribute, .fade=fade});
+    tex.draw_texture(BOX::FOLDER_TEXTURE, {
         .frame=frame,
         .x=position-(float)open_anim->attribute,
-        .x2=((float)open_anim->attribute * 2.0f) + tex.skin_config["song_box_bg"].width,
+        .x2=((float)open_anim->attribute * 2.0f) + tex.skin_config[SC::SONG_BOX_BG].width,
         .fade=fade
     });
-    tex.draw_texture("box", "folder_texture_right", {.frame=frame, .x=position + (float)open_anim->attribute, .fade=fade});
+    tex.draw_texture(BOX::FOLDER_TEXTURE_RIGHT, {.frame=frame, .x=position + (float)open_anim->attribute, .fade=fade});
     if (use_shader) ray::EndShaderMode();
 }
 
 void FolderBox::draw_open_fg(float fade) {
     if (open_anim->attribute >= (100.0f * tex.screen_scale)) {
-        float dest_width = std::min(tex.skin_config["song_hori_name"].width,
+        float dest_width = std::min(tex.skin_config[SC::SONG_HORI_NAME].width,
                                     (float)hori_name->width);
         hori_name->draw({
-            .x  = (tex.skin_config["song_hori_name"].x) - (dest_width / 2.0f),
-            .y  = tex.skin_config["song_hori_name"].y - (float)open_anim->attribute,
+            .x  = (tex.skin_config[SC::SONG_HORI_NAME].x) - (dest_width / 2.0f),
+            .y  = tex.skin_config[SC::SONG_HORI_NAME].y - (float)open_anim->attribute,
             .x2 = dest_width - hori_name->width, .fade=fade
         });
     }
 
     if (texture_index == TextureIndex::DEFAULT)
-        tex.draw_texture("box", "genre_overlay_large", {.fade=fade});
+        tex.draw_texture(BOX::GENRE_OVERLAY_LARGE, {.fade=fade});
     if (genre_index == GenreIndex::DIFFICULTY)
-        tex.draw_texture("box", "diff_overlay_large",  {.fade=fade});
+        tex.draw_texture(BOX::DIFF_OVERLAY_LARGE,  {.fade=fade});
 
     // Song count
     if (genre_index != GenreIndex::DIFFICULTY) {
-        tex.draw_texture("yellow_box", "song_count_back",  {.fade=std::min(fade, 0.5f)});
-        tex.draw_texture("yellow_box", "song_count_num",   {.fade=fade});
-        tex.draw_texture("yellow_box", "song_count_songs", {.fade=fade});
+        tex.draw_texture(YELLOW_BOX::SONG_COUNT_BACK,  {.fade=std::min(fade, 0.5f)});
+        tex.draw_texture(YELLOW_BOX::SONG_COUNT_NUM,   {.fade=fade});
+        tex.draw_texture(YELLOW_BOX::SONG_COUNT_SONGS, {.fade=fade});
 
-        float dest_width = std::min(tex.skin_config["song_tja_count"].width,
+        float dest_width = std::min(tex.skin_config[SC::SONG_TJA_COUNT].width,
                                     (float)tja_count_text->width);
         tja_count_text->draw({
-            .x  = tex.skin_config["song_tja_count"].x - (dest_width / 2.0f),
-            .y  = tex.skin_config["song_tja_count"].y,
+            .x  = tex.skin_config[SC::SONG_TJA_COUNT].x - (dest_width / 2.0f),
+            .y  = tex.skin_config[SC::SONG_TJA_COUNT].y,
             .x2 = dest_width - tja_count_text->width,
             .fade=fade
         });
@@ -193,14 +193,14 @@ void FolderBox::draw_open_fg(float fade) {
             scaled_width *= scale_factor;
             scaled_height *= scale_factor;
         }
-        int x = int(position + tex.skin_config["box_texture"].x - (scaled_width / 2));
-        int y = int(tex.skin_config["box_texture"].y - (scaled_height / 2));
+        int x = int(position + tex.skin_config[SC::BOX_TEXTURE].x - (scaled_width / 2));
+        int y = int(tex.skin_config[SC::BOX_TEXTURE].y - (scaled_height / 2));
         ray::Rectangle src(0, 0, box_texture->width, box_texture->height);
         ray::Rectangle dest(x, y, scaled_width, scaled_height);
         ray::DrawTexturePro(box_texture.value(), src, dest, ray::Vector2(0, 0), 0, ray::Fade(ray::WHITE, fade));
     } else if (texture_index != TextureIndex::DEFAULT) {
-        tex.draw_texture("box", "folder_graphic", {.frame=(int)genre_index, .fade=fade});
-        tex.draw_texture("box", "folder_text",    {.frame=(int)genre_index, .fade=fade});
+        tex.draw_texture(BOX::FOLDER_GRAPHIC, {.frame=(int)genre_index, .fade=fade});
+        tex.draw_texture(BOX::FOLDER_TEXT,    {.frame=(int)genre_index, .fade=fade});
     }
 }
 

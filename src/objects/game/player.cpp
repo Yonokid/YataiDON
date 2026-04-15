@@ -336,8 +336,8 @@ void Player::update(double ms_from_start, double current_ms, std::optional<Backg
 }
 
 void Player::draw(double ms_from_start, float x, float y, ray::Shader& mask_shader) {//dan_transition = None
-    tex.draw_texture("lane", "lane_background", {.y=y});
-    if (player_num == PlayerNum::AI) tex.draw_texture("lane", "ai_lane_background", {.y=y});
+    tex.draw_texture(LANE::LANE_BACKGROUND, {.y=y});
+    if (player_num == PlayerNum::AI) tex.draw_texture(LANE::AI_LANE_BACKGROUND, {.y=y});
     if (branch_indicator.has_value()) {
         branch_indicator->draw(y);
     }
@@ -347,7 +347,7 @@ void Player::draw(double ms_from_start, float x, float y, ray::Shader& mask_shad
     if (lane_hit_effect.has_value()) {
         lane_hit_effect->draw(y);
     }
-    tex.draw_texture("lane", "lane_hit_circle", {.x = judge_x, .y = y + judge_y});
+    tex.draw_texture(LANE::LANE_HIT_CIRCLE, {.x = judge_x, .y = y + judge_y});
 
     if (gogo_time.has_value()) {
         gogo_time->draw(judge_x, y + judge_y);
@@ -368,7 +368,7 @@ void Player::draw(double ms_from_start, float x, float y, ray::Shader& mask_shad
 }
 
 void Player::get_load_time(Note& note) {
-    int note_half_w = tex.textures["notes"]["9"]->width / 2;
+    int note_half_w = tex.textures[NOTES::_9]->width / 2;
     float travel_distance = tex.screen_width - JudgePos::X;
     float base_pixels_per_ms = (note.bpm / 240000 * abs(note.scroll_x) * travel_distance);
     if (base_pixels_per_ms == 0) {
@@ -1098,7 +1098,7 @@ void Player::draw_bar(double current_ms, float y, const Note& bar) {
     } else {
         angle = 0;
     }
-    tex.draw_texture("notes", "0", {.frame=bar.is_branch_start, .x=x_position+tex.skin_config["moji_drumroll"].x - (tex.textures["notes"]["9"]->width/2.0f), .y=y_position+tex.skin_config["moji_drumroll"].y, .rotation=angle});
+    tex.draw_texture(NOTES::_0, {.frame=bar.is_branch_start, .x=x_position+tex.skin_config[SC::MOJI_DRUMROLL].x - (tex.textures[NOTES::_9]->width/2.0f), .y=y_position+tex.skin_config[SC::MOJI_DRUMROLL].y, .rotation=angle});
 }
 
 void Player::draw_drumroll(double current_ms, float y, const Note& head, int current_eighth) {
@@ -1121,27 +1121,27 @@ void Player::draw_drumroll(double current_ms, float y, const Note& head, int cur
     float end_position = get_position_x(tail, current_ms);
     float length = end_position - start_position;
     ray::Color color = ray::Color{255, (unsigned char)head.color.value(), (unsigned char)head.color.value(), 255};
-    float y_pos = y + tex.skin_config["notes"].y + get_position_y(head, current_ms) + judge_y;
+    float y_pos = y + tex.skin_config[SC::NOTES].y + get_position_y(head, current_ms) + judge_y;
     start_position += judge_x;
     end_position += judge_x;
-    float moji_y = y + tex.skin_config["moji"].y;
+    float moji_y = y + tex.skin_config[SC::MOJI].y;
     if (head.display) {
-        tex.draw_texture("notes", "8", {.color=color, .frame=is_big, .x=start_position, .y=y_pos, .x2=length+tex.skin_config["drumroll_width_offset"].width});
+        tex.draw_texture(NOTES::_8, {.color=color, .frame=is_big, .x=start_position, .y=y_pos, .x2=length+tex.skin_config[SC::DRUMROLL_WIDTH_OFFSET].width});
         if (is_big) {
-            tex.draw_texture("notes", "drumroll_big_tail", {.color=color, .x=end_position, .y=y_pos});
+            tex.draw_texture(NOTES::DRUMROLL_BIG_TAIL, {.color=color, .x=end_position, .y=y_pos});
         } else {
-            tex.draw_texture("notes", "drumroll_tail", {.color=color, .x=end_position, .y=y_pos});
+            tex.draw_texture(NOTES::DRUMROLL_TAIL, {.color=color, .x=end_position, .y=y_pos});
         }
-        tex.draw_texture("notes", std::to_string((int)head.type), {.color=color, .frame=current_eighth % 2, .x=start_position - tex.textures["notes"]["9"]->width/2.0f, .y=y_pos+judge_y});
+        tex.draw_texture(tex_id_map.at("notes/" + (std::to_string((int)head.type))), {.color=color, .frame=current_eighth % 2, .x=start_position - tex.textures[NOTES::_9]->width/2.0f, .y=y_pos+judge_y});
     }
 
-    tex.draw_texture("notes", "moji_drumroll_mid", {.x=start_position, .y=moji_y+judge_y, .x2=length});
-    tex.draw_texture("notes", "moji", {.frame=head.moji, .x=start_position - (tex.textures["notes"]["moji"]->width/2.0f), .y=moji_y+judge_y});
-    tex.draw_texture("notes", "moji", {.frame=tail.moji, .x=end_position - (tex.textures["notes"]["moji"]->width/2.0f), .y=moji_y+judge_y});
+    tex.draw_texture(NOTES::MOJI_DRUMROLL_MID, {.x=start_position, .y=moji_y+judge_y, .x2=length});
+    tex.draw_texture(NOTES::MOJI, {.frame=head.moji, .x=start_position - (tex.textures[NOTES::MOJI]->width/2.0f), .y=moji_y+judge_y});
+    tex.draw_texture(NOTES::MOJI, {.frame=tail.moji, .x=end_position - (tex.textures[NOTES::MOJI]->width/2.0f), .y=moji_y+judge_y});
 }
 
 void Player::draw_balloon(double current_ms, float y, const Note& head, int current_eighth) {
-    float offset = tex.skin_config["balloon_offset"].x;
+    float offset = tex.skin_config[SC::BALLOON_OFFSET].x;
     if (head.sudden_appear_ms.has_value() && head.sudden_moving_ms.has_value()) {
         double appear_ms = head.hit_ms - head.sudden_appear_ms.value();
         double moving_start_ms = head.hit_ms - head.sudden_moving_ms.value();
@@ -1159,8 +1159,8 @@ void Player::draw_balloon(double current_ms, float y, const Note& head, int curr
     auto& tail = (it != draw_note_buffer.end()) ? *it : draw_note_buffer[1];
     float end_position = get_position_x(tail, current_ms);
     float pause_position = JudgePos::X + judge_x;
-    float y_pos = y + tex.skin_config["notes"].y + get_position_y(head, current_ms) + judge_y;
-    float moji_y = y + tex.skin_config["moji"].y + get_position_y(head, current_ms) + judge_y;
+    float y_pos = y + tex.skin_config[SC::NOTES].y + get_position_y(head, current_ms) + judge_y;
+    float moji_y = y + tex.skin_config[SC::MOJI].y + get_position_y(head, current_ms) + judge_y;
     start_position += judge_x;
     end_position += judge_x;
     float position;
@@ -1172,10 +1172,10 @@ void Player::draw_balloon(double current_ms, float y, const Note& head, int curr
         position = start_position;
     }
     if (head.display) {
-        tex.draw_texture("notes", std::to_string((int)head.type), {.frame=current_eighth % 2, .x=position-offset - tex.textures["notes"]["9"]->width/2.0f, .y=y_pos});
-        tex.draw_texture("notes", "10", {.frame=current_eighth % 2, .x=position-offset+tex.textures["notes"]["10"]->width - tex.textures["notes"]["9"]->width/2.0f, .y=y_pos});
+        tex.draw_texture(tex_id_map.at("notes/" + (std::to_string((int)head.type))), {.frame=current_eighth % 2, .x=position-offset - tex.textures[NOTES::_9]->width/2.0f, .y=y_pos});
+        tex.draw_texture(NOTES::_10, {.frame=current_eighth % 2, .x=position-offset+tex.textures[NOTES::_10]->width - tex.textures[NOTES::_9]->width/2.0f, .y=y_pos});
     }
-    tex.draw_texture("notes", "moji", {.frame=head.moji, .x=position - (tex.textures["notes"]["moji"]->width/2.0f), .y=moji_y});
+    tex.draw_texture(NOTES::MOJI, {.frame=head.moji, .x=position - (tex.textures[NOTES::MOJI]->width/2.0f), .y=moji_y});
 }
 
 void Player::draw_notes(double current_ms, float y) {
@@ -1241,8 +1241,8 @@ void Player::draw_notes(double current_ms, float y) {
         } else if (note.type == NoteType::BALLOON_HEAD) {
             draw_balloon(current_ms, y, note, current_eighth);
         } else {
-            if (note.display) tex.draw_texture("notes", std::to_string((int)note.type), {.frame=current_eighth % 2, .center=true, .x=x_position - (tex.textures["notes"]["9"]->width/2.0f), .y=y_position+tex.skin_config["notes"].y});
-            tex.draw_texture("notes", "moji", {.frame=note.moji, .x=x_position - (tex.textures["notes"]["moji"]->width/2.0f), .y=tex.skin_config["moji"].y + y_position});
+            if (note.display) tex.draw_texture(tex_id_map.at("notes/" + (std::to_string((int)note.type))), {.frame=current_eighth % 2, .center=true, .x=x_position - (tex.textures[NOTES::_9]->width/2.0f), .y=y_position+tex.skin_config[SC::NOTES].y});
+            tex.draw_texture(NOTES::MOJI, {.frame=note.moji, .x=x_position - (tex.textures[NOTES::MOJI]->width/2.0f), .y=tex.skin_config[SC::MOJI].y + y_position});
         }
     }
 }
@@ -1250,34 +1250,34 @@ void Player::draw_notes(double current_ms, float y) {
 void Player::draw_modifiers(float y) {
 
     if (score_method == ScoreMethod::SHINUCHI) {
-        tex.draw_texture("lane", "mod_shinuchi", {.y=y});
+        tex.draw_texture(LANE::MOD_SHINUCHI, {.y=y});
     }
 
     if (modifiers.speed >= 4) {
-        tex.draw_texture("lane", "mod_yonbai", {.y=y});
+        tex.draw_texture(LANE::MOD_YONBAI, {.y=y});
     } else if (modifiers.speed >= 3) {
-        tex.draw_texture("lane", "mod_sanbai", {.y=y});
+        tex.draw_texture(LANE::MOD_SANBAI, {.y=y});
     } else if (modifiers.speed > 1) {
-        tex.draw_texture("lane", "mod_baisaku", {.y=y});
+        tex.draw_texture(LANE::MOD_BAISAKU, {.y=y});
     }
 
     if (modifiers.display) {
-        tex.draw_texture("lane", "mod_doron", {.y=y});
+        tex.draw_texture(LANE::MOD_DORON, {.y=y});
     }
     if (modifiers.inverse) {
-        tex.draw_texture("lane", "mod_abekobe", {.y=y});
+        tex.draw_texture(LANE::MOD_ABEKOBE, {.y=y});
     }
     if (modifiers.random == 2) {
-        tex.draw_texture("lane", "mod_detarame", {.y=y});
+        tex.draw_texture(LANE::MOD_DETARAME, {.y=y});
     } else if (modifiers.random == 1) {
-        tex.draw_texture("lane", "mod_kimagure", {.y=y});
+        tex.draw_texture(LANE::MOD_KIMAGURE, {.y=y});
     }
 }
 
 void Player::draw_overlays(float y, const ray::Shader& mask_shader) {
-    tex.draw_texture("lane", std::to_string((int)player_num) + "p_lane_cover", {.y=y});
-    if (is_dan) tex.draw_texture("lane", "dan_lane_cover", {.y=y});
-    tex.draw_texture("lane", "drum", {.y=y});
+    tex.draw_texture(tex_id_map.at("lane/" + (std::to_string((int)player_num) + "p_lane_cover")), {.y=y});
+    if (is_dan) tex.draw_texture(LANE::DAN_LANE_COVER, {.y=y});
+    tex.draw_texture(LANE::DRUM, {.y=y});
     if (ending_anim.has_value()) {
         std::visit([](auto& anim) { anim.draw(); }, ending_anim.value());
     }
@@ -1298,24 +1298,24 @@ void Player::draw_overlays(float y, const ray::Shader& mask_shader) {
         combo_announce->draw(y);
     }
     if (is_2p) {
-        tex.draw_texture("lane", "lane_score_cover", {.mirror="vertical", .y=y});
+        tex.draw_texture(LANE::LANE_SCORE_COVER, {.mirror="vertical", .y=y});
     } else {
-        tex.draw_texture("lane", "lane_score_cover", {.y=y});
+        tex.draw_texture(LANE::LANE_SCORE_COVER, {.y=y});
     }
-    tex.draw_texture("lane", std::to_string((int)player_num) + "p_icon", {.y=y});
+    tex.draw_texture(tex_id_map.at("lane/" + (std::to_string((int)player_num) + "p_icon")), {.y=y});
     if (is_dan) {
-        tex.draw_texture("lane", "lane_difficulty", {.frame=6, .y=y});
+        tex.draw_texture(LANE::LANE_DIFFICULTY, {.frame=6, .y=y});
     } else {
-        tex.draw_texture("lane", "lane_difficulty", {.frame=difficulty, .y=y});
+        tex.draw_texture(LANE::LANE_DIFFICULTY, {.frame=difficulty, .y=y});
     }
     if (judge_counter.has_value()) {
         judge_counter->draw();
     }
 
     if (modifiers.auto_play) {
-        tex.draw_texture("lane", "auto_icon", {.y=y});
+        tex.draw_texture(LANE::AUTO_ICON, {.y=y});
     } else {
-        nameplate.draw(tex.skin_config["game_nameplate_1p"].x, y + tex.skin_config["game_nameplate_1p"].y);
+        nameplate.draw(tex.skin_config[SC::GAME_NAMEPLATE_1P].x, y + tex.skin_config[SC::GAME_NAMEPLATE_1P].y);
     }
     //self.chara.draw(y=(self.is_2p*tex.skin_config["game_2p_offset"].y))
 

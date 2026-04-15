@@ -17,7 +17,7 @@ void TitleScreen::on_screen_start() {
         }
     }
     state = TitleState::OP_VIDEO;
-    hit_taiko_text = new OutlinedText(tex.skin_config["hit_taiko_to_start"].text[global_data.config->general.language], tex.skin_config["hit_taiko_to_start"].font_size, ray::WHITE, ray::BLACK, false, 4);
+    hit_taiko_text = new OutlinedText(tex.skin_config[SC::HIT_TAIKO_TO_START].text[global_data.config->general.language], tex.skin_config[SC::HIT_TAIKO_TO_START].font_size, ray::WHITE, ray::BLACK, false, 4);
     fade_out = (FadeAnimation*)tex.get_animation(13);
     text_overlay_fade = (FadeAnimation*)tex.get_animation(14);
 }
@@ -92,17 +92,17 @@ void TitleScreen::draw() {
     if (state == TitleState::OP_VIDEO && op_video) {
         op_video->draw();
     } else if (state == TitleState::WARNING && warning_board) {
-        tex.draw_texture("warning", "background");
+        tex.draw_texture(WARNING::BACKGROUND);
         warning_board->draw();
     } else if (state == TitleState::ATTRACT_VIDEO && attract_video) {
         attract_video->draw();
     }
 
-    tex.draw_texture("movie", "background", {.fade=fade_out->attribute});
+    tex.draw_texture(MOVIE::BACKGROUND, {.fade=fade_out->attribute});
     coin_overlay.draw();
     allnet_indicator.draw();
-    entry_overlay.draw(tex.skin_config["entry_overlay_title"].x, tex.skin_config["entry_overlay_title"].y);
+    entry_overlay.draw(tex.skin_config[SC::ENTRY_OVERLAY_TITLE].x, tex.skin_config[SC::ENTRY_OVERLAY_TITLE].y);
 
-    hit_taiko_text->draw({.x=(float)(tex.screen_width*0.25 - hit_taiko_text->width/2), .y=tex.skin_config["hit_taiko_to_start"].y, .fade=text_overlay_fade->attribute});
-    hit_taiko_text->draw({.x=(float)(tex.screen_width*0.75 - hit_taiko_text->width/2), .y=tex.skin_config["hit_taiko_to_start"].y, .fade=text_overlay_fade->attribute});
+    hit_taiko_text->draw({.x=(float)(tex.screen_width*0.25 - hit_taiko_text->width/2), .y=tex.skin_config[SC::HIT_TAIKO_TO_START].y, .fade=text_overlay_fade->attribute});
+    hit_taiko_text->draw({.x=(float)(tex.screen_width*0.75 - hit_taiko_text->width/2), .y=tex.skin_config[SC::HIT_TAIKO_TO_START].y, .fade=text_overlay_fade->attribute});
 }

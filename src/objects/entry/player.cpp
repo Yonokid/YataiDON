@@ -61,26 +61,26 @@ void EntryPlayer::draw_drum() {
     bool chara_mirror;
 
     if (side == 0) {
-        offset = tex.skin_config["entry_drum_offset"].x;
-        tex.draw_texture("side_select", "red_drum", {.x=move_x, .y=move_y});
-        chara_x = move_x + offset + tex.skin_config["entry_chara_offset_l"].x;
+        offset = tex.skin_config[SC::ENTRY_DRUM_OFFSET].x;
+        tex.draw_texture(SIDE_SELECT::RED_DRUM, {.x=move_x, .y=move_y});
+        chara_x = move_x + offset + tex.skin_config[SC::ENTRY_CHARA_OFFSET_L].x;
         chara_mirror = false;
     } else {
         move_x *= -1;
-        offset = tex.skin_config["entry_drum_offset"].y;
-        tex.draw_texture("side_select", "blue_drum", {.x=move_x, .y=move_y});
-        chara_x = move_x + offset + tex.skin_config["entry_chara_offset_r"].x;
+        offset = tex.skin_config[SC::ENTRY_DRUM_OFFSET].y;
+        tex.draw_texture(SIDE_SELECT::BLUE_DRUM, {.x=move_x, .y=move_y});
+        chara_x = move_x + offset + tex.skin_config[SC::ENTRY_CHARA_OFFSET_R].x;
         chara_mirror = true;
     }
 
-    float chara_y = tex.skin_config["entry_chara_offset_r"].y + move_y;
+    float chara_y = tex.skin_config[SC::ENTRY_CHARA_OFFSET_R].y + move_y;
     //chara->draw(chara_x, chara_y, chara_mirror);
 
     float scale = cloud_resize->attribute;
     if (cloud_resize->is_finished) {
         scale = std::max(1.0f, (float)cloud_resize_loop->attribute);
     }
-    tex.draw_texture("side_select", "cloud", {
+    tex.draw_texture(SIDE_SELECT::CLOUD, {
         .frame=(int)cloud_texture_change->attribute,
         .scale=scale,
         .center=true,
@@ -92,11 +92,11 @@ void EntryPlayer::draw_drum() {
 
 void EntryPlayer::draw_nameplate_and_indicator(float fade) {
     if (side == 0) {
-        nameplate->draw(tex.skin_config["nameplate_entry_left"].x, tex.skin_config["nameplate_entry_left"].y, fade);
-        indicator->draw(tex.skin_config["indicator_entry_left"].x, tex.skin_config["indicator_entry_left"].y, fade);
+        nameplate->draw(tex.skin_config[SC::NAMEPLATE_ENTRY_LEFT].x, tex.skin_config[SC::NAMEPLATE_ENTRY_LEFT].y, fade);
+        indicator->draw(tex.skin_config[SC::INDICATOR_ENTRY_LEFT].x, tex.skin_config[SC::INDICATOR_ENTRY_LEFT].y, fade);
     } else {
-        nameplate->draw(tex.skin_config["nameplate_entry_right"].x, tex.skin_config["nameplate_entry_right"].y, fade);
-        indicator->draw(tex.skin_config["indicator_entry_right"].x, tex.skin_config["indicator_entry_right"].y, fade);
+        nameplate->draw(tex.skin_config[SC::NAMEPLATE_ENTRY_RIGHT].x, tex.skin_config[SC::NAMEPLATE_ENTRY_RIGHT].y, fade);
+        indicator->draw(tex.skin_config[SC::INDICATOR_ENTRY_RIGHT].x, tex.skin_config[SC::INDICATOR_ENTRY_RIGHT].y, fade);
     }
 }
 

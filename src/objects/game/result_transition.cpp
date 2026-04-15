@@ -20,44 +20,44 @@ void ResultTransition::update(double current_ms) {
 void ResultTransition::draw() {
     float x = 0;
     while (x < tex.screen_width) {
-        float tex_height = global_tex.textures["result_transition"]["1p_shutter_footer"]->height;
+        float tex_height = global_tex.textures[RESULT_TRANSITION::_1P_SHUTTER_FOOTER]->height;
 
         if (player_num == PlayerNum::TWO_PLAYER) {
-            global_tex.draw_texture("result_transition", "1p_shutter", {
+            global_tex.draw_texture(RESULT_TRANSITION::_1P_SHUTTER, {
                 .frame = 0,
                 .x = x,
                 .y = (float)(-tex.screen_height + move->attribute)
             });
-            global_tex.draw_texture("result_transition", "2p_shutter", {
+            global_tex.draw_texture(RESULT_TRANSITION::_2P_SHUTTER, {
                 .frame = 0,
                 .x = x,
                 .y = (float)(tex.screen_height - move->attribute)
             });
-            global_tex.draw_texture("result_transition", "1p_shutter_footer", {
+            global_tex.draw_texture(RESULT_TRANSITION::_1P_SHUTTER_FOOTER, {
                 .x = x,
                 .y = (float)(-(tex_height * 3) + move->attribute)
             });
-            global_tex.draw_texture("result_transition", "2p_shutter_footer", {
+            global_tex.draw_texture(RESULT_TRANSITION::_2P_SHUTTER_FOOTER, {
                 .x = x,
                 .y = (float)(tex.screen_height + (tex_height * 2) - move->attribute)
             });
         } else {
             std::string player_str = std::to_string(static_cast<int>(player_num)) + "p";
-            global_tex.draw_texture("result_transition", player_str + "_shutter", {
+            global_tex.draw_texture(tex_id_map.at("result_transition/" + (player_str + "_shutter")), {
                 .frame = 0,
                 .x = x,
                 .y = (float)(-tex.screen_height + move->attribute)
             });
-            global_tex.draw_texture("result_transition", player_str + "_shutter", {
+            global_tex.draw_texture(tex_id_map.at("result_transition/" + (player_str + "_shutter")), {
                 .frame = 0,
                 .x = x,
                 .y = (float)(tex.screen_height - move->attribute)
             });
-            global_tex.draw_texture("result_transition", player_str + "_shutter_footer", {
+            global_tex.draw_texture(tex_id_map.at("result_transition/" + (player_str + "_shutter_footer")), {
                 .x = x,
                 .y = (float)(-(tex_height * 3) + move->attribute)
             });
-            global_tex.draw_texture("result_transition", player_str + "_shutter_footer", {
+            global_tex.draw_texture(tex_id_map.at("result_transition/" + (player_str + "_shutter_footer")), {
                 .x = x,
                 .y = (float)(tex.screen_height + (tex_height * 2) - move->attribute)
             });

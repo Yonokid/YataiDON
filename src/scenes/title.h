@@ -14,7 +14,7 @@
 
 #include "../objects/title/warning_screen.h"
 
-enum TitleState {
+enum class TitleState {
     OP_VIDEO,
     WARNING,
     ATTRACT_VIDEO,

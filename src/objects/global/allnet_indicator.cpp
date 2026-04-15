@@ -14,5 +14,5 @@ void AllNetIcon::draw(float x, float y) {
     } else {
         frame = 0;
     }
-    global_tex.draw_texture("overlay", "allnet_indicator", {.frame=frame, .x=x, .y=y});
+    global_tex.draw_texture(OVERLAY::ALLNET_INDICATOR, {.frame=frame, .x=x, .y=y});
 }

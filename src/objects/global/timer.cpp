@@ -41,17 +41,17 @@ void Timer::update(double current_ms) {
 void Timer::draw(float x, float y) {
     std::string counter_name;
     if (time < 10) {
-        global_tex.draw_texture("timer", "bg_red");
+        global_tex.draw_texture(TIMER::BG_RED);
         counter_name = "counter_white";
-        global_tex.draw_texture("timer", "highlight", {.scale=(float)highlight_resize->attribute, .center=true, .fade=highlight_fade->attribute});
+        global_tex.draw_texture(TIMER::HIGHLIGHT, {.scale=(float)highlight_resize->attribute, .center=true, .fade=highlight_fade->attribute});
     } else {
-        global_tex.draw_texture("timer", "bg");
+        global_tex.draw_texture(TIMER::BG);
         counter_name = "counter_black";
     }
-    float margin = global_tex.skin_config["timer_text_margin"].x;
+    float margin = global_tex.skin_config[SC::TIMER_TEXT_MARGIN].x;
     float total_width = counter.size() * margin;
     for (int i = 0; i < (int)counter.size(); i++) {
         int digit = counter[i] - '0';
-        global_tex.draw_texture("timer", counter_name, {.frame=digit, .scale=(float)num_resize->attribute, .center=true, .x=-(total_width/2) + (i * margin)});
+        global_tex.draw_texture(tex_id_map.at("timer/" + (counter_name)), {.frame=digit, .scale=(float)num_resize->attribute, .center=true, .x=-(total_width/2) + (i * margin)});
     }
 }

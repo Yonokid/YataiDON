@@ -1,6 +1,7 @@
 #pragma once
 
 #include <set>
+#include <unordered_map>
 
 #include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
@@ -181,7 +182,7 @@ private:
     std::unique_ptr<BaseAnimation> createAnimation(const Value& anim_obj);
 
 public:
-    std::map<int, std::unique_ptr<BaseAnimation>> parse_animations(const Value& animation_json);
+    std::unordered_map<int, std::unique_ptr<BaseAnimation>> parse_animations(const Value& animation_json);
 
-    std::map<int, std::unique_ptr<BaseAnimation>> parseAnimationsFromString(const std::string& json_str);
+    std::unordered_map<int, std::unique_ptr<BaseAnimation>> parseAnimationsFromString(const std::string& json_str);
 };

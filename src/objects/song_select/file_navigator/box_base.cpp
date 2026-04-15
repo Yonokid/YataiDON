@@ -29,7 +29,7 @@ BaseBox::~BaseBox() {
 }
 
 void BaseBox::load_text() {
-    float font_size = tex.skin_config["song_box_name"].font_size;
+    float font_size = tex.skin_config[SC::SONG_BOX_NAME].font_size;
     if (utf8_char_count(text_name) >= 30)
         font_size -= (int)(10 * tex.screen_scale);
     name = make_unique<OutlinedText>(text_name, font_size, ray::WHITE, fore_color.value(), true);
@@ -122,31 +122,31 @@ void BaseBox::update(double current_time) {
         right_bound = yellow_box->right_distance;
     } else {
         left_bound = position;
-        right_bound = position + (float)(tex.textures["box"]["folder_texture_left"]->width) + (float)(tex.textures["box"]["folder_texture_right"]->width) + (tex.skin_config["song_box_bg"].width);
+        right_bound = position + (float)(tex.textures[BOX::FOLDER_TEXTURE_LEFT]->width) + (float)(tex.textures[BOX::FOLDER_TEXTURE_RIGHT]->width) + (tex.skin_config[SC::SONG_BOX_BG].width);
     }
 }
 
 void BaseBox::draw_closed() {
-    tex.draw_texture("yellow_box", "shadow_bottom_left", {.x=position, .fade=fade->attribute, .index=0});
-    tex.draw_texture("yellow_box", "shadow_bottom", {.x=position, .fade=fade->attribute, .index=0});
-    tex.draw_texture("yellow_box", "shadow_bottom_right", {.x=position, .fade=fade->attribute, .index=0});
-    tex.draw_texture("yellow_box", "shadow_right", {.x=position, .fade=fade->attribute, .index=0});
-    tex.draw_texture("yellow_box", "shadow_top_right", {.x=position, .fade=fade->attribute, .index=0});
+    tex.draw_texture(YELLOW_BOX::SHADOW_BOTTOM_LEFT, {.x=position, .fade=fade->attribute, .index=0});
+    tex.draw_texture(YELLOW_BOX::SHADOW_BOTTOM, {.x=position, .fade=fade->attribute, .index=0});
+    tex.draw_texture(YELLOW_BOX::SHADOW_BOTTOM_RIGHT, {.x=position, .fade=fade->attribute, .index=0});
+    tex.draw_texture(YELLOW_BOX::SHADOW_RIGHT, {.x=position, .fade=fade->attribute, .index=0});
+    tex.draw_texture(YELLOW_BOX::SHADOW_TOP_RIGHT, {.x=position, .fade=fade->attribute, .index=0});
 
     if (shader_loaded && texture_index == TextureIndex::NONE)
         ray::BeginShaderMode(shader);
 
-    tex.draw_texture("box", "folder_texture_left",  {.frame=(int)texture_index, .x=position, .fade=fade->attribute});
-    tex.draw_texture("box", "folder_texture",       {.frame=(int)texture_index, .x=position, .x2=tex.skin_config["song_box_bg"].width, .fade=fade->attribute});
-    tex.draw_texture("box", "folder_texture_right", {.frame=(int)texture_index, .x=position, .fade=fade->attribute});
+    tex.draw_texture(BOX::FOLDER_TEXTURE_LEFT,  {.frame=(int)texture_index, .x=position, .fade=fade->attribute});
+    tex.draw_texture(BOX::FOLDER_TEXTURE,       {.frame=(int)texture_index, .x=position, .x2=tex.skin_config[SC::SONG_BOX_BG].width, .fade=fade->attribute});
+    tex.draw_texture(BOX::FOLDER_TEXTURE_RIGHT, {.frame=(int)texture_index, .x=position, .fade=fade->attribute});
 
     if (shader_loaded && texture_index == TextureIndex::NONE)
         ray::EndShaderMode();
 
     if (texture_index == TextureIndex::DEFAULT)
-        tex.draw_texture("box", "genre_overlay", {.x=position, .fade=fade->attribute});
+        tex.draw_texture(BOX::GENRE_OVERLAY, {.x=position, .fade=fade->attribute});
     if (genre_index == GenreIndex::DIFFICULTY)
-        tex.draw_texture("box", "diff_overlay",  {.x=position, .fade=fade->attribute});
+        tex.draw_texture(BOX::DIFF_OVERLAY,  {.x=position, .fade=fade->attribute});
 }
 
 void BaseBox::draw_open() {

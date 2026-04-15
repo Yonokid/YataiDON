@@ -217,7 +217,7 @@ void LoadingScreen::draw() {
     if (fill_width > 0) {
         ray::DrawRectangle(progress_bar_x, progress_bar_y, fill_width, progress_bar_height, ray::RED);
     }
-    tex.draw_texture("kidou", "warning");
+    tex.draw_texture(KIDOU::WARNING);
 
     ray::DrawRectangle(0, 0, tex.screen_width, tex.screen_height, ray::Fade(ray::WHITE, fade_in->attribute));
     allnet_indicator.draw();

@@ -46,12 +46,12 @@ void FailAnimation::update(double current_ms) {
 }
 
 void FailAnimation::draw() {
-    tex.draw_texture("ending_anim", "fail", {
+    tex.draw_texture(ENDING_ANIM::FAIL, {
         .fade = (float)(text_fade_in->attribute),
         .index = (int)is_2p
     });
 
-    tex.draw_texture("ending_anim", "bachio_l_" + name, {
+    tex.draw_texture(tex_id_map.at("ending_anim/bachio_l_" + name), {
         .frame = frame,
         .x = (float)(-bachio_move_out->attribute - (bachio_up->attribute / 2)),
         .y = (float)(bachio_down->attribute - bachio_up->attribute),
@@ -59,7 +59,7 @@ void FailAnimation::draw() {
         .index = (int)is_2p
     });
 
-    tex.draw_texture("ending_anim", "bachio_r_" + name, {
+    tex.draw_texture(tex_id_map.at("ending_anim/bachio_r_" + name), {
         .frame = frame,
         .x = (float)(bachio_move_out->attribute + (bachio_up->attribute / 2)),
         .y = (float)(bachio_down->attribute - bachio_up->attribute),
@@ -67,18 +67,18 @@ void FailAnimation::draw() {
         .index = (int)is_2p
     });
 
-    tex.draw_texture("ending_anim", "bachio_boom", {
+    tex.draw_texture(ENDING_ANIM::BACHIO_BOOM, {
         .scale = (float)(bachio_boom_scale->attribute),
         .center = true,
-        .y = (is_2p * tex.skin_config["2p_offset"].y),
+        .y = (is_2p * tex.skin_config[SC::OFFSET_2P].y),
         .fade = (float)(bachio_boom_fade_in->attribute),
         .index = 0
     });
 
-    tex.draw_texture("ending_anim", "bachio_boom", {
+    tex.draw_texture(ENDING_ANIM::BACHIO_BOOM, {
         .scale = (float)(bachio_boom_scale->attribute),
         .center = true,
-        .y = (is_2p * tex.skin_config["2p_offset"].y),
+        .y = (is_2p * tex.skin_config[SC::OFFSET_2P].y),
         .fade = (float)(bachio_boom_fade_in->attribute),
         .index = 1
     });

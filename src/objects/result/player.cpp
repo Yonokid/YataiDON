@@ -130,7 +130,7 @@ void ResultPlayer::draw_score_info() {
         std::reverse(reversed_score.begin(), reversed_score.end());
         for (int i = 0; i < reversed_score.size(); i++) {
             int digit = reversed_score[i] - '0';
-            tex.draw_texture("score", "judge_num", {.frame=digit, .x=-(i * tex.skin_config["score_info_counter_margin"].x), .index=j + (is_2p * 5)});
+            tex.draw_texture(SCORE::JUDGE_NUM, {.frame=digit, .x=-(i * tex.skin_config[SC::SCORE_INFO_COUNTER_MARGIN].x), .index=j + (is_2p * 5)});
         }
     }
 }
@@ -138,65 +138,65 @@ void ResultPlayer::draw_score_info() {
 void ResultPlayer::draw_total_score() {
     if (!fade_in_finished) return;
     if (global_data.config->general.score_method == ScoreMethod::SHINUCHI) {
-        tex.draw_texture("score", "score_shinuchi", {.index=is_2p});
+        tex.draw_texture(SCORE::SCORE_SHINUCHI, {.index=is_2p});
     } else {
-        tex.draw_texture("score", "score", {.index=is_2p});
+        tex.draw_texture(SCORE::SCORE, {.index=is_2p});
     }
     if (score != "") {
         std::string reversed_score = score;
         std::reverse(reversed_score.begin(), reversed_score.end());
         for (int i = 0; i < reversed_score.size(); i++) {
             int digit = reversed_score[i] - '0';
-            tex.draw_texture("score", "score_num", {.frame=digit, .x=-(i*tex.skin_config["result_score_margin"].x), .index=is_2p});
+            tex.draw_texture(SCORE::SCORE_NUM, {.frame=digit, .x=-(i*tex.skin_config[SC::RESULT_SCORE_MARGIN].x), .index=is_2p});
         }
     }
 }
 
 void ResultPlayer::draw_modifiers() {
     if (global_data.modifiers[(int)player_num].display) {
-        tex.draw_texture("score", "mod_doron", {.index=is_2p});
+        tex.draw_texture(SCORE::MOD_DORON, {.index=is_2p});
     }
     if (global_data.modifiers[(int)player_num].inverse) {
-        tex.draw_texture("score", "mod_abekobe", {.index=is_2p});
+        tex.draw_texture(SCORE::MOD_ABEKOBE, {.index=is_2p});
     }
     if (global_data.modifiers[(int)player_num].random == 1) {
-        tex.draw_texture("score", "mod_kimagure", {.index=is_2p});
+        tex.draw_texture(SCORE::MOD_KIMAGURE, {.index=is_2p});
     } else if (global_data.modifiers[(int)player_num].random == 2) {
-        tex.draw_texture("score", "mod_detarame", {.index=is_2p});
+        tex.draw_texture(SCORE::MOD_DETARAME, {.index=is_2p});
     }
     if (global_data.modifiers[(int)player_num].speed >= 4) {
-        tex.draw_texture("score", "mod_yonbai", {.index=is_2p});
+        tex.draw_texture(SCORE::MOD_YONBAI, {.index=is_2p});
     } else if (global_data.modifiers[(int)player_num].speed >= 3) {
-        tex.draw_texture("score", "mod_sanbai", {.index=is_2p});
+        tex.draw_texture(SCORE::MOD_SANBAI, {.index=is_2p});
     } else if (global_data.modifiers[(int)player_num].speed > 1) {
-        tex.draw_texture("score", "mod_baisaku", {.index=is_2p});
+        tex.draw_texture(SCORE::MOD_BAISAKU, {.index=is_2p});
     }
 }
 
 void ResultPlayer::draw() {
     if (is_2p) {
         if (state.has_value() && state.value() == ResultState::FAIL) {
-            tex.draw_texture("background", "gradient_fail", {.fade=std::min(0.4, fade_in_bottom->attribute)});
+            tex.draw_texture(BACKGROUND::GRADIENT_FAIL, {.fade=std::min(0.4, fade_in_bottom->attribute)});
         } else if (state.has_value() && state.value() == ResultState::CLEAR) {
-            tex.draw_texture("background", "gradient_clear", {.fade=std::min(0.4, fade_in_bottom->attribute)});
+            tex.draw_texture(BACKGROUND::GRADIENT_CLEAR, {.fade=std::min(0.4, fade_in_bottom->attribute)});
         }
     } else {
-        float y = tex.skin_config["result_2p_offset"].y ? has_2p : 0;
+        float y = tex.skin_config[SC::RESULT_2P_OFFSET].y ? has_2p : 0;
         if (state.has_value() && state.value() == ResultState::FAIL) {
-            tex.draw_texture("background", "gradient_fail", {.y=y, .fade=std::min(0.4, fade_in_bottom->attribute)});
+            tex.draw_texture(BACKGROUND::GRADIENT_FAIL, {.y=y, .fade=std::min(0.4, fade_in_bottom->attribute)});
         } else if (state.has_value() && state.value() >= ResultState::CLEAR) {
-            tex.draw_texture("background", "gradient_clear", {.y=y, .fade=std::min(0.4, fade_in_bottom->attribute)});
+            tex.draw_texture(BACKGROUND::GRADIENT_CLEAR, {.y=y, .fade=std::min(0.4, fade_in_bottom->attribute)});
         }
     }
-    tex.draw_texture("score", "overlay", {.color=ray::Fade(ray::WHITE, 0.75), .index=is_2p});
-    tex.draw_texture("score", "difficulty", {.frame=global_data.session_data[(int)player_num].selected_difficulty, .index=is_2p});
+    tex.draw_texture(SCORE::OVERLAY, {.color=ray::Fade(ray::WHITE, 0.75), .index=is_2p});
+    tex.draw_texture(SCORE::DIFFICULTY, {.frame=global_data.session_data[(int)player_num].selected_difficulty, .index=is_2p});
     if (!has_2p) bottom_characters.draw();
 
-    tex.draw_texture("score", "judge_good", {.index=is_2p});
-    tex.draw_texture("score", "judge_ok", {.index=is_2p});
-    tex.draw_texture("score", "judge_bad", {.index=is_2p});
-    tex.draw_texture("score", "max_combo", {.index=is_2p});
-    tex.draw_texture("score", "drumroll", {.index=is_2p});
+    tex.draw_texture(SCORE::JUDGE_GOOD, {.index=is_2p});
+    tex.draw_texture(SCORE::JUDGE_OK, {.index=is_2p});
+    tex.draw_texture(SCORE::JUDGE_BAD, {.index=is_2p});
+    tex.draw_texture(SCORE::MAX_COMBO, {.index=is_2p});
+    tex.draw_texture(SCORE::DRUMROLL, {.index=is_2p});
 
     draw_score_info();
     draw_total_score();
@@ -209,5 +209,5 @@ void ResultPlayer::draw() {
 
     //self.chara.draw(y=tex.skin_config["result_chara"].y+(self.is_2p*tex.screen_height//2))
     if (gauge.has_value()) gauge->draw();
-    nameplate.draw(tex.skin_config["result_nameplate"].x, tex.skin_config["result_nameplate"].y+(is_2p*tex.skin_config["result_nameplate"].height));
+    nameplate.draw(tex.skin_config[SC::RESULT_NAMEPLATE].x, tex.skin_config[SC::RESULT_NAMEPLATE].y+(is_2p*tex.skin_config[SC::RESULT_NAMEPLATE].height));
 }

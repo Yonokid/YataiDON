@@ -2,7 +2,7 @@
 
 void ResultScreen::on_screen_start() {
     Screen::on_screen_start();
-    song_info = new OutlinedText(global_data.session_data[(int)global_data.player_num].song_title, tex.skin_config["song_info_result"].font_size, ray::WHITE, ray::BLACK, false, 5);
+    song_info = new OutlinedText(global_data.session_data[(int)global_data.player_num].song_title, tex.skin_config[SC::SONG_INFO_RESULT].font_size, ray::WHITE, ray::BLACK, false, 5);
     audio->play_sound("bgm", "music");
     fade_out = (FadeAnimation*)tex.get_animation(0);
     fade_in.emplace(global_data.player_num);
@@ -65,8 +65,8 @@ void ResultScreen::draw_overlay() {
 }
 
 void ResultScreen::draw_song_info() {
-    song_num->draw(tex.skin_config["song_num_result"].x, tex.skin_config["song_num_result"].y, 1.0);
-    song_info->draw({.x=tex.skin_config["song_info_result"].x - song_info->width, .y=tex.skin_config["song_info_result"].y - song_info->height / 2, .fade=1.0});
+    song_num->draw(tex.skin_config[SC::SONG_NUM_RESULT].x, tex.skin_config[SC::SONG_NUM_RESULT].y, 1.0);
+    song_info->draw({.x=tex.skin_config[SC::SONG_INFO_RESULT].x - song_info->width, .y=tex.skin_config[SC::SONG_INFO_RESULT].y - song_info->height / 2, .fade=1.0});
 }
 
 void ResultScreen::draw() {

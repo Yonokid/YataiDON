@@ -24,8 +24,8 @@ void EntryScreen::on_screen_start() {
 
     std::string lang = global_data.config->general.language;
     auto& skin = tex.skin_config;
-    text_cancel = new OutlinedText(skin["entry_cancel"].text[lang], skin["entry_cancel"].font_size, ray::WHITE, ray::BLACK, false, 4, -4);
-    text_question = new OutlinedText(skin["entry_question"].text[lang], skin["entry_question"].font_size, ray::WHITE, ray::BLACK, false, 4, -1);
+    text_cancel = new OutlinedText(skin[SC::ENTRY_CANCEL].text[lang], skin[SC::ENTRY_CANCEL].font_size, ray::WHITE, ray::BLACK, false, 4, -4);
+    text_question = new OutlinedText(skin[SC::ENTRY_QUESTION].text[lang], skin[SC::ENTRY_QUESTION].font_size, ray::WHITE, ray::BLACK, false, 4, -1);
 
     audio->play_sound("bgm", "music");
 }
@@ -125,55 +125,55 @@ std::optional<Screens> EntryScreen::update() {
 }
 
 void EntryScreen::draw_background() {
-    tex.draw_texture("background", "bg");
-    tex.draw_texture("background", "tower");
-    tex.draw_texture("background", "shops_center");
-    tex.draw_texture("background", "people");
-    tex.draw_texture("background", "shops_left");
-    tex.draw_texture("background", "shops_right");
-    tex.draw_texture("background", "lights", {.scale=2.0f, .fade=bg_flicker->attribute});
+    tex.draw_texture(BACKGROUND::BG);
+    tex.draw_texture(BACKGROUND::TOWER);
+    tex.draw_texture(BACKGROUND::SHOPS_CENTER);
+    tex.draw_texture(BACKGROUND::PEOPLE);
+    tex.draw_texture(BACKGROUND::SHOPS_LEFT);
+    tex.draw_texture(BACKGROUND::SHOPS_RIGHT);
+    tex.draw_texture(BACKGROUND::LIGHTS, {.scale=2.0f, .fade=bg_flicker->attribute});
 }
 
 void EntryScreen::draw_side_select(float fade) {
     auto& skin = tex.skin_config;
-    tex.draw_texture("side_select", "box_top_left",    {.fade=fade});
-    tex.draw_texture("side_select", "box_top_right",   {.fade=fade});
-    tex.draw_texture("side_select", "box_bottom_left", {.fade=fade});
-    tex.draw_texture("side_select", "box_bottom_right",{.fade=fade});
-    tex.draw_texture("side_select", "box_top",         {.fade=fade});
-    tex.draw_texture("side_select", "box_bottom",      {.fade=fade});
-    tex.draw_texture("side_select", "box_left",        {.fade=fade});
-    tex.draw_texture("side_select", "box_right",       {.fade=fade});
-    tex.draw_texture("side_select", "box_center",      {.fade=fade});
+    tex.draw_texture(SIDE_SELECT::BOX_TOP_LEFT,    {.fade=fade});
+    tex.draw_texture(SIDE_SELECT::BOX_TOP_RIGHT,   {.fade=fade});
+    tex.draw_texture(SIDE_SELECT::BOX_BOTTOM_LEFT, {.fade=fade});
+    tex.draw_texture(SIDE_SELECT::BOX_BOTTOM_RIGHT,{.fade=fade});
+    tex.draw_texture(SIDE_SELECT::BOX_TOP,         {.fade=fade});
+    tex.draw_texture(SIDE_SELECT::BOX_BOTTOM,      {.fade=fade});
+    tex.draw_texture(SIDE_SELECT::BOX_LEFT,        {.fade=fade});
+    tex.draw_texture(SIDE_SELECT::BOX_RIGHT,       {.fade=fade});
+    tex.draw_texture(SIDE_SELECT::BOX_CENTER,      {.fade=fade});
 
     text_question->draw({
-        .x=skin["entry_question"].x - text_question->width / 2,
-        .y=skin["entry_question"].y,
+        .x=skin[SC::ENTRY_QUESTION].x - text_question->width / 2,
+        .y=skin[SC::ENTRY_QUESTION].y,
         .fade=fade,
     });
 
     //chara->draw(skin["chara_entry"].x, skin["chara_entry"].y);
 
-    tex.draw_texture("side_select", "1P",     {.fade=fade});
-    tex.draw_texture("side_select", "cancel", {.fade=fade});
-    tex.draw_texture("side_select", "2P",     {.fade=fade});
+    tex.draw_texture(SIDE_SELECT::_1P,     {.fade=fade});
+    tex.draw_texture(SIDE_SELECT::CANCEL, {.fade=fade});
+    tex.draw_texture(SIDE_SELECT::_2P,     {.fade=fade});
 
     if (side == 0) {
-        tex.draw_texture("side_select", "1P_highlight",  {.fade=fade});
-        tex.draw_texture("side_select", "1P2P_outline",  {.mirror="horizontal", .fade=fade, .index=0});
+        tex.draw_texture(SIDE_SELECT::_1P_HIGHLIGHT,  {.fade=fade});
+        tex.draw_texture(SIDE_SELECT::_1P2P_OUTLINE,  {.mirror="horizontal", .fade=fade, .index=0});
     } else if (side == 1) {
-        tex.draw_texture("side_select", "cancel_highlight", {.fade=fade});
-        tex.draw_texture("side_select", "cancel_outline",   {.fade=fade});
+        tex.draw_texture(SIDE_SELECT::CANCEL_HIGHLIGHT, {.fade=fade});
+        tex.draw_texture(SIDE_SELECT::CANCEL_OUTLINE,   {.fade=fade});
     } else {
-        tex.draw_texture("side_select", "2P_highlight", {.fade=fade});
-        tex.draw_texture("side_select", "1P2P_outline", {.fade=fade, .index=1});
+        tex.draw_texture(SIDE_SELECT::_2P_HIGHLIGHT, {.fade=fade});
+        tex.draw_texture(SIDE_SELECT::_1P2P_OUTLINE, {.fade=fade, .index=1});
     }
 
-    auto& tex_obj = tex.textures["side_select"]["cancel"];
+    auto& tex_obj = tex.textures[SIDE_SELECT::CANCEL];
     float text_x = tex_obj->x[0] + ((float)tex_obj->width / 2) - (text_cancel->width / 2);
     float text_y = tex_obj->y[0] + ((float)tex_obj->height / 2) - (text_cancel->height / 2);
     text_cancel->draw({.x=text_x, .y=text_y, .fade=fade});
-    nameplate.draw(tex.skin_config["nameplate_entry"].x, tex.skin_config["nameplate_entry"].y, fade);
+    nameplate.draw(tex.skin_config[SC::NAMEPLATE_ENTRY].x, tex.skin_config[SC::NAMEPLATE_ENTRY].y, fade);
 }
 
 void EntryScreen::draw_player_drum() {
@@ -199,17 +199,17 @@ void EntryScreen::draw() {
         draw_mode_select();
     }
 
-    tex.draw_texture("side_select", "footer");
+    tex.draw_texture(SIDE_SELECT::FOOTER);
 
     if (players[0] && players[1]) {
         // both players present, no footer sides needed
     } else if (!players[0]) {
-        tex.draw_texture("side_select", "footer_left");
-        tex.draw_texture("side_select", "footer_right");
+        tex.draw_texture(SIDE_SELECT::FOOTER_LEFT);
+        tex.draw_texture(SIDE_SELECT::FOOTER_RIGHT);
     } else if (players[0] && players[0]->player_num == PlayerNum::P1) {
-        tex.draw_texture("side_select", "footer_right");
+        tex.draw_texture(SIDE_SELECT::FOOTER_RIGHT);
     } else if (players[0] && players[0]->player_num == PlayerNum::P2) {
-        tex.draw_texture("side_select", "footer_left");
+        tex.draw_texture(SIDE_SELECT::FOOTER_LEFT);
     }
 
     for (auto* player : players) {
@@ -218,14 +218,14 @@ void EntryScreen::draw() {
         }
     }
 
-    tex.draw_texture("global", "player_entry");
+    tex.draw_texture(GLOBAL::PLAYER_ENTRY);
 
     if (box_manager->is_finished()) {
         ray::DrawRectangle(0, 0, tex.screen_width, tex.screen_height, ray::BLACK);
     }
 
     timer->draw();
-    entry_overlay.draw(0, tex.skin_config["entry_overlay_entry"].y);
+    entry_overlay.draw(0, tex.skin_config[SC::ENTRY_OVERLAY_ENTRY].y);
     coin_overlay.draw();
     allnet_indicator.draw();
 }

@@ -5,13 +5,13 @@ BoxManager::BoxManager() : selected_box_index(0), is_2p(false) {
 
     std::string lang = global_data.config->general.language;
     auto& skin = tex.skin_config;
-    int font_size = skin["entry_box_text"].font_size;
+    int font_size = skin[SC::ENTRY_BOX_TEXT].font_size;
 
     box_titles = {
-        new OutlinedText(skin["entry_game"].text[lang],       font_size, ray::WHITE, ray::Color(109, 68, 24, 255), true, 5),
-        new OutlinedText(skin["entry_practice"].text[lang],   font_size, ray::WHITE, ray::Color(109, 68, 24, 255), true, 5),
-        new OutlinedText(skin["entry_ai_battle"].text[lang],  font_size, ray::WHITE, ray::Color(109, 68, 24, 255), true, 5),
-        new OutlinedText(skin["entry_settings"].text[lang],   font_size, ray::WHITE, ray::Color(109, 68, 24, 255), true, 5),
+        new OutlinedText(skin[SC::ENTRY_GAME].text[lang],       font_size, ray::WHITE, ray::Color(109, 68, 24, 255), true, 5),
+        new OutlinedText(skin[SC::ENTRY_PRACTICE].text[lang],   font_size, ray::WHITE, ray::Color(109, 68, 24, 255), true, 5),
+        new OutlinedText(skin[SC::ENTRY_AI_BATTLE].text[lang],  font_size, ray::WHITE, ray::Color(109, 68, 24, 255), true, 5),
+        new OutlinedText(skin[SC::ENTRY_SETTINGS].text[lang],   font_size, ray::WHITE, ray::Color(109, 68, 24, 255), true, 5),
     };
 
     num_boxes = box_titles.size();
@@ -21,7 +21,7 @@ BoxManager::BoxManager() : selected_box_index(0), is_2p(false) {
 
     fade_out = (FadeAnimation*)tex.get_animation(9);
 
-    float spacing = skin["entry_box_spacing"].x;
+    float spacing = skin[SC::ENTRY_BOX_SPACING].x;
     float box_width = boxes[0]->width;
     float total_width = num_boxes * box_width + (num_boxes - 1) * spacing;
     float start_x = tex.screen_width / 2.0f - total_width / 2.0f;
