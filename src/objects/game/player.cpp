@@ -30,6 +30,14 @@ Player::Player(std::optional<TJAParser>& parser_ref, PlayerNum player_num_param,
     don_hitsound = "hitsound_don_" + std::to_string((int)player_num) + "p";
     kat_hitsound = "hitsound_kat_" + std::to_string((int)player_num) + "p";
 
+    std::string pnum = std::to_string((int)player_num);
+    lane_cover_tex_id = tex_id_map.at("lane/" + pnum + "p_lane_cover");
+    lane_icon_tex_id  = tex_id_map.at("lane/" + pnum + "p_icon");
+    for (int t = 1; t <= 9; ++t) {
+        auto it = tex_id_map.find("notes/" + std::to_string(t));
+        note_tex_ids[t] = (it != tex_id_map.end()) ? it->second : TexID(0);
+    }
+
     if (parser.has_value() && !parser->metadata.course_data.empty()) {
         if (parser->metadata.course_data[difficulty].is_branching) {
         branch_indicator = BranchIndicator();
@@ -271,6 +279,7 @@ void Player::update(double ms_from_start, double current_ms, std::optional<Backg
             double delay = delay_end.value() - delay_start.value();
             for (auto& note : draw_note_buffer) note.load_ms += delay;
             for (auto& note : draw_note_list) note.load_ms += delay;
+            for (auto& note : barlines) note.load_ms += delay;
             delay_start.reset();
             delay_end.reset();
         }
@@ -355,7 +364,7 @@ void Player::draw(double ms_from_start, float x, float y, ray::Shader& mask_shad
     if (fireworks.has_value()) {
         fireworks->draw();
     }
-    for (Judgment anim : draw_judge_list) {
+    for (Judgment& anim : draw_judge_list) {
         anim.draw(judge_x, y + judge_y);
     }
 
@@ -552,6 +561,9 @@ void Player::handle_scroll_type_commands(double ms_from_start, const TimelineObj
             note.bpm *= timeline_object.bpmchange.value();
         }
         for (Note& note : draw_note_buffer) {
+            note.bpm *= timeline_object.bpmchange.value();
+        }
+        for (Note& note : barlines) {
             note.bpm *= timeline_object.bpmchange.value();
         }
 
@@ -760,6 +772,11 @@ void Player::draw_note_manager(double current_ms) {
 
                 draw_note_list.erase(tail_it);
             }
+        } else if (current_note.type == NoteType::BARLINE) {
+            auto pos = std::lower_bound(barlines.begin(), barlines.end(),
+                                        current_note,
+                                        [](const auto& a, const auto& b) { return a.index < b.index; });
+            barlines.insert(pos, current_note);
         } else {
             auto pos = std::lower_bound(draw_note_buffer.begin(), draw_note_buffer.end(),
                                         current_note,
@@ -768,18 +785,22 @@ void Player::draw_note_manager(double current_ms) {
         }
     }
 
+    for (int i = (int)barlines.size() - 1; i >= 0; i--) {
+        if (current_ms >= barlines[i].unload_ms) {
+            barlines.erase(barlines.begin() + i);
+        }
+    }
+
     if (draw_note_buffer.empty()) return;
 
     if (is_drumroll && !other_notes.empty()) {
         int active_drumroll_index = other_notes.front().index;
-        auto drumroll_it = std::find_if(draw_note_buffer.begin(), draw_note_buffer.end(),
-                                         [active_drumroll_index](const Note& n) {
-                                             return n.index == active_drumroll_index &&
-                                                    (n.type == NoteType::ROLL_HEAD ||
-                                                     n.type == NoteType::ROLL_HEAD_L);
-                                         });
-        if (drumroll_it != draw_note_buffer.end() && drumroll_it->color.has_value() &&
-            last_drumroll_color_time + 16.67f < current_ms) {
+        auto drumroll_it = std::lower_bound(draw_note_buffer.begin(), draw_note_buffer.end(),
+                                            active_drumroll_index,
+                                            [](const Note& n, int idx) { return n.index < idx; });
+        if (drumroll_it != draw_note_buffer.end() && drumroll_it->index == active_drumroll_index &&
+            (drumroll_it->type == NoteType::ROLL_HEAD || drumroll_it->type == NoteType::ROLL_HEAD_L) &&
+            drumroll_it->color.has_value() && last_drumroll_color_time + 16.67f < current_ms) {
             last_drumroll_color_time = current_ms;
             drumroll_it->color = std::min(255, drumroll_it->color.value() + 1);
         }
@@ -835,8 +856,9 @@ void Player::note_correct(const Note& note, double current_ms) {
         bool is_big = note.type == NoteType::DON_L || note.type == NoteType::KAT_L || note.type == NoteType::BALLOON_HEAD;
         draw_arc_list.push_back(NoteArc(note.type, current_ms, PlayerNum(is_2p + 1), is_big, note.type == NoteType::BALLOON_HEAD, judge_x, judge_y));
     }
-    auto it = std::find(draw_note_buffer.begin(), draw_note_buffer.end(), note);
-    if (it != draw_note_buffer.end()) {
+    auto it = std::lower_bound(draw_note_buffer.begin(), draw_note_buffer.end(),
+                               note.index, [](const Note& n, int idx) { return n.index < idx; });
+    if (it != draw_note_buffer.end() && *it == note) {
         draw_note_buffer.erase(it);
     }
 }
@@ -856,13 +878,12 @@ void Player::check_drumroll(double current_ms, DrumType drum_type, std::optional
     if (draw_note_buffer.empty()) return;
     if (!other_notes.empty()) {
         int active_drumroll_index = other_notes[0].index;
-        auto drumroll_it = std::find_if(draw_note_buffer.begin(), draw_note_buffer.end(),
-                                         [active_drumroll_index](const Note& n) {
-                                             return n.index == active_drumroll_index &&
-                                                    (n.type == NoteType::ROLL_HEAD ||
-                                                     n.type == NoteType::ROLL_HEAD_L);
-                                         });
-        if (drumroll_it != draw_note_buffer.end() && drumroll_it->color.has_value()) {
+        auto drumroll_it = std::lower_bound(draw_note_buffer.begin(), draw_note_buffer.end(),
+                                            active_drumroll_index,
+                                            [](const Note& n, int idx) { return n.index < idx; });
+        if (drumroll_it != draw_note_buffer.end() && drumroll_it->index == active_drumroll_index &&
+            (drumroll_it->type == NoteType::ROLL_HEAD || drumroll_it->type == NoteType::ROLL_HEAD_L) &&
+            drumroll_it->color.has_value()) {
             drumroll_it->color.value() = std::max(0, 255 - (curr_drumroll_count * 10));
         }
     }
@@ -1002,10 +1023,9 @@ void Player::check_note(double ms_from_start, DrumType drum_type, double current
                 note = kat_notes.front();
                 kat_notes.pop_front();
             }
-            draw_note_buffer.erase(
-                std::remove(draw_note_buffer.begin(), draw_note_buffer.end(), note),
-                draw_note_buffer.end()
-            );
+            auto it = std::lower_bound(draw_note_buffer.begin(), draw_note_buffer.end(),
+                                       note.index, [](const Note& n, int idx) { return n.index < idx; });
+            if (it != draw_note_buffer.end() && *it == note) draw_note_buffer.erase(it);
             if (gauge.has_value()) gauge->add_bad();
             if (background.has_value()) background->handle_bad(PlayerNum(1 + is_2p));
         }
@@ -1111,10 +1131,9 @@ void Player::draw_drumroll(double current_ms, float y, const Note& head, int cur
         }
     }
     float start_position = get_position_x(head, current_ms);
-    auto it = std::find_if(draw_note_buffer.begin() + 1, draw_note_buffer.end(),
-        [&head](const auto& note) {
-            return note.type == NoteType::TAIL && note.index > head.index;
-        });
+    auto it = std::lower_bound(draw_note_buffer.begin(), draw_note_buffer.end(),
+                               head.index + 1, [](const Note& n, int idx) { return n.index < idx; });
+    while (it != draw_note_buffer.end() && it->type != NoteType::TAIL) ++it;
 
     auto& tail = (it != draw_note_buffer.end()) ? *it : draw_note_buffer[1];
     bool is_big = head.type == NoteType::ROLL_HEAD_L;
@@ -1132,7 +1151,7 @@ void Player::draw_drumroll(double current_ms, float y, const Note& head, int cur
         } else {
             tex.draw_texture(NOTES::DRUMROLL_TAIL, {.color=color, .x=end_position, .y=y_pos});
         }
-        tex.draw_texture(tex_id_map.at("notes/" + (std::to_string((int)head.type))), {.color=color, .frame=current_eighth % 2, .x=start_position - tex.textures[NOTES::_9]->width/2.0f, .y=y_pos+judge_y});
+        tex.draw_texture(note_tex_ids[(int)head.type], {.color=color, .frame=current_eighth % 2, .x=start_position - tex.textures[NOTES::_9]->width/2.0f, .y=y_pos+judge_y});
     }
 
     tex.draw_texture(NOTES::MOJI_DRUMROLL_MID, {.x=start_position, .y=moji_y+judge_y, .x2=length});
@@ -1151,10 +1170,9 @@ void Player::draw_balloon(double current_ms, float y, const Note& head, int curr
         }
     }
     float start_position = get_position_x(head, current_ms);
-    auto it = std::find_if(draw_note_buffer.begin() + 1, draw_note_buffer.end(),
-        [&head](const auto& note) {
-            return note.type == NoteType::TAIL && note.index > head.index;
-        });
+    auto it = std::lower_bound(draw_note_buffer.begin(), draw_note_buffer.end(),
+                               head.index + 1, [](const Note& n, int idx) { return n.index < idx; });
+    while (it != draw_note_buffer.end() && it->type != NoteType::TAIL) ++it;
 
     auto& tail = (it != draw_note_buffer.end()) ? *it : draw_note_buffer[1];
     float end_position = get_position_x(tail, current_ms);
@@ -1172,25 +1190,21 @@ void Player::draw_balloon(double current_ms, float y, const Note& head, int curr
         position = start_position;
     }
     if (head.display) {
-        tex.draw_texture(tex_id_map.at("notes/" + (std::to_string((int)head.type))), {.frame=current_eighth % 2, .x=position-offset - tex.textures[NOTES::_9]->width/2.0f, .y=y_pos});
+        tex.draw_texture(note_tex_ids[(int)head.type], {.frame=current_eighth % 2, .x=position-offset - tex.textures[NOTES::_9]->width/2.0f, .y=y_pos});
         tex.draw_texture(NOTES::_10, {.frame=current_eighth % 2, .x=position-offset+tex.textures[NOTES::_10]->width - tex.textures[NOTES::_9]->width/2.0f, .y=y_pos});
     }
     tex.draw_texture(NOTES::MOJI, {.frame=head.moji, .x=position - (tex.textures[NOTES::MOJI]->width/2.0f), .y=moji_y});
 }
 
 void Player::draw_notes(double current_ms, float y) {
+    for (auto it = barlines.rbegin(); it != barlines.rend(); ++it) {
+        draw_bar(current_ms, y, *it);
+    }
+
     if (draw_note_buffer.empty()) return;
 
     double eighth_in_ms = (bpm == 0) ? 0 : (60000.0 * 4.0 / bpm) / 8.0;
     int current_eighth = 0;
-
-    for (auto it = draw_note_buffer.rbegin(); it != draw_note_buffer.rend(); ++it) {
-        auto& note = *it;
-
-        if (note.type == NoteType::BARLINE) {
-            draw_bar(current_ms, y, note);
-        }
-    }
 
     for (auto it = draw_note_buffer.rbegin(); it != draw_note_buffer.rend(); ++it) {
         auto& note = *it;
@@ -1204,10 +1218,6 @@ void Player::draw_notes(double current_ms, float y) {
         }
 
         if (note.type == NoteType::TAIL) {
-            continue;
-        }
-
-        if (note.type == NoteType::BARLINE) {
             continue;
         }
 
@@ -1241,7 +1251,7 @@ void Player::draw_notes(double current_ms, float y) {
         } else if (note.type == NoteType::BALLOON_HEAD) {
             draw_balloon(current_ms, y, note, current_eighth);
         } else {
-            if (note.display) tex.draw_texture(tex_id_map.at("notes/" + (std::to_string((int)note.type))), {.frame=current_eighth % 2, .center=true, .x=x_position - (tex.textures[NOTES::_9]->width/2.0f), .y=y_position+tex.skin_config[SC::NOTES].y});
+            if (note.display) tex.draw_texture(note_tex_ids[(int)note.type], {.frame=current_eighth % 2, .center=true, .x=x_position - (tex.textures[NOTES::_9]->width/2.0f), .y=y_position+tex.skin_config[SC::NOTES].y});
             tex.draw_texture(NOTES::MOJI, {.frame=note.moji, .x=x_position - (tex.textures[NOTES::MOJI]->width/2.0f), .y=tex.skin_config[SC::MOJI].y + y_position});
         }
     }
@@ -1275,20 +1285,20 @@ void Player::draw_modifiers(float y) {
 }
 
 void Player::draw_overlays(float y, const ray::Shader& mask_shader) {
-    tex.draw_texture(tex_id_map.at("lane/" + (std::to_string((int)player_num) + "p_lane_cover")), {.y=y});
+    tex.draw_texture(lane_cover_tex_id, {.y=y});
     if (is_dan) tex.draw_texture(LANE::DAN_LANE_COVER, {.y=y});
     tex.draw_texture(LANE::DRUM, {.y=y});
     if (ending_anim.has_value()) {
         std::visit([](auto& anim) { anim.draw(); }, ending_anim.value());
     }
 
-    for (DrumHitEffect anim : draw_drum_hit_list) {
+    for (DrumHitEffect& anim : draw_drum_hit_list) {
         anim.draw(y);
     }
-    for (NoteArc anim : draw_arc_list) {
+    for (NoteArc& anim : draw_arc_list) {
         anim.draw(y, mask_shader);
     }
-    for (GaugeHitEffect anim : gauge_hit_effect) {
+    for (GaugeHitEffect& anim : gauge_hit_effect) {
         anim.draw(y);
     }
     draw_modifiers(y);
@@ -1302,7 +1312,7 @@ void Player::draw_overlays(float y, const ray::Shader& mask_shader) {
     } else {
         tex.draw_texture(LANE::LANE_SCORE_COVER, {.y=y});
     }
-    tex.draw_texture(tex_id_map.at("lane/" + (std::to_string((int)player_num) + "p_icon")), {.y=y});
+    tex.draw_texture(lane_icon_tex_id, {.y=y});
     if (is_dan) {
         tex.draw_texture(LANE::LANE_DIFFICULTY, {.frame=6, .y=y});
     } else {
@@ -1329,7 +1339,7 @@ void Player::draw_overlays(float y, const ray::Shader& mask_shader) {
         kusudama_counter->draw();
     }
     score_counter.draw(y);
-    for (ScoreCounterAnimation anim : base_score_list) {
+    for (ScoreCounterAnimation& anim : base_score_list) {
         anim.draw(y);
     }
     if (current_lyric.has_value()) {

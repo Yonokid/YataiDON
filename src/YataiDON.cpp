@@ -244,8 +244,6 @@ static void run_frame() {
 
 #ifdef __EMSCRIPTEN__
     poll_keyboard_once();
-#else
-    poll_sdl_gamepads();
 #endif
     ray::PollInputEvents();
     audio->update();  // no-op for PortAudio; required by raylib raudio backend
@@ -361,11 +359,6 @@ int main(int argc, char* argv[]) {
     }
 
     init_audio();
-
-#ifndef __EMSCRIPTEN__
-    init_sdl_gamepads();
-    spdlog::info("SDL3 gamepad input initialized");
-#endif
 
     Screens initial_screen = check_args(argc, argv);
 

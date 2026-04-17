@@ -278,7 +278,7 @@ public:
     std::string get_diff_hash(int difficulty);
 
 private:
-    volatile double current_ms;
+    double current_ms;
     NoteList master_notes;
     std::vector<std::string> data;
     std::deque<NoteList> branch_m;

@@ -6,9 +6,6 @@
 #ifdef _WIN32
 #include <windows.h>
 #endif
-#ifndef __EMSCRIPTEN__
-#include <SDL3/SDL.h>
-#endif
 
 #ifndef __EMSCRIPTEN__
 std::atomic<bool> input_thread_running{true};
@@ -19,6 +16,7 @@ std::vector<int> pressed_keys;
 std::vector<int> released_keys;
 
 std::unordered_map<int, bool> previous_key_states;
+std::unordered_map<int, bool> previous_gamepad_states;
 
 bool is_input_key_pressed(const std::vector<int>& keys, const std::vector<int>& gamepad_buttons) {
     if (global_data.input_locked) return false;
@@ -204,6 +202,18 @@ void poll_keyboard_once() {
     }
 #endif
 
+    for (int gamepad = 0; gamepad < 4; gamepad++) {
+        if (!ray::IsGamepadAvailable(gamepad)) continue;
+        for (int btn = 1; btn <= 17; btn++) {
+            int key = 10000 + btn;
+            bool current_state  = ray::IsGamepadButtonDown(gamepad, btn);
+            bool previous_state = previous_gamepad_states[key];
+            if (current_state  && !previous_state) local_pressed.push_back(key);
+            if (!current_state && previous_state)  local_released.push_back(key);
+            previous_gamepad_states[key] = current_state;
+        }
+    }
+
     if (!local_pressed.empty() || !local_released.empty()) {
         std::lock_guard<std::mutex> lock(input_mutex);
         pressed_keys.insert(pressed_keys.end(), local_pressed.begin(), local_pressed.end());
@@ -219,164 +229,6 @@ void input_polling_thread() {
     }
 }
 #endif
-
-#ifndef __EMSCRIPTEN__
-
-static SDL_Joystick*  sdl_joysticks[4]    = {};
-static SDL_JoystickID sdl_joystick_ids[4] = {};
-static Sint16 sdl_axis_prev[4][16] = {};
-static Uint8  sdl_hat_prev[4][8]   = {};
-static const Sint16 AXIS_THRESHOLD = 3276;
-
-// Virtual button offsets (added to 10000; config values are the raw offsets):
-//   button_index                  physical button
-//   200 + axis*2                  axis positive
-//   201 + axis*2                  axis negative
-//   400 + hat*4 + bit             hat direction (bit: 0=UP 1=RIGHT 2=DOWN 3=LEFT)
-
-static int find_joystick_slot(SDL_JoystickID id) {
-    for (int i = 0; i < 4; i++)
-        if (sdl_joysticks[i] && sdl_joystick_ids[i] == id) return i;
-    return -1;
-}
-
-static int find_free_slot() {
-    for (int i = 0; i < 4; i++)
-        if (!sdl_joysticks[i]) return i;
-    return -1;
-}
-
-static void open_joystick_slot(int slot, SDL_JoystickID id) {
-    sdl_joysticks[slot]    = SDL_OpenJoystick(id);
-    sdl_joystick_ids[slot] = id;
-    memset(sdl_axis_prev[slot], 0, sizeof(sdl_axis_prev[slot]));
-    memset(sdl_hat_prev[slot],  0, sizeof(sdl_hat_prev[slot]));
-    if (sdl_joysticks[slot]) {
-        spdlog::info("Joystick connected: {}", SDL_GetJoystickName(sdl_joysticks[slot]));
-    } else {
-        spdlog::error("Failed to open joystick id={}: {}", id, SDL_GetError());
-    }
-}
-
-static void handle_joystick_event(SDL_Event* event) {
-    switch (event->type) {
-
-    case SDL_EVENT_JOYSTICK_ADDED: {
-        SDL_JoystickID id = event->jdevice.which;
-        if (find_joystick_slot(id) == -1) {
-            int slot = find_free_slot();
-            if (slot >= 0) open_joystick_slot(slot, id);
-        }
-        break;
-    }
-
-    case SDL_EVENT_JOYSTICK_REMOVED: {
-        int slot = find_joystick_slot(event->jdevice.which);
-        if (slot >= 0) {
-            spdlog::info("Joystick disconnected");
-            SDL_CloseJoystick(sdl_joysticks[slot]);
-            sdl_joysticks[slot]    = nullptr;
-            sdl_joystick_ids[slot] = 0;
-        }
-        break;
-    }
-
-    case SDL_EVENT_JOYSTICK_BUTTON_DOWN: {
-        std::lock_guard<std::mutex> lock(input_mutex);
-        pressed_keys.push_back(10000 + event->jbutton.button);
-        break;
-    }
-
-    case SDL_EVENT_JOYSTICK_BUTTON_UP: {
-        std::lock_guard<std::mutex> lock(input_mutex);
-        released_keys.push_back(10000 + event->jbutton.button);
-        break;
-    }
-
-    case SDL_EVENT_JOYSTICK_AXIS_MOTION: {
-        int slot = find_joystick_slot(event->jaxis.which);
-        if (slot < 0 || event->jaxis.axis >= 16) break;
-        int    ax   = event->jaxis.axis;
-        Sint16 val  = event->jaxis.value;
-        Sint16 prev = sdl_axis_prev[slot][ax];
-        sdl_axis_prev[slot][ax] = val;
-        bool pos_cur  = val  >  AXIS_THRESHOLD;
-        bool pos_prev = prev >  AXIS_THRESHOLD;
-        bool neg_cur  = val  < -AXIS_THRESHOLD;
-        bool neg_prev = prev < -AXIS_THRESHOLD;
-        std::lock_guard<std::mutex> lock(input_mutex);
-        if (pos_cur  && !pos_prev) pressed_keys.push_back(10200 + ax * 2);
-        if (!pos_cur && pos_prev)  released_keys.push_back(10200 + ax * 2);
-        if (neg_cur  && !neg_prev) pressed_keys.push_back(10200 + ax * 2 + 1);
-        if (!neg_cur && neg_prev)  released_keys.push_back(10200 + ax * 2 + 1);
-        break;
-    }
-
-    case SDL_EVENT_JOYSTICK_HAT_MOTION: {
-        int slot = find_joystick_slot(event->jhat.which);
-        if (slot < 0 || event->jhat.hat >= 8) break;
-        int   h    = event->jhat.hat;
-        Uint8 cur  = event->jhat.value;
-        Uint8 prev = sdl_hat_prev[slot][h];
-        sdl_hat_prev[slot][h] = cur;
-        std::lock_guard<std::mutex> lock(input_mutex);
-        for (int bit = 0; bit < 4; bit++) {
-            Uint8 mask     = static_cast<Uint8>(1 << bit);
-            bool  cur_bit  = (cur  & mask) != 0;
-            bool  prev_bit = (prev & mask) != 0;
-            int   vkey     = 10400 + h * 4 + bit;
-            if (cur_bit  && !prev_bit) pressed_keys.push_back(vkey);
-            if (!cur_bit && prev_bit)  released_keys.push_back(vkey);
-        }
-        break;
-    }
-
-    }
-}
-
-void init_sdl_gamepads() {
-    if (!(SDL_WasInit(0) & SDL_INIT_JOYSTICK)) {
-        if (!SDL_InitSubSystem(SDL_INIT_JOYSTICK)) {
-            spdlog::error("SDL3: joystick subsystem init failed: {}", SDL_GetError());
-        }
-    }
-
-    SDL_SetEventEnabled(SDL_EVENT_GAMEPAD_ADDED,   false);
-    SDL_SetEventEnabled(SDL_EVENT_GAMEPAD_REMOVED, false);
-
-    SDL_PumpEvents();
-    int count = 0;
-    SDL_JoystickID* ids = SDL_GetJoysticks(&count);
-    if (ids) {
-        for (int i = 0; i < count && i < 4; i++)
-            open_joystick_slot(i, ids[i]);
-        SDL_free(ids);
-    }
-}
-
-void poll_sdl_gamepads() {
-    SDL_PumpEvents();
-    SDL_Event events[64];
-    int n = SDL_PeepEvents(events, 64, SDL_GETEVENT,
-                           SDL_EVENT_JOYSTICK_AXIS_MOTION,
-                           SDL_EVENT_JOYSTICK_UPDATE_COMPLETE);
-    for (int i = 0; i < n; i++)
-        handle_joystick_event(&events[i]);
-}
-
-#endif  // __EMSCRIPTEN__
-
-int get_any_controller_pressed() {
-    std::lock_guard<std::mutex> lock(input_mutex);
-    for (auto it = pressed_keys.begin(); it != pressed_keys.end(); ++it) {
-        if (*it >= 10000) {
-            int config_value = *it - 10000;
-            pressed_keys.erase(it);
-            return config_value;
-        }
-    }
-    return -1;
-}
 
 bool check_key_pressed(int key) {
     std::lock_guard<std::mutex> lock(input_mutex);

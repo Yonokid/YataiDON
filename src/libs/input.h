@@ -21,11 +21,6 @@ void input_polling_thread();
 // On web, call this once per frame instead of spawning a thread.
 void poll_keyboard_once();
 
-#ifndef __EMSCRIPTEN__
-void init_sdl_gamepads();
-void poll_sdl_gamepads();
-#endif
-
 // Check if a key was pressed since the last check
 // This consumes the key press event
 bool check_key_pressed(int key);
@@ -37,10 +32,6 @@ bool check_key_released(int key);
 // Clear all buffered input events
 // Useful when changing screens or locking input
 void clear_input_buffers();
-
-// Returns the raw config value of the first controller input pressed this frame,
-// or -1 if none. Consumes the event.
-int get_any_controller_pressed();
 
 bool is_input_key_pressed(const std::vector<int>& keys, const std::vector<int>& gamepad_buttons);
 bool is_l_don_pressed(PlayerNum player_num = PlayerNum::ALL);

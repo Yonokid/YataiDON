@@ -197,7 +197,7 @@ void GameScreen::update_background(double current_time) {
 std::optional<Screens> GameScreen::update() {
     Screen::update();  // Call parent implementation
 
-    volatile double current_time = get_current_ms();
+    double current_time = get_current_ms();
     transition->update(current_time);
     if (!paused) {
         current_ms = current_time - start_ms;

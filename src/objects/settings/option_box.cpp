@@ -381,8 +381,8 @@ void KeyBindControllerOptionBox::confirm() {
 void KeyBindControllerOptionBox::update(double current_time) {
     flicker_fade->update(current_time);
     if (is_highlighted) {
-        int btn = get_any_controller_pressed();
-        if (btn >= 0) {
+        int btn = ray::GetGamepadButtonPressed();
+        if (btn > 0) {
             value = {btn};
             confirm();
             audio->play_sound("don", "sound");

@@ -14,9 +14,9 @@
 class GameScreen : public Screen {
 private:
     ray::Shader mask_shader;
-    volatile double start_ms;
-    volatile double current_ms;
-    volatile double end_ms;
+    double start_ms;
+    double current_ms;
+    double end_ms;
     double start_delay;
     bool song_started;
     bool paused;

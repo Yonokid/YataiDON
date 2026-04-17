@@ -90,6 +90,7 @@ private:
     std::deque<Note> don_notes;
     std::deque<Note> kat_notes;
     std::deque<Note> other_notes;
+    std::deque<Note> barlines;
 
     std::deque<Note> draw_note_list;
     std::vector<Note> draw_note_buffer;
@@ -122,6 +123,10 @@ private:
 
     std::string don_hitsound;
     std::string kat_hitsound;
+
+    TexID lane_cover_tex_id;
+    TexID lane_icon_tex_id;
+    TexID note_tex_ids[10];
 
     std::vector<Judgment> draw_judge_list;
     std::optional<LaneHitEffect> lane_hit_effect;
