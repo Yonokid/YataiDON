@@ -19,6 +19,7 @@ struct GeneralConfig {
     int visual_offset;
     std::string language;
     bool timer_frozen;
+    bool song_timer;
     bool judge_counter;
     bool nijiiro_notes;
     std::string log_level;

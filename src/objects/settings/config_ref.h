@@ -41,6 +41,7 @@ inline ConfigRef get_config_ref(const std::string& path) {
     if (path == "general/visual_offset")            return &c->general.visual_offset;
     if (path == "general/language")                 return &c->general.language;
     if (path == "general/timer_frozen")             return &c->general.timer_frozen;
+    if (path == "general/song_timer")               return &c->general.song_timer;
     if (path == "general/judge_counter")            return &c->general.judge_counter;
     if (path == "general/nijiiro_notes")            return &c->general.nijiiro_notes;
     if (path == "general/fake_online")              return &c->general.fake_online;

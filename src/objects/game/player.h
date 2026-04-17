@@ -208,6 +208,8 @@ private:
 
     void draw_notes(double current_ms, float y);
 
+    void draw_song_timer(double current_ms, float y);
+
     void draw_modifiers(float y);
 
     void draw_overlays(float y, const ray::Shader& mask_shader);

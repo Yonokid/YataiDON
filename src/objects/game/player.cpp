@@ -374,6 +374,10 @@ void Player::draw(double ms_from_start, float x, float y, ray::Shader& mask_shad
     }*/
 
     draw_overlays(y, mask_shader);
+
+    if (global_data.config->general.song_timer) {
+        draw_song_timer(ms_from_start, y);
+    }
 }
 
 void Player::get_load_time(Note& note) {
@@ -1255,6 +1259,13 @@ void Player::draw_notes(double current_ms, float y) {
             tex.draw_texture(NOTES::MOJI, {.frame=note.moji, .x=x_position - (tex.textures[NOTES::MOJI]->width/2.0f), .y=tex.skin_config[SC::MOJI].y + y_position});
         }
     }
+}
+
+void Player::draw_song_timer(double current_ms, float y) {
+    float progress = current_ms / end_time;
+    float width = tex.skin_config[SC::SONG_TIMER].width * std::max(std::min(progress, 1.0f), 0.0f);
+    ray::DrawRectangle(tex.skin_config[SC::SONG_TIMER].x, y + tex.skin_config[SC::SONG_TIMER].y, width, tex.skin_config[SC::SONG_TIMER].height, ray::Color(0, 255, 158, 255));
+    tex.draw_texture(LANE::TIMER, {.y=y});
 }
 
 void Player::draw_modifiers(float y) {

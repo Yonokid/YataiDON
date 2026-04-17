@@ -4,6 +4,7 @@ audio_offset = 0
 visual_offset = 0
 language = "en"
 timer_frozen = true
+song_timer = false
 judge_counter = false
 nijiiro_notes = false
 log_level = "warning"

@@ -203,6 +203,7 @@ Config get_config() {
         config.general.visual_offset = (*general)["visual_offset"].value_or(0);
         config.general.language = (*general)["language"].value_or("en");
         config.general.timer_frozen = (*general)["timer_frozen"].value_or(false);
+        config.general.song_timer = (*general)["song_timer"].value_or(false);
         config.general.judge_counter = (*general)["judge_counter"].value_or(false);
         config.general.nijiiro_notes = (*general)["nijiiro_notes"].value_or(false);
         config.general.log_level = (*general)["log_level"].value_or(2);
@@ -339,6 +340,7 @@ void save_config(const Config& config) {
         {"visual_offset", config.general.visual_offset},
         {"language", config.general.language},
         {"timer_frozen", config.general.timer_frozen},
+        {"song_timer", config.general.song_timer},
         {"judge_counter", config.general.judge_counter},
         {"nijiiro_notes", config.general.nijiiro_notes},
         {"log_level", config.general.log_level},
