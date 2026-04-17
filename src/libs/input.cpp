@@ -1,5 +1,6 @@
 #include "input.h"
 #include <unordered_map>
+#include <unordered_set>
 #include <cstring>
 #include <spdlog/spdlog.h>
 
@@ -8,8 +9,52 @@
 #endif
 
 #ifndef __EMSCRIPTEN__
+#include <SDL3/SDL.h>
 std::atomic<bool> input_thread_running{true};
 std::thread input_thread;
+
+static std::unordered_map<SDL_JoystickID, SDL_Joystick*> sdl_joysticks;
+// keyed by joy_id * 256 + button_index
+static std::unordered_map<int64_t, bool>  sdl_prev_button;
+// keyed by joy_id * 256 + axis_index
+static std::unordered_map<int64_t, float> sdl_prev_axis;
+
+static void refresh_sdl_joysticks() {
+    static bool init_done = false;
+    if (!init_done) {
+        SDL_InitSubSystem(SDL_INIT_JOYSTICK);
+        init_done = true;
+    }
+
+    int count = 0;
+    SDL_JoystickID* ids = SDL_GetJoysticks(&count);
+    if (!ids) return;
+
+    std::unordered_set<SDL_JoystickID> current(ids, ids + count);
+
+    for (auto it = sdl_joysticks.begin(); it != sdl_joysticks.end();) {
+        if (!current.count(it->first)) {
+            SDL_CloseJoystick(it->second);
+            it = sdl_joysticks.erase(it);
+        } else {
+            ++it;
+        }
+    }
+
+    for (int i = 0; i < count; i++) {
+        if (SDL_IsGamepad(ids[i])) continue; // already handled by raylib
+        if (!sdl_joysticks.count(ids[i])) {
+            SDL_Joystick* joy = SDL_OpenJoystick(ids[i]);
+            if (joy) {
+                sdl_joysticks[ids[i]] = joy;
+                spdlog::info("Joystick fallback: opened '{}' (id {})",
+                             SDL_GetJoystickName(joy), (int)ids[i]);
+            }
+        }
+    }
+
+    SDL_free(ids);
+}
 #endif
 std::mutex input_mutex;
 std::vector<int> pressed_keys;
@@ -212,7 +257,45 @@ void poll_keyboard_once() {
             if (!current_state && previous_state)  local_released.push_back(key);
             previous_gamepad_states[key] = current_state;
         }
+
     }
+
+#ifndef __EMSCRIPTEN__
+    refresh_sdl_joysticks();
+    constexpr float JOYSTICK_AXIS_THRESHOLD = 0.5f;
+
+    for (auto& [joy_id, joy] : sdl_joysticks) {
+        int num_buttons = SDL_GetNumJoystickButtons(joy);
+        for (int btn = 0; btn < num_buttons && btn < 32; btn++) {
+            int64_t state_key = (int64_t)joy_id * 256 + btn;
+            // Use 1-indexed encoding to match raylib's gamepad button convention
+            int vkey = 10000 + btn + 1;
+            bool cur  = SDL_GetJoystickButton(joy, btn);
+            bool prev = sdl_prev_button[state_key];
+            if (cur  && !prev) local_pressed.push_back(vkey);
+            if (!cur && prev)  local_released.push_back(vkey);
+            sdl_prev_button[state_key] = cur;
+        }
+
+        int num_axes = SDL_GetNumJoystickAxes(joy);
+        for (int axis = 0; axis < num_axes && axis < 8; axis++) {
+            int64_t state_key = (int64_t)joy_id * 256 + axis;
+            float value = SDL_GetJoystickAxis(joy, axis) / 32767.0f;
+            float prev  = sdl_prev_axis[state_key];
+            int key_pos = 20000 + axis * 2;
+            int key_neg = 20000 + axis * 2 + 1;
+            bool cur_pos  = value >  JOYSTICK_AXIS_THRESHOLD;
+            bool cur_neg  = value < -JOYSTICK_AXIS_THRESHOLD;
+            bool prev_pos = prev  >  JOYSTICK_AXIS_THRESHOLD;
+            bool prev_neg = prev  < -JOYSTICK_AXIS_THRESHOLD;
+            if (cur_pos  && !prev_pos) local_pressed.push_back(key_pos);
+            if (!cur_pos && prev_pos)  local_released.push_back(key_pos);
+            if (cur_neg  && !prev_neg) local_pressed.push_back(key_neg);
+            if (!cur_neg && prev_neg)  local_released.push_back(key_neg);
+            sdl_prev_axis[state_key] = value;
+        }
+    }
+#endif
 
     if (!local_pressed.empty() || !local_released.empty()) {
         std::lock_guard<std::mutex> lock(input_mutex);
@@ -255,3 +338,12 @@ void clear_input_buffers() {
     pressed_keys.clear();
     released_keys.clear();
 }
+
+#ifndef __EMSCRIPTEN__
+void shutdown_sdl_joysticks() {
+    for (auto& [id, joy] : sdl_joysticks) {
+        SDL_CloseJoystick(joy);
+    }
+    sdl_joysticks.clear();
+}
+#endif

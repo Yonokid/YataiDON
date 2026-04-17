@@ -418,6 +418,7 @@ int main(int argc, char* argv[]) {
     if (input_thread.joinable()) {
         input_thread.join();
     }
+    shutdown_sdl_joysticks();
     global_tex.unload_textures();
     tex.unload_textures();
     script_manager.tex.unload_textures();
