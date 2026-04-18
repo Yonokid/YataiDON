@@ -457,3 +457,90 @@ void FloatOptionBox::draw() {
     float ty = btn->y[2] + (btn->height / 2.0f) - (value_text->height / 2.0f);
     value_text->draw({.x=tx, .y=ty});
 }
+
+AudioOffsetOptionBox::AudioOffsetOptionBox(const std::string& name,
+                                           const std::string& description,
+                                           const std::string& path,
+                                           Screens             calibrate_screen)
+    : BaseOptionBox(name, description, path)
+    , value(config_ref.get_int())
+    , calibrate_screen(calibrate_screen)
+    , offset_highlighted(true)
+    , value_text(nullptr)
+    , calibrate_text(new OutlinedText("Calibrate", OPTION_FONT_SIZE, ray::WHITE, ray::BLACK, false, 4, -4))
+    , flicker_fade(make_flicker())
+{
+    rebuild_text();
+}
+
+AudioOffsetOptionBox::~AudioOffsetOptionBox() {
+    delete value_text;
+    delete calibrate_text;
+    delete flicker_fade;
+}
+
+void AudioOffsetOptionBox::rebuild_text() {
+    delete value_text;
+    std::string label = (value >= 0 ? "+" : "") + std::to_string(value) + " ms";
+    value_text = new OutlinedText(label, OPTION_FONT_SIZE,
+                                  ray::WHITE, ray::BLACK, false, 4, -4);
+}
+
+void AudioOffsetOptionBox::confirm() {
+    if (is_highlighted) return;  // entering — act on exit only
+    if (offset_highlighted) {
+        config_ref.set_int(value);
+    } else {
+        wants_screen_change = true;
+        pending_screen      = calibrate_screen;
+    }
+}
+
+void AudioOffsetOptionBox::move_left() {
+    if (offset_highlighted) {
+        value -= 1;
+        rebuild_text();
+    } else {
+        offset_highlighted = true;
+    }
+}
+
+void AudioOffsetOptionBox::move_right() {
+    if (offset_highlighted) {
+        offset_highlighted = false;
+    }
+}
+
+void AudioOffsetOptionBox::update(double current_time) {
+    flicker_fade->update(current_time);
+}
+
+void AudioOffsetOptionBox::draw() {
+    draw_base();
+
+    // Offset value button (index 0)
+    if (offset_highlighted && is_highlighted) {
+        tex.draw_texture(OPTION::BUTTON_ON,  {.fade=flicker_fade->attribute, .index=0});
+    } else {
+        tex.draw_texture(OPTION::BUTTON_OFF, {.index=0});
+    }
+    {
+        auto& btn = tex.textures[OPTION::BUTTON_ON];
+        float tx = btn->x[0] + (btn->width  / 2.0f) - (value_text->width  / 2.0f);
+        float ty = btn->y[0] + (btn->height / 2.0f) - (value_text->height / 2.0f);
+        value_text->draw({.x=tx, .y=ty});
+    }
+
+    // Calibrate button (index 1)
+    if (!offset_highlighted && is_highlighted) {
+        tex.draw_texture(OPTION::BUTTON_ON,  {.fade=flicker_fade->attribute, .index=1});
+    } else {
+        tex.draw_texture(OPTION::BUTTON_OFF, {.index=1});
+    }
+    {
+        auto& btn = tex.textures[OPTION::BUTTON_ON];
+        float tx = btn->x[1] + (btn->width  / 2.0f) - (calibrate_text->width  / 2.0f);
+        float ty = btn->y[1] + (btn->height / 2.0f) - (calibrate_text->height / 2.0f);
+        calibrate_text->draw({.x=tx, .y=ty});
+    }
+}

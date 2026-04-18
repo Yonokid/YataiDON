@@ -10,4 +10,8 @@ public:
     Screens on_screen_end(Screens next_screen) override;
     std::optional<Screens> update() override;
     void draw() override;
+
+    std::vector<double> latencies;
+    double average_latency;
+    std::optional<OutlinedText> average_latency_text;
 };

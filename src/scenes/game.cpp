@@ -210,7 +210,7 @@ std::optional<Screens> GameScreen::update() {
     }
     if (song_started && song_music.has_value()) {
         float audio_ms = audio->get_music_time_played(song_music.value()) * 1000.0f;
-        float audio_ms_adjusted = audio_ms + (parser->metadata.offset * 1000 + start_delay);
+        float audio_ms_adjusted = audio_ms + (parser->metadata.offset * 1000 + start_delay - (double)global_data.config->general.audio_offset);
         if (std::abs(current_ms - audio_ms_adjusted) > 5) {
             spdlog::debug("Resyncing chart from {} to {}", current_ms, audio_ms_adjusted);
             current_ms = audio_ms_adjusted;

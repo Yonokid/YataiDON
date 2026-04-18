@@ -356,6 +356,22 @@ void TextureWrapper::load_folder(const std::string& screen_name, const std::stri
     }
 }
 
+void TextureWrapper::unload_folder(const std::string& screen_name, const std::string& subset) {
+    const std::string subset_key = fs::path(subset).filename().string();
+
+    if (!loaded_subsets.count(subset_key)) return;
+
+    const std::string prefix = subset_key + "/";
+    for (const auto& [path, id] : tex_id_map) {
+        if (path.size() >= prefix.size() && path.substr(0, prefix.size()) == prefix) {
+            textures.erase(static_cast<uint32_t>(id));
+        }
+    }
+
+    loaded_subsets.erase(subset_key);
+    spdlog::info("Textures unloaded for folder: {}/{}", screen_name, subset);
+}
+
 void TextureWrapper::load_screen_textures(const std::string& screen_name) {
     fs::path screen_path = graphics_path / screen_name;
     fs::path parent_screen_path = parent_graphics_path / screen_name;

@@ -48,6 +48,7 @@ public:
     double end_time;
     float bpm;
     PlayerNum player_num;
+    double last_note_hit;
 
     Player(std::optional<TJAParser>& parser_ref, PlayerNum player_num_param, int difficulty_param,
            bool is_2p_param, const Modifiers& modifiers_param);

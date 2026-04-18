@@ -67,6 +67,14 @@ void SettingsBoxManager::move_right() {
     }
 }
 
+std::optional<Screens> SettingsBoxManager::pending_screen_change() const {
+    for (auto* b : boxes) {
+        auto result = b->pending_screen_change();
+        if (result) return result;
+    }
+    return std::nullopt;
+}
+
 bool SettingsBoxManager::select_box() {
     if (boxes[selected_box_index]->box_name == "exit") {
         return true;

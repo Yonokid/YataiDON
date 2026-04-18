@@ -84,6 +84,8 @@ std::optional<Screens> SettingsScreen::update() {
     double current_time = get_current_ms();
     indicator.update(current_time);
     box_manager->update(current_time);
+    if (auto screen = box_manager->pending_screen_change())
+        return on_screen_end(*screen);
     return handle_input();
 }
 

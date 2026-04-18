@@ -3,6 +3,7 @@
 #include "../../libs/texture.h"
 #include "../../libs/animation.h"
 #include "../../libs/text.h"
+#include "../../libs/screen.h"
 #include "config_ref.h"
 #include <map>
 #include <vector>
@@ -139,4 +140,32 @@ public:
     void move_left()  override;
     void move_right() override;
     void draw()       override;
+};
+
+class AudioOffsetOptionBox : public BaseOptionBox {
+public:
+    AudioOffsetOptionBox(const std::string& name,
+                         const std::string& description,
+                         const std::string& path,
+                         Screens           calibrate_screen);
+    ~AudioOffsetOptionBox() override;
+
+    void confirm()                   override;
+    void move_left()                 override;
+    void move_right()                override;
+    void draw()                      override;
+    void update(double current_time) override;
+
+    bool    wants_screen_change = false;
+    Screens pending_screen      = Screens::INPUT_CALI;
+
+private:
+    int             value;
+    Screens          calibrate_screen;
+    bool             offset_highlighted;  // true = on offset button, false = on calibrate button
+    OutlinedText*   value_text;
+    OutlinedText*   calibrate_text;
+    FadeAnimation*  flicker_fade;
+
+    void rebuild_text();
 };

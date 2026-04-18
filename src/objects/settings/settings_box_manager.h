@@ -1,6 +1,7 @@
 #pragma once
 #include "settings_box.h"
 #include <rapidjson/document.h>
+#include <optional>
 #include <vector>
 #include <string>
 
@@ -17,6 +18,8 @@ public:
 
     // Returns true if the exit box was selected, otherwise false
     bool select_box();
+
+    std::optional<Screens> pending_screen_change() const;
 
     void move_left();
     void move_right();

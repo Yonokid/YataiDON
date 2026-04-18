@@ -5,6 +5,7 @@
 #include "../../libs/text.h"
 #include "option_box.h"
 #include <rapidjson/document.h>
+#include <optional>
 #include <vector>
 #include <string>
 
@@ -47,6 +48,9 @@ public:
     void select_option();
 
     void select();
+
+    // Returns non-null if an option requested a screen transition
+    std::optional<Screens> pending_screen_change() const;
 
     void update(double current_time_ms, bool selected);
     void draw();

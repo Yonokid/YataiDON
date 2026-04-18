@@ -12,7 +12,13 @@
 #include "../objects/global/allnet_indicator.h"
 
 class GameScreen : public Screen {
-private:
+protected:
+    GameScreen(const std::string& name) : Screen(name) {}
+
+public:
+    GameScreen() : Screen("game") {
+    }
+
     ray::Shader mask_shader;
     double start_ms;
     double current_ms;
@@ -25,7 +31,6 @@ private:
     float bpm;
 
     std::optional<VideoPlayer> movie;
-    std::optional<Background> background;
     std::optional<std::string> song_music;
     std::optional<TJAParser> parser;
     std::string scene_preset;
@@ -34,14 +39,7 @@ private:
     std::optional<Transition> transition;
     ResultTransition result_transition;
     AllNetIcon allnet_indicator;
-
-
-protected:
-    GameScreen(const std::string& name) : Screen(name) {}
-
-public:
-    GameScreen() : Screen("game") {
-    }
+    std::optional<Background> background;
 
     ~GameScreen() {
         if (screen_init && mask_shader.id > 0) {

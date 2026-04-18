@@ -124,6 +124,7 @@ void Player::autoplay_manager(double ms_from_start, double current_ms, std::opti
             spawn_hit_effects(hit_type, autoplay_hit_side);
             audio->play_sound(don_hitsound, "hitsound");
             check_note(ms_from_start, hit_type, current_ms, background);
+            last_note_hit = current_ms;
         }
 
         while (!kat_notes.empty() && ms_from_start >= kat_notes.front().hit_ms) {
@@ -1088,6 +1089,8 @@ void Player::spawn_hit_effects(DrumType drum_type, Side side) {
 }
 
 void Player::handle_input(double ms_from_start, double current_ms, std::optional<Background>& background) {
+    if (modifiers.auto_play) return;
+
     struct InputCheck {
         bool (*check_func)(PlayerNum);
         DrumType drum_type;

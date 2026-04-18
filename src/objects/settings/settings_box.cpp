@@ -23,6 +23,9 @@ BaseOptionBox* SettingsBox::make_option_box(const rapidjson::Value& opt) {
         }
     }
 
+    if (type == "audiooffset") {
+        return new AudioOffsetOptionBox(name, desc, path, Screens::INPUT_CALI);
+    }
     if (type == "bool") {
         std::string true_label  = values_map.count("true")  ? values_map["true"]  : "Enabled";
         std::string false_label = values_map.count("false") ? values_map["false"] : "Disabled";
@@ -145,6 +148,17 @@ void SettingsBox::select_option() {
 
 void SettingsBox::select() {
     in_box = true;
+}
+
+std::optional<Screens> SettingsBox::pending_screen_change() const {
+    for (auto* opt : options) {
+        auto* ao = dynamic_cast<AudioOffsetOptionBox*>(opt);
+        if (ao && ao->wants_screen_change) {
+            ao->wants_screen_change = false;
+            return ao->pending_screen;
+        }
+    }
+    return std::nullopt;
 }
 
 void SettingsBox::update(double current_time_ms, bool selected) {

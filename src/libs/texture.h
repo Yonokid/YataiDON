@@ -125,6 +125,8 @@ public:
 
     void load_folder(const std::string& screen_name, const std::string& subset);
 
+    void unload_folder(const std::string& screen_name, const std::string& subset);
+
     void load_screen_textures(const std::string& screen_name);
 
     void control(TextureObject* tex_obj, int index = 0);

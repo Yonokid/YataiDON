@@ -228,6 +228,10 @@ void ScriptManager::register_lua_bindings() {
         script_manager.tex.load_folder(screen_name, subset);
     });
 
+    tex.set_function("unload_folder", [](const std::string& screen_name, const std::string& subset) {
+        script_manager.tex.unload_folder(screen_name, subset);
+    });
+
     tex.set_function("get_screen_width", []() -> float {
         return script_manager.tex.screen_width;
     });
