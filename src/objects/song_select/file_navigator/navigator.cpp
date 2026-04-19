@@ -85,7 +85,7 @@ void Navigator::enqueue_box(std::unique_ptr<BaseBox> box) {
     auto last_write_sys = ch::clock_cast<ch::system_clock>(last_write);
 #endif
     auto two_weeks_ago = ch::system_clock::now() - ch::weeks(2);
-    if (last_write_sys >= two_weeks_ago)
+    if (last_write_sys < two_weeks_ago)
         box->is_new = true;
     if (auto* song = dynamic_cast<SongBox*>(box.get())) {
         auto& t = song->parser.metadata.title;
@@ -180,28 +180,45 @@ void Navigator::flush_pending_boxes() {
 void Navigator::parse_song_list(const fs::path& path, BoxDef box_def, bool inline_mode) {
     std::ifstream file(path);
     std::string line;
+    std::vector<std::string> out_lines;
+    bool needs_rewrite = false;
+
     while (std::getline(file, line)) {
         std::vector<std::string> fields;
         std::stringstream ss(line);
         std::string field;
-        while (std::getline(ss, field, '|')) {
-            fields.push_back(field);
-        }
-        if (fields.size() < 3) continue;  // guard against malformed lines
+        while (std::getline(ss, field, '|')) fields.push_back(field);
+        if (fields.size() < 3) { out_lines.push_back(line); continue; }
+
+        std::string hash     = fields[0];
         std::string title    = fields[1];
         std::string subtitle = fields[2];
-        for (const auto& [key, value] : song_files) {
-            if (key.first == title && key.second == subtitle) {
-                auto box = std::make_unique<SongBox>(value, box_def, TJAParser(value));
-                if (inline_mode)
-                    enqueue_inline_box(std::move(box));
-                else
-                    enqueue_box(std::move(box));
-            }
+
+        fs::path song_path;
+        if (auto found = scores_manager.get_path_by_hash(hash)) {
+            song_path = *found;
+            out_lines.push_back(line);
+        } else {
+            auto it = song_files.find({title, subtitle});
+            if (it == song_files.end()) { out_lines.push_back(line); continue; }
+            song_path = it->second;
+            std::string correct_hash = scores_manager.get_single_hash(song_path);
+            out_lines.push_back(correct_hash + "|" + title + "|" + subtitle);
+            needs_rewrite = true;
         }
+
+        auto box = std::make_unique<SongBox>(song_path, box_def, TJAParser(song_path));
+        if (inline_mode)
+            enqueue_inline_box(std::move(box));
+        else
+            enqueue_box(std::move(box));
     }
     file.close();
-    return;
+
+    if (needs_rewrite) {
+        std::ofstream out(path, std::ios::trunc);
+        for (const auto& l : out_lines) out << l << "\n";
+    }
 }
 
 void Navigator::load_current_directory_async(const fs::path path) {
@@ -338,9 +355,14 @@ void Navigator::load_collection_favorite(const fs::path& path, const BoxDef& box
         std::string field;
         while (std::getline(ss, field, '|')) fields.push_back(field);
         if (fields.size() < 3) continue;
-        auto it = song_files.find({fields[1], fields[2]});
-        if (it == song_files.end()) continue;
-        const fs::path& song_path = it->second;
+        fs::path song_path;
+        if (auto found = scores_manager.get_path_by_hash(fields[0])) {
+            song_path = *found;
+        } else {
+            auto it = song_files.find({fields[1], fields[2]});
+            if (it == song_files.end()) continue;
+            song_path = it->second;
+        }
         if (songs_added > 0 && songs_added % 10 == 0) {
             BoxDef back_box_def;
             back_box_def.back_color    = BackBox::COLOR;
@@ -372,7 +394,7 @@ void Navigator::toggle_favorite(SongBox* song) {
     std::string title    = t.count("en") ? t.at("en") : t.begin()->second;
     std::string subtitle = s.count("en") ? s.at("en") : s.begin()->second;
     std::string key      = title + "|" + subtitle;
-    std::string entry    = "0|" + title + "|" + subtitle;
+    std::string entry    = scores_manager.get_single_hash(song->parser.file_path) + "|" + title + "|" + subtitle;
 
     fs::path song_list = *favorite_folder_path / "song_list.txt";
     std::vector<std::string> lines;
@@ -420,11 +442,14 @@ void Navigator::load_collection_recent(const fs::path& path, const BoxDef& box_d
         std::string field;
         while (std::getline(ss, field, '|')) fields.push_back(field);
         if (fields.size() < 3) continue;
-        const std::string& title    = fields[1];
-        const std::string& subtitle = fields[2];
-        auto it = song_files.find({title, subtitle});
-        if (it == song_files.end()) continue;
-        const fs::path& song_path = it->second;
+        fs::path song_path;
+        if (auto found = scores_manager.get_path_by_hash(fields[0])) {
+            song_path = *found;
+        } else {
+            auto it = song_files.find({fields[1], fields[2]});
+            if (it == song_files.end()) continue;
+            song_path = it->second;
+        }
         if (songs_added > 0 && songs_added % 10 == 0) {
             BoxDef back_box_def;
             back_box_def.back_color    = BackBox::COLOR;
@@ -457,7 +482,7 @@ void Navigator::add_to_recent(const SongBox* song) {
     auto& subtitles = song->parser.metadata.subtitle;
     std::string title    = titles.count("en")    ? titles.at("en")    : titles.begin()->second;
     std::string subtitle = subtitles.count("en") ? subtitles.at("en") : subtitles.begin()->second;
-    std::string new_entry = "0|" + title + "|" + subtitle;
+    std::string new_entry = scores_manager.get_single_hash(song->parser.file_path) + "|" + title + "|" + subtitle;
 
     std::vector<std::string> lines;
     if (fs::exists(song_list)) {

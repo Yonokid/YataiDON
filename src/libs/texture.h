@@ -133,6 +133,8 @@ public:
 
     void clear_screen(const ray::Color& color);
 
+    uint32_t get_enum(const std::string& name);
+
     void draw_texture(uint32_t id, const DrawTextureParams& = {});
 };
 

@@ -171,8 +171,8 @@ void Player::merge_branch_section(const NoteList& branch_section, double current
 void Player::evaluate_branch(double current_ms) {
     float e_req = std::get<0>(curr_branch_reqs);
     float m_req = std::get<1>(curr_branch_reqs);
-    double end_time = std::get<2>(curr_branch_reqs);
-    if (current_ms >= end_time) {
+    double branch_end_ms = std::get<2>(curr_branch_reqs);
+    if (current_ms >= branch_end_ms) {
         is_branch = false;
         if (branch_condition == "p") {
             branch_condition_count = branch_note_count != 0 ? std::max(std::min((int)((double)branch_condition_count / branch_note_count * 100), 100), 0) : 0;

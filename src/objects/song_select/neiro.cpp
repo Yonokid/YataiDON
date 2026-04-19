@@ -104,7 +104,7 @@ void NeiroSelector::draw() {
     float x = ((int)player_num - 1) * tex.skin_config[SC::OPTION_P2].x;
 
     tex.draw_texture(NEIRO::BACKGROUND, {.x=x, .y=y});
-    tex.draw_texture(tex_id_map.at("neiro/" + (std::to_string((int)player_num) + "p")), {.x=x, .y=y});
+    tex.draw_texture(tex.get_enum("neiro/" + (std::to_string((int)player_num) + "p")), {.x=x, .y=y});
     tex.draw_texture(NEIRO::DIVISOR, {.x=x, .y=y});
     tex.draw_texture(NEIRO::MUSIC_NOTE, {.x=x + ((float)move_sideways->attribute * direction), .y=y, .fade=fade_sideways->attribute});
     tex.draw_texture(NEIRO::MUSIC_NOTE, {.x=x + (direction * -tex.skin_config[SC::OPTION_TEXT_IN].x) + ((float)move_sideways->attribute * direction), .y=y, .fade=1.0f - fade_sideways->attribute});

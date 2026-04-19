@@ -189,7 +189,7 @@ void ModifierSelector::draw() {
     float mod_offset_y = tex.skin_config[SC::MODIFIER_OFFSET].y;
 
     tex.draw_texture(MODIFIER::TOP,    {.x=x, .y=move_val});
-    tex.draw_texture(tex_id_map.at("modifier/" + (std::to_string((int)player_num) + "p")), {.x=x, .y=move_val});
+    tex.draw_texture(tex.get_enum("modifier/" + (std::to_string((int)player_num) + "p")), {.x=x, .y=move_val});
     tex.draw_texture(MODIFIER::BOTTOM, {.x=x, .y=move_val + ((int)MOD_NAMES.size() * mod_offset_y)});
 
     for (int i = 0; i < (int)MOD_NAMES.size(); i++) {
@@ -199,7 +199,7 @@ void ModifierSelector::draw() {
         bool is_current = (i == current_mod_index);
 
         tex.draw_texture(MODIFIER::BACKGROUND,                              {.x=x, .y=row_y});
-        tex.draw_texture(tex_id_map.at(std::string("modifier/") + (is_current ? "mod_bg_highlight" : "mod_bg")), {.x=x, .y=row_y});
+        tex.draw_texture(tex.get_enum(std::string("modifier/") + (is_current ? "mod_bg_highlight" : "mod_bg")), {.x=x, .y=row_y});
         tex.draw_texture(MODIFIER::MOD_BOX,                                 {.x=x, .y=row_y});
 
         text_name[i]->draw({
@@ -217,13 +217,13 @@ void ModifierSelector::draw() {
             float spd = modifiers.speed;
             if      (spd >= 4.0f) tex.draw_texture(MODIFIER::MOD_YONBAI,         {.x=x, .y=row_y});
             else if (spd >= 3.0f) tex.draw_texture(MODIFIER::MOD_SANBAI,         {.x=x, .y=row_y});
-            else if (spd >  1.0f) tex.draw_texture(tex_id_map.at("modifier/" + (TEX_MAP.at(mod_name))), {.x=x, .y=row_y});
+            else if (spd >  1.0f) tex.draw_texture(tex.get_enum("modifier/" + (TEX_MAP.at(mod_name))), {.x=x, .y=row_y});
 
         } else if (mod_name == "random") {
             if (modifiers.random == 1) {
                 float tx = text_base_x - (text_kimagure->width / 2.0f);
                 draw_animated_text(text_kimagure, text_kimagure_2, tx + x, text_y, is_current);
-                tex.draw_texture(tex_id_map.at("modifier/" + (TEX_MAP.at(mod_name))), {.x=x, .y=row_y});
+                tex.draw_texture(tex.get_enum("modifier/" + (TEX_MAP.at(mod_name))), {.x=x, .y=row_y});
             } else if (modifiers.random == 2) {
                 float tx = text_base_x - (text_detarame->width / 2.0f);
                 draw_animated_text(text_detarame, text_detarame_2, tx + x, text_y, is_current);
@@ -236,7 +236,7 @@ void ModifierSelector::draw() {
         } else {
             // bool mod
             bool val = get_bool(i);
-            if (val) tex.draw_texture(tex_id_map.at("modifier/" + (TEX_MAP.at(mod_name))), {.x=x, .y=row_y});
+            if (val) tex.draw_texture(tex.get_enum("modifier/" + (TEX_MAP.at(mod_name))), {.x=x, .y=row_y});
             const auto& primary   = val ? text_true   : text_false;
             const auto& secondary = val ? text_true_2 : text_false_2;
             float tx = text_base_x - (primary->width / 2.0f);

@@ -30,18 +30,15 @@ ScoresManager::ScoresManager(const fs::path& db_path) {
         "hash_2 TEXT,"
         "hash_3 TEXT,"
         "hash_4 TEXT,"
-        "TITLE TEXT NOT NULL,"
-        "SUBTITLE TEXT);";
+        "title TEXT NOT NULL,"
+        "subtitle TEXT,"
+        "UNIQUE(hash_0, hash_1, hash_2, hash_3, hash_4));";
 
     std::string create_scores =
         "CREATE TABLE IF NOT EXISTS scores"
         "(score_id INTEGER PRIMARY KEY AUTOINCREMENT,"
         "player_id INTEGER NOT NULL REFERENCES players(player_id),"
-        "hash_0 TEXT REFERENCES songs(hash_0),"
-        "hash_1 TEXT REFERENCES songs(hash_1),"
-        "hash_2 TEXT REFERENCES songs(hash_2),"
-        "hash_3 TEXT REFERENCES songs(hash_3),"
-        "hash_4 TEXT REFERENCES songs(hash_4),"
+        "hash TEXT,"
         "difficulty INTEGER NOT NULL,"
         "crown INTEGER NOT NULL,"
         "rank INTEGER NOT NULL,"
@@ -172,9 +169,8 @@ void ScoresManager::py_taiko_import(const fs::path& old_db_path) {
             char ins_query[512];
             snprintf(ins_query, sizeof(ins_query),
                 "INSERT INTO scores "
-                "(player_id, %s, difficulty, score, good, ok, bad, drumroll, max_combo, crown, rank) "
-                "VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0);",
-                hash_col(diff).c_str());
+                "(player_id, hash, difficulty, score, good, ok, bad, drumroll, max_combo, crown, rank) "
+                "VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0);");
             sqlite3_prepare_v2(db_fsd, ins_query, -1, &ins_stmt, nullptr);
             sqlite3_bind_text(ins_stmt, 1, new_hash.c_str(), -1, SQLITE_TRANSIENT);
             sqlite3_bind_int(ins_stmt,  2, diff);
@@ -202,9 +198,8 @@ std::optional<Score> ScoresManager::get_score(std::string& hash, int difficulty,
     snprintf(query, sizeof(query),
         "SELECT score, good, ok, bad, drumroll, max_combo, crown, rank "
         "FROM scores "
-        "WHERE player_id = ? AND %s = ? "
-        "LIMIT 1;",
-        hash_col(difficulty).c_str());
+        "WHERE player_id = ? AND hash = ? "
+        "LIMIT 1;");
     sqlite3_prepare_v2(db_fsd, query, -1, &stmt, nullptr);
     sqlite3_bind_int(stmt, 1, player_id);
     sqlite3_bind_text(stmt, 2, hash.c_str(), -1, nullptr);
@@ -230,9 +225,8 @@ Score ScoresManager::save_score(std::string& hash, int difficulty, int player_id
 
     char query[512];
     snprintf(query, sizeof(query),
-        "INSERT INTO scores (player_id, %s, difficulty, score, good, ok, bad, drumroll, max_combo, crown, rank) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
-        hash_col(difficulty).c_str());
+        "INSERT INTO scores (player_id, hash, difficulty, score, good, ok, bad, drumroll, max_combo, crown, rank) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);");
 
     sqlite3_prepare_v2(db_fsd, query, -1, &stmt, nullptr);
 
@@ -256,10 +250,22 @@ Score ScoresManager::save_score(std::string& hash, int difficulty, int player_id
 
 void ScoresManager::add_path_binding(const fs::path& path, const std::array<std::string, 5>& hashes) {
     path_to_hashes[path] = hashes;
+    std::string single = std::accumulate(hashes.begin(), hashes.end(), std::string{});
+    single_hash_to_path[single] = path;
+}
+
+std::optional<fs::path> ScoresManager::get_path_by_hash(const std::string& single_hash) {
+    auto it = single_hash_to_path.find(single_hash);
+    if (it != single_hash_to_path.end()) return it->second;
+    return std::nullopt;
 }
 
 std::array<std::string, 5>& ScoresManager::get_hashes(const fs::path& path) {
     return path_to_hashes[path];
+}
+
+std::string ScoresManager::get_single_hash(const fs::path& path) {
+    return std::accumulate(path_to_hashes[path].begin(), path_to_hashes[path].end(), std::string{});
 }
 
 void ScoresManager::add_song(const std::array<std::string, 5>& hashes, const std::string& title, const std::string& subtitle) {
@@ -289,7 +295,7 @@ int ScoresManager::add_player(const std::string& name) {
     sqlite3_finalize(stmt);
 
     const char* select_query =
-        "SELECT id FROM players WHERE username = ?;";
+        "SELECT player_id FROM players WHERE username = ?;";
     sqlite3_prepare_v2(db_fsd, select_query, -1, &stmt, nullptr);
     sqlite3_bind_text(stmt, 1, name.c_str(), -1, SQLITE_STATIC);
 

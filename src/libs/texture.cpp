@@ -405,6 +405,14 @@ void TextureWrapper::load_screen_textures(const std::string& screen_name) {
 void TextureWrapper::clear_screen(const ray::Color& color) {
     ray::ClearBackground(color);
 }
+uint32_t TextureWrapper::get_enum(const std::string& name) {
+    try {
+        return tex_id_map.at(name);
+    } catch (const std::out_of_range& e) {
+        spdlog::warn("Texture not found: {}", name);
+        return 0;
+    }
+}
 
 void TextureWrapper::draw_texture(uint32_t id, const DrawTextureParams& params) {
     auto it = textures.find(id);
