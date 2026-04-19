@@ -23,8 +23,6 @@ DiffSortSelect::DiffSortSelect(Statistics statistics, int prev_diff, int prev_le
     diff_fade_in->start();
     box_flicker->start();
 
-    std::map<int, std::array<int, 3>> diff_sort_sum_stat;
-
     for (const auto& [course, levels] : statistics) {
         std::array<int, 3> sums = {0, 0, 0};
         for (const auto& [level, stats] : levels) {
@@ -170,7 +168,7 @@ void DiffSortSelect::draw_statistics() {
 
             for (int i = 0; i < (int)counter.size(); i++) {
                 int digit = counter[i] - '0';
-                tex.draw_texture(DIFF_SORT::STAT_NUM_STAR, {.frame=digit, .x=-(total_width / 2) + (i * margin), .index=j});
+                tex.draw_texture(DIFF_SORT::STAT_NUM_STAR, {.frame=digit, .x=-(total_width / 2) + (i * margin), .index=j+1});
             }
         }
     } else {
@@ -184,25 +182,25 @@ void DiffSortSelect::draw_statistics() {
 
         for (int j = 0; j < 2; j++) {
             counter = std::to_string(diff_sort_sum_stat[selected_box][0]);
-            margin = tex.skin_config[SC::DIFF_SORT_MARGIN_2].x;
+            margin = tex.skin_config[SC::DIFF_SORT_MARGIN_3].x;
             total_width = counter.size() * margin;
             for (size_t i = 0; i < counter.size(); i++) {
                 int digit = counter[i] - '0';
-                tex.draw_texture(DIFF_SORT::STAT_NUM_SMALL, {.frame=digit, .x=-(total_width/2)+(i*margin)});
+                tex.draw_texture(DIFF_SORT::STAT_NUM_SMALL, {.frame=digit, .x=-(total_width/2)+(i*margin), .index=j});
             }
         }
 
         for (int j = 0; j < 2; j++) {
             if (j + 1 == 1) {
-                counter = std::to_string(statistics[selected_box][selected_level].clears);
+                counter = std::to_string(diff_sort_sum_stat[selected_box][1]);
             } else {
-                counter = std::to_string(statistics[selected_box][selected_level].full_combos);
+                counter = std::to_string(diff_sort_sum_stat[selected_box][2]);
             }
             margin = tex.skin_config[SC::DIFF_SORT_MARGIN_1].x;
             total_width = counter.size() * margin;
             for (size_t i = 0; i < counter.size(); i++) {
                 int digit = counter[i] - '0';
-                tex.draw_texture(DIFF_SORT::STAT_NUM_STAR, {.frame=digit, .x=-(total_width/2)+(i*margin)});
+                tex.draw_texture(DIFF_SORT::STAT_NUM_STAR, {.frame=digit, .x=-(total_width/2)+(i*margin), .index=j+1});
             }
         }
     }
