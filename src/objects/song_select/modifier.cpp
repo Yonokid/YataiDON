@@ -46,8 +46,8 @@ void ModifierSelector::set_bool(int mod_index, bool value) {
     }
 }
 
-OutlinedText* ModifierSelector::make_text(const std::string& str) {
-    return new OutlinedText(str, tex.skin_config[SC::MODIFIER_TEXT].font_size, ray::WHITE, ray::BLACK, false, 3.5f);
+std::unique_ptr<OutlinedText> ModifierSelector::make_text(const std::string& str) {
+    return std::make_unique<OutlinedText>(str, tex.skin_config[SC::MODIFIER_TEXT].font_size, ray::WHITE, ray::BLACK, false, 3.5f);
 }
 
 ModifierSelector::ModifierSelector(PlayerNum player_num) : player_num(player_num) {
@@ -110,28 +110,23 @@ void ModifierSelector::start_text_animation(int dir) {
     auto& modifiers = global_data.modifiers[(int)player_num];
 
     if (mod_name == "speed") {
-        delete text_speed_2;
-        text_speed_2 = text_speed;
+        text_speed_2 = std::move(text_speed);
         text_speed = make_text(std::to_string(modifiers.speed));
     } else if (mod_name == "random") {
         if (modifiers.random == 1) {
-            delete text_kimagure;
-            text_kimagure = text_kimagure_2;
+            text_kimagure = std::move(text_kimagure_2);
             text_kimagure_2 = make_text(tex.skin_config[SC::MODIFIER_TEXT_KIMAGURE].text.at(language));
         } else if (modifiers.random == 2) {
-            delete text_detarame;
-            text_detarame = text_detarame_2;
+            text_detarame = std::move(text_detarame_2);
             text_detarame_2 = make_text(tex.skin_config[SC::MODIFIER_TEXT_DETARAME].text.at(language));
         }
     } else {
         // bool mod
         if (get_bool(current_mod_index)) {
-            delete text_true;
-            text_true = text_true_2;
+            text_true = std::move(text_true_2);
             text_true_2 = make_text(tex.skin_config[SC::MODIFIER_TEXT_TRUE].text.at(language));
         } else {
-            delete text_false;
-            text_false = text_false_2;
+            text_false = std::move(text_false_2);
             text_false_2 = make_text(tex.skin_config[SC::MODIFIER_TEXT_FALSE].text.at(language));
         }
     }
@@ -171,7 +166,7 @@ void ModifierSelector::right() {
     }
 }
 
-void ModifierSelector::draw_animated_text(OutlinedText* primary, OutlinedText* secondary, float x, float y, bool should_animate) {
+void ModifierSelector::draw_animated_text(const std::unique_ptr<OutlinedText>& primary, const std::unique_ptr<OutlinedText>& secondary, float x, float y, bool should_animate) {
     if (should_animate && !move_sideways->is_finished) {
         primary->draw({
             .x = x + ((float)move_sideways->attribute * direction),
@@ -242,8 +237,8 @@ void ModifierSelector::draw() {
             // bool mod
             bool val = get_bool(i);
             if (val) tex.draw_texture(tex_id_map.at("modifier/" + (TEX_MAP.at(mod_name))), {.x=x, .y=row_y});
-            OutlinedText* primary   = val ? text_true   : text_false;
-            OutlinedText* secondary = val ? text_true_2 : text_false_2;
+            const auto& primary   = val ? text_true   : text_false;
+            const auto& secondary = val ? text_true_2 : text_false_2;
             float tx = text_base_x - (primary->width / 2.0f);
             draw_animated_text(primary, secondary, tx + x, text_y, is_current);
         }

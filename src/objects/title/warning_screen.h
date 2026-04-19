@@ -73,10 +73,10 @@ private:
     FadeAnimation* fade_in;
     FadeAnimation* fade_out;
 
-    Board* board;
-    WarningX* warning_x;
-    WarningBachiHit* warning_bachi_hit;
-    WarningCharacters* characters;
+    std::unique_ptr<Board> board;
+    std::unique_ptr<WarningX> warning_x;
+    std::unique_ptr<WarningBachiHit> warning_bachi_hit;
+    std::unique_ptr<WarningCharacters> characters;
 public:
     WarningScreen(double current_ms);
 

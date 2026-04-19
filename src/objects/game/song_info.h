@@ -8,7 +8,7 @@
 
 class SongNum {
 private:
-    OutlinedText* text;
+    std::unique_ptr<OutlinedText> text;
 public:
     float width;
     float height;
@@ -23,8 +23,8 @@ private:
     std::string song_name;
     int genre;
     FadeAnimation* fade;
-    OutlinedText* song_title;
-    SongNum* song_num;
+    std::unique_ptr<OutlinedText> song_title;
+    std::unique_ptr<SongNum> song_num;
 
 public:
     SongInfo() = default;

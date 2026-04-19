@@ -22,16 +22,18 @@ void SongSelectScreen::on_screen_start() {
     game_transition.reset();
 
     navigator.init(global_data.config->paths.tja_path);
+    cached_stats = navigator.get_statistics(global_data.config->paths.tja_path[0]);
 
     player = std::make_unique<SongSelectPlayer>(global_data.player_num);
 
-    indicator = new Indicator(Indicator::State::SELECT);
-    song_num = new SongNum(global_data.songs_played);
-    select_timer = new Timer(100, get_current_ms(), [this]() { player->select_song(); });
+    indicator = std::make_unique<Indicator>(Indicator::State::SELECT);
+    song_num = std::make_unique<SongNum>(global_data.songs_played);
+    select_timer = std::make_unique<Timer>(100, get_current_ms(), [this]() { player->select_song(); });
     diff_select_timer = nullptr;
 }
 
 void SongSelectScreen::select_song(SongBox* song) {
+    navigator.add_to_recent(song);
     SessionData& session_data = global_data.session_data[(int)global_data.player_num];
     session_data.selected_song = song->path;
     session_data.selected_difficulty = (int)player->selected_difficulty;
@@ -52,12 +54,29 @@ void SongSelectScreen::handle_input_selecting() {
     player->handle_input_selecting();
 }
 
+void SongSelectScreen::handle_input_diff_sorting() {
+    if (!diff_sort_selector) return;
+    auto result = player->handle_input_diff_sort(&diff_sort_selector.value());
+    if (result) {
+        diff_sort_selector.reset();
+        state = SongSelectState::BROWSING;
+        if (result->first == -1) {
+            navigator.cancel_diff_sort();
+        } else {
+            last_diff_sort = *result;
+            navigator.apply_diff_sort(result->first, result->second);
+        }
+    }
+}
+
 void SongSelectScreen::handle_input(double current_ms) {
-    if (navigator.is_processing) return;
+    if (navigator.is_processing && state != SongSelectState::DIFF_SORTING) return;
     if (state == SongSelectState::BROWSING) {
         handle_input_browsing(current_ms);
     } else if (state == SongSelectState::SONG_SELECTED) {
         handle_input_selecting();
+    } else if (state == SongSelectState::DIFF_SORTING) {
+        handle_input_diff_sorting();
     }
 }
 
@@ -72,6 +91,14 @@ std::optional<Screens> SongSelectScreen::update() {
     select_timer->update(current_time);
     if (diff_select_timer != nullptr) diff_select_timer->update(current_time);
     indicator->update(current_time);
+
+    if (navigator.diff_sort_ready() && !diff_sort_selector) {
+        diff_sort_selector.emplace(cached_stats, last_diff_sort.first, last_diff_sort.second);
+    }
+    if (diff_sort_selector) {
+        state = SongSelectState::DIFF_SORTING;
+        diff_sort_selector->update(current_time);
+    }
 
     handle_input(current_time);
 
@@ -104,7 +131,7 @@ std::optional<Screens> SongSelectScreen::update() {
     if (state != prev_state) {
         text_fade_in->start();
         if (state == SongSelectState::SONG_SELECTED) {
-            diff_select_timer = new Timer(60, current_time, [this]() { select_song((SongBox*)navigator.get_current_item()); });
+            diff_select_timer = std::make_unique<Timer>(60, current_time, [this]() { select_song((SongBox*)navigator.get_current_item()); });
         }
     }
 
@@ -147,5 +174,6 @@ void SongSelectScreen::draw() {
 
     draw_overlays();
 
+    if (diff_sort_selector) diff_sort_selector->draw();
     if (game_transition.has_value()) game_transition->draw();
 }

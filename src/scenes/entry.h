@@ -26,24 +26,24 @@ class EntryScreen : public Screen {
 private:
     int side;
     bool is_2p;
-    BoxManager* box_manager;
+    std::unique_ptr<BoxManager> box_manager;
     EntryState state;
 
     Nameplate nameplate;
     CoinOverlay coin_overlay;
     AllNetIcon allnet_indicator;
     EntryOverlay entry_overlay;
-    Timer* timer;
+    std::unique_ptr<Timer> timer;
 
     bool screen_init;
     FadeAnimation* side_select_fade;
     FadeAnimation* bg_flicker;
     //Chara2D* chara;
     bool announce_played;
-    std::vector<EntryPlayer*> players;
+    std::vector<std::unique_ptr<EntryPlayer>> players;
 
-    OutlinedText* text_cancel;
-    OutlinedText* text_question;
+    std::unique_ptr<OutlinedText> text_cancel;
+    std::unique_ptr<OutlinedText> text_question;
 
     void draw_background();
     void draw_side_select(float fade);

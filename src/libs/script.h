@@ -9,9 +9,10 @@ private:
     std::map<std::string, std::string> scripts;
 public:
     TextureWrapper tex;
-    sol::state lua;
+    std::unique_ptr<sol::state> lua;
 
     void init(fs::path script_path);
+    void shutdown();
     std::string get_lua_script_path(const std::string& script_name);
     void register_lua_bindings();
 };

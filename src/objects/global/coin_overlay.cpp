@@ -1,7 +1,7 @@
 #include "coin_overlay.h"
 
 CoinOverlay::CoinOverlay() {
-    free_play = new OutlinedText(global_tex.skin_config[SC::FREE_PLAY].text[get_config().general.language], global_tex.skin_config[SC::FREE_PLAY].font_size, ray::WHITE, ray::BLACK, false, 4, 5);
+    free_play = std::make_unique<OutlinedText>(global_tex.skin_config[SC::FREE_PLAY].text[get_config().general.language], global_tex.skin_config[SC::FREE_PLAY].font_size, ray::WHITE, ray::BLACK, false, 4, 5);
 }
 
 void CoinOverlay::update(double current_ms) {

@@ -124,10 +124,10 @@ WarningScreen::WarningScreen(double current_ms) : start_ms(current_ms) {
     fade_out = (FadeAnimation*)tex.get_animation(9);
     fade_in->start();
 
-    board = new Board();
-    warning_x = new WarningX();
-    warning_bachi_hit = new WarningBachiHit();
-    characters = new WarningCharacters();
+    board = std::make_unique<Board>();
+    warning_x = std::make_unique<WarningX>();
+    warning_bachi_hit = std::make_unique<WarningBachiHit>();
+    characters = std::make_unique<WarningCharacters>();
 }
 
 void WarningScreen::update(double current_ms) {

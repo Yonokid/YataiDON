@@ -7,7 +7,7 @@
 
 class SettingsBoxManager {
 private:
-    std::vector<SettingsBox*> boxes;
+    std::vector<std::unique_ptr<SettingsBox>> boxes;
     int   num_boxes;
     int   selected_box_index;
     bool  box_selected;

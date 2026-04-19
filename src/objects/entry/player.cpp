@@ -3,7 +3,7 @@
 EntryPlayer::EntryPlayer(PlayerNum player_num, int side, BoxManager* box_manager)
     : player_num(player_num), side(side), box_manager(box_manager) {
     NameplateConfig plate_info = global_data.config->nameplate_1p;
-    nameplate = new Nameplate(
+    nameplate = std::make_unique<Nameplate>(
         plate_info.name,
         plate_info.title,
         player_num,
@@ -12,7 +12,7 @@ EntryPlayer::EntryPlayer(PlayerNum player_num, int side, BoxManager* box_manager
         plate_info.rainbow,
         plate_info.title_bg
     );
-    indicator = new Indicator(Indicator::State::SELECT);
+    indicator = std::make_unique<Indicator>(Indicator::State::SELECT);
 
     int chara_id = (side == 0) ? 0 : 1;
     //chara = new Chara2D(chara_id);

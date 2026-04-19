@@ -280,6 +280,7 @@ static void run_frame() {
 
     if (next_screen.has_value()) {
         spdlog::info("Screen changed from {} to {}", L.current_screen, next_screen.value());
+        clear_input_buffers();
         L.current_screen = next_screen.value();
         global_data.input_locked = 0;
     }
@@ -422,6 +423,7 @@ int main(int argc, char* argv[]) {
     global_tex.unload_textures();
     tex.unload_textures();
     script_manager.tex.unload_textures();
+    script_manager.shutdown();
     ray::CloseWindow();
     audio->close_audio_device();
     spdlog::info("Window closed and audio device shut down");

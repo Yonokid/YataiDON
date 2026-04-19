@@ -117,6 +117,14 @@ SongSelectState SongSelectPlayer::handle_input_browsing(double current_ms) {
         last_moved = current_ms;
     }
 
+    if (ray::IsKeyPressed(ray::KEY_SPACE)) {
+        BaseBox* item = navigator.get_current_item();
+        if (navigator.is_song(item)) {
+            navigator.toggle_favorite(static_cast<SongBox*>(item));
+            audio->play_sound("add_favorite", "sound");
+        }
+    }
+
     if (l_don || r_don) {
         return select_song();
     }

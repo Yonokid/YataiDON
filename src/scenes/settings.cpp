@@ -29,7 +29,7 @@ void SettingsScreen::on_screen_start() {
         doc.Parse(R"({"exit":{"name":{"en":"Exit"},"options":{}}})");
     }
 
-    box_manager = new SettingsBoxManager(doc);
+    box_manager = std::make_unique<SettingsBoxManager>(doc);
     indicator   = Indicator(Indicator::State::SELECT);
     coin_overlay   = CoinOverlay();
     allnet_indicator = AllNetIcon();
@@ -53,8 +53,7 @@ Screens SettingsScreen::on_screen_end(Screens next_screen) {
     audio->init_audio_device();
 #endif
 
-    delete box_manager;
-    box_manager = nullptr;
+    box_manager.reset();
 
     return Screen::on_screen_end(next_screen);
 }

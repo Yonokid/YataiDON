@@ -124,7 +124,7 @@ void GameScreen::init_tja(fs::path song) {
         song_music = audio->load_music_stream(parser->metadata.wave, "song");
     }
 
-    players.push_back(new Player(parser, global_data.player_num, global_data.session_data[(int)global_data.player_num].selected_difficulty, false, global_data.modifiers[(int)global_data.player_num]));
+    players.push_back(std::make_unique<Player>(parser, global_data.player_num, global_data.session_data[(int)global_data.player_num].selected_difficulty, false, global_data.modifiers[(int)global_data.player_num]));
     start_ms = get_current_ms() - parser->metadata.offset*1000;
 }
 
@@ -218,7 +218,7 @@ std::optional<Screens> GameScreen::update() {
     }
     update_background(current_time);
 
-    for (Player* player : players) {
+    for (auto& player : players) {
         player->update(current_ms, current_time, background);
     }
     song_info.update(current_time);
@@ -260,7 +260,7 @@ std::optional<Screens> GameScreen::update() {
                 } else {
                     score.rank = Rank::_WHITE;
                 }
-                for (Player* player : players) {
+                for (auto& player : players) {
                     player->spawn_ending_anim();
                     scores_manager.save_score(global_data.session_data[(int)player->player_num].song_hash, global_data.session_data[(int)player->player_num].selected_difficulty, 1, score);
                 }

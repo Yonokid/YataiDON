@@ -2,7 +2,7 @@
 
 void ResultScreen::on_screen_start() {
     Screen::on_screen_start();
-    song_info = new OutlinedText(global_data.session_data[(int)global_data.player_num].song_title, tex.skin_config[SC::SONG_INFO_RESULT].font_size, ray::WHITE, ray::BLACK, false, 5);
+    song_info = std::make_unique<OutlinedText>(global_data.session_data[(int)global_data.player_num].song_title, tex.skin_config[SC::SONG_INFO_RESULT].font_size, ray::WHITE, ray::BLACK, false, 5);
     audio->play_sound("bgm", "music");
     fade_out = (FadeAnimation*)tex.get_animation(0);
     fade_in.emplace(global_data.player_num);
@@ -14,7 +14,7 @@ void ResultScreen::on_screen_start() {
         background.emplace(global_data.player_num, tex.screen_width);
     }
     player_1.emplace(global_data.player_num, false, false);
-    song_num = new SongNum(global_data.songs_played+1);
+    song_num = std::make_unique<SongNum>(global_data.songs_played+1);
 }
 
 Screens ResultScreen::on_screen_end(Screens next_screen) {

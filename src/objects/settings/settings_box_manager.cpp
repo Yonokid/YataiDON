@@ -27,7 +27,7 @@ SettingsBoxManager::SettingsBoxManager(const rapidjson::Document& tmpl)
         rapidjson::Value empty_obj(rapidjson::kObjectType);
         if (!opts) opts = &empty_obj;
 
-        boxes.push_back(new SettingsBox(cat_name, label, *opts));
+        boxes.push_back(std::make_unique<SettingsBox>(cat_name, label, *opts));
     }
 
     num_boxes = (int)boxes.size();
@@ -39,17 +39,14 @@ SettingsBoxManager::SettingsBoxManager(const rapidjson::Document& tmpl)
     selected_box_index = std::min(selected_box_index, num_boxes - 1);
 }
 
-SettingsBoxManager::~SettingsBoxManager() {
-    for (auto* b : boxes) delete b;
-}
+SettingsBoxManager::~SettingsBoxManager() = default;
 
 void SettingsBoxManager::move_left() {
     if (box_selected) {
-        SettingsBox* box = boxes[selected_box_index];
-        box_selected = box->move_option_left();
+        box_selected = boxes[selected_box_index]->move_option_left();
     } else {
         bool moved = true;
-        for (auto* b : boxes) {
+        for (auto& b : boxes) {
             if (!b->move_left()) moved = false;
         }
         if (moved) {
@@ -62,13 +59,13 @@ void SettingsBoxManager::move_right() {
     if (box_selected) {
         boxes[selected_box_index]->move_option_right();
     } else {
-        for (auto* b : boxes) b->move_right();
+        for (auto& b : boxes) b->move_right();
         selected_box_index = (selected_box_index + 1) % num_boxes;
     }
 }
 
 std::optional<Screens> SettingsBoxManager::pending_screen_change() const {
-    for (auto* b : boxes) {
+    for (auto& b : boxes) {
         auto result = b->pending_screen_change();
         if (result) return result;
     }
@@ -96,5 +93,5 @@ void SettingsBoxManager::update(double current_time_ms) {
 }
 
 void SettingsBoxManager::draw() {
-    for (auto* b : boxes) b->draw();
+    for (auto& b : boxes) b->draw();
 }

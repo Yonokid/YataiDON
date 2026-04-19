@@ -17,7 +17,7 @@ void TitleScreen::on_screen_start() {
         }
     }
     state = TitleState::OP_VIDEO;
-    hit_taiko_text = new OutlinedText(tex.skin_config[SC::HIT_TAIKO_TO_START].text[global_data.config->general.language], tex.skin_config[SC::HIT_TAIKO_TO_START].font_size, ray::WHITE, ray::BLACK, false, 4);
+    hit_taiko_text = std::make_unique<OutlinedText>(tex.skin_config[SC::HIT_TAIKO_TO_START].text[global_data.config->general.language], tex.skin_config[SC::HIT_TAIKO_TO_START].font_size, ray::WHITE, ray::BLACK, false, 4);
     fade_out = (FadeAnimation*)tex.get_animation(13);
     text_overlay_fade = (FadeAnimation*)tex.get_animation(14);
 }

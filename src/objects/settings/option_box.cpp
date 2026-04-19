@@ -10,8 +10,8 @@ static constexpr float DESC_X           = 450.0f;
 static constexpr float DESC_Y           = 270.0f;
 static constexpr float DESC_FONT_SIZE   = 25.0f;
 
-static FadeAnimation* make_flicker() {
-    auto* fa = new FadeAnimation(400.0, 0.0, true, false, 1.0, 0.0,
+static std::unique_ptr<FadeAnimation> make_flicker() {
+    auto fa = std::make_unique<FadeAnimation>(400.0, 0.0, true, false, 1.0, 0.0,
                                   std::nullopt, std::nullopt, 0.0);
     fa->start();
     return fa;
@@ -22,13 +22,9 @@ BaseOptionBox::BaseOptionBox(const std::string& name,
                              const std::string& path)
     : description_text(description)
     , config_ref(get_config_ref(path))
-    , name_text(new OutlinedText(name, OPTION_FONT_SIZE, ray::WHITE, ray::BLACK, false, 4, -4))
+    , name_text(std::make_unique<OutlinedText>(name, OPTION_FONT_SIZE, ray::WHITE, ray::BLACK, false, 4, -4))
     , is_highlighted(false)
 {}
-
-BaseOptionBox::~BaseOptionBox() {
-    delete name_text;
-}
 
 void BaseOptionBox::draw_base() const {
     tex.draw_texture(BACKGROUND::OVERLAY, {.scale=0.70f});
@@ -54,14 +50,9 @@ BoolOptionBox::BoolOptionBox(const std::string& name,
                              const std::string& false_label)
     : BaseOptionBox(name, description, path)
     , value(config_ref.get_bool())
-    , on_text(new OutlinedText(true_label,  OPTION_FONT_SIZE, ray::WHITE, ray::BLACK, false, 4, -4))
-    , off_text(new OutlinedText(false_label, OPTION_FONT_SIZE, ray::WHITE, ray::BLACK, false, 4, -4))
+    , on_text(std::make_unique<OutlinedText>(true_label,  OPTION_FONT_SIZE, ray::WHITE, ray::BLACK, false, 4, -4))
+    , off_text(std::make_unique<OutlinedText>(false_label, OPTION_FONT_SIZE, ray::WHITE, ray::BLACK, false, 4, -4))
 {}
-
-BoolOptionBox::~BoolOptionBox() {
-    delete on_text;
-    delete off_text;
-}
 
 void BoolOptionBox::confirm() {
     config_ref.set_bool(value);
@@ -117,25 +108,19 @@ IntOptionBox::IntOptionBox(const std::string& name,
                 break;
             }
         }
-        value_text = new OutlinedText(value_list[value_index].second,
+        value_text = std::make_unique<OutlinedText>(value_list[value_index].second,
                                       OPTION_FONT_SIZE, ray::WHITE, ray::BLACK, false, 4, -4);
     } else {
-        value_text = new OutlinedText(int_display(value),
+        value_text = std::make_unique<OutlinedText>(int_display(value),
                                       OPTION_FONT_SIZE, ray::WHITE, ray::BLACK, false, 4, -4);
     }
 }
 
-IntOptionBox::~IntOptionBox() {
-    delete value_text;
-    delete flicker_fade;
-}
-
 void IntOptionBox::rebuild_text() {
-    delete value_text;
     std::string label = value_list.empty()
         ? int_display(value)
         : value_list[value_index].second;
-    value_text = new OutlinedText(label, OPTION_FONT_SIZE, ray::WHITE, ray::BLACK, false, 4, -4);
+    value_text = std::make_unique<OutlinedText>(label, OPTION_FONT_SIZE, ray::WHITE, ray::BLACK, false, 4, -4);
 }
 
 void IntOptionBox::confirm() {
@@ -200,24 +185,18 @@ StrOptionBox::StrOptionBox(const std::string& name,
                 break;
             }
         }
-        value_text = new OutlinedText(value_list[value_index].second,
+        value_text = std::make_unique<OutlinedText>(value_list[value_index].second,
                                       OPTION_FONT_SIZE, ray::WHITE, ray::BLACK, false, 4, -4);
     } else {
-        value_text = new OutlinedText(value, OPTION_FONT_SIZE, ray::WHITE, ray::BLACK, false, 4, -4);
+        value_text = std::make_unique<OutlinedText>(value, OPTION_FONT_SIZE, ray::WHITE, ray::BLACK, false, 4, -4);
     }
 }
 
-StrOptionBox::~StrOptionBox() {
-    delete value_text;
-    delete flicker_fade;
-}
-
 void StrOptionBox::rebuild_text() {
-    delete value_text;
     std::string label = value_list.empty()
         ? input_string
         : value_list[value_index].second;
-    value_text = new OutlinedText(label, OPTION_FONT_SIZE, ray::WHITE, ray::BLACK, false, 4, -4);
+    value_text = std::make_unique<OutlinedText>(label, OPTION_FONT_SIZE, ray::WHITE, ray::BLACK, false, 4, -4);
 }
 
 void StrOptionBox::confirm() {
@@ -287,20 +266,14 @@ KeybindOptionBox::KeybindOptionBox(const std::string& name,
     rebuild_text();
 }
 
-KeybindOptionBox::~KeybindOptionBox() {
-    delete value_text;
-    delete flicker_fade;
-}
-
 void KeybindOptionBox::rebuild_text() {
-    delete value_text;
     std::string label;
     for (int i = 0; i < (int)value.size(); i++) {
         try { label += getKeyString(value[i]); }
         catch (...) { label += std::to_string(value[i]); }
         if (i + 1 < (int)value.size()) label += ", ";
     }
-    value_text = new OutlinedText(label.empty() ? "none" : label,
+    value_text = std::make_unique<OutlinedText>(label.empty() ? "none" : label,
                                   OPTION_FONT_SIZE, ray::WHITE, ray::BLACK, false, 4, -4);
 }
 
@@ -354,19 +327,13 @@ KeyBindControllerOptionBox::KeyBindControllerOptionBox(const std::string& name,
     rebuild_text();
 }
 
-KeyBindControllerOptionBox::~KeyBindControllerOptionBox() {
-    delete value_text;
-    delete flicker_fade;
-}
-
 void KeyBindControllerOptionBox::rebuild_text() {
-    delete value_text;
     std::string label;
     for (int i = 0; i < (int)value.size(); i++) {
         label += std::to_string(value[i]);
         if (i + 1 < (int)value.size()) label += ", ";
     }
-    value_text = new OutlinedText(label.empty() ? "none" : label,
+    value_text = std::make_unique<OutlinedText>(label.empty() ? "none" : label,
                                   OPTION_FONT_SIZE, ray::WHITE, ray::BLACK, false, 4, -4);
 }
 
@@ -416,15 +383,9 @@ FloatOptionBox::FloatOptionBox(const std::string& name,
     rebuild_text();
 }
 
-FloatOptionBox::~FloatOptionBox() {
-    delete value_text;
-    delete flicker_fade;
-}
-
 void FloatOptionBox::rebuild_text() {
-    delete value_text;
     std::string label = std::to_string((int)(value * 100)) + "%";
-    value_text = new OutlinedText(label, OPTION_FONT_SIZE, ray::WHITE, ray::BLACK, false, 4, -4);
+    value_text = std::make_unique<OutlinedText>(label, OPTION_FONT_SIZE, ray::WHITE, ray::BLACK, false, 4, -4);
 }
 
 void FloatOptionBox::confirm() {
@@ -467,22 +428,15 @@ AudioOffsetOptionBox::AudioOffsetOptionBox(const std::string& name,
     , calibrate_screen(calibrate_screen)
     , offset_highlighted(true)
     , value_text(nullptr)
-    , calibrate_text(new OutlinedText("Calibrate", OPTION_FONT_SIZE, ray::WHITE, ray::BLACK, false, 4, -4))
+    , calibrate_text(std::make_unique<OutlinedText>("Calibrate", OPTION_FONT_SIZE, ray::WHITE, ray::BLACK, false, 4, -4))
     , flicker_fade(make_flicker())
 {
     rebuild_text();
 }
 
-AudioOffsetOptionBox::~AudioOffsetOptionBox() {
-    delete value_text;
-    delete calibrate_text;
-    delete flicker_fade;
-}
-
 void AudioOffsetOptionBox::rebuild_text() {
-    delete value_text;
     std::string label = (value >= 0 ? "+" : "") + std::to_string(value) + " ms";
-    value_text = new OutlinedText(label, OPTION_FONT_SIZE,
+    value_text = std::make_unique<OutlinedText>(label, OPTION_FONT_SIZE,
                                   ray::WHITE, ray::BLACK, false, 4, -4);
 }
 

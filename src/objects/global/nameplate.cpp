@@ -2,8 +2,8 @@
 
 Nameplate::Nameplate(std::string name, std::string title, PlayerNum player_num, int dan, bool is_gold, bool is_rainbow, int title_bg)
  : dan_index(dan), player_num(player_num), is_gold(is_gold), is_rainbow(is_rainbow), title_bg(title_bg) {
-     this->name = new OutlinedText(name, global_tex.skin_config[SC::NAMEPLATE_TEXT_NAME].font_size, ray::WHITE, ray::BLACK, false, 2);
-     this->title = new OutlinedText(title, global_tex.skin_config[SC::NAMEPLATE_TEXT_TITLE].font_size, ray::BLACK, ray::BLANK, false, 0.0);
+     this->name = std::make_unique<OutlinedText>(name, global_tex.skin_config[SC::NAMEPLATE_TEXT_NAME].font_size, ray::WHITE, ray::BLACK, false, 2);
+     this->title = std::make_unique<OutlinedText>(title, global_tex.skin_config[SC::NAMEPLATE_TEXT_TITLE].font_size, ray::BLACK, ray::BLANK, false, 0.0);
      rainbow_animation = (TextureChangeAnimation*)global_tex.get_animation(12);
  }
 

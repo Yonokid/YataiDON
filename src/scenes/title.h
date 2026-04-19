@@ -35,7 +35,7 @@ private:
     CoinOverlay coin_overlay;
     EntryOverlay entry_overlay;
 
-    OutlinedText* hit_taiko_text;
+    std::unique_ptr<OutlinedText> hit_taiko_text;
 
     FadeAnimation* fade_out;
     FadeAnimation* text_overlay_fade;

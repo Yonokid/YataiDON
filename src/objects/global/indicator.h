@@ -17,7 +17,7 @@ private:
     FadeAnimation* don_fade;
     MoveAnimation* blue_arrow_move;
     FadeAnimation* blue_arrow_fade;
-    OutlinedText* select_text;
+    std::unique_ptr<OutlinedText> select_text;
 public:
 
     Indicator(State state);

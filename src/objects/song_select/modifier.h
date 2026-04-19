@@ -23,25 +23,25 @@ private:
     MoveAnimation* move_sideways;
     FadeAnimation* fade_sideways;
 
-    std::vector<OutlinedText*> text_name;
-    OutlinedText* text_true;
-    OutlinedText* text_false;
-    OutlinedText* text_speed;
-    OutlinedText* text_kimagure;
-    OutlinedText* text_detarame;
+    std::vector<std::unique_ptr<OutlinedText>> text_name;
+    std::unique_ptr<OutlinedText> text_true;
+    std::unique_ptr<OutlinedText> text_false;
+    std::unique_ptr<OutlinedText> text_speed;
+    std::unique_ptr<OutlinedText> text_kimagure;
+    std::unique_ptr<OutlinedText> text_detarame;
 
-    OutlinedText* text_true_2;
-    OutlinedText* text_false_2;
-    OutlinedText* text_speed_2;
-    OutlinedText* text_kimagure_2;
-    OutlinedText* text_detarame_2;
+    std::unique_ptr<OutlinedText> text_true_2;
+    std::unique_ptr<OutlinedText> text_false_2;
+    std::unique_ptr<OutlinedText> text_speed_2;
+    std::unique_ptr<OutlinedText> text_kimagure_2;
+    std::unique_ptr<OutlinedText> text_detarame_2;
 
     bool get_bool(int mod_index);
     void set_bool(int mod_index, bool value);
 
-    OutlinedText* make_text(const std::string& str);
+    std::unique_ptr<OutlinedText> make_text(const std::string& str);
     void start_text_animation(int direction);
-    void draw_animated_text(OutlinedText* text_primary, OutlinedText* text_secondary, float x, float y, bool should_animate);
+    void draw_animated_text(const std::unique_ptr<OutlinedText>& text_primary, const std::unique_ptr<OutlinedText>& text_secondary, float x, float y, bool should_animate);
 
 public:
     bool is_finished;

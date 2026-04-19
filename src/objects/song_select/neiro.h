@@ -17,8 +17,8 @@ private:
     MoveAnimation* move_sideways;
     FadeAnimation* fade_sideways;
 
-    OutlinedText* text;
-    OutlinedText* text_2;
+    std::unique_ptr<OutlinedText> text;
+    std::unique_ptr<OutlinedText> text_2;
 
     void load_sound();
 

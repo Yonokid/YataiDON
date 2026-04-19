@@ -5,13 +5,13 @@ void EntryScreen::on_screen_start() {
     Screen::on_screen_start();
     side = 1;
     is_2p = false;
-    box_manager = new BoxManager();
+    box_manager = std::make_unique<BoxManager>();
     state = EntryState::SELECT_SIDE;
 
     NameplateConfig plate_info = global_data.config->nameplate_1p;
     nameplate = Nameplate(plate_info.name, plate_info.title, PlayerNum::ALL, -1, false, false, 0);
 
-    timer = new Timer(60, get_current_ms(), [this]() { box_manager->select_box(); });
+    timer = std::make_unique<Timer>(60, get_current_ms(), [this]() { box_manager->select_box(); });
     screen_init = true;
 
     side_select_fade = (FadeAnimation*)tex.get_animation(0);
@@ -20,12 +20,13 @@ void EntryScreen::on_screen_start() {
 
     //chara = new Chara2D(0);
     announce_played = false;
-    players = {nullptr, nullptr};
+    players.clear();
+    players.resize(2);
 
     std::string lang = global_data.config->general.language;
     auto& skin = tex.skin_config;
-    text_cancel = new OutlinedText(skin[SC::ENTRY_CANCEL].text[lang], skin[SC::ENTRY_CANCEL].font_size, ray::WHITE, ray::BLACK, false, 4, -4);
-    text_question = new OutlinedText(skin[SC::ENTRY_QUESTION].text[lang], skin[SC::ENTRY_QUESTION].font_size, ray::WHITE, ray::BLACK, false, 4, -1);
+    text_cancel = std::make_unique<OutlinedText>(skin[SC::ENTRY_CANCEL].text[lang], skin[SC::ENTRY_CANCEL].font_size, ray::WHITE, ray::BLACK, false, 4, -4);
+    text_question = std::make_unique<OutlinedText>(skin[SC::ENTRY_QUESTION].text[lang], skin[SC::ENTRY_QUESTION].font_size, ray::WHITE, ray::BLACK, false, 4, -1);
 
     audio->play_sound("bgm", "music");
 }
@@ -44,12 +45,12 @@ std::optional<Screens> EntryScreen::handle_input() {
             global_data.player_num = (side == 0) ? PlayerNum::P1 : PlayerNum::P2;
 
             if (players[0]) {
-                players[1] = new EntryPlayer(global_data.player_num, side, box_manager);
+                players[1] = std::make_unique<EntryPlayer>(global_data.player_num, side, box_manager.get());
                 players[1]->start_animations();
                 global_data.player_num = PlayerNum::P1;
                 is_2p = true;
             } else {
-                players[0] = new EntryPlayer(global_data.player_num, side, box_manager);
+                players[0] = std::make_unique<EntryPlayer>(global_data.player_num, side, box_manager.get());
                 players[0]->start_animations();
                 is_2p = false;
             }
@@ -77,7 +78,7 @@ std::optional<Screens> EntryScreen::handle_input() {
                 side = std::min(2, side + 1);
         }
     } else if (state == EntryState::SELECT_MODE) {
-        for (auto* player : players) {
+        for (auto& player : players) {
             if (player) player->handle_input();
         }
         if (players[0] && players[0]->player_num == PlayerNum::P1 && (is_l_don_pressed(PlayerNum::P2) || is_r_don_pressed(PlayerNum::P2))) {
@@ -107,13 +108,13 @@ std::optional<Screens> EntryScreen::update() {
     timer->update(current_time);
     nameplate.update(current_time);
     //chara->update(current_time, 100, false, false);
-    for (auto* player : players) {
+    for (auto& player : players) {
         if (player) player->update(current_time);
     }
     if (box_manager->is_finished()) {
         return on_screen_end(box_manager->selected_box());
     }
-    for (auto* player : players) {
+    for (auto& player : players) {
         if (player && player->is_cloud_animation_finished() &&
             !audio->is_sound_playing("entry_start_" + std::to_string((int)global_data.player_num) + "p") &&
             !announce_played) {
@@ -177,13 +178,13 @@ void EntryScreen::draw_side_select(float fade) {
 }
 
 void EntryScreen::draw_player_drum() {
-    for (auto* player : players) {
+    for (auto& player : players) {
         if (player) player->draw_drum();
     }
 }
 
 void EntryScreen::draw_mode_select() {
-    for (auto* player : players) {
+    for (auto& player : players) {
         if (player && !player->is_cloud_animation_finished()) return;
     }
     box_manager->draw();
@@ -212,7 +213,7 @@ void EntryScreen::draw() {
         tex.draw_texture(SIDE_SELECT::FOOTER_LEFT);
     }
 
-    for (auto* player : players) {
+    for (auto& player : players) {
         if (player) {
             player->draw_nameplate_and_indicator(player->nameplate_fadein->attribute);
         }

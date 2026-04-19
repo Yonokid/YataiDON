@@ -1,7 +1,7 @@
 #include "background.h"
 
 Background::Background(PlayerNum player_num, float bpm, const std::string& scene_preset) {
-    sol::state& lua = script_manager.lua;
+    sol::state& lua = *script_manager.lua;
 
     if (!lua["Background"].valid()) {
         std::string script_path = script_manager.get_lua_script_path("background");

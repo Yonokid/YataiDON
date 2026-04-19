@@ -1,6 +1,6 @@
 #include "box.h"
 
-Box::Box(OutlinedText* text, Screens location) : text(text), location(location) {
+Box::Box(std::unique_ptr<OutlinedText> text, Screens location) : text(std::move(text)), location(location) {
     x = tex.textures[MODE_SELECT::BOX]->x[0];
     y = tex.textures[MODE_SELECT::BOX]->y[0];
     width = tex.textures[MODE_SELECT::BOX]->width;

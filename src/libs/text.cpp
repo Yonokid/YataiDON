@@ -238,6 +238,19 @@ OutlinedText::OutlinedText(std::string text, int font_size,
 }
 
 OutlinedText::~OutlinedText() {
+    if (build_future.valid())
+        build_future.wait();
+    {
+        std::lock_guard<std::mutex> lock(pending_mutex);
+        if (pending_image.has_value()) {
+            ray::UnloadImage(pending_image.value());
+            pending_image.reset();
+        }
+    }
+    if (worker_font.glyphCount > 0) {
+        worker_font.texture = {};
+        ray::UnloadFont(worker_font);
+    }
     if (texture.has_value()) {
         ray::UnloadTexture(texture.value());
     }

@@ -6,7 +6,7 @@ void LoadingScreen::on_screen_start() {
     progress_bar_x = (tex.screen_width - progress_bar_width) / 2;
     progress_bar_y = tex.screen_height * 0.85;
 
-    fade_in = new FadeAnimation(1000, 0.0, false, false, 1.0);
+    fade_in = std::make_unique<FadeAnimation>(1000, 0.0, false, false, 1.0);
     allnet_indicator = AllNetIcon();
 
     for (const fs::path& path : global_data.config->paths.tja_path) {

@@ -7,11 +7,11 @@ DiffSortSelect::DiffSortSelect(Statistics statistics, int prev_diff, int prev_le
     confirmation = false;
     confirm_index = 1;
     num_boxes = 6;
-    limits = {5, 7, 8, 10};
+    limits = {5, 7, 8, 10, 10};
 
-    bg_resize = (TextureChangeAnimation*)tex.get_animation(19);
+    bg_resize = (TextureResizeAnimation*)tex.get_animation(19);
     diff_fade_in = (FadeAnimation*)tex.get_animation(20);
-    box_flicker = (TextureChangeAnimation*)tex.get_animation(21);
+    box_flicker = (FadeAnimation*)tex.get_animation(21);
     bounce_up_1 = (MoveAnimation*)tex.get_animation(22);
     bounce_down_1 = (MoveAnimation*)tex.get_animation(23);
     bounce_up_2 = (MoveAnimation*)tex.get_animation(24);
@@ -21,6 +21,7 @@ DiffSortSelect::DiffSortSelect(Statistics statistics, int prev_diff, int prev_le
 
     bg_resize->start();
     diff_fade_in->start();
+    box_flicker->start();
 
     std::map<int, std::array<int, 3>> diff_sort_sum_stat;
 
@@ -70,7 +71,7 @@ std::optional<std::pair<int, int>> DiffSortSelect::input_select() {
         return std::nullopt;
     }
     if (selected_box == -1) return {{-1, -1}};
-    if (selected_box == 5) return {{0, -1}};
+    if (selected_box == 5) return {{prev_diff, prev_level}};
 
     audio->play_sound("voice_diff_sort_level", "voice");
     in_level_select = true;
@@ -92,19 +93,19 @@ void DiffSortSelect::input_left() {
 
 void DiffSortSelect::input_right() {
     if (confirmation) {
-        confirm_index = std::max(confirm_index + 1, 2);
+        confirm_index = std::min(confirm_index + 1, 2);
     } else if (in_level_select) {
-        selected_level = std::max(selected_level + 1, limits[selected_box]);
+        selected_level = std::min(selected_level + 1, limits[selected_box]);
     } else {
-        selected_box = std::max(selected_box + 1, num_boxes - 1);
+        selected_box = std::min(selected_box + 1, num_boxes - 1);
     }
 }
 
 void DiffSortSelect::draw_statistics() {
     std::string player_num_str = std::to_string((int)global_data.player_num);
-    tex.draw_texture(tex_id_map.at("diff_sort/" + (player_num_str + "p")));
+    tex.draw_texture(tex_id_map.at("diff_sort/stat_bg_" + player_num_str + "p"));
     tex.draw_texture(DIFF_SORT::STAT_OVERLAY);
-    tex.draw_texture(DIFF_SORT::STAT_DIFF, {.frame=std::min(selected_box, 3)});
+    tex.draw_texture(DIFF_SORT::STAT_DIFF, {.frame=std::min(selected_box, 4)});
 
     if (in_level_select || selected_box == 5) {
         tex.draw_texture(DIFF_SORT::STAT_STARX);
@@ -119,7 +120,7 @@ void DiffSortSelect::draw_statistics() {
         float total_width = counter.size() * margin;
         for (size_t i = 0; i < counter.size(); i++) {
             int digit = counter[i] - '0';
-            tex.draw_texture(DIFF_SORT::STAT_NUM_STAR, {.frame=digit, .x=tex.skin_config[SC::DIFF_SORT_STAT_NUM_STAR].y-(counter.size() - i) * margin, .y=tex.skin_config[SC::DIFF_SORT_STAT_NUM_STAR].y});
+            tex.draw_texture(DIFF_SORT::STAT_NUM_STAR, {.frame=digit, .x=tex.skin_config[SC::DIFF_SORT_STAT_NUM_STAR].x-(counter.size() - i) * margin, .y=tex.skin_config[SC::DIFF_SORT_STAT_NUM_STAR].y});
         }
 
         counter = std::to_string(statistics[selected_box][selected_level].total);
@@ -229,12 +230,13 @@ void DiffSortSelect::draw_diff_select() {
     }
 
     for (size_t i = 0; i < num_boxes; i++) {
-        if (i < 4) {
+        if (i < 5) {
             tex.draw_texture(DIFF_SORT::BOX_DIFF, {.frame=(int)i, .x=(offset*i)});
         }
     }
-
-    draw_statistics();
+    if (selected_box != -1 && selected_box != num_boxes - 1) {
+        draw_statistics();
+    }
 }
 
 void DiffSortSelect::draw_level_select() {

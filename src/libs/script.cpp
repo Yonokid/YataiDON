@@ -1,8 +1,9 @@
 #include "script.h"
 
 void ScriptManager::init(fs::path script_path) {
-    lua.open_libraries(sol::lib::base, sol::lib::package, sol::lib::string,
-                       sol::lib::math, sol::lib::table);
+    lua = std::make_unique<sol::state>();
+    lua->open_libraries(sol::lib::base, sol::lib::package, sol::lib::string,
+                        sol::lib::math, sol::lib::table);
 
     for (const auto& script : fs::directory_iterator(script_path)) {
         scripts[script.path().stem().string()] = script.path().string();
@@ -25,7 +26,12 @@ std::string ScriptManager::get_lua_script_path(const std::string& script_name) {
     return scripts[script_name];
 }
 
+void ScriptManager::shutdown() {
+    lua.reset();
+}
+
 void ScriptManager::register_lua_bindings() {
+    sol::state& lua = *this->lua;
     lua.new_usertype<BaseAnimation>("BaseAnimation",
         "update", &BaseAnimation::update,
         "restart", &BaseAnimation::restart,
@@ -252,7 +258,7 @@ void ScriptManager::register_lua_bindings() {
 
         const auto& skin_info = config_it->second;
 
-        sol::table info = script_manager.lua.create_table();
+        sol::table info = script_manager.lua->create_table();
         info["x"] = skin_info.x;
         info["y"] = skin_info.y;
         info["font_size"] = skin_info.font_size;
@@ -264,7 +270,7 @@ void ScriptManager::register_lua_bindings() {
 
     tex.set_function("get_texture_keys", [](const std::string& subset) -> sol::optional<sol::table> {
         std::string prefix = subset + "/";
-        sol::table keys = script_manager.lua.create_table();
+        sol::table keys = script_manager.lua->create_table();
         int index = 1;
         for (const auto& [path, id] : tex_id_map) {
             if (path.size() > prefix.size() && path.substr(0, prefix.size()) == prefix) {
@@ -285,7 +291,7 @@ void ScriptManager::register_lua_bindings() {
 
         const auto& tex_obj = tex_it->second;
 
-        sol::table info = script_manager.lua.create_table();
+        sol::table info = script_manager.lua->create_table();
         info["name"] = tex_obj->name;
         info["width"] = tex_obj->width;
         info["height"] = tex_obj->height;

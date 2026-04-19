@@ -13,7 +13,7 @@ class BaseOptionBox {
 protected:
     std::string     description_text;
     ConfigRef       config_ref;
-    OutlinedText*   name_text;
+    std::unique_ptr<OutlinedText>   name_text;
 
     void draw_base() const;
 
@@ -22,7 +22,6 @@ public:
 
     BaseOptionBox(const std::string& name, const std::string& description,
                   const std::string& path);
-    virtual ~BaseOptionBox();
 
     virtual void confirm() {}
 
@@ -34,13 +33,12 @@ public:
 
 class BoolOptionBox : public BaseOptionBox {
     bool          value;
-    OutlinedText* on_text;
-    OutlinedText* off_text;
+    std::unique_ptr<OutlinedText> on_text;
+    std::unique_ptr<OutlinedText> off_text;
 public:
     BoolOptionBox(const std::string& name, const std::string& description,
                   const std::string& path,
                   const std::string& true_label, const std::string& false_label);
-    ~BoolOptionBox() override;
 
     void confirm()    override;
     void move_left()  override;  // set false
@@ -50,8 +48,8 @@ public:
 
 class IntOptionBox : public BaseOptionBox {
     int           value;
-    OutlinedText* value_text;
-    FadeAnimation* flicker_fade;
+    std::unique_ptr<OutlinedText> value_text;
+    std::unique_ptr<FadeAnimation> flicker_fade;
     std::vector<std::pair<int,std::string>> value_list;
     int           value_index;
 
@@ -60,7 +58,6 @@ public:
     IntOptionBox(const std::string& name, const std::string& description,
                  const std::string& path,
                  const std::map<std::string,std::string>& values);
-    ~IntOptionBox() override;
 
     void confirm()    override;
     void update(double current_time) override;
@@ -73,8 +70,8 @@ public:
 class StrOptionBox : public BaseOptionBox {
     std::string   value;
     std::string   input_string;   // used for free-form editing
-    OutlinedText* value_text;
-    FadeAnimation* flicker_fade;
+    std::unique_ptr<OutlinedText> value_text;
+    std::unique_ptr<FadeAnimation> flicker_fade;
     std::vector<std::pair<std::string,std::string>> value_list;
     int           value_index;
 
@@ -83,7 +80,6 @@ public:
     StrOptionBox(const std::string& name, const std::string& description,
                  const std::string& path,
                  const std::map<std::string,std::string>& values);
-    ~StrOptionBox() override;
 
     void confirm()    override;
     void update(double current_time) override;
@@ -94,14 +90,13 @@ public:
 
 class KeybindOptionBox : public BaseOptionBox {
     std::vector<int> value;
-    OutlinedText*    value_text;
-    FadeAnimation*   flicker_fade;
+    std::unique_ptr<OutlinedText>    value_text;
+    std::unique_ptr<FadeAnimation>   flicker_fade;
 
     void rebuild_text();
 public:
     KeybindOptionBox(const std::string& name, const std::string& description,
                      const std::string& path);
-    ~KeybindOptionBox() override;
 
     void confirm()    override;
     void update(double current_time) override;
@@ -110,14 +105,13 @@ public:
 
 class KeyBindControllerOptionBox : public BaseOptionBox {
     std::vector<int> value;
-    OutlinedText*    value_text;
-    FadeAnimation*   flicker_fade;
+    std::unique_ptr<OutlinedText>    value_text;
+    std::unique_ptr<FadeAnimation>   flicker_fade;
 
     void rebuild_text();
 public:
     KeyBindControllerOptionBox(const std::string& name, const std::string& description,
                                 const std::string& path);
-    ~KeyBindControllerOptionBox() override;
 
     void confirm()    override;
     void update(double current_time) override;
@@ -126,14 +120,13 @@ public:
 
 class FloatOptionBox : public BaseOptionBox {
     float         value;
-    OutlinedText* value_text;
-    FadeAnimation* flicker_fade;
+    std::unique_ptr<OutlinedText> value_text;
+    std::unique_ptr<FadeAnimation> flicker_fade;
 
     void rebuild_text();
 public:
     FloatOptionBox(const std::string& name, const std::string& description,
                    const std::string& path);
-    ~FloatOptionBox() override;
 
     void confirm()    override;
     void update(double current_time) override;
@@ -148,7 +141,6 @@ public:
                          const std::string& description,
                          const std::string& path,
                          Screens           calibrate_screen);
-    ~AudioOffsetOptionBox() override;
 
     void confirm()                   override;
     void move_left()                 override;
@@ -163,9 +155,9 @@ private:
     int             value;
     Screens          calibrate_screen;
     bool             offset_highlighted;  // true = on offset button, false = on calibrate button
-    OutlinedText*   value_text;
-    OutlinedText*   calibrate_text;
-    FadeAnimation*  flicker_fade;
+    std::unique_ptr<OutlinedText>   value_text;
+    std::unique_ptr<OutlinedText>   calibrate_text;
+    std::unique_ptr<FadeAnimation>  flicker_fade;
 
     void rebuild_text();
 };

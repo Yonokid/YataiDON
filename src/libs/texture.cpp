@@ -85,7 +85,6 @@ void TextureWrapper::unload_textures() {
     loaded_subsets.clear();
     animations.clear();
     copied_animations.clear();
-    spdlog::info("All textures unloaded");
 }
 
 BaseAnimation* TextureWrapper::get_animation(const int id, bool is_copy) {
@@ -103,9 +102,6 @@ BaseAnimation* TextureWrapper::get_animation(const int id, bool is_copy) {
         return copied_animations.back().get();
     }
 
-    if (animations[id]->isStarted()) {
-        animations[id]->start();
-    }
     return animations[id].get();
 }
 

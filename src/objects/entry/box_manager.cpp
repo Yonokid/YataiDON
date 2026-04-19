@@ -7,17 +7,15 @@ BoxManager::BoxManager() : selected_box_index(0), is_2p(false) {
     auto& skin = tex.skin_config;
     int font_size = skin[SC::ENTRY_BOX_TEXT].font_size;
 
-    box_titles = {
-        new OutlinedText(skin[SC::ENTRY_GAME].text[lang],       font_size, ray::WHITE, ray::Color(109, 68, 24, 255), true, 5),
-        new OutlinedText(skin[SC::ENTRY_PRACTICE].text[lang],   font_size, ray::WHITE, ray::Color(109, 68, 24, 255), true, 5),
-        new OutlinedText(skin[SC::ENTRY_AI_BATTLE].text[lang],  font_size, ray::WHITE, ray::Color(109, 68, 24, 255), true, 5),
-        new OutlinedText(skin[SC::ENTRY_SETTINGS].text[lang],   font_size, ray::WHITE, ray::Color(109, 68, 24, 255), true, 5),
+    auto make_text = [&](SC key) {
+        return std::make_unique<OutlinedText>(skin[key].text[lang], font_size, ray::WHITE, ray::Color(109, 68, 24, 255), true, 5);
     };
+    boxes.push_back(std::make_unique<Box>(make_text(SC::ENTRY_GAME),       box_locations[0]));
+    boxes.push_back(std::make_unique<Box>(make_text(SC::ENTRY_PRACTICE),   box_locations[1]));
+    boxes.push_back(std::make_unique<Box>(make_text(SC::ENTRY_AI_BATTLE),  box_locations[2]));
+    boxes.push_back(std::make_unique<Box>(make_text(SC::ENTRY_SETTINGS),   box_locations[3]));
 
-    num_boxes = box_titles.size();
-    for (int i = 0; i < num_boxes; i++) {
-        boxes.push_back(new Box(box_titles[i], box_locations[i]));
-    }
+    num_boxes = boxes.size();
 
     fade_out = (FadeAnimation*)tex.get_animation(9);
 
@@ -91,7 +89,7 @@ void BoxManager::update(double current_time_ms, bool is_2p) {
 }
 
 void BoxManager::draw() {
-    for (auto* box : boxes) {
+    for (auto& box : boxes) {
         box->draw(fade_out->attribute);
     }
 }

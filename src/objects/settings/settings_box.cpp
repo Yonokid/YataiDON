@@ -2,7 +2,7 @@
 #include "spdlog/spdlog.h"
 
 
-BaseOptionBox* SettingsBox::make_option_box(const rapidjson::Value& opt) {
+std::unique_ptr<BaseOptionBox> SettingsBox::make_option_box(const rapidjson::Value& opt) {
     std::string type        = opt["type"].GetString();
     std::string path        = opt["path"].GetString();
     std::string lang        = global_data.config->general.language;
@@ -24,29 +24,29 @@ BaseOptionBox* SettingsBox::make_option_box(const rapidjson::Value& opt) {
     }
 
     if (type == "audiooffset") {
-        return new AudioOffsetOptionBox(name, desc, path, Screens::INPUT_CALI);
+        return std::make_unique<AudioOffsetOptionBox>(name, desc, path, Screens::INPUT_CALI);
     }
     if (type == "bool") {
         std::string true_label  = values_map.count("true")  ? values_map["true"]  : "Enabled";
         std::string false_label = values_map.count("false") ? values_map["false"] : "Disabled";
-        return new BoolOptionBox(name, desc, path, true_label, false_label);
+        return std::make_unique<BoolOptionBox>(name, desc, path, true_label, false_label);
     }
     if (type == "int") {
-        return new IntOptionBox(name, desc, path, values_map);
+        return std::make_unique<IntOptionBox>(name, desc, path, values_map);
     }
     if (type == "string") {
-        return new StrOptionBox(name, desc, path, values_map);
+        return std::make_unique<StrOptionBox>(name, desc, path, values_map);
     }
     if (type == "keybind") {
-        return new KeybindOptionBox(name, desc, path);
+        return std::make_unique<KeybindOptionBox>(name, desc, path);
     }
     if (type == "keybind_controller") {
-        return new KeyBindControllerOptionBox(name, desc, path);
+        return std::make_unique<KeyBindControllerOptionBox>(name, desc, path);
     }
     if (type == "float") {
-        return new FloatOptionBox(name, desc, path);
+        return std::make_unique<FloatOptionBox>(name, desc, path);
     }
-    return new StrOptionBox(name, desc, path, values_map);
+    return std::make_unique<StrOptionBox>(name, desc, path, values_map);
 }
 
 static constexpr float WRAP_BOTTOM = 650.0f;
@@ -57,7 +57,7 @@ SettingsBox::SettingsBox(const std::string& name,
                          const std::string& label_text,
                          const rapidjson::Value& options_json)
     : box_name(name)
-    , label(new OutlinedText(label_text, 35, ray::WHITE, ray::Color{109,68,24,255}, false, 5))
+    , label(std::make_unique<OutlinedText>(label_text, 35, ray::WHITE, ray::Color{109,68,24,255}, false, 5))
     , x(10.0f)
     , y(WRAP_TOP)
     , start_position(WRAP_TOP)
@@ -85,10 +85,7 @@ SettingsBox::SettingsBox(const std::string& name,
     }
 }
 
-SettingsBox::~SettingsBox() {
-    delete label;
-    for (auto* opt : options) delete opt;
-}
+SettingsBox::~SettingsBox() = default;
 
 void SettingsBox::set_y(float new_y) {
     y              = new_y;
@@ -151,8 +148,8 @@ void SettingsBox::select() {
 }
 
 std::optional<Screens> SettingsBox::pending_screen_change() const {
-    for (auto* opt : options) {
-        auto* ao = dynamic_cast<AudioOffsetOptionBox*>(opt);
+    for (auto& opt : options) {
+        auto* ao = dynamic_cast<AudioOffsetOptionBox*>(opt.get());
         if (ao && ao->wants_screen_change) {
             ao->wants_screen_change = false;
             return ao->pending_screen;
@@ -172,7 +169,7 @@ void SettingsBox::update(double current_time_ms, bool selected) {
     } else {
         y = start_position + move_anim->attribute * direction;
     }
-    for (auto* opt : options) {
+    for (auto& opt : options) {
         opt->update(current_time_ms);
     }
 }

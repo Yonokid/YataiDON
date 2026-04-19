@@ -29,15 +29,19 @@ private:
     std::optional<Transition> game_transition;
     CoinOverlay coin_overlay;
     AllNetIcon allnet_indicator;
-    Timer* select_timer;
-    Timer* diff_select_timer;
-    Indicator* indicator;
+    std::unique_ptr<Timer> select_timer;
+    std::unique_ptr<Timer> diff_select_timer;
+    std::unique_ptr<Indicator> indicator;
+    Statistics cached_stats;
 
     ray::Shader shader;
     ray::Color color;
-    SongNum* song_num;
+    std::unique_ptr<SongNum> song_num;
 
     std::unique_ptr<SongSelectPlayer> player;
+
+    std::optional<DiffSortSelect> diff_sort_selector;
+    std::pair<int,int> last_diff_sort = {-1, -1};
 
     void select_song(SongBox* song);
 
@@ -45,6 +49,7 @@ private:
 
     void handle_input_browsing(double current_ms);
     void handle_input_selecting();
+    void handle_input_diff_sorting();
 
     void draw_overlays();
 

@@ -9,7 +9,7 @@ public:
     int tja_count;
     std::map<int, Crown> crown;
     bool entered = false;
-    FadeAnimation* enter_fade;
+    std::unique_ptr<FadeAnimation> enter_fade;
     std::optional<ray::Texture> box_texture;
 
     std::unique_ptr<OutlinedText> hori_name;

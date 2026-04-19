@@ -8,9 +8,8 @@
 
 class BoxManager {
 private:
-    std::vector<OutlinedText*> box_titles;
     std::vector<Screens> box_locations;
-    std::vector<Box*> boxes;
+    std::vector<std::unique_ptr<Box>> boxes;
     int num_boxes;
     int selected_box_index;
     FadeAnimation* fade_out;

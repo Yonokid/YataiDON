@@ -13,8 +13,8 @@ private:
     int side;
     BoxManager* box_manager;
 
-    Nameplate* nameplate;
-    Indicator* indicator;
+    std::unique_ptr<Nameplate> nameplate;
+    std::unique_ptr<Indicator> indicator;
     //Chara2D* chara;
 
     MoveAnimation* drum_move_1;

@@ -18,7 +18,7 @@ private:
 
     std::thread loading_thread;
 
-    FadeAnimation* fade_in;
+    std::unique_ptr<FadeAnimation> fade_in;
     AllNetIcon allnet_indicator;
 
     void load_song_hashes();

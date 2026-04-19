@@ -29,8 +29,8 @@ NeiroSelector::NeiroSelector(PlayerNum player_num) : player_num(player_num) {
     move_sideways = (MoveAnimation*)tex.get_animation(31, true);
     fade_sideways = (FadeAnimation*)tex.get_animation(32, true);
 
-    text = new OutlinedText(sounds[selected_sound], tex.skin_config[SC::NEIRO_TEXT].font_size, ray::WHITE, ray::BLACK, false);
-    text_2 = new OutlinedText(sounds[selected_sound], tex.skin_config[SC::NEIRO_TEXT].font_size, ray::WHITE, ray::BLACK, false);
+    text = std::make_unique<OutlinedText>(sounds[selected_sound], tex.skin_config[SC::NEIRO_TEXT].font_size, ray::WHITE, ray::BLACK, false);
+    text_2 = std::make_unique<OutlinedText>(sounds[selected_sound], tex.skin_config[SC::NEIRO_TEXT].font_size, ray::WHITE, ray::BLACK, false);
 }
 
 void NeiroSelector::load_sound() {
@@ -53,9 +53,8 @@ void NeiroSelector::left() {
     move_sideways->start();
     fade_sideways->start();
 
-    delete text;
-    text = text_2;
-    text_2 = new OutlinedText(sounds[selected_sound], tex.skin_config[SC::NEIRO_TEXT].font_size, ray::WHITE, ray::BLACK, false);
+    text = std::move(text_2);
+    text_2 = std::make_unique<OutlinedText>(sounds[selected_sound], tex.skin_config[SC::NEIRO_TEXT].font_size, ray::WHITE, ray::BLACK, false);
 
     direction = -1;
     if (selected_sound == (int)sounds.size()) return;
@@ -70,9 +69,8 @@ void NeiroSelector::right() {
     move_sideways->start();
     fade_sideways->start();
 
-    delete text;
-    text = text_2;
-    text_2 = new OutlinedText(sounds[selected_sound], tex.skin_config[SC::NEIRO_TEXT].font_size, ray::WHITE, ray::BLACK, false);
+    text = std::move(text_2);
+    text_2 = std::make_unique<OutlinedText>(sounds[selected_sound], tex.skin_config[SC::NEIRO_TEXT].font_size, ray::WHITE, ray::BLACK, false);
 
     direction = 1;
     if (selected_sound == (int)sounds.size()) return;

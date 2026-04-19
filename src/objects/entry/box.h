@@ -7,7 +7,7 @@
 
 class Box {
 private:
-    OutlinedText* text;
+    std::unique_ptr<OutlinedText> text;
     float x;
     float y;
     float static_x;
@@ -28,7 +28,7 @@ public:
     float width;
     Screens location;
     MoveAnimation* move;
-    Box(OutlinedText* text, Screens location);
+    Box(std::unique_ptr<OutlinedText> text, Screens location);
     void set_positions(float x);
     void update(double current_time_ms, bool is_selected);
     void move_left();

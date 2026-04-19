@@ -20,9 +20,9 @@ private:
     Statistics statistics;
     std::map<int, std::array<int, 3>> diff_sort_sum_stat;
 
-    TextureChangeAnimation* bg_resize;
+    TextureResizeAnimation* bg_resize;
     FadeAnimation* diff_fade_in;
-    TextureChangeAnimation* box_flicker;
+    FadeAnimation* box_flicker;
     MoveAnimation* bounce_up_1;
     MoveAnimation* bounce_down_1;
     MoveAnimation* bounce_up_2;

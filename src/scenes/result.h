@@ -11,7 +11,7 @@
 
 class ResultScreen : public Screen {
 private:
-    OutlinedText* song_info;
+    std::unique_ptr<OutlinedText> song_info;
     FadeAnimation* fade_out;
     AllNetIcon allnet_indicator;
     CoinOverlay coin_overlay;
@@ -22,7 +22,7 @@ private:
     double skipped_time = 0;
     std::optional<ResultPlayer> player_1;
     std::optional<FadeIn> fade_in;
-    SongNum* song_num;
+    std::unique_ptr<SongNum> song_num;
 
     void handle_input();
 

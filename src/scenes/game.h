@@ -34,7 +34,7 @@ public:
     std::optional<std::string> song_music;
     std::optional<TJAParser> parser;
     std::string scene_preset;
-    std::vector<Player*> players;
+    std::vector<std::unique_ptr<Player>> players;
     SongInfo song_info;
     std::optional<Transition> transition;
     ResultTransition result_transition;

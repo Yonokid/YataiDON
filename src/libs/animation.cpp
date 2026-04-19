@@ -43,12 +43,12 @@ double BaseAnimation::applyEasing(double progress, const std::optional<std::stri
 }
 
 void BaseAnimation::update(double current_time_ms) {
-    if (loop && is_finished) {
-        restart();
-    }
     if (lock_input && is_finished && !unlocked) {
         unlocked = true;
         global_data.input_locked--;
+    }
+    if (loop && is_finished) {
+        restart();
     }
 }
 

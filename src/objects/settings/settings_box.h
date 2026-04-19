@@ -11,7 +11,7 @@
 
 class SettingsBox {
 private:
-    OutlinedText*   label;
+    std::unique_ptr<OutlinedText>   label;
     float           x;
     float           y;
     float           start_position;
@@ -22,11 +22,11 @@ private:
     MoveAnimation*  blue_arrow_move;
     bool            is_selected;
     int             option_index;
-    std::vector<BaseOptionBox*> options;
+    std::vector<std::unique_ptr<BaseOptionBox>> options;
 
     void draw_text() const;
 
-    static BaseOptionBox* make_option_box(const rapidjson::Value& opt);
+    static std::unique_ptr<BaseOptionBox> make_option_box(const rapidjson::Value& opt);
 
 public:
     std::string box_name;

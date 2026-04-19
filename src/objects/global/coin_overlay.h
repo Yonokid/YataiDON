@@ -5,7 +5,7 @@
 
 class CoinOverlay {
 private:
-    OutlinedText* free_play;
+    std::unique_ptr<OutlinedText> free_play;
 public:
     CoinOverlay();
     void update(double current_ms);

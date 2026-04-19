@@ -6,7 +6,7 @@ FolderBox::FolderBox(const fs::path& path, const BoxDef& box_def, int tja_count,
     : BaseBox(path, box_def), tja_count(tja_count)
 {
     this->text_name = box_def.name;
-    enter_fade = new FadeAnimation(166);
+    enter_fade = std::make_unique<FadeAnimation>(166);
     std::set<int> disqualified;
 
     auto update_crown = [&](const fs::path& file_path) {
@@ -50,9 +50,7 @@ FolderBox::FolderBox(const fs::path& path, const BoxDef& box_def, int tja_count,
     }
 }
 
-FolderBox::~FolderBox() {
-    delete enter_fade;
-}
+FolderBox::~FolderBox() = default;
 
 void FolderBox::load_text() {
     BaseBox::load_text();

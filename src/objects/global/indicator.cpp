@@ -4,7 +4,7 @@ Indicator::Indicator(State state) : state(state) {
     don_fade = (FadeAnimation*)global_tex.get_animation(6);
     blue_arrow_move = (MoveAnimation*)global_tex.get_animation(7);
     blue_arrow_fade = (FadeAnimation*)global_tex.get_animation(8);
-    select_text = new OutlinedText(
+    select_text = std::make_unique<OutlinedText>(
         global_tex.skin_config[SC::INDICATOR_TEXT].text[global_data.config->general.language],
         global_tex.skin_config[SC::INDICATOR_TEXT].font_size,
         ray::WHITE, ray::BLANK, false, 0, -5);

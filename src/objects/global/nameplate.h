@@ -5,8 +5,8 @@
 
 class Nameplate {
 private:
-    OutlinedText* name;
-    OutlinedText* title;
+    std::unique_ptr<OutlinedText> name;
+    std::unique_ptr<OutlinedText> title;
     TextureChangeAnimation* rainbow_animation;
 
     int dan_index;
