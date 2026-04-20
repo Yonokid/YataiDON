@@ -169,7 +169,24 @@ void Navigator::flush_pending_boxes() {
 
     if (loading_complete.load()) {
         if (open_index >= items.size()) open_index = 0;
-        sort_items(items, genre_bg_start, genre_bg_end);
+        if (inline_state.has_value()) {
+            sort_items(items, genre_bg_start, genre_bg_end);
+        } else if (items.size() > 1) {
+            std::vector<int> sortable_indices;
+            std::vector<std::unique_ptr<BaseBox>> sortable;
+            for (int i = 1; i < (int)items.size(); i++) {
+                if (!items[i]->preserve_order) {
+                    sortable_indices.push_back(i);
+                    sortable.push_back(std::move(items[i]));
+                }
+            }
+            std::sort(sortable.begin(), sortable.end(),
+                [](const std::unique_ptr<BaseBox>& a, const std::unique_ptr<BaseBox>& b) {
+                    return a->path.filename().string() < b->path.filename().string();
+                });
+            for (int j = 0; j < (int)sortable_indices.size(); j++)
+                items[sortable_indices[j]] = std::move(sortable[j]);
+        }
         set_positions(false, 800);
         items[open_index]->expand_box();
         is_processing = false;
@@ -183,6 +200,7 @@ void Navigator::parse_song_list(const fs::path& path, BoxDef box_def, bool inlin
     std::vector<std::string> out_lines;
     bool needs_rewrite = false;
 
+    int songs_added = 0;
     while (std::getline(file, line)) {
         std::vector<std::string> fields;
         std::stringstream ss(line);
@@ -208,10 +226,21 @@ void Navigator::parse_song_list(const fs::path& path, BoxDef box_def, bool inlin
         }
 
         auto box = std::make_unique<SongBox>(song_path, box_def, TJAParser(song_path));
-        if (inline_mode)
+        if (songs_added > 0 && songs_added % 10 == 0) {
+            BoxDef back_box_def;
+            back_box_def.back_color    = BackBox::COLOR;
+            back_box_def.fore_color    = BackBox::COLOR;
+            back_box_def.texture_index = TextureIndex::NONE;
+            back_box_def.genre_index   = GenreIndex::NAMCO;
+            enqueue_inline_box(std::make_unique<BackBox>(path.parent_path().parent_path(), back_box_def));
+        }
+        if (inline_mode) {
             enqueue_inline_box(std::move(box));
-        else
+        } else {
+            box->preserve_order = true;
             enqueue_box(std::move(box));
+        }
+        songs_added++;
     }
     file.close();
 
@@ -516,18 +545,9 @@ void Navigator::load_collection_recommended(const fs::path& path, const BoxDef& 
     std::mt19937 rng(std::random_device{}());
     std::shuffle(all_songs.begin(), all_songs.end(), rng);
     int count = std::min((int)all_songs.size(), 10);
-    int songs_added = 0;
     for (int i = 0; i < count; i++) {
         if (abort_loading) break;
         const auto& [song_path, song_box_def] = all_songs[i];
-        if (songs_added > 0 && songs_added % 10 == 0) {
-            BoxDef back_box_def;
-            back_box_def.back_color    = BackBox::COLOR;
-            back_box_def.fore_color    = BackBox::COLOR;
-            back_box_def.texture_index = TextureIndex::NONE;
-            back_box_def.genre_index   = GenreIndex::NAMCO;
-            enqueue_inline_box(std::make_unique<BackBox>(path.parent_path(), back_box_def));
-        }
         auto song = std::make_unique<SongBox>(song_path, box_def, TJAParser(song_path));
         if (song_box_def.fore_color.has_value())
             song->fore_color = song_box_def.fore_color;
@@ -535,7 +555,6 @@ void Navigator::load_collection_recommended(const fs::path& path, const BoxDef& 
             song->fore_color = darken_color(song_box_def.back_color.value());
         song->fade_in(266);
         enqueue_inline_box(std::move(song));
-        songs_added++;
     }
 }
 

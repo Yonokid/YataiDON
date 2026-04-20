@@ -272,12 +272,32 @@ void GenreBG::draw(float start_position, float end_position, FolderBox* folder) 
         }
     } else {
         // Normal case — clamp to screen
-        float draw_start = std::max(start_position, 0.f);
-        float draw_end   = std::min(end_position,   screen_width);
+        float offset = 5;
+        float edge_width = tex.textures[BOX::FOLDER_BACKGROUND_EDGE]->width;
+        float draw_start = std::max(bg_start_pos, 0.f);
+        float draw_end   = std::min(bg_end_pos,   screen_width);
         if (draw_start < draw_end) {
-            tex.draw_texture(BOX::FOLDER_BACKGROUND, {
-                .frame=(int)texture_index, .x=draw_start, .x2=draw_end, .fade=fade->attribute
-            });
+            float fill_start = draw_start;
+            float fill_end   = draw_end;
+            if (bg_start_pos > 0) {
+                tex.draw_texture(BOX::FOLDER_BACKGROUND_EDGE, {
+                    .frame=(int)texture_index, .mirror="horizontal",
+                    .x=draw_start - offset, .fade=fade->attribute
+                });
+                fill_start = draw_start + edge_width - offset;
+            }
+            if (bg_end_pos < screen_width) {
+                tex.draw_texture(BOX::FOLDER_BACKGROUND_EDGE, {
+                    .frame=(int)texture_index,
+                    .x=draw_end - edge_width + offset, .fade=fade->attribute
+                });
+                fill_end = draw_end - edge_width + offset;
+            }
+            if (fill_start < fill_end) {
+                tex.draw_texture(BOX::FOLDER_BACKGROUND, {
+                    .frame=(int)texture_index, .x=fill_start, .x2=fill_end - fill_start, .fade=fade->attribute
+                });
+            }
         }
     }
 

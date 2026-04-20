@@ -43,6 +43,7 @@ public:
     fs::path path;
 
     bool is_new = false;
+    bool preserve_order = false;
 
     BaseBox(const fs::path& path, const BoxDef& box_def);
     virtual ~BaseBox();
