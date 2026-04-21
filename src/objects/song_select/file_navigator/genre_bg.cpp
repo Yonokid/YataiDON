@@ -301,7 +301,10 @@ void GenreBG::draw(float start_position, float end_position, FolderBox* folder) 
         }
     }
 
-    if (!(start_position < center || center < end_position)) {
+    bool center_not_covered = (start_position <= end_position)
+        ? (center < start_position || end_position < center)   // non-wrapping: center must be in [start, end]
+        : (end_position < center && center < start_position);  // wrapping: skip only if center is in the gap
+    if (center_not_covered) {
         if (shader_loaded) ray::EndShaderMode();
         return;
     }

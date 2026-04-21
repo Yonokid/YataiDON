@@ -713,7 +713,7 @@ void Navigator::begin_inline_load() {
     items[open_index]->enter_box();
     genre_bg_start = 0;
     genre_bg_end   = 0;
-    int approx_total = approx_items + approx_items / 10;
+    int approx_total = (approx_items + approx_items / 10) + 1;
     int last_index = open_index + approx_total;
 
     float offset = last_index - open_index;
