@@ -20,6 +20,7 @@ endif()
 
 # Dependency management
 include(FetchContent)
+set(FETCHCONTENT_BASE_DIR "${CMAKE_SOURCE_DIR}/.cmake-deps" CACHE PATH "" FORCE)
 
 ### Dependencies
 
@@ -512,6 +513,10 @@ elseif(UNIX)
   elseif(TARGET SDL3::SDL3)
     target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3)
   endif()
+  if(EXISTS "/usr/bin/mold")
+    target_link_options(${PROJECT_NAME} PRIVATE -fuse-ld=mold)
+  endif()
+
   # Set rpath for audio library
   set_target_properties(${PROJECT_NAME} PROPERTIES
         BUILD_RPATH "${CMAKE_SOURCE_DIR}/src/libs/audio"
@@ -567,12 +572,12 @@ else()
     target_compile_options(${PROJECT_NAME} PRIVATE
           -O2
           -march=x86-64
-          -DNDEBUG  # Disable assertions
-          -flto  # Link-time optimization
+          -DNDEBUG
+          -flto=auto
       )
     target_link_options(${PROJECT_NAME} PRIVATE
-          -flto  # Link-time optimization
-          -s  # Strip symbols
+          -flto=auto
+          -s
       )
   endif()
 endif()

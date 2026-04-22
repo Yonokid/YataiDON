@@ -10,7 +10,8 @@ echo ""
 
 # Clean and build
 rm -rf build
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
+  $(command -v ccache &>/dev/null && echo "-DCMAKE_CXX_COMPILER_LAUNCHER=ccache")
 cmake --build build -j$(nproc)
 
 # Copy executable to root directory

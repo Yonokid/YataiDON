@@ -121,6 +121,7 @@ void RaylibAudioEngine::play_sound(const std::string& name, const std::string& v
             it->second.volume = preset_volume(volume_preset);
             ray::SetSoundVolume(it->second.sound, it->second.volume);
         }
+        it->second.play_start = ray::GetTime();
         ray::PlaySound(it->second.sound);
     } else {
         spdlog::warn("Sound {} not found", name);
@@ -159,6 +160,27 @@ void RaylibAudioEngine::set_sound_pan(const std::string& name, float pan) {
     auto it = sounds.find(name);
     if (it != sounds.end()) {
         ray::SetSoundPan(it->second.sound, std::clamp(pan, 0.0f, 1.0f));
+    } else {
+        spdlog::warn("Sound {} not found", name);
+    }
+}
+
+float RaylibAudioEngine::get_sound_time_played(const std::string& name) const {
+    auto it = sounds.find(name);
+    if (it != sounds.end()) {
+        if (!ray::IsSoundPlaying(it->second.sound)) return 0.0f;
+        return (float)(ray::GetTime() - it->second.play_start);
+    }
+    spdlog::warn("Sound {} not found", name);
+    return 0.0f;
+}
+
+void RaylibAudioEngine::seek_sound(const std::string& name, float position) {
+    auto it = sounds.find(name);
+    if (it != sounds.end()) {
+        // Raylib has no native sound seeking; adjust play_start so that
+        // get_sound_time_played returns the correct elapsed time.
+        it->second.play_start = ray::GetTime() - (double)position;
     } else {
         spdlog::warn("Sound {} not found", name);
     }

@@ -105,7 +105,7 @@ void SongBox::draw_closed() {
 
     int highest_key = -1;
     for (int i = 0; i < (int)scores.size(); ++i) {
-        if (scores[i].has_value()) highest_key = std::max(highest_key, i);
+        if (scores[i].has_value() && parser.metadata.course_data.count(i)) highest_key = std::max(highest_key, i);
     }
     if (highest_key >= 0) {
         Score score = scores[highest_key].value();

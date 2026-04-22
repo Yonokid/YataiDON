@@ -578,6 +578,32 @@ void AudioEngine::set_sound_pan(const std::string& name, float pan) {
     lock.unlock();
 }
 
+float AudioEngine::get_sound_time_played(const std::string& name) const {
+    lock.lock();
+    auto it = sounds.find(name);
+    float time = 0.0f;
+    if (it != sounds.end()) {
+        time = static_cast<float>(it->second.current_frame) / static_cast<float>(target_sample_rate);
+    } else {
+        spdlog::warn("Sound {} not found", name);
+    }
+    lock.unlock();
+    return time;
+}
+
+void AudioEngine::seek_sound(const std::string& name, float position) {
+    lock.lock();
+    auto it = sounds.find(name);
+    if (it != sounds.end()) {
+        sound& snd = it->second;
+        unsigned int frame = static_cast<unsigned int>(std::max(position, 0.0f) * static_cast<float>(target_sample_rate));
+        snd.current_frame = std::min(frame, snd.frame_count);
+    } else {
+        spdlog::warn("Sound {} not found", name);
+    }
+    lock.unlock();
+}
+
 std::string AudioEngine::load_music_stream(const fs::path& file_path, const std::string& name) {
     try {
         std::string path_str = path_to_string(file_path);

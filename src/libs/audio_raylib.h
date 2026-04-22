@@ -20,7 +20,8 @@ struct RaylibMusicEntry {
 
 struct RaylibSoundEntry {
     ray::Sound sound;
-    float volume = 1.0f;
+    float  volume     = 1.0f;
+    double play_start = 0.0;   // wall time (GetTime()) when PlaySound was last called
 };
 
 // Raylib raudio backend.  Used on platforms that cannot link PortAudio
@@ -50,8 +51,10 @@ public:
     void play_sound(const std::string& name, const std::string& volume_preset = "") override;
     void stop_sound(const std::string& name)    override;
     bool is_sound_playing(const std::string& name) override;
-    void set_sound_volume(const std::string& name, float volume) override;
-    void set_sound_pan(const std::string& name,   float pan)    override;
+    void  set_sound_volume(const std::string& name, float volume) override;
+    void  set_sound_pan(const std::string& name,   float pan)    override;
+    float get_sound_time_played(const std::string& name) const   override;
+    void  seek_sound(const std::string& name, float position)    override;
 
     std::string load_music_stream(const fs::path& file_path, const std::string& name) override;
 #ifndef __EMSCRIPTEN__

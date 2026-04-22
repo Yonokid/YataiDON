@@ -44,8 +44,10 @@ public:
     virtual void play_sound(const std::string& name, const std::string& volume_preset = "") = 0;
     virtual void stop_sound(const std::string& name)    = 0;
     virtual bool is_sound_playing(const std::string& name) = 0;
-    virtual void set_sound_volume(const std::string& name, float volume) = 0;
-    virtual void set_sound_pan(const std::string& name,   float pan)    = 0;
+    virtual void  set_sound_volume(const std::string& name, float volume) = 0;
+    virtual void  set_sound_pan(const std::string& name,   float pan)    = 0;
+    virtual float get_sound_time_played(const std::string& name) const   = 0;
+    virtual void  seek_sound(const std::string& name, float position)    = 0;
 
     // --- Music streams (large, streamed audio) ---
     virtual std::string load_music_stream(const fs::path& file_path, const std::string& name) = 0;

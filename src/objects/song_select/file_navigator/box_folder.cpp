@@ -35,14 +35,22 @@ FolderBox::FolderBox(const fs::path& path, const BoxDef& box_def, int tja_count,
             std::ifstream file(entry.path());
             std::string line;
             while (std::getline(file, line)) {
+                if (!line.empty() && line.back() == '\r') line.pop_back();
                 std::vector<std::string> fields;
                 std::stringstream ss(line);
                 std::string field;
                 while (std::getline(ss, field, '|')) fields.push_back(field);
                 if (fields.size() < 3) continue;
-                for (const auto& [key, value] : song_files)
-                    if (key.first == fields[1] && key.second == fields[2])
-                        update_crown(value);
+                std::string hash = fields[0];
+                if (hash.size() >= 3 && (unsigned char)hash[0] == 0xEF &&
+                    (unsigned char)hash[1] == 0xBB && (unsigned char)hash[2] == 0xBF)
+                    hash = hash.substr(3);
+                if (auto found = scores_manager.get_path_by_hash(hash)) {
+                    update_crown(*found);
+                } else {
+                    auto it = song_files.find({fields[1], fields[2]});
+                    if (it != song_files.end()) update_crown(it->second);
+                }
             }
         }
         if (entry.path().extension() == ".tja")

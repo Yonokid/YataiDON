@@ -121,7 +121,7 @@ void GameScreen::init_tja(fs::path song) {
     global_data.session_data[(int)global_data.player_num].song_subtitle = subtitles.count(lang) ? subtitles.at(lang) : "";
 
     if (fs::exists(parser->metadata.wave) && !song_music.has_value()) {
-        song_music = audio->load_music_stream(parser->metadata.wave, "song");
+        song_music = audio->load_sound(parser->metadata.wave, "song");
     }
 
     players.push_back(std::make_unique<Player>(parser, global_data.player_num, global_data.session_data[(int)global_data.player_num].selected_difficulty, false, global_data.modifiers[(int)global_data.player_num]));
@@ -131,7 +131,7 @@ void GameScreen::init_tja(fs::path song) {
 void GameScreen::start_song(double ms_from_start) {
     if (ms_from_start >= parser->metadata.offset*1000 + start_delay - (double)global_data.config->general.audio_offset && !song_started) {
         if (song_music.has_value()) {
-            audio->play_music_stream(song_music.value(), "music");
+            audio->play_sound(song_music.value(), "music");
             spdlog::info("Song started at {}", ms_from_start);
         }
         if (movie.has_value()) {
@@ -147,14 +147,14 @@ void GameScreen::pause_song() {
     double audio_time;
     if (paused) {
         if (song_music.has_value()) {
-            audio_time = audio->get_music_time_played(song_music.value());
-            audio->stop_music_stream(song_music.value());
+            audio_time = audio->get_sound_time_played(song_music.value());
+            audio->stop_sound(song_music.value());
         }
         pause_time = get_current_ms() - start_ms;
     } else {
         if (song_music.has_value()) {
-            audio->play_music_stream(song_music.value(), "music");
-            audio->seek_music_stream(song_music.value(), audio_time);
+            audio->play_sound(song_music.value(), "music");
+            audio->seek_sound(song_music.value(), audio_time);
         }
         start_ms = get_current_ms() - pause_time;
     }
@@ -163,7 +163,7 @@ void GameScreen::pause_song() {
 std::optional<Screens> GameScreen::global_keys() {
     if (ray::IsKeyPressed(global_data.config->keys.restart_key)) {
         if (song_music.has_value()) {
-            audio->stop_music_stream(song_music.value());
+            audio->stop_sound(song_music.value());
         }
         players.clear();
         init_tja(global_data.session_data[(int)global_data.player_num].selected_song);
@@ -173,7 +173,7 @@ std::optional<Screens> GameScreen::global_keys() {
 
     if (ray::IsKeyPressed(global_data.config->keys.back_key)) {
         if (song_music.has_value()) {
-            audio->stop_music_stream(song_music.value());
+            audio->stop_sound(song_music.value());
         }
         return on_screen_end(Screens::SONG_SELECT);
     }
@@ -209,7 +209,7 @@ std::optional<Screens> GameScreen::update() {
         start_ms = current_time - parser->metadata.offset*1000;
     }
     if (song_started && song_music.has_value()) {
-        float audio_ms = audio->get_music_time_played(song_music.value()) * 1000.0f;
+        float audio_ms = audio->get_sound_time_played(song_music.value()) * 1000.0f;
         float audio_ms_adjusted = audio_ms + (parser->metadata.offset * 1000 + start_delay - (double)global_data.config->general.audio_offset);
         if (std::abs(current_ms - audio_ms_adjusted) > 5) {
             spdlog::debug("Resyncing chart from {} to {}", current_ms, audio_ms_adjusted);
