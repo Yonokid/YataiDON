@@ -23,6 +23,7 @@ void SongBox::refresh_scores() {
     for (int i = 0; i < 5; i++) {
         scores[i] = scores_manager.get_score(hashes[i], i, 1);
     }
+    score_history.reset();
 }
 
 void SongBox::reset() {
@@ -30,6 +31,8 @@ void SongBox::reset() {
     diff_fade_in = (FadeAnimation*)tex.get_animation(12);
     audio->unload_music_stream("preview");
     music_playing = false;
+    score_history.reset();
+    box_opened_at = 0.0;
 }
 
 std::vector<Difficulty> SongBox::get_diffs() {
@@ -71,16 +74,41 @@ void SongBox::update(double current_time) {
         audio->play_music_stream("preview", "music");
         audio->seek_music_stream("preview", parser.metadata.demostart);
     }
+
+    if (!score_history) {
+        for (const auto& s : scores) {
+            if (s.has_value()) {
+                score_history = std::make_unique<ScoreHistory>(scores, current_time);
+                break;
+            }
+        }
+    }
+
+    if (score_history)
+        score_history->update(current_time);
+}
+
+void SongBox::expand_box() {
+    BaseBox::expand_box();
+    box_opened_at = get_current_ms();
 }
 
 void SongBox::close_box() {
     BaseBox::close_box();
+    box_opened_at = 0.0;
     if (music_playing) {
         audio->stop_music_stream("preview");
         audio->unload_music_stream("preview");
         audio->play_sound("bgm", "music");
         music_playing = false;
     }
+}
+
+void SongBox::draw_score_history() {
+    if (!score_history) return;
+    if (!yellow_box_opened) return;
+    if (get_current_ms() < box_opened_at + 3000.0) return;
+    score_history->draw();
 }
 
 void SongBox::enter_box() {

@@ -123,6 +123,7 @@ public:
 
     void update(double current_ms);
     void draw(bool is_ura);
+    void draw_score_history();
 };
 
 extern Navigator navigator;

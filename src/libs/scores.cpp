@@ -198,12 +198,13 @@ std::optional<Score> ScoresManager::get_score(std::string& hash, int difficulty,
     snprintf(query, sizeof(query),
         "SELECT score, good, ok, bad, drumroll, max_combo, crown, rank "
         "FROM scores "
-        "WHERE player_id = ? AND hash = ? "
+        "WHERE player_id = ? AND hash = ? AND difficulty = ?"
         "ORDER BY crown DESC, score DESC "
         "LIMIT 1;");
     sqlite3_prepare_v2(db_fsd, query, -1, &stmt, nullptr);
     sqlite3_bind_int(stmt, 1, player_id);
     sqlite3_bind_text(stmt, 2, hash.c_str(), -1, nullptr);
+    sqlite3_bind_int(stmt, 3, difficulty);
     if (sqlite3_step(stmt) == SQLITE_ROW) {
         Score result;
         result.score     = sqlite3_column_int(stmt, 0);

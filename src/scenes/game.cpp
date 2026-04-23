@@ -208,7 +208,7 @@ std::optional<Screens> GameScreen::update() {
     } else {
         start_ms = current_time - parser->metadata.offset*1000;
     }
-    if (song_started && song_music.has_value()) {
+    if (song_started && song_music.has_value() && audio->is_sound_playing(song_music.value())) {
         double audio_ms = audio->get_sound_time_played(song_music.value()) * 1000.0f;
         double audio_ms_adjusted = audio_ms + (parser->metadata.offset * 1000 + start_delay - (double)global_data.config->general.audio_offset);
         if (std::abs(current_ms - audio_ms_adjusted) > Timing::GOOD) {

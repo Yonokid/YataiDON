@@ -1035,6 +1035,11 @@ void Navigator::draw(bool is_ura) {
     }
 }
 
+void Navigator::draw_score_history() {
+    if (open_index < items.size() && dynamic_cast<SongBox*>(items[open_index].get()) != nullptr)
+        items[open_index]->draw_score_history();
+}
+
 Statistics Navigator::get_statistics(const fs::path& path) {
     Statistics stats;
 

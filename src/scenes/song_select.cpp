@@ -175,6 +175,8 @@ void SongSelectScreen::draw() {
 
     draw_overlays();
 
+    if (screen_init) navigator.draw_score_history();
+
     if (diff_sort_selector) diff_sort_selector->draw();
     if (game_transition.has_value()) game_transition->draw();
 }

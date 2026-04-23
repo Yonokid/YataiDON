@@ -443,7 +443,7 @@ void Player::reset_chart() {
             last_note = &note;
         }
 
-        if (note.type != NoteType::BARLINE && note.hit_ms > end_time) {
+        if (note.hit_ms > end_time) {
             end_time = note.hit_ms;
         }
     }
@@ -474,7 +474,7 @@ void Player::reset_chart() {
                     }
                     last_note = &note;
 
-                    if (note.type != NoteType::BARLINE && note.hit_ms > end_time) {
+                    if (note.hit_ms > end_time) {
                         end_time = note.hit_ms;
                     }
                 }

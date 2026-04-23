@@ -1,5 +1,6 @@
 #pragma once
 #include "box_base.h"
+#include "score_history.h"
 
 #include "../../libs/texture.h"
 #include "../../libs/audio.h"
@@ -17,6 +18,8 @@ public:
     std::unique_ptr<OutlinedText> bpm_text;
     std::optional<ray::Texture2D> preimage;
     bool music_playing = false;
+    std::unique_ptr<ScoreHistory> score_history;
+    double box_opened_at = 0.0;
 
     SongBox(const fs::path& path, const BoxDef& box_def, TJAParser tja);
 
@@ -24,7 +27,8 @@ public:
 
     void load_text() override;
     void update(double current_time) override;
-    //void draw_score_history() override;
+    void draw_score_history() override;
+    void expand_box() override;
     void enter_box() override;
     virtual void close_box() override;
     std::vector<Difficulty> get_diffs();
