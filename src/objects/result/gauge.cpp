@@ -50,9 +50,9 @@ void ResultGauge::draw() {
     } else {
         tex.draw_texture(tex.get_enum("gauge/" + (player_str + "_bar")), {.scale=scale, .x2=(gauge_length*bar_width)-(bar_width*6), .fade=gauge_fade_in->attribute, .index=is_2p});
         if (gauge_length >= clear_start[(int)difficulty] - 1) {
-            tex.draw_texture(tex.get_enum("gauge/" + (player_str + "bar_clear_transition")), {.scale=scale, .x=(clear_start[(int)difficulty]*bar_width)-(bar_width*7), .fade=gauge_fade_in->attribute, .index=is_2p});
-            tex.draw_texture(tex.get_enum("gauge/" + (player_str + "bar_clear_top")), {.scale=scale, .x=(clear_start[(int)difficulty]*bar_width)-(bar_width*6), .x2=(gauge_length - clear_start[(int)difficulty])*bar_width, .fade=gauge_fade_in->attribute, .index=is_2p});
-            tex.draw_texture(tex.get_enum("gauge/" + (player_str + "bar_clear_bottom")), {.scale=scale, .x=(clear_start[(int)difficulty]*bar_width)-(bar_width*6), .x2=(gauge_length - clear_start[(int)difficulty])*bar_width, .fade=gauge_fade_in->attribute, .index=is_2p});
+            tex.draw_texture(GAUGE::BAR_CLEAR_TRANSITION, {.scale=scale, .x=(clear_start[(int)difficulty]*bar_width)-(bar_width*7), .fade=gauge_fade_in->attribute, .index=is_2p});
+            tex.draw_texture(GAUGE::BAR_CLEAR_TOP, {.scale=scale, .x=(clear_start[(int)difficulty]*bar_width)-(bar_width*6), .x2=(gauge_length - clear_start[(int)difficulty])*bar_width, .fade=gauge_fade_in->attribute, .index=is_2p});
+            tex.draw_texture(GAUGE::BAR_CLEAR_BOTTOM, {.scale=scale, .x=(clear_start[(int)difficulty]*bar_width)-(bar_width*6), .x2=(gauge_length - clear_start[(int)difficulty])*bar_width, .fade=gauge_fade_in->attribute, .index=is_2p});
         }
     }
     tex.draw_texture(tex.get_enum("gauge/overlay" + string_diff), {.scale=scale, .fade=std::min(0.15, gauge_fade_in->attribute), .index=is_2p});
