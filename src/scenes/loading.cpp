@@ -143,11 +143,16 @@ void LoadingScreen::load_song_hashes() {
             // Cache miss — parse and hash normally
             TJAParser parser(path);
             spdlog::info("Parsing TJA: {}", path);
-            parser.get_metadata();
-            for (const auto& [course, course_data] : parser.metadata.course_data) {
-                for (int diff = course; diff < 5; diff++) {
-                    hashes[diff] = parser.get_diff_hash(diff);
+            try {
+                parser.get_metadata();
+                for (const auto& [course, course_data] : parser.metadata.course_data) {
+                    for (int diff = course; diff < 5; diff++) {
+                        hashes[diff] = parser.get_diff_hash(diff);
+                    }
                 }
+            } catch (const std::exception& e) {
+                spdlog::error("Failed to parse TJA {}: {}", path, e.what());
+                continue;
             }
 
             title    = parser.metadata.title["en"];
