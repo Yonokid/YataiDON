@@ -48,11 +48,11 @@ void ResultGauge::draw() {
         }
         tex.draw_texture(tex.get_enum("gauge/rainbow" + string_diff), {.frame=(int)rainbow_animation->attribute, .scale=scale, .fade=gauge_fade_in->attribute, .index=is_2p});
     } else {
-        tex.draw_texture(tex_id_map.at("gauge/" + (player_str + "_bar")), {.scale=scale, .x2=(gauge_length*bar_width)-(bar_width*6), .fade=gauge_fade_in->attribute, .index=is_2p});
+        tex.draw_texture(tex.get_enum("gauge/" + (player_str + "_bar")), {.scale=scale, .x2=(gauge_length*bar_width)-(bar_width*6), .fade=gauge_fade_in->attribute, .index=is_2p});
         if (gauge_length >= clear_start[(int)difficulty] - 1) {
-            tex.draw_texture(tex_id_map.at("gauge/bar_clear_transition"), {.scale=scale, .x=(clear_start[(int)difficulty]*bar_width)-(bar_width*7), .fade=gauge_fade_in->attribute, .index=is_2p});
-            tex.draw_texture(tex_id_map.at("gauge/bar_clear_top"), {.scale=scale, .x=(clear_start[(int)difficulty]*bar_width)-(bar_width*6), .x2=(gauge_length - clear_start[(int)difficulty])*bar_width, .fade=gauge_fade_in->attribute, .index=is_2p});
-            tex.draw_texture(tex_id_map.at("gauge/bar_clear_bottom"), {.scale=scale, .x=(clear_start[(int)difficulty]*bar_width)-(bar_width*6), .x2=(gauge_length - clear_start[(int)difficulty])*bar_width, .fade=gauge_fade_in->attribute, .index=is_2p});
+            tex.draw_texture(tex.get_enum("gauge/bar_clear_transition"), {.scale=scale, .x=(clear_start[(int)difficulty]*bar_width)-(bar_width*7), .fade=gauge_fade_in->attribute, .index=is_2p});
+            tex.draw_texture(tex.get_enum("gauge/bar_clear_top"), {.scale=scale, .x=(clear_start[(int)difficulty]*bar_width)-(bar_width*6), .x2=(gauge_length - clear_start[(int)difficulty])*bar_width, .fade=gauge_fade_in->attribute, .index=is_2p});
+            tex.draw_texture(tex.get_enum("gauge/bar_clear_bottom"), {.scale=scale, .x=(clear_start[(int)difficulty]*bar_width)-(bar_width*6), .x2=(gauge_length - clear_start[(int)difficulty])*bar_width, .fade=gauge_fade_in->attribute, .index=is_2p});
         }
     }
     tex.draw_texture(tex.get_enum("gauge/overlay" + string_diff), {.scale=scale, .fade=std::min(0.15, gauge_fade_in->attribute), .index=is_2p});
