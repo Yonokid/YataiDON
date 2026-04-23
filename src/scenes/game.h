@@ -41,12 +41,6 @@ public:
     AllNetIcon allnet_indicator;
     std::optional<Background> background;
 
-    ~GameScreen() {
-        if (screen_init && mask_shader.id > 0) {
-            ray::UnloadShader(mask_shader);
-        }
-    }
-
     void on_screen_start() override;
 
     Screens on_screen_end(Screens next_screen) override;

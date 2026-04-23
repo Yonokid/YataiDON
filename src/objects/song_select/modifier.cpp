@@ -7,20 +7,6 @@ const std::map<std::string, std::string> ModifierSelector::TEX_MAP = {
     {"inverse", "mod_abekobe"},
     {"random",  "mod_kimagure"}
 };
-const std::map<std::string, std::string> ModifierSelector::NAME_MAP_JA = {
-    {"auto",    "オート"},
-    {"speed",   "はやさ"},
-    {"display", "ドロン"},
-    {"inverse", "あべこべ"},
-    {"random",  "ランダム"}
-};
-const std::map<std::string, std::string> ModifierSelector::NAME_MAP_EN = {
-    {"auto",    "Auto"},
-    {"speed",   "Speed"},
-    {"display", "Display"},
-    {"inverse", "Inverse"},
-    {"random",  "Random"}
-};
 const std::array<std::string, 5> ModifierSelector::MOD_NAMES = {
     "auto", "speed", "display", "inverse", "random"
 };
@@ -66,9 +52,12 @@ ModifierSelector::ModifierSelector(PlayerNum player_num) : player_num(player_num
 
     audio->play_sound("voice_options_" + std::to_string((int)player_num) + "p", "sound");
 
-    const auto& name_map = (language == "en") ? NAME_MAP_EN : NAME_MAP_JA;
-    for (const auto& name : MOD_NAMES)
-        text_name.push_back(make_text(name_map.at(name)));
+    static const std::array<SC, 5> MOD_NAME_KEYS = {
+        SC::MODIFIER_NAME_AUTO, SC::MODIFIER_NAME_SPEED, SC::MODIFIER_NAME_DISPLAY,
+        SC::MODIFIER_NAME_INVERSE, SC::MODIFIER_NAME_RANDOM
+    };
+    for (const auto& key : MOD_NAME_KEYS)
+        text_name.push_back(make_text(tex.skin_config[key].text.at(language)));
 
     text_true      = make_text(tex.skin_config[SC::MODIFIER_TEXT_TRUE].text.at(language));
     text_false     = make_text(tex.skin_config[SC::MODIFIER_TEXT_FALSE].text.at(language));

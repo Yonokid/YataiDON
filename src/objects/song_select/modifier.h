@@ -7,8 +7,6 @@
 class ModifierSelector {
 private:
     static const std::map<std::string, std::string> TEX_MAP;
-    static const std::map<std::string, std::string> NAME_MAP_JA;
-    static const std::map<std::string, std::string> NAME_MAP_EN;
     static const std::array<std::string, 5> MOD_NAMES;
 
     PlayerNum player_num;

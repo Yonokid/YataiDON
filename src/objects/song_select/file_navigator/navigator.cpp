@@ -646,9 +646,13 @@ BoxDef Navigator::parse_box_def(const fs::path& path) {
             result.genre_index = get_genre_index(genre);
         } else if (line.starts_with("#TITLE:")) {
             result.name = get_value("#TITLE:");
-        } else if (line.starts_with("#TITLEJA:")) {
-            if (global_data.config->general.language == "ja")
-                result.name = get_value("#TITLEJA:");
+        } else if (line.starts_with("#TITLE")) {
+            const std::string& lang = global_data.config->general.language;
+            std::string lang_upper = lang;
+            std::transform(lang_upper.begin(), lang_upper.end(), lang_upper.begin(), ::toupper);
+            std::string lang_prefix = "#TITLE" + lang_upper + ":";
+            if (line.starts_with(lang_prefix))
+                result.name = get_value(lang_prefix);
         } else if (line.starts_with("#COLLECTION:")) {
             result.collection = get_value("#COLLECTION:");
             auto it = TEXTURE_MAP.find(result.collection);

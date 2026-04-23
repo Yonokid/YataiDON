@@ -420,6 +420,7 @@ int main(int argc, char* argv[]) {
         input_thread.join();
     }
     shutdown_sdl_joysticks();
+    delete g_loop;
     global_tex.unload_textures();
     tex.unload_textures();
     script_manager.tex.unload_textures();
@@ -427,6 +428,5 @@ int main(int argc, char* argv[]) {
     ray::CloseWindow();
     audio->close_audio_device();
     spdlog::info("Window closed and audio device shut down");
-    delete g_loop;
 #endif
 }

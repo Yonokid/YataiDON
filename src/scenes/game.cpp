@@ -209,11 +209,12 @@ std::optional<Screens> GameScreen::update() {
         start_ms = current_time - parser->metadata.offset*1000;
     }
     if (song_started && song_music.has_value()) {
-        float audio_ms = audio->get_sound_time_played(song_music.value()) * 1000.0f;
-        float audio_ms_adjusted = audio_ms + (parser->metadata.offset * 1000 + start_delay - (double)global_data.config->general.audio_offset);
-        if (std::abs(current_ms - audio_ms_adjusted) > 5) {
+        double audio_ms = audio->get_sound_time_played(song_music.value()) * 1000.0f;
+        double audio_ms_adjusted = audio_ms + (parser->metadata.offset * 1000 + start_delay - (double)global_data.config->general.audio_offset);
+        if (std::abs(current_ms - audio_ms_adjusted) > Timing::GOOD) {
             spdlog::debug("Resyncing chart from {} to {}", current_ms, audio_ms_adjusted);
             current_ms = audio_ms_adjusted;
+            start_ms = current_time - current_ms;
         }
     }
     update_background(current_time);
