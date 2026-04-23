@@ -10,10 +10,15 @@ void LoadingScreen::on_screen_start() {
     allnet_indicator = AllNetIcon();
 
     for (const fs::path& path : global_data.config->paths.tja_path) {
-        for (const auto& entry : std::filesystem::recursive_directory_iterator(path)) {
-            if (entry.path().extension() == ".tja") {
-                songs.push_back(entry.path());
+        try {
+            for (const auto& entry : std::filesystem::recursive_directory_iterator(
+                     path, std::filesystem::directory_options::skip_permission_denied)) {
+                if (entry.path().extension() == ".tja") {
+                    songs.push_back(entry.path());
+                }
             }
+        } catch (const std::filesystem::filesystem_error& e) {
+            spdlog::error("Error scanning song directory: {}", e.what());
         }
     }
 #ifndef __EMSCRIPTEN__
@@ -119,8 +124,15 @@ void LoadingScreen::load_song_hashes() {
 
     auto worker = [&](int start, int end) {
         for (int i = start; i < end; i++) {
-            const std::string& path = songs[i].string();
-            auto mtime = std::filesystem::last_write_time(path);
+            auto u8 = songs[i].u8string();
+            const std::string path(u8.begin(), u8.end());
+
+            std::error_code ec;
+            auto mtime = std::filesystem::last_write_time(songs[i], ec);
+            if (ec) {
+                spdlog::error("Could not stat {}: {}", path, ec.message());
+                continue;
+            }
 
             std::array<std::string, 5> hashes;
             std::string title, subtitle;
@@ -129,40 +141,36 @@ void LoadingScreen::load_song_hashes() {
                 std::lock_guard<std::mutex> lock(scores_mutex);
                 auto it = hash_cache.find(path);
                 if (it != hash_cache.end() && it->second.mtime == mtime) {
-                    // Cache hit — skip parsing entirely
                     hashes   = it->second.hashes;
                     title    = it->second.title;
                     subtitle = it->second.subtitle;
                     scores_manager.add_song(hashes, title, subtitle);
-                    scores_manager.add_path_binding(path, hashes);
+                    scores_manager.add_path_binding(songs[i], hashes);
                     progress = (float)++songs_loaded / songs.size();
                     continue;
                 }
             }
 
-            // Cache miss — parse and hash normally
-            TJAParser parser(path);
-            spdlog::info("Parsing TJA: {}", path);
             try {
+                TJAParser parser(songs[i]);
+                spdlog::info("Parsing TJA: {}", path);
                 parser.get_metadata();
                 for (const auto& [course, course_data] : parser.metadata.course_data) {
                     for (int diff = course; diff < 5; diff++) {
                         hashes[diff] = parser.get_diff_hash(diff);
                     }
                 }
+                title    = parser.metadata.title["en"];
+                subtitle = parser.metadata.subtitle["en"];
             } catch (const std::exception& e) {
                 spdlog::error("Failed to parse TJA {}: {}", path, e.what());
                 continue;
             }
 
-            title    = parser.metadata.title["en"];
-            subtitle = parser.metadata.subtitle["en"];
-
             std::lock_guard<std::mutex> lock(scores_mutex);
             scores_manager.add_song(hashes, title, subtitle);
-            scores_manager.add_path_binding(path, hashes);
+            scores_manager.add_path_binding(songs[i], hashes);
 
-            // Update cache
             hash_cache[path] = { mtime, hashes, title, subtitle };
             progress = (float)++songs_loaded / songs.size();
         }

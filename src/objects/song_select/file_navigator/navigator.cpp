@@ -4,6 +4,7 @@
 #include <random>
 #include <fstream>
 #include <set>
+#include <spdlog/spdlog.h>
 
 Navigator::Navigator() {
 }
@@ -17,12 +18,17 @@ void Navigator::init(std::vector<fs::path> songs_paths) {
         root_paths = songs_paths;
         open_index = 0;
         for (fs::path& root_path : songs_paths) {
-            for (const fs::directory_entry& entry : fs::recursive_directory_iterator(root_path)) {
-                if (is_song_file(entry)) {
-                    TJAParser parsed_entry = TJAParser(entry.path());
-                    parsed_entry.get_metadata();
-                    song_files[std::make_pair(parsed_entry.metadata.title["en"], parsed_entry.metadata.subtitle["en"])] = entry.path();
+            try {
+                for (const fs::directory_entry& entry : fs::recursive_directory_iterator(
+                         root_path, fs::directory_options::skip_permission_denied)) {
+                    if (is_song_file(entry)) {
+                        TJAParser parsed_entry = TJAParser(entry.path());
+                        parsed_entry.get_metadata();
+                        song_files[std::make_pair(parsed_entry.metadata.title["en"], parsed_entry.metadata.subtitle["en"])] = entry.path();
+                    }
                 }
+            } catch (const fs::filesystem_error& e) {
+                spdlog::error("Error scanning song directory: {}", e.what());
             }
             for (const auto& entry : fs::directory_iterator(root_path)) {
                 if (!fs::is_directory(entry) || !has_def_file(entry.path())) continue;
@@ -148,7 +154,7 @@ void sort_items(std::vector<std::unique_ptr<BaseBox>>& items, int first_index, i
 }
 
 void Navigator::refresh_scores() {
-    SongBox* curr_item = (SongBox*)get_current_item();
+    SongBox* curr_item = dynamic_cast<SongBox*>(get_current_item());
     if (curr_item) {
         curr_item->refresh_scores();
     }

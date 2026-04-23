@@ -2,6 +2,7 @@
 #include <rlgl.h>
 #include <string>
 #include <filesystem>
+#include <clocale>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
@@ -307,6 +308,13 @@ static void run_frame() {
 }
 
 int main(int argc, char* argv[]) {
+#ifdef _WIN32
+    SetConsoleCP(CP_UTF8);
+    SetConsoleOutputCP(CP_UTF8);
+    setlocale(LC_ALL, ".UTF-8");
+#else
+    setlocale(LC_ALL, "");
+#endif
     set_working_directory_to_executable();
     global_data.config = new Config(get_config());
     setup_logging(global_data.config->general.log_level);
