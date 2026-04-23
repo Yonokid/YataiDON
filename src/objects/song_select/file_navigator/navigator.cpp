@@ -148,7 +148,7 @@ void sort_items(std::vector<std::unique_ptr<BaseBox>>& items, int first_index, i
 }
 
 void Navigator::refresh_scores() {
-    SongBox* curr_item = (SongBox*)get_current_item();
+    SongBox* curr_item = dynamic_cast<SongBox*>(get_current_item());
     if (curr_item) {
         curr_item->refresh_scores();
     }
