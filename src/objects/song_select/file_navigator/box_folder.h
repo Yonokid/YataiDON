@@ -24,6 +24,8 @@ public:
     void enter_box() override;
     void exit_box() override;
 
+    void refresh_scores(std::map<std::pair<std::string, std::string>, fs::path>& song_files);
+
 protected:
     void draw_open_bg(float fade);
     void draw_open_fg(float fade);

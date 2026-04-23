@@ -147,6 +147,16 @@ void sort_items(std::vector<std::unique_ptr<BaseBox>>& items, int first_index, i
     }
 }
 
+void Navigator::refresh_scores() {
+    SongBox* curr_item = (SongBox*)get_current_item();
+    if (curr_item) {
+        curr_item->refresh_scores();
+    }
+    if (pending_inline_folder) {
+        pending_inline_folder->refresh_scores(song_files);
+    }
+}
+
 void Navigator::flush_pending_boxes() {
     std::lock_guard<std::mutex> lock(pending_mutex);
 

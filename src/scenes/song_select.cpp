@@ -23,6 +23,7 @@ void SongSelectScreen::on_screen_start() {
 
     navigator.init(global_data.config->paths.tja_path);
     cached_stats = navigator.get_statistics(global_data.config->paths.tja_path[0]);
+    navigator.refresh_scores();
 
     player = std::make_unique<SongSelectPlayer>(global_data.player_num);
 

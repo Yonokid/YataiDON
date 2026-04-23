@@ -29,6 +29,9 @@ public:
     virtual void close_box() override;
     std::vector<Difficulty> get_diffs();
 
+    void refresh_scores();
+
+
 protected:
     FadeAnimation* diff_fade_in;
     void draw_closed() override;

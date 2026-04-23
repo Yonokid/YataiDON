@@ -7,6 +7,10 @@ FolderBox::FolderBox(const fs::path& path, const BoxDef& box_def, int tja_count,
 {
     this->text_name = box_def.name;
     enter_fade = std::make_unique<FadeAnimation>(166);
+    refresh_scores(song_files);
+}
+
+void FolderBox::refresh_scores(std::map<std::pair<std::string, std::string>, fs::path>& song_files) {
     std::set<int> disqualified;
 
     auto update_crown = [&](const fs::path& file_path) {

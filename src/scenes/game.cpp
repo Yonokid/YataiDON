@@ -265,6 +265,7 @@ std::optional<Screens> GameScreen::update() {
                     player->spawn_ending_anim();
                     scores_manager.save_score(global_data.session_data[(int)player->player_num].song_hash, global_data.session_data[(int)player->player_num].selected_difficulty, 1, score);
                 }
+                global_data.songs_played += 1;
                 score_saved = true;
             }
             if (current_time >= end_ms + 8533.34) {

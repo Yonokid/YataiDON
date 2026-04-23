@@ -18,7 +18,6 @@ void ResultScreen::on_screen_start() {
 }
 
 Screens ResultScreen::on_screen_end(Screens next_screen) {
-    global_data.songs_played += 1;
     if (loading_graphic.has_value()) {
         ray::UnloadTexture(loading_graphic.value());
         loading_graphic.reset();

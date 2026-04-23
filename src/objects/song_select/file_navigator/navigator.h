@@ -103,6 +103,7 @@ public:
     void init(std::vector<fs::path> songs_paths);
     void add_to_recent(const SongBox* song);
     void toggle_favorite(SongBox* song);
+    void refresh_scores();
     bool needs_diff_sort() const { return awaiting_diff_sort; }
     bool diff_sort_ready() { return awaiting_diff_sort; }
     void apply_diff_sort(int course, int level);
