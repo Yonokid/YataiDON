@@ -345,7 +345,7 @@ void Player::update(double ms_from_start, double current_ms, std::optional<Backg
     */
 }
 
-void Player::draw(double ms_from_start, float x, float y, ray::Shader& mask_shader) {//dan_transition = None
+void Player::draw(double ms_from_start, float x, float y, ray::Shader& mask_shader) {
     tex.draw_texture(LANE::LANE_BACKGROUND, {.y=y});
     if (player_num == PlayerNum::AI) tex.draw_texture(LANE::AI_LANE_BACKGROUND, {.y=y});
     if (branch_indicator.has_value()) {
@@ -370,15 +370,38 @@ void Player::draw(double ms_from_start, float x, float y, ray::Shader& mask_shad
     }
 
     draw_notes(ms_from_start, y);
-    /*if (dan_transition.has_value()) {
-        dan_transition->draw();
-    }*/
 
     draw_overlays(y, mask_shader);
 
     if (global_data.config->general.song_timer) {
         draw_song_timer(ms_from_start, y);
     }
+}
+
+void Player::draw_practice(double ms_from_start, float x, float y, ray::Shader& mask_shader, bool draw_notes_on) {
+    tex.draw_texture(LANE::LANE_BACKGROUND, {.y=y});
+    if (player_num == PlayerNum::AI) tex.draw_texture(LANE::AI_LANE_BACKGROUND, {.y=y});
+    if (branch_indicator.has_value()) {
+        branch_indicator->draw(y);
+    }
+    if (lane_hit_effect.has_value()) {
+        lane_hit_effect->draw(y);
+    }
+    tex.draw_texture(LANE::LANE_HIT_CIRCLE, {.x = judge_x, .y = y + judge_y});
+
+    if (gogo_time.has_value()) {
+        gogo_time->draw(judge_x, y + judge_y);
+    }
+    if (fireworks.has_value()) {
+        fireworks->draw();
+    }
+    for (Judgment& anim : draw_judge_list) {
+        anim.draw(judge_x, y + judge_y);
+    }
+
+    if (draw_notes_on) draw_notes(ms_from_start, y);
+
+    draw_overlays(y, mask_shader);
 }
 
 void Player::get_load_time(Note& note) {
@@ -1359,4 +1382,43 @@ void Player::draw_overlays(float y, const ray::Shader& mask_shader) {
     if (current_lyric.has_value()) {
         current_lyric->draw({.x=(int)(tex.screen_width/2) - current_lyric->width/2, .y=static_cast<float>(tex.screen_height - (int)(current_lyric->height*1.5))});
     }
+}
+
+void Player::seek_to(double resume_time) {
+    don_notes.clear();
+    kat_notes.clear();
+    other_notes.clear();
+    draw_note_list.clear();
+    draw_note_buffer.clear();
+    barlines.clear();
+    timeline_buffer.clear();
+    draw_judge_list.clear();
+    draw_drum_hit_list.clear();
+    draw_arc_list.clear();
+    gauge_hit_effect.clear();
+    lane_hit_effect.reset();
+    gogo_time.reset();
+    fireworks.reset();
+    drumroll_counter.reset();
+    balloon_counter.reset();
+    kusudama_counter.reset();
+    combo_announce.reset();
+    is_drumroll = false;
+    is_balloon = false;
+    curr_drumroll_count = 0;
+    curr_balloon_count = 0;
+
+    reset_chart();
+
+    auto filter = [resume_time](std::deque<Note>& q) {
+        while (!q.empty() && q.front().hit_ms <= resume_time) q.pop_front();
+    };
+    filter(don_notes);
+    filter(kat_notes);
+    filter(other_notes);
+
+    draw_note_list.erase(
+        std::remove_if(draw_note_list.begin(), draw_note_list.end(),
+            [resume_time](const Note& n) { return n.hit_ms <= resume_time; }),
+        draw_note_list.end());
 }

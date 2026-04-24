@@ -47,7 +47,7 @@ public:
 
     void load_hitsounds();
 
-    void init_tja(fs::path song);
+    virtual void init_tja(fs::path song);
 
     void start_song(double ms_from_start);
 

@@ -136,7 +136,7 @@ std::optional<Screens> SongSelectScreen::update() {
     if (game_transition.has_value()) {
         game_transition->update(current_time);
         if (game_transition->is_finished()) {
-            return on_screen_end(Screens::GAME);
+            return on_screen_end(get_game_screen_target());
         }
     }
 

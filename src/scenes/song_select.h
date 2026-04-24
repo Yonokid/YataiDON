@@ -56,9 +56,14 @@ private:
 
     void draw_overlays();
 
+protected:
+    virtual Screens get_game_screen_target() { return Screens::GAME; }
+
 public:
     SongSelectScreen() : Screen("song_select") {
     }
+
+    explicit SongSelectScreen(const std::string& name) : Screen(name) {}
 
     void on_screen_start() override;
     Screens on_screen_end(Screens next_screen) override;

@@ -22,11 +22,13 @@
 
 #include "raylib.h"
 #include "scenes/game.h"
+#include "scenes/game_practice.h"
 #include "scenes/result.h"
 #include "scenes/title.h"
 #include "scenes/loading.h"
 #include "scenes/entry.h"
 #include "scenes/song_select.h"
+#include "scenes/song_select_practice.h"
 #include "scenes/settings.h"
 #include "scenes/input_cali.h"
 
@@ -232,10 +234,12 @@ struct LoopState {
     std::unique_ptr<EntryScreen>     entry_screen;
     std::unique_ptr<SongSelectScreen> song_select_screen;
     std::unique_ptr<LoadingScreen>   load_screen;
-    std::unique_ptr<GameScreen>      game_screen;
-    std::unique_ptr<ResultScreen>    result_screen;
-    std::unique_ptr<SettingsScreen>  settings_screen;
-    std::unique_ptr<InputCaliScreen> input_cali_screen;
+    std::unique_ptr<GameScreen>              game_screen;
+    std::unique_ptr<PracticeGameScreen>      practice_game_screen;
+    std::unique_ptr<PracticeSongSelectScreen> practice_select_screen;
+    std::unique_ptr<ResultScreen>            result_screen;
+    std::unique_ptr<SettingsScreen>          settings_screen;
+    std::unique_ptr<InputCaliScreen>         input_cali_screen;
 };
 
 static LoopState* g_loop = nullptr;
@@ -385,24 +389,28 @@ int main(int argc, char* argv[]) {
     L.current_screen  = initial_screen;
     L.target_duration = std::chrono::duration<double>(1.0 / target_fps);
 
-    L.title_screen      = std::make_unique<TitleScreen>();
-    L.entry_screen      = std::make_unique<EntryScreen>();
-    L.song_select_screen = std::make_unique<SongSelectScreen>();
-    L.load_screen       = std::make_unique<LoadingScreen>();
-    L.game_screen       = std::make_unique<GameScreen>();
-    L.result_screen     = std::make_unique<ResultScreen>();
-    L.settings_screen   = std::make_unique<SettingsScreen>();
-    L.input_cali_screen = std::make_unique<InputCaliScreen>();
+    L.title_screen           = std::make_unique<TitleScreen>();
+    L.entry_screen           = std::make_unique<EntryScreen>();
+    L.song_select_screen     = std::make_unique<SongSelectScreen>();
+    L.load_screen            = std::make_unique<LoadingScreen>();
+    L.game_screen            = std::make_unique<GameScreen>();
+    L.practice_game_screen   = std::make_unique<PracticeGameScreen>();
+    L.practice_select_screen = std::make_unique<PracticeSongSelectScreen>();
+    L.result_screen          = std::make_unique<ResultScreen>();
+    L.settings_screen        = std::make_unique<SettingsScreen>();
+    L.input_cali_screen      = std::make_unique<InputCaliScreen>();
 
     L.screen_mapping = {
-        {Screens::ENTRY,          L.entry_screen.get()},
-        {Screens::TITLE,          L.title_screen.get()},
-        {Screens::SONG_SELECT,    L.song_select_screen.get()},
-        {Screens::GAME,           L.game_screen.get()},
-        {Screens::RESULT,         L.result_screen.get()},
-        {Screens::SETTINGS,       L.settings_screen.get()},
-        {Screens::INPUT_CALI,     L.input_cali_screen.get()},
-        {Screens::LOADING,        L.load_screen.get()},
+        {Screens::ENTRY,            L.entry_screen.get()},
+        {Screens::TITLE,            L.title_screen.get()},
+        {Screens::SONG_SELECT,      L.song_select_screen.get()},
+        {Screens::GAME,             L.game_screen.get()},
+        {Screens::GAME_PRACTICE,    L.practice_game_screen.get()},
+        {Screens::PRACTICE_SELECT,  L.practice_select_screen.get()},
+        {Screens::RESULT,           L.result_screen.get()},
+        {Screens::SETTINGS,         L.settings_screen.get()},
+        {Screens::INPUT_CALI,       L.input_cali_screen.get()},
+        {Screens::LOADING,          L.load_screen.get()},
     };
 
     update_camera_for_window_size(L.camera, L.screen_width, L.screen_height);

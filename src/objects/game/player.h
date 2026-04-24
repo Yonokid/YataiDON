@@ -53,13 +53,22 @@ public:
     Player(std::optional<TJAParser>& parser_ref, PlayerNum player_num_param, int difficulty_param,
            bool is_2p_param, const Modifiers& modifiers_param);
 
+    std::optional<JudgeCounter> judge_counter;
+    std::optional<Gauge> gauge;
+
     ResultData get_result_score();
 
     void spawn_ending_anim();
 
+    void seek_to(double resume_time);
+
     void update(double ms_from_start, double current_ms, std::optional<Background>& background);
 
     void draw(double ms_from_start, float x, float y, ray::Shader& mask_shader);
+
+    void draw_practice(double ms_from_start, float x, float y, ray::Shader& mask_shader, bool draw_notes_on);
+
+    void draw_overlays(float y, const ray::Shader& mask_shader);
 
 private:
     bool is_2p;
@@ -146,8 +155,6 @@ private:
     std::optional<double> delay_end;
     std::optional<ComboAnnounce> combo_announce;
     std::optional<BranchIndicator> branch_indicator;
-    std::optional<JudgeCounter> judge_counter;
-    std::optional<Gauge> gauge;
     std::optional<std::variant<FailAnimation, ClearAnimation, FCAnimation>> ending_anim;
 
     void get_load_time(Note& note);
@@ -212,6 +219,4 @@ private:
     void draw_song_timer(double current_ms, float y);
 
     void draw_modifiers(float y);
-
-    void draw_overlays(float y, const ray::Shader& mask_shader);
 };
