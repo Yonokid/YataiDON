@@ -574,6 +574,39 @@ void Navigator::load_collection_recommended(const fs::path& path, const BoxDef& 
     }
 }
 
+void Navigator::load_collection_search(const fs::path& path, const BoxDef& box_def) {
+    if (current_search.empty()) return;
+    std::string query = current_search;
+    std::transform(query.begin(), query.end(), query.begin(), ::tolower);
+    int songs_added = 0;
+    for (const auto& [key, song_path] : song_files) {
+        if (abort_loading) break;
+        std::string title = key.first;
+        std::transform(title.begin(), title.end(), title.begin(), ::tolower);
+        if (title.find(query) == std::string::npos) continue;
+        if (songs_added > 0 && songs_added % 10 == 0) {
+            BoxDef back_box_def;
+            back_box_def.back_color    = BackBox::COLOR;
+            back_box_def.fore_color    = BackBox::COLOR;
+            back_box_def.texture_index = TextureIndex::NONE;
+            back_box_def.genre_index   = GenreIndex::NAMCO;
+            enqueue_inline_box(std::make_unique<BackBox>(path.parent_path(), back_box_def));
+        }
+        auto song = std::make_unique<SongBox>(song_path, box_def, TJAParser(song_path));
+        fs::path genre_folder = find_box_def_folder(song_path);
+        if (!genre_folder.empty()) {
+            BoxDef genre_box_def = parse_box_def(genre_folder);
+            if (genre_box_def.fore_color.has_value())
+                song->fore_color = genre_box_def.fore_color;
+            else if (genre_box_def.back_color.has_value())
+                song->fore_color = darken_color(genre_box_def.back_color.value());
+        }
+        song->fade_in(266);
+        enqueue_inline_box(std::move(song));
+        songs_added++;
+    }
+}
+
 void Navigator::load_songs_inline_async(const fs::path path, BoxDef box_def) {
     int songs_added = 0;
 
@@ -616,7 +649,9 @@ void Navigator::load_songs_inline_async(const fs::path path, BoxDef box_def) {
         loading_complete = true;
         return;
     } else if (box_def.collection == "SEARCH") {
-
+        load_collection_search(path, box_def);
+        loading_complete = true;
+        return;
     }
 
     for (const fs::directory_entry& entry : fs::directory_iterator(path)) {

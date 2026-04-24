@@ -126,6 +126,9 @@ SongSelectState SongSelectPlayer::handle_input_browsing(double current_ms) {
     }
 
     if (l_don || r_don) {
+        BaseBox* item = navigator.get_current_item();
+        if (navigator.is_directory(item) && item->collection == COLLECTIONS[5])
+            return SongSelectState::SEARCHING;
         return select_song();
     }
     return SongSelectState::BROWSING;
@@ -154,6 +157,7 @@ std::optional<std::string> SongSelectPlayer::handle_input_search() {
     } else if (ray::IsKeyPressed(ray::KEY_ENTER)) {
         std::string result = search_string;
         search_string = "";
+        clear_input_buffers();
         return result;
     }
 

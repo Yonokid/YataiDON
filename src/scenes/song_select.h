@@ -43,6 +43,8 @@ private:
     std::optional<DiffSortSelect> diff_sort_selector;
     std::pair<int,int> last_diff_sort = {-1, -1};
 
+    std::optional<SearchBox> search_box;
+
     void select_song(SongBox* song);
 
     void handle_input(double current_ms);
@@ -50,6 +52,7 @@ private:
     void handle_input_browsing(double current_ms);
     void handle_input_selecting();
     void handle_input_diff_sorting();
+    void handle_input_search();
 
     void draw_overlays();
 

@@ -2,7 +2,8 @@
 
 BaseBox::BaseBox(const fs::path& path, const BoxDef& box_def)
     : path(path), texture_index(box_def.texture_index),
-      back_color(box_def.back_color), genre_index(box_def.genre_index)
+      back_color(box_def.back_color), genre_index(box_def.genre_index),
+      collection(box_def.collection)
 {
     if (box_def.fore_color.has_value()) {
         this->fore_color = box_def.fore_color.value();

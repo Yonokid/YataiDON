@@ -70,14 +70,28 @@ void SongSelectScreen::handle_input_diff_sorting() {
     }
 }
 
+void SongSelectScreen::handle_input_search() {
+    if (!search_box) return;
+    auto result = player->handle_input_search();
+    search_box->current_search = player->search_string;
+    if (result) {
+        navigator.current_search = *result;
+        search_box.reset();
+        state = SongSelectState::BROWSING;
+        navigator.load_current_directory(navigator.get_current_item()->path);
+    }
+}
+
 void SongSelectScreen::handle_input(double current_ms) {
-    if (navigator.is_processing && state != SongSelectState::DIFF_SORTING) return;
+    if (navigator.is_processing && state != SongSelectState::DIFF_SORTING && state != SongSelectState::SEARCHING) return;
     if (state == SongSelectState::BROWSING) {
         handle_input_browsing(current_ms);
     } else if (state == SongSelectState::SONG_SELECTED) {
         handle_input_selecting();
     } else if (state == SongSelectState::DIFF_SORTING) {
         handle_input_diff_sorting();
+    } else if (state == SongSelectState::SEARCHING) {
+        handle_input_search();
     }
 }
 
@@ -92,6 +106,7 @@ std::optional<Screens> SongSelectScreen::update() {
     select_timer->update(current_time);
     if (diff_select_timer != nullptr) diff_select_timer->update(current_time);
     indicator->update(current_time);
+    if (search_box) search_box->update(current_time);
 
     if (navigator.diff_sort_ready() && !diff_sort_selector) {
         diff_sort_selector.emplace(cached_stats, last_diff_sort.first, last_diff_sort.second);
@@ -133,6 +148,8 @@ std::optional<Screens> SongSelectScreen::update() {
         text_fade_in->start();
         if (state == SongSelectState::SONG_SELECTED) {
             diff_select_timer = std::make_unique<Timer>(60, current_time, [this]() { select_song((SongBox*)navigator.get_current_item()); });
+        } else if (state == SongSelectState::SEARCHING) {
+            search_box.emplace();
         }
     }
 
@@ -178,5 +195,6 @@ void SongSelectScreen::draw() {
     if (screen_init) navigator.draw_score_history();
 
     if (diff_sort_selector) diff_sort_selector->draw();
+    if (search_box) search_box->draw();
     if (game_transition.has_value()) game_transition->draw();
 }

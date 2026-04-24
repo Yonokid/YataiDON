@@ -29,6 +29,7 @@ public:
     bool text_loaded = false;
     GenreIndex genre_index;
     std::string text_name;
+    std::string collection;
 
     TextureIndex texture_index;
     std::optional<ray::Color> back_color;
