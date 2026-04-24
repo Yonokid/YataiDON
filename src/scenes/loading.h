@@ -2,7 +2,7 @@
 
 #include "../libs/screen.h"
 #include "../objects/global/allnet_indicator.h"
-#include "../libs/parsers/tja.h"
+#include "../libs/parsers/song_parser.h"
 #include "../libs/scores.h"
 
 class LoadingScreen : public Screen {

@@ -71,10 +71,9 @@ void ScoresManager::py_taiko_import(const fs::path& old_db_path) {
 
     for (const auto& [path, hashes] : path_to_hashes) {
         try {
-            TJAParser parser(path);
-            parser.get_metadata();
-            std::string en = parser.metadata.title["en"];
-            std::string ja = parser.metadata.title["ja"];
+            SongParser parser(path);
+            std::string en = parser.metadata.title.count("en") ? parser.metadata.title.at("en") : "";
+            std::string ja = parser.metadata.title.count("ja") ? parser.metadata.title.at("ja") : "";
             name_to_hashes[{en, ja}] = hashes;
         } catch (const std::exception& e) {
             spdlog::warn("py_taiko_import: failed to parse metadata for {}: {}", path.string(), e.what());

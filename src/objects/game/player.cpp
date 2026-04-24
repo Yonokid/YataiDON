@@ -1,6 +1,6 @@
 #include "player.h"
 
-Player::Player(std::optional<TJAParser>& parser_ref, PlayerNum player_num_param, int difficulty_param,
+Player::Player(std::optional<SongParser>& parser_ref, PlayerNum player_num_param, int difficulty_param,
        bool is_2p_param, const Modifiers& modifiers_param)
     : is_2p(is_2p_param)
     , is_dan(false)

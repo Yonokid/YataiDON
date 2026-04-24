@@ -186,7 +186,7 @@ Screens check_args(int argc, char* argv[]) {
     }
 
     path = std::filesystem::absolute(path);
-    TJAParser tja(path);
+    SongParser tja(path);
 
     int selected_difficulty;
     if (difficulty.has_value()) {

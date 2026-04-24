@@ -5,12 +5,13 @@
 #include "../../libs/texture.h"
 #include "../../libs/audio.h"
 #include "../../libs/scores.h"
+#include "../../libs/parsers/song_parser.h"
 
 class SongBox : public BaseBox {
 public:
     std::array<std::string, 5> hashes;
     std::array<std::optional<Score>, 5> scores;
-    TJAParser parser;
+    SongParser parser;
     bool is_favorite;
     std::string text_subtitle;
     std::unique_ptr<OutlinedText> subtitle;
@@ -21,7 +22,7 @@ public:
     std::unique_ptr<ScoreHistory> score_history;
     double box_opened_at = 0.0;
 
-    SongBox(const fs::path& path, const BoxDef& box_def, TJAParser tja);
+    SongBox(const fs::path& path, const BoxDef& box_def, SongParser parser);
 
     void reset() override;
 

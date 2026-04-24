@@ -1,4 +1,5 @@
 #include "navigator.h"
+#include "../../../libs/parsers/song_parser.h"
 #include <filesystem>
 #include <algorithm>
 #include <random>
@@ -22,7 +23,7 @@ void Navigator::init(std::vector<fs::path> songs_paths) {
                 for (const fs::directory_entry& entry : fs::recursive_directory_iterator(
                          root_path, fs::directory_options::skip_permission_denied)) {
                     if (is_song_file(entry)) {
-                        TJAParser parsed_entry = TJAParser(entry.path());
+                        SongParser parsed_entry = SongParser(entry.path());
                         parsed_entry.get_metadata();
                         song_files[std::make_pair(parsed_entry.metadata.title["en"], parsed_entry.metadata.subtitle["en"])] = entry.path();
                     }
@@ -241,7 +242,7 @@ void Navigator::parse_song_list(const fs::path& path, BoxDef box_def, bool inlin
             needs_rewrite = true;
         }
 
-        auto box = std::make_unique<SongBox>(song_path, box_def, TJAParser(song_path));
+        auto box = std::make_unique<SongBox>(song_path, box_def, SongParser(song_path));
         if (songs_added > 0 && songs_added % 10 == 0) {
             BoxDef back_box_def;
             back_box_def.back_color    = BackBox::COLOR;
@@ -281,7 +282,7 @@ void Navigator::load_current_directory_async(const fs::path path) {
                 continue;
             }
             if (is_song_file(curr_path))
-                enqueue_box(std::make_unique<SongBox>(curr_path, box_def, TJAParser(curr_path)));
+                enqueue_box(std::make_unique<SongBox>(curr_path, box_def, SongParser(curr_path)));
             continue;
         }
         if (has_def_file(curr_path)) {
@@ -291,7 +292,7 @@ void Navigator::load_current_directory_async(const fs::path path) {
             for (const auto& song : fs::recursive_directory_iterator(curr_path)) {
                 if (abort_loading) break;
                 if (is_song_file(song.path()))
-                    enqueue_box(std::make_unique<SongBox>(song.path(), box_def, TJAParser(song.path())));
+                    enqueue_box(std::make_unique<SongBox>(song.path(), box_def, SongParser(song.path())));
             }
         }
     }
@@ -326,7 +327,7 @@ void Navigator::load_collection_new(const fs::path& path, const BoxDef& box_def)
                 back_box_def.genre_index   = GenreIndex::NAMCO;
                 enqueue_inline_box(std::make_unique<BackBox>(path.parent_path(), back_box_def));
             }
-            auto song = std::make_unique<SongBox>(entry.path(), box_def, TJAParser(entry.path()));
+            auto song = std::make_unique<SongBox>(entry.path(), box_def, SongParser(entry.path()));
             if (sibling_box_def.fore_color.has_value())
                 song->fore_color = sibling_box_def.fore_color;
             else if (sibling_box_def.back_color.has_value())
@@ -347,7 +348,7 @@ void Navigator::load_collection_difficulty(const fs::path& path, const BoxDef& b
         for (const auto& entry : fs::recursive_directory_iterator(sibling)) {
             if (abort_loading) break;
             if (!is_song_file(entry.path())) continue;
-            TJAParser parser(entry.path());
+            SongParser parser(entry.path());
             parser.get_metadata();
             auto it = parser.metadata.course_data.find(course);
             if (it == parser.metadata.course_data.end()) continue;
@@ -416,7 +417,7 @@ void Navigator::load_collection_favorite(const fs::path& path, const BoxDef& box
             back_box_def.genre_index   = GenreIndex::NAMCO;
             enqueue_inline_box(std::make_unique<BackBox>(path.parent_path(), back_box_def));
         }
-        auto song = std::make_unique<SongBox>(song_path, box_def, TJAParser(song_path));
+        auto song = std::make_unique<SongBox>(song_path, box_def, SongParser(song_path));
         song->is_favorite = true;
         fs::path genre_folder = find_box_def_folder(song_path);
         if (!genre_folder.empty()) {
@@ -503,7 +504,7 @@ void Navigator::load_collection_recent(const fs::path& path, const BoxDef& box_d
             back_box_def.genre_index   = GenreIndex::NAMCO;
             enqueue_inline_box(std::make_unique<BackBox>(path.parent_path(), back_box_def));
         }
-        auto song = std::make_unique<SongBox>(song_path, box_def, TJAParser(song_path));
+        auto song = std::make_unique<SongBox>(song_path, box_def, SongParser(song_path));
         fs::path genre_folder = find_box_def_folder(song_path);
         if (!genre_folder.empty()) {
             BoxDef genre_box_def = parse_box_def(genre_folder);
@@ -564,7 +565,7 @@ void Navigator::load_collection_recommended(const fs::path& path, const BoxDef& 
     for (int i = 0; i < count; i++) {
         if (abort_loading) break;
         const auto& [song_path, song_box_def] = all_songs[i];
-        auto song = std::make_unique<SongBox>(song_path, box_def, TJAParser(song_path));
+        auto song = std::make_unique<SongBox>(song_path, box_def, SongParser(song_path));
         if (song_box_def.fore_color.has_value())
             song->fore_color = song_box_def.fore_color;
         else if (song_box_def.back_color.has_value())
@@ -592,7 +593,7 @@ void Navigator::load_collection_search(const fs::path& path, const BoxDef& box_d
             back_box_def.genre_index   = GenreIndex::NAMCO;
             enqueue_inline_box(std::make_unique<BackBox>(path.parent_path(), back_box_def));
         }
-        auto song = std::make_unique<SongBox>(song_path, box_def, TJAParser(song_path));
+        auto song = std::make_unique<SongBox>(song_path, box_def, SongParser(song_path));
         fs::path genre_folder = find_box_def_folder(song_path);
         if (!genre_folder.empty()) {
             BoxDef genre_box_def = parse_box_def(genre_folder);
@@ -619,7 +620,7 @@ void Navigator::load_songs_inline_async(const fs::path path, BoxDef box_def) {
             back_box_def.genre_index   = GenreIndex::NAMCO;
             enqueue_inline_box(std::make_unique<BackBox>(path.parent_path(), back_box_def));
         }
-        auto box = std::make_unique<SongBox>(song_path, box_def, TJAParser(song_path));
+        auto box = std::make_unique<SongBox>(song_path, box_def, SongParser(song_path));
         box->fade_in(266);
         enqueue_inline_box(std::move(box));
         songs_added++;
@@ -663,7 +664,7 @@ void Navigator::load_songs_inline_async(const fs::path path, BoxDef box_def) {
                 continue;
             }
             if (is_song_file(curr_path))
-                enqueue_inline_box(std::make_unique<SongBox>(curr_path, box_def, TJAParser(curr_path)));
+                enqueue_inline_box(std::make_unique<SongBox>(curr_path, box_def, SongParser(curr_path)));
             continue;
         }
         for (const auto& song : fs::recursive_directory_iterator(curr_path)) {
@@ -729,7 +730,7 @@ bool Navigator::has_def_file(const std::filesystem::path& path) {
 int Navigator::get_tja_count(const std::filesystem::path& path) {
     int count = 0;
     for (const auto& entry : std::filesystem::recursive_directory_iterator(path)) {
-        if (entry.path().extension() == ".tja") count++;
+        if (entry.path().extension() == ".tja" || entry.path().extension() == ".osu") count++;
         if (entry.path().filename() == "song_list.txt") {
             std::ifstream file(entry.path());
             std::string line;
@@ -857,7 +858,9 @@ bool Navigator::is_directory(BaseBox* item) {
 }
 
 bool Navigator::is_song_file(const fs::path& path) {
-    return fs::is_regular_file(path) && path.extension() == ".tja";
+    if (!fs::is_regular_file(path)) return false;
+    auto ext = path.extension();
+    return ext == ".tja" || ext == ".osu";
 }
 
 bool Navigator::is_song(BaseBox* item) {
@@ -1090,7 +1093,7 @@ Statistics Navigator::get_statistics(const fs::path& path) {
 
             const auto& hashes = scores_manager.get_hashes(entry.path());
 
-            TJAParser parser(entry.path());
+            SongParser parser(entry.path());
             parser.get_metadata();
 
             for (const auto& [course, data] : parser.metadata.course_data) {

@@ -6,7 +6,7 @@ class PracticePlayer : public Player {
 public:
     bool paused = false;
 
-    PracticePlayer(std::optional<TJAParser>& parser_ref, PlayerNum player_num_param,
+    PracticePlayer(std::optional<SongParser>& parser_ref, PlayerNum player_num_param,
                    int difficulty_param, bool is_2p_param, const Modifiers& modifiers_param)
         : Player(parser_ref, player_num_param, difficulty_param, is_2p_param, modifiers_param) {
         gauge.reset();

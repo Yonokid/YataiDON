@@ -1,4 +1,34 @@
 #include "loading.h"
+#include "../libs/miniz/miniz.h"
+
+static void extract_osz(const fs::path& osz_path) {
+    fs::path out_dir = osz_path.parent_path() / osz_path.stem();
+    std::error_code ec;
+    fs::create_directories(out_dir, ec);
+
+    mz_zip_archive zip = {};
+    if (!mz_zip_reader_init_file(&zip, osz_path.string().c_str(), 0)) {
+        spdlog::error("extract_osz: failed to open {}", osz_path.string());
+        return;
+    }
+
+    int num_files = (int)mz_zip_reader_get_num_files(&zip);
+    for (int i = 0; i < num_files; i++) {
+        mz_zip_archive_file_stat stat;
+        if (!mz_zip_reader_file_stat(&zip, i, &stat)) continue;
+        if (mz_zip_reader_is_file_a_directory(&zip, i)) continue;
+
+        fs::path out_file = out_dir / stat.m_filename;
+        fs::create_directories(out_file.parent_path(), ec);
+
+        if (!mz_zip_reader_extract_to_file(&zip, i, out_file.string().c_str(), 0))
+            spdlog::warn("extract_osz: failed to extract {} from {}", stat.m_filename, osz_path.string());
+    }
+
+    mz_zip_reader_end(&zip);
+    fs::remove(osz_path, ec);
+    spdlog::info("extract_osz: extracted {} to {}", osz_path.string(), out_dir.string());
+}
 
 void LoadingScreen::on_screen_start() {
     progress_bar_width = tex.screen_width * 0.43;
@@ -10,10 +40,26 @@ void LoadingScreen::on_screen_start() {
     allnet_indicator = AllNetIcon();
 
     for (const fs::path& path : global_data.config->paths.tja_path) {
+        // First pass: extract any .osz archives
+        try {
+            std::vector<fs::path> osz_files;
+            for (const auto& entry : fs::recursive_directory_iterator(
+                     path, fs::directory_options::skip_permission_denied)) {
+                if (entry.path().extension() == ".osz")
+                    osz_files.push_back(entry.path());
+            }
+            for (const auto& osz : osz_files)
+                extract_osz(osz);
+        } catch (const fs::filesystem_error& e) {
+            spdlog::error("Error scanning for .osz files: {}", e.what());
+        }
+
+        // Second pass: collect .tja and .osu files
         try {
             for (const auto& entry : std::filesystem::recursive_directory_iterator(
                      path, std::filesystem::directory_options::skip_permission_denied)) {
-                if (entry.path().extension() == ".tja") {
+                auto ext = entry.path().extension();
+                if (ext == ".tja" || ext == ".osu") {
                     songs.push_back(entry.path());
                 }
             }
@@ -152,18 +198,21 @@ void LoadingScreen::load_song_hashes() {
             }
 
             try {
-                TJAParser parser(songs[i]);
-                spdlog::info("Parsing TJA: {}", path);
-                parser.get_metadata();
-                for (const auto& [course, course_data] : parser.metadata.course_data) {
-                    for (int diff = course; diff < 5; diff++) {
-                        hashes[diff] = parser.get_diff_hash(diff);
+                SongParser parser(songs[i]);
+                spdlog::info("Parsing song: {}", path);
+                if (songs[i].extension() == ".osu") {
+                    hashes[0] = parser.get_diff_hash(0);
+                } else {
+                    for (const auto& [course, course_data] : parser.metadata.course_data) {
+                        for (int diff = course; diff < 5; diff++) {
+                            hashes[diff] = parser.get_diff_hash(diff);
+                        }
                     }
                 }
-                title    = parser.metadata.title["en"];
-                subtitle = parser.metadata.subtitle["en"];
+                title    = parser.metadata.title.count("en") ? parser.metadata.title.at("en") : "";
+                subtitle = parser.metadata.subtitle.count("en") ? parser.metadata.subtitle.at("en") : "";
             } catch (const std::exception& e) {
-                spdlog::error("Failed to parse TJA {}: {}", path, e.what());
+                spdlog::error("Failed to parse song {}: {}", path, e.what());
                 continue;
             }
 

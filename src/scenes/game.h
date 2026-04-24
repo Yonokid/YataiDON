@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../libs/screen.h"
-#include "../libs/parsers/tja.h"
+#include "../libs/parsers/song_parser.h"
 #include "../libs/video.h"
 #include "../libs/scores.h"
 
@@ -32,7 +32,7 @@ public:
 
     std::optional<VideoPlayer> movie;
     std::optional<std::string> song_music;
-    std::optional<TJAParser> parser;
+    std::optional<SongParser> parser;
     std::string scene_preset;
     std::vector<std::unique_ptr<Player>> players;
     SongInfo song_info;

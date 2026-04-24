@@ -352,6 +352,10 @@ add_custom_target(texture_ids_gen DEPENDS ${TEXTURE_IDS_GEN_H})
 
 ### Source files
 
+# miniz (vendored single-file ZIP library for .osz extraction)
+add_library(miniz STATIC src/libs/miniz/miniz.c)
+target_include_directories(miniz PUBLIC src/libs/miniz)
+
 file(GLOB_RECURSE CppFiles src/*.cpp)
 file(GLOB_RECURSE HeaderFiles
     src/*.h
@@ -394,6 +398,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     lua::lua
     sol2::sol2
     SQLite3_lib
+    miniz
 )
 
 if(NOT EMSCRIPTEN)

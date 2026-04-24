@@ -1,7 +1,7 @@
 #include "box_song.h"
 #include "raylib.h"
 
-SongBox::SongBox(const fs::path& path, const BoxDef& box_def, TJAParser parser)
+SongBox::SongBox(const fs::path& path, const BoxDef& box_def, SongParser parser)
     : BaseBox(path, box_def)
 {
     this->parser = parser;

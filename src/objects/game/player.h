@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../../libs/parsers/tja.h"
+#include "../../libs/parsers/song_parser.h"
 #include "../../libs/global_data.h"
 #include "../../libs/texture.h"
 #include "../../libs/audio.h"
@@ -50,7 +50,7 @@ public:
     PlayerNum player_num;
     double last_note_hit;
 
-    Player(std::optional<TJAParser>& parser_ref, PlayerNum player_num_param, int difficulty_param,
+    Player(std::optional<SongParser>& parser_ref, PlayerNum player_num_param, int difficulty_param,
            bool is_2p_param, const Modifiers& modifiers_param);
 
     std::optional<JudgeCounter> judge_counter;
@@ -77,7 +77,7 @@ private:
     int visual_offset;
     std::string score_method;
     Modifiers modifiers;
-    std::optional<TJAParser> parser;
+    std::optional<SongParser> parser;
     Nameplate nameplate;
 
     // Score management
