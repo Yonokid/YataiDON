@@ -217,6 +217,8 @@ bool is_key_down_native(int raylib_key) {
 
     if (vk_code == 0) return false;
 
+    if (!ray::IsWindowFocused()) return false;
+
     return (GetAsyncKeyState(vk_code) & 0x8000) != 0;
 }
 #endif

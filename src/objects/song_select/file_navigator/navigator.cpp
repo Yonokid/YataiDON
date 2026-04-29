@@ -20,13 +20,20 @@ void Navigator::init(std::vector<fs::path> songs_paths) {
         open_index = 0;
         for (fs::path& root_path : songs_paths) {
             try {
-                for (const fs::directory_entry& entry : fs::recursive_directory_iterator(
-                         root_path, fs::directory_options::skip_permission_denied)) {
-                    if (is_song_file(entry)) {
-                        SongParser parsed_entry = SongParser(entry.path());
-                        parsed_entry.get_metadata();
-                        song_files[std::make_pair(parsed_entry.metadata.title["en"], parsed_entry.metadata.subtitle["en"])] = entry.path();
+                std::error_code ec;
+                auto it = fs::recursive_directory_iterator(root_path, fs::directory_options::skip_permission_denied, ec);
+                while (it != fs::end(it)) {
+                    try {
+                        if (is_song_file(it->path())) {
+                            SongParser parsed_entry = SongParser(it->path());
+                            parsed_entry.get_metadata();
+                            song_files[{parsed_entry.metadata.title["en"], parsed_entry.metadata.subtitle["en"]}] = it->path();
+                        }
+                    } catch (const std::exception& inner) {
+                        spdlog::warn("Skipping song during scan: {}", inner.what());
                     }
+                    it.increment(ec);
+                    if (ec) { spdlog::warn("Skipping entry: {}", ec.message()); ec.clear(); }
                 }
             } catch (const fs::filesystem_error& e) {
                 spdlog::error("Error scanning song directory: {}", e.what());
@@ -129,7 +136,7 @@ void sort_items(std::vector<std::unique_ptr<BaseBox>>& items, int first_index, i
         std::vector<std::unique_ptr<BaseBox>> sortable;
 
         for (int i = first_index; i <= last_index; i++) {
-            if (items[i]->text_name == "BACK_BOX") {
+            if (items[i]->text_name == "BACK_BOX" || items[i]->preserve_order) {
                 back_box_positions.push_back(i - first_index);
             } else {
                 sortable.push_back(std::move(items[i]));
@@ -243,6 +250,7 @@ void Navigator::parse_song_list(const fs::path& path, BoxDef box_def, bool inlin
         }
 
         auto box = std::make_unique<SongBox>(song_path, box_def, SongParser(song_path));
+        box->preserve_order = true;
         if (songs_added > 0 && songs_added % 10 == 0) {
             BoxDef back_box_def;
             back_box_def.back_color    = BackBox::COLOR;
@@ -254,7 +262,6 @@ void Navigator::parse_song_list(const fs::path& path, BoxDef box_def, bool inlin
         if (inline_mode) {
             enqueue_inline_box(std::move(box));
         } else {
-            box->preserve_order = true;
             enqueue_box(std::move(box));
         }
         songs_added++;
@@ -272,29 +279,45 @@ void Navigator::load_current_directory_async(const fs::path path) {
 
     setup_back_box(path, true);
 
-    for (const fs::directory_entry& entry : fs::directory_iterator(path)) {
-        if (abort_loading) break;
-        const fs::path& curr_path = entry.path();
-        if (!fs::is_directory(curr_path)) {
-            if (curr_path.filename() == "song_list.txt") {
-                BoxDef entry_box_def = parse_box_def(curr_path);
-                parse_song_list(curr_path, entry_box_def, false);
-                continue;
+    try {
+        for (const fs::directory_entry& entry : fs::directory_iterator(path)) {
+            if (abort_loading) break;
+            try {
+                const fs::path& curr_path = entry.path();
+                if (!fs::is_directory(curr_path)) {
+                    if (curr_path.filename() == "song_list.txt") {
+                        BoxDef entry_box_def = parse_box_def(curr_path);
+                        parse_song_list(curr_path, entry_box_def, false);
+                        continue;
+                    }
+                    if (is_song_file(curr_path))
+                        enqueue_box(std::make_unique<SongBox>(curr_path, box_def, SongParser(curr_path)));
+                    continue;
+                }
+                if (has_def_file(curr_path)) {
+                    BoxDef entry_box_def = parse_box_def(curr_path);
+                    enqueue_box(std::make_unique<FolderBox>(curr_path, entry_box_def, get_tja_count(curr_path), song_files));
+                } else {
+                    std::error_code ec;
+                    auto it = fs::recursive_directory_iterator(curr_path, ec);
+                    while (it != fs::end(it)) {
+                        if (abort_loading) break;
+                        try {
+                            if (is_song_file(it->path()))
+                                enqueue_box(std::make_unique<SongBox>(it->path(), box_def, SongParser(it->path())));
+                        } catch (const std::exception& inner) {
+                            spdlog::warn("Skipping song: {}", inner.what());
+                        }
+                        it.increment(ec);
+                        if (ec) { ec.clear(); }
+                    }
+                }
+            } catch (const std::exception& e) {
+                spdlog::warn("Skipping entry: {}", e.what());
             }
-            if (is_song_file(curr_path))
-                enqueue_box(std::make_unique<SongBox>(curr_path, box_def, SongParser(curr_path)));
-            continue;
         }
-        if (has_def_file(curr_path)) {
-            BoxDef entry_box_def = parse_box_def(curr_path);
-            enqueue_box(std::make_unique<FolderBox>(curr_path, entry_box_def, get_tja_count(curr_path), song_files));
-        } else {
-            for (const auto& song : fs::recursive_directory_iterator(curr_path)) {
-                if (abort_loading) break;
-                if (is_song_file(song.path()))
-                    enqueue_box(std::make_unique<SongBox>(song.path(), box_def, SongParser(song.path())));
-            }
-        }
+    } catch (const fs::filesystem_error& e) {
+        spdlog::error("Error loading directory: {}", e.what());
     }
     loading_complete = true;
     current_path = path;
@@ -655,23 +678,39 @@ void Navigator::load_songs_inline_async(const fs::path path, BoxDef box_def) {
         return;
     }
 
-    for (const fs::directory_entry& entry : fs::directory_iterator(path)) {
-        if (abort_loading) break;
-        const fs::path& curr_path = entry.path();
-        if (!fs::is_directory(curr_path)) {
-            if (curr_path.filename() == "song_list.txt") {
-                parse_song_list(curr_path, box_def, true);
-                continue;
-            }
-            if (is_song_file(curr_path))
-                enqueue_inline_box(std::make_unique<SongBox>(curr_path, box_def, SongParser(curr_path)));
-            continue;
-        }
-        for (const auto& song : fs::recursive_directory_iterator(curr_path)) {
+    try {
+        for (const fs::directory_entry& entry : fs::directory_iterator(path)) {
             if (abort_loading) break;
-            if (is_song_file(song.path()))
-                add_song(song.path());
+            try {
+                const fs::path& curr_path = entry.path();
+                if (!fs::is_directory(curr_path)) {
+                    if (curr_path.filename() == "song_list.txt") {
+                        parse_song_list(curr_path, box_def, true);
+                        continue;
+                    }
+                    if (is_song_file(curr_path))
+                        enqueue_inline_box(std::make_unique<SongBox>(curr_path, box_def, SongParser(curr_path)));
+                    continue;
+                }
+                std::error_code ec;
+                auto it = fs::recursive_directory_iterator(curr_path, ec);
+                while (it != fs::end(it)) {
+                    if (abort_loading) break;
+                    try {
+                        if (is_song_file(it->path()))
+                            add_song(it->path());
+                    } catch (const std::exception& inner) {
+                        spdlog::warn("Skipping song: {}", inner.what());
+                    }
+                    it.increment(ec);
+                    if (ec) { ec.clear(); }
+                }
+            } catch (const std::exception& e) {
+                spdlog::warn("Skipping entry: {}", e.what());
+            }
         }
+    } catch (const fs::filesystem_error& e) {
+        spdlog::error("Error loading directory: {}", e.what());
     }
     loading_complete = true;
 }
@@ -684,7 +723,12 @@ BoxDef Navigator::parse_box_def(const fs::path& path) {
     result.texture_index = TextureIndex::DEFAULT;
     result.genre_index = GenreIndex::DEFAULT;
     result.collection = "";
+    bool title_localized = false;
+
     while (std::getline(boxDef, line)) {
+        if (line.size() >= 3 && (unsigned char)line[0] == 0xEF &&
+            (unsigned char)line[1] == 0xBB && (unsigned char)line[2] == 0xBF)
+            line.erase(0, 3);
         line.erase(0, line.find_first_not_of(" \t\r\n"));
         line.erase(line.find_last_not_of(" \t\r\n") + 1);
         auto get_value = [&](const std::string& prefix) -> std::string {
@@ -697,14 +741,17 @@ BoxDef Navigator::parse_box_def(const fs::path& path) {
             if (it != TEXTURE_MAP.end()) result.texture_index = it->second;
             result.genre_index = get_genre_index(genre);
         } else if (line.starts_with("#TITLE:")) {
-            result.name = get_value("#TITLE:");
+            if (!title_localized)
+                result.name = get_value("#TITLE:");
         } else if (line.starts_with("#TITLE")) {
             const std::string& lang = global_data.config->general.language;
             std::string lang_upper = lang;
             std::transform(lang_upper.begin(), lang_upper.end(), lang_upper.begin(), ::toupper);
             std::string lang_prefix = "#TITLE" + lang_upper + ":";
-            if (line.starts_with(lang_prefix))
+            if (line.starts_with(lang_prefix)) {
                 result.name = get_value(lang_prefix);
+                title_localized = true;
+            }
         } else if (line.starts_with("#COLLECTION:")) {
             result.collection = get_value("#COLLECTION:");
             auto it = TEXTURE_MAP.find(result.collection);
@@ -721,24 +768,35 @@ BoxDef Navigator::parse_box_def(const fs::path& path) {
 }
 
 bool Navigator::has_def_file(const std::filesystem::path& path) {
-    for (const auto& entry : std::filesystem::recursive_directory_iterator(path)) {
-        if (entry.path().extension() == ".def") return true;
-    }
+    try {
+        std::error_code ec;
+        auto it = fs::recursive_directory_iterator(path, ec);
+        while (it != fs::end(it)) {
+            if (it->path().extension() == ".def") return true;
+            it.increment(ec);
+            if (ec) { ec.clear(); }
+        }
+    } catch (const fs::filesystem_error&) {}
     return false;
 }
 
 int Navigator::get_tja_count(const std::filesystem::path& path) {
     int count = 0;
-    for (const auto& entry : std::filesystem::recursive_directory_iterator(path)) {
-        if (entry.path().extension() == ".tja" || entry.path().extension() == ".osu") count++;
-        if (entry.path().filename() == "song_list.txt") {
-            std::ifstream file(entry.path());
-            std::string line;
-            while (std::getline(file, line)) {
-                count++;
+    try {
+        std::error_code ec;
+        auto it = fs::recursive_directory_iterator(path, ec);
+        while (it != fs::end(it)) {
+            auto ext = it->path().extension();
+            if (ext == ".tja" || ext == ".osu") count++;
+            if (it->path().filename() == "song_list.txt") {
+                std::ifstream file(it->path());
+                std::string line;
+                while (std::getline(file, line)) count++;
             }
+            it.increment(ec);
+            if (ec) { ec.clear(); }
         }
-    }
+    } catch (const fs::filesystem_error&) {}
     return count;
 }
 

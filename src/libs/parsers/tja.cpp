@@ -552,7 +552,7 @@ std::vector<std::vector<std::string>> TJAParser::data_to_notes(int diff) {
                               course_value == diff_name;
             }
             else if (target_found) {
-                if (note_start == -1 && (line == "#START" || line == "#START P1")) {
+                if (note_start == -1 && (line == "#START")) {
                     note_start = i + 1;
                 }
                 else if (line == "#END" && note_start != -1) {
