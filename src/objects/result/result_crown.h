@@ -17,8 +17,8 @@ private:
     TextureChangeAnimation* gleam;
     FadeAnimation* fadein;
 
-    bool sound_played;
-    bool is_2p;
+    bool sound_played = false;
+    bool is_2p = false;
 
 public:
     ResultCrown(bool is_2p);

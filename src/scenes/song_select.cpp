@@ -83,7 +83,10 @@ void SongSelectScreen::handle_input_search() {
 }
 
 void SongSelectScreen::handle_input(double current_ms) {
-    if (navigator.is_processing && state != SongSelectState::DIFF_SORTING && state != SongSelectState::SEARCHING) return;
+    if (navigator.is_processing) {
+        clear_input_buffers();
+        return;
+    }
     if (state == SongSelectState::BROWSING) {
         handle_input_browsing(current_ms);
     } else if (state == SongSelectState::SONG_SELECTED) {
@@ -172,7 +175,7 @@ void SongSelectScreen::draw_overlays() {
     if (state == SongSelectState::SONG_SELECTED) {
         tex.draw_texture(GLOBAL::DIFFICULTY_SELECT, {.fade=text_fade_in->attribute});
         tex.draw_texture(GLOBAL::SONG_SELECT, {.fade=1 - text_fade_in->attribute});
-        diff_select_timer->draw();
+        if (diff_select_timer) diff_select_timer->draw();
     } else {
         tex.draw_texture(GLOBAL::DIFFICULTY_SELECT, {.fade=1 - text_fade_in->attribute});
         tex.draw_texture(GLOBAL::SONG_SELECT, {.fade=text_fade_in->attribute});

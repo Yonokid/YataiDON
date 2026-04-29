@@ -1,3 +1,4 @@
+#pragma once
 #include "../libs/screen.h"
 #include "../libs/text.h"
 #include "../libs/texture.h"
@@ -10,7 +11,7 @@
 #include "../objects/game/song_info.h"
 
 class ResultScreen : public Screen {
-private:
+protected:
     std::unique_ptr<OutlinedText> song_info;
     FadeAnimation* fade_out;
     AllNetIcon allnet_indicator;

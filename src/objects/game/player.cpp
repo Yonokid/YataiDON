@@ -24,7 +24,7 @@ Player::Player(std::optional<SongParser>& parser_ref, PlayerNum player_num_param
     , autoplay_hit_side(Side::LEFT)
     , last_subdivision(-1)
     , combo_display(combo, 0)
-    , score_counter(0)
+    , score_counter(0, is_2p)
 {
     reset_chart();
     don_hitsound = "hitsound_don_" + std::to_string((int)player_num) + "p";
@@ -292,7 +292,7 @@ void Player::update(double ms_from_start, double current_ms, std::optional<Backg
             NoteType note_type = it->note_type;
             bool is_big = it->is_big;
             it = draw_arc_list.erase(it);
-            gauge_hit_effect.push_back(GaugeHitEffect(note_type, is_big));
+            gauge_hit_effect.push_back(GaugeHitEffect(note_type, is_big, player_num == PlayerNum::P2));
         } else {
             ++it;
         }
@@ -352,7 +352,11 @@ void Player::draw(double ms_from_start, float x, float y, ray::Shader& mask_shad
         branch_indicator->draw(y);
     }
     if (gauge.has_value()) {
-        gauge->draw(y);
+        if (is_2p) {
+            gauge->draw(y + tex.skin_config[SC::GAUGE_2P_OFFSET].y);
+        } else {
+            gauge->draw(y);
+        }
     }
     if (lane_hit_effect.has_value()) {
         lane_hit_effect->draw(y);
@@ -920,7 +924,7 @@ void Player::check_drumroll(double current_ms, DrumType drum_type, std::optional
 void Player::check_balloon(double current_ms, DrumType drum_type, const Note& balloon, std::optional<Background>& background) {
     if (drum_type != DrumType::DON) return;
     if (!balloon_counter.has_value()) {
-        balloon_counter = BalloonCounter(balloon.count.value());
+        balloon_counter = BalloonCounter(balloon.count.value(), is_2p);
     }
     if (background.has_value()) background->handle_balloon(PlayerNum(is_2p + 1));
     curr_balloon_count++;
@@ -1342,32 +1346,31 @@ void Player::draw_overlays(float y, const ray::Shader& mask_shader) {
 
     combo_display.draw(y);
     if (combo_announce.has_value()) {
-        combo_announce->draw(y);
+        combo_announce->draw(y + (376 * tex.screen_scale * is_2p));
     }
-    if (is_2p) {
-        tex.draw_texture(LANE::LANE_SCORE_COVER, {.mirror="vertical", .y=y});
-    } else {
-        tex.draw_texture(LANE::LANE_SCORE_COVER, {.y=y});
-    }
-    tex.draw_texture(lane_icon_tex_id, {.y=y});
+    tex.draw_texture(lane_icon_tex_id, {.y=y, .index=is_2p});
     if (is_dan) {
         tex.draw_texture(LANE::LANE_DIFFICULTY, {.frame=6, .y=y});
     } else {
-        tex.draw_texture(LANE::LANE_DIFFICULTY, {.frame=difficulty, .y=y});
+        tex.draw_texture(LANE::LANE_DIFFICULTY, {.frame=difficulty, .y=y, .index=is_2p});
     }
     if (judge_counter.has_value()) {
         judge_counter->draw();
     }
 
     if (modifiers.auto_play) {
-        tex.draw_texture(LANE::AUTO_ICON, {.y=y});
+        tex.draw_texture(LANE::AUTO_ICON, {.y=y, .index=is_2p});
     } else {
-        nameplate.draw(tex.skin_config[SC::GAME_NAMEPLATE_1P].x, y + tex.skin_config[SC::GAME_NAMEPLATE_1P].y);
+        if (is_2p) {
+            nameplate.draw(tex.skin_config[SC::GAME_NAMEPLATE_2P].x, y + tex.skin_config[SC::GAME_NAMEPLATE_2P].y);
+        } else {
+            nameplate.draw(tex.skin_config[SC::GAME_NAMEPLATE_1P].x, y + tex.skin_config[SC::GAME_NAMEPLATE_1P].y);
+        }
     }
     //self.chara.draw(y=(self.is_2p*tex.skin_config["game_2p_offset"].y))
 
     if (drumroll_counter.has_value()) {
-        drumroll_counter->draw(y);
+        drumroll_counter->draw(y + (376 * tex.screen_scale * is_2p));
     }
     if (balloon_counter.has_value()) {
         balloon_counter->draw(y);

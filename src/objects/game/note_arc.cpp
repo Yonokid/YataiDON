@@ -17,7 +17,7 @@ NoteArc::NoteArc(NoteType note_type, double current_ms, PlayerNum player_num, bo
 
     if (player_num == PlayerNum::P2) {
         this->start_y += (176 * tex.screen_scale);
-        end_y += (372 * tex.screen_scale);
+        end_y += (176 * tex.screen_scale);
     }
 
     if (player_num == PlayerNum::P1) {

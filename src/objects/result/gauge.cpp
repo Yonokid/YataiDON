@@ -46,7 +46,7 @@ void ResultGauge::draw() {
         if (0 < rainbow_animation->attribute && rainbow_animation->attribute < 8) {
             tex.draw_texture(tex.get_enum("gauge/rainbow" + string_diff), {.frame=(int)rainbow_animation->attribute-1, .scale=scale, .fade=gauge_fade_in->attribute, .index=is_2p});
         }
-        tex.draw_texture(tex.get_enum("gauge/rainbow" + string_diff), {.frame=(int)rainbow_animation->attribute, .scale=scale, .fade=gauge_fade_in->attribute, .index=is_2p});
+        tex.draw_texture(tex.get_enum("gauge/rainbow" + string_diff), {.frame=(int)rainbow_animation->attribute, .scale=scale, .fade=std::min(gauge_fade_in->attribute, 0.75), .index=is_2p});
     } else {
         tex.draw_texture(tex.get_enum("gauge/" + (player_str + "_bar")), {.scale=scale, .x2=(gauge_length*bar_width)-(bar_width*6), .fade=gauge_fade_in->attribute, .index=is_2p});
         if (gauge_length >= clear_start[(int)difficulty] - 1) {

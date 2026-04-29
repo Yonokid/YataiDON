@@ -8,10 +8,11 @@ private:
     int balloon_count;
     int balloon_total;
     bool is_popped;
+    bool is_2p;
     TextStretchAnimation* stretch;
     FadeAnimation* fade;
 public:
-    BalloonCounter(int count);
+    BalloonCounter(int count, bool is_2p);
 
     void update_count(int count);
 

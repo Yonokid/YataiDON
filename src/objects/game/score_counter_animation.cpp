@@ -23,6 +23,7 @@ ScoreCounterAnimation::ScoreCounterAnimation(PlayerNum player_num, int counter) 
 
     if (player_num == PlayerNum::P2) {
         base_color = ray::Color{84, 250, 238, 255};
+        direction = -1;
     } else {
         base_color = ray::Color{254, 102, 0, 255};
     }
@@ -64,7 +65,7 @@ void ScoreCounterAnimation::draw(float y) {
             y_pos = 148 * tex.screen_scale;
         }
 
-        float y_offset = (y_pos * direction) + y;
+        float y_offset = (y_pos * direction) + y + (510 * tex.screen_scale * (direction == -1));
 
         tex.draw_texture(LANE::SCORE_NUMBER, {
             .color = color,

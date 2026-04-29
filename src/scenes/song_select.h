@@ -18,7 +18,7 @@
 #include "../objects/song_select/file_navigator/color_utils.h"
 
 class SongSelectScreen : public Screen {
-private:
+protected:
     FadeAnimation* diff_fade_out;
     FadeAnimation* text_fade_in;
     FadeAnimation* blue_arrow_fade;
@@ -45,18 +45,17 @@ private:
 
     std::optional<SearchBox> search_box;
 
-    void select_song(SongBox* song);
+    virtual void select_song(SongBox* song);
 
-    void handle_input(double current_ms);
+    virtual void handle_input(double current_ms);
 
-    void handle_input_browsing(double current_ms);
-    void handle_input_selecting();
-    void handle_input_diff_sorting();
-    void handle_input_search();
+    virtual void handle_input_browsing(double current_ms);
+    virtual void handle_input_selecting();
+    virtual void handle_input_diff_sorting();
+    virtual void handle_input_search();
 
-    void draw_overlays();
+    virtual void draw_overlays();
 
-protected:
     virtual Screens get_game_screen_target() { return Screens::GAME; }
 
 public:

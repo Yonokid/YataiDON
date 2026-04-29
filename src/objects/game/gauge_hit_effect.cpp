@@ -1,7 +1,7 @@
 #include "gauge_hit_effect.h"
 
-GaugeHitEffect::GaugeHitEffect(NoteType note_type, bool is_big)
-            : note_type(note_type), is_big(is_big) {
+GaugeHitEffect::GaugeHitEffect(NoteType note_type, bool is_big, bool is_2p)
+            : note_type(note_type), is_big(is_big), is_2p(is_2p) {
     texture_change = (TextureChangeAnimation*)tex.get_animation(2, true);
     circle_fadein = (FadeAnimation*)tex.get_animation(31, true);
     resize = (TextureResizeAnimation*)tex.get_animation(32, true);
@@ -38,9 +38,17 @@ void GaugeHitEffect::update(double current_ms) {
     } else if (resize->attribute <= 0.80) {
         color = ray::YELLOW;
     } else if (resize->attribute <= 0.90) {
-        color = ray::ORANGE;
+        if (is_2p) {
+            color = ray::GREEN;
+        } else {
+            color = ray::ORANGE;
+        }
     } else if (resize->attribute <= 1.00) {
-        color = ray::RED;
+        if (is_2p) {
+            color = ray::Color{84, 250, 238, 255};
+        } else {
+            color = ray::RED;
+        }
     }
 
     dest_width = width * resize->attribute;
@@ -63,12 +71,13 @@ void GaugeHitEffect::draw(float y) {
                     .x2=x2_pos,
                     .y2=y2_pos,
                     .origin=origin,
-                    .rotation=rotation_angle});
+                    .rotation=rotation_angle,
+                    .index=is_2p});
 
     //Note type texture
     SkinInfo pos_data = tex.skin_config[SC::GAUGE_HIT_EFFECT_NOTE];
     tex.draw_texture(tex_id_map.at("notes/" + (std::to_string((int)note_type))),
-        {.x=pos_data.x, .y=y+pos_data.y, .fade=fade_out->attribute});
+        {.x=pos_data.x, .y=y+pos_data.y + (pos_data.height * is_2p), .fade=fade_out->attribute});
 
     //Circle effect texture
     ray::Color texture_color;
@@ -78,9 +87,9 @@ void GaugeHitEffect::draw(float y) {
         texture_color = ray::Fade(ray::YELLOW, circle_fadein->attribute);
     }
     if (is_big) {
-        tex.draw_texture(GAUGE::HIT_EFFECT_CIRCLE_BIG, {.color=texture_color, .y=y});
+        tex.draw_texture(GAUGE::HIT_EFFECT_CIRCLE_BIG, {.color=texture_color, .y=y, .index=is_2p});
     } else {
-        tex.draw_texture(GAUGE::HIT_EFFECT_CIRCLE, {.color=texture_color, .y=y});
+        tex.draw_texture(GAUGE::HIT_EFFECT_CIRCLE, {.color=texture_color, .y=y, .index=is_2p});
     }
 }
 

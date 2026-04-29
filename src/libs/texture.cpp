@@ -431,6 +431,7 @@ void TextureWrapper::draw_texture(uint32_t id, const DrawTextureParams& params) 
     } else if (tex_obj->crop_data.has_value()) {
         try {
             source_rect = tex_obj->crop_data->at(params.frame);
+            source_rect.height = static_cast<float>(tex_obj->height) * mirror_y;
         } catch (const std::out_of_range& e) {
             spdlog::error("Frame index out of range for texture {}", tex_obj->name);
             spdlog::error("Frame index: {}, Number of frames: {}", params.frame, tex_obj->crop_data->size());

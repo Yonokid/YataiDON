@@ -119,26 +119,27 @@ void Gauge::update(double current_ms) {
 }
 
 void Gauge::draw(float y) {
-    std::string mirror = y > tex.screen_height / 2.0f ? "vertical" : "";
+    bool mirrored = y > tex.screen_height / 2.0f;
+    std::string mirror = mirrored ? "vertical" : "";
 
     tex.draw_texture(tex_id_map.at("gauge/border" + string_diff), {.mirror = mirror, .y = y});
 
-    tex.draw_texture(tex_id_map.at("gauge/" + (std::to_string((int)player_num) + "p_unfilled" + string_diff)), {.mirror = mirror, .y = y});
+    tex.draw_texture(tex_id_map.at("gauge/" + (std::to_string((int)player_num) + "p_unfilled" + string_diff)), {.mirror = mirror, .y = y, .index=mirrored});
 
     int gauge_length_int = (int)gauge_length;
     int clear_point = clear_start[difficulty];
     float bar_width = tex.textures[tex_id_map.at("gauge/" + std::to_string((int)player_num) + "p_bar")]->width;
 
-    tex.draw_texture(tex_id_map.at("gauge/" + (std::to_string((int)player_num) + "p_bar")), {.y = y, .x2 = std::min(gauge_length_int * bar_width, (clear_point - 1) * bar_width) - bar_width});
+    tex.draw_texture(tex_id_map.at("gauge/" + (std::to_string((int)player_num) + "p_bar")), {.y = y, .x2 = std::min(gauge_length_int * bar_width, (clear_point - 1) * bar_width) - bar_width, .index=mirrored});
 
     if (gauge_length_int >= clear_point - 1) {
-        tex.draw_texture(GAUGE::BAR_CLEAR_TRANSITION, {.mirror = mirror, .x = (clear_point - 1) * bar_width, .y = y});
+        tex.draw_texture(GAUGE::BAR_CLEAR_TRANSITION, {.mirror = mirror, .x = (clear_point - 1) * bar_width, .y = y, .index=mirrored});
     }
 
     if (gauge_length_int > clear_point) {
-        tex.draw_texture(GAUGE::BAR_CLEAR_TOP, {.mirror = mirror, .x = clear_point * bar_width, .y = y, .x2 = (gauge_length_int - clear_point) * bar_width});
+        tex.draw_texture(GAUGE::BAR_CLEAR_TOP, {.mirror = mirror, .x = clear_point * bar_width, .y = y, .x2 = (gauge_length_int - clear_point) * bar_width, .index=mirrored});
 
-        tex.draw_texture(GAUGE::BAR_CLEAR_BOTTOM, {.x = clear_point * bar_width, .y = y, .x2 = (gauge_length_int - clear_point) * bar_width});
+        tex.draw_texture(GAUGE::BAR_CLEAR_BOTTOM, {.x = clear_point * bar_width, .y = y, .x2 = (gauge_length_int - clear_point) * bar_width, .index=mirrored});
     }
 
     // Rainbow effect for full gauge
@@ -149,13 +150,15 @@ void Gauge::draw(float y) {
                 .mirror = mirror,
                 .y = y,
                 .fade = rainbow_fade_in.value()->attribute,
+                .index = mirrored,
             });
         }
         tex.draw_texture(tex_id_map.at("gauge/rainbow" + string_diff), {
             .frame = (int)rainbow_animation->attribute,
             .mirror = mirror,
             .y = y,
-            .fade = rainbow_fade_in.value()->attribute,
+            .fade = std::min(rainbow_fade_in.value()->attribute, 0.75),
+            .index = mirrored,
         });
     }
 
@@ -166,18 +169,21 @@ void Gauge::draw(float y) {
                 .x = gauge_length_int * bar_width,
                 .y = y,
                 .fade = gauge_update_anim->attribute,
+                .index = mirrored,
             });
         } else if (gauge_length_int > clear_start[difficulty]) {
             tex.draw_texture(GAUGE::BAR_CLEAR_FADE, {
                 .x = gauge_length_int * bar_width,
                 .y = y,
                 .fade = gauge_update_anim->attribute,
+                .index = mirrored,
             });
         } else {
             tex.draw_texture(tex_id_map.at("gauge/" + (std::to_string((int)player_num) + "p_bar_fade")), {
                 .x = gauge_length_int * bar_width,
                 .y = y,
                 .fade = gauge_update_anim->attribute,
+                .index = mirrored,
             });
         }
     }
@@ -186,13 +192,14 @@ void Gauge::draw(float y) {
         .mirror = mirror,
         .y = y,
         .fade = 0.15f,
+        .index = mirrored,
     });
 
     // Draw clear status indicators
     if (gauge_length_int >= clear_point - 1) {
         tex.draw_texture(GAUGE::CLEAR, {
             .y = y,
-            .index = std::min(2, difficulty)
+            .index = std::min(2, difficulty) + (mirrored * 3)
         });
 
         if (is_rainbow) {
@@ -200,19 +207,20 @@ void Gauge::draw(float y) {
                 .frame = (int)tamashii_fire_change->attribute,
                 .scale = 0.75f,
                 .center = true,
-                .y = y
+                .y = y,
+                .index = mirrored,
             });
         }
 
-        tex.draw_texture(GAUGE::TAMASHII, {.y = y});
+        tex.draw_texture(GAUGE::TAMASHII, {.y = y, .index = mirrored});
 
         int fire_frame = (int)tamashii_fire_change->attribute;
         if (is_rainbow && (fire_frame == 0 || fire_frame == 1 || fire_frame == 4 || fire_frame == 5)) {
-            tex.draw_texture(GAUGE::TAMASHII_OVERLAY, {.y = y, .fade = 0.5f});
+            tex.draw_texture(GAUGE::TAMASHII_OVERLAY, {.y = y, .fade = 0.5f, .index = mirrored});
         }
     } else {
-        tex.draw_texture(GAUGE::CLEAR_DARK, {.y = y, .index = std::min(2, difficulty)});
+        tex.draw_texture(GAUGE::CLEAR_DARK, {.y = y, .index = std::min(2, difficulty) + (mirrored * 3)});
 
-        tex.draw_texture(GAUGE::TAMASHII_DARK, {.y = y});
+        tex.draw_texture(GAUGE::TAMASHII_DARK, {.y = y, .index = mirrored});
     }
 }
