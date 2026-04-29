@@ -162,13 +162,7 @@ void TJAParser::get_metadata() {
                 std::string data_str = trim(split_after_colon(item));
                 std::filesystem::path wave_path = file_path.parent_path() / fs::u8path(data_str);
 
-                if (!std::filesystem::exists(wave_path)) {
-                    // logger.error(data_str + ", " + file_path.string());
-                    // logger.warning("Invalid WAVE value in TJA file");
-                    metadata.wave = std::filesystem::path();
-                } else {
-                    metadata.wave = wave_path;
-                }
+                metadata.wave = wave_path;
             }
             else if (item.find("OFFSET") == 0) {
                 std::string data_str = split_after_colon(item);

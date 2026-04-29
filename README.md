@@ -39,8 +39,7 @@ Q: I want to add more song paths!<br>
 A: You can either append new folders:<br>
 `tja_path = ["/run/media/yonokid/HDD/Games/PyTaiko/Songs", "Songs", "Cool Folder"]`<br>
 or replace the base one:<br>
-`tja_path = ["/run/media/yonokid/HDD/Games/PyTaiko/Songs"]`<br>
-Just make sure to use `/` and not `\`!<br>
+`tja_path = ["/run/media/yonokid/HDD/Games/PyTaiko/Songs"]`
 
 ## Installation
 
