@@ -160,8 +160,16 @@ void TJAParser::get_metadata() {
             }
             else if (item.find("WAVE") == 0) {
                 std::string data_str = trim(split_after_colon(item));
-                std::filesystem::path wave_path = file_path.parent_path() / fs::u8path(data_str);
 
+            #ifdef _WIN32
+                // data_str is raw Shift-JIS bytes, convert to wide string
+                int wlen = MultiByteToWideChar(932, 0, data_str.c_str(), -1, nullptr, 0);
+                std::wstring wide(wlen, 0);
+                MultiByteToWideChar(932, 0, data_str.c_str(), -1, wide.data(), wlen);
+                fs::path wave_path = file_path.parent_path() / wide;
+            #else
+                fs::path wave_path = file_path.parent_path() / data_str;
+            #endif
                 metadata.wave = wave_path;
             }
             else if (item.find("OFFSET") == 0) {
