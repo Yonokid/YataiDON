@@ -196,7 +196,7 @@ void TJAParser::get_metadata() {
                     // logger.warning("Invalid BGMOVIE value in TJA file");
                     metadata.bgmovie = std::filesystem::path();
                 } else {
-                    metadata.bgmovie = file_path.parent_path() / fs::u8path(trim(data_str));
+                    metadata.bgmovie = file_path.parent_path() / fs::path(trim(data_str));
                 }
             }
             else if (item.find("MOVIEOFFSET") == 0) {
@@ -213,7 +213,7 @@ void TJAParser::get_metadata() {
                 if (data_str.empty()) {
                     metadata.preimage = std::filesystem::path();
                 } else {
-                    metadata.preimage = file_path.parent_path() / fs::u8path(trim(data_str));
+                    metadata.preimage = file_path.parent_path() / fs::path(trim(data_str));
                 }
             }
             else if (item.find("SCENEPRESET") == 0) {
