@@ -160,7 +160,7 @@ void TJAParser::get_metadata() {
             }
             else if (item.find("WAVE") == 0) {
                 std::string data_str = trim(split_after_colon(item));
-                std::filesystem::path wave_path = file_path.parent_path() / data_str;
+                std::filesystem::path wave_path = file_path.parent_path() / fs::u8path(data_str);
 
                 if (!std::filesystem::exists(wave_path)) {
                     // logger.error(data_str + ", " + file_path.string());
@@ -194,7 +194,7 @@ void TJAParser::get_metadata() {
                     // logger.warning("Invalid BGMOVIE value in TJA file");
                     metadata.bgmovie = std::filesystem::path();
                 } else {
-                    metadata.bgmovie = file_path.parent_path() / trim(data_str);
+                    metadata.bgmovie = file_path.parent_path() / fs::u8path(trim(data_str));
                 }
             }
             else if (item.find("MOVIEOFFSET") == 0) {
@@ -211,7 +211,7 @@ void TJAParser::get_metadata() {
                 if (data_str.empty()) {
                     metadata.preimage = std::filesystem::path();
                 } else {
-                    metadata.preimage = file_path.parent_path() / trim(data_str);
+                    metadata.preimage = file_path.parent_path() / fs::u8path(trim(data_str));
                 }
             }
             else if (item.find("SCENEPRESET") == 0) {

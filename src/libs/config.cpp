@@ -175,7 +175,7 @@ static std::vector<fs::path> parsePathArray(const toml::array& arr) {
     std::vector<fs::path> result;
     for (const auto& elem : arr) {
         if (elem.is_string()) {
-            result.push_back(fs::path(elem.as_string()->get()));
+            result.push_back(fs::u8path(elem.as_string()->get()));
         }
     }
     return result;
