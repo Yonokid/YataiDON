@@ -2,7 +2,12 @@
 
 EntryPlayer::EntryPlayer(PlayerNum player_num, int side, BoxManager* box_manager)
     : player_num(player_num), side(side), box_manager(box_manager) {
-    NameplateConfig plate_info = global_data.config->nameplate_1p;
+    NameplateConfig plate_info;
+    if (player_num == PlayerNum::P2) {
+        plate_info = global_data.config->nameplate_2p;
+    } else {
+        plate_info = global_data.config->nameplate_1p;
+    }
     nameplate = std::make_unique<Nameplate>(
         plate_info.name,
         plate_info.title,

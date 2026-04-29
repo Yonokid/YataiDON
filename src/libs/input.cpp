@@ -64,7 +64,6 @@ std::unordered_map<int, bool> previous_key_states;
 std::unordered_map<int, bool> previous_gamepad_states;
 
 bool is_input_key_pressed(const std::vector<int>& keys, const std::vector<int>& gamepad_buttons) {
-    if (global_data.input_locked) return false;
 
     for (int key : keys) {
         if (check_key_pressed(key)) return true;
@@ -80,7 +79,6 @@ bool is_input_key_pressed(const std::vector<int>& keys, const std::vector<int>& 
 }
 
 bool is_l_don_pressed(PlayerNum player_num) {
-    if (global_data.input_locked) return false;
     std::vector<int> keys;
     if (player_num == PlayerNum::ALL) {
         keys = global_data.config->keys_1p.left_don;
@@ -99,7 +97,6 @@ bool is_l_don_pressed(PlayerNum player_num) {
 }
 
 bool is_r_don_pressed(PlayerNum player_num) {
-    if (global_data.input_locked) return false;
     std::vector<int> keys;
     if (player_num == PlayerNum::ALL) {
         keys = global_data.config->keys_1p.right_don;
@@ -118,7 +115,6 @@ bool is_r_don_pressed(PlayerNum player_num) {
 }
 
 bool is_l_kat_pressed(PlayerNum player_num) {
-    if (global_data.input_locked) return false;
     std::vector<int> keys;
     if (player_num == PlayerNum::ALL) {
         keys = global_data.config->keys_1p.left_kat;
@@ -137,7 +133,6 @@ bool is_l_kat_pressed(PlayerNum player_num) {
 }
 
 bool is_r_kat_pressed(PlayerNum player_num) {
-    if (global_data.input_locked) return false;
     std::vector<int> keys;
     if (player_num == PlayerNum::ALL) {
         keys = global_data.config->keys_1p.right_kat;
@@ -226,6 +221,7 @@ bool is_key_down_native(int raylib_key) {
 // Scan all keyboard keys once and push press/release events.
 // Used by the polling thread on desktop and called directly per-frame on web.
 void poll_keyboard_once() {
+    if (global_data.input_locked) return;
     static std::vector<int> local_pressed;
     static std::vector<int> local_released;
     local_pressed.clear();

@@ -270,6 +270,11 @@ void RaylibAudioEngine::set_music_volume(const std::string& name, float volume) 
     }
 }
 
+bool RaylibAudioEngine::is_music_stream_valid(const std::string& name) const {
+    auto it = music_streams.find(name);
+    return it != music_streams.end();
+}
+
 bool RaylibAudioEngine::is_music_stream_playing(const std::string& name) const {
     auto it = music_streams.find(name);
     if (it != music_streams.end()) {

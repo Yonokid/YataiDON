@@ -29,7 +29,9 @@ void SongBox::refresh_scores() {
 void SongBox::reset() {
     BaseBox::reset();
     diff_fade_in = (FadeAnimation*)tex.get_animation(12);
-    audio->unload_music_stream("preview");
+    if (audio->is_music_stream_valid("preview")) {
+        audio->unload_music_stream("preview");
+    }
     music_playing = false;
     score_history.reset();
     box_opened_at = 0.0;
@@ -71,8 +73,10 @@ void SongBox::update(double current_time) {
         music_playing = true;
         audio->stop_sound("bgm");
         audio->load_music_stream(parser.metadata.wave, "preview");
-        audio->play_music_stream("preview", "music");
-        audio->seek_music_stream("preview", parser.metadata.demostart);
+        if (audio->is_music_stream_valid("preview")) {
+            audio->play_music_stream("preview", "music");
+            audio->seek_music_stream("preview", parser.metadata.demostart);
+        }
     }
 
     if (!score_history) {
@@ -97,8 +101,10 @@ void SongBox::close_box() {
     BaseBox::close_box();
     box_opened_at = 0.0;
     if (music_playing) {
-        audio->stop_music_stream("preview");
-        audio->unload_music_stream("preview");
+        if (audio->is_music_stream_valid("preview")) {
+            audio->stop_music_stream("preview");
+            audio->unload_music_stream("preview");
+        }
         audio->play_sound("bgm", "music");
         music_playing = false;
     }

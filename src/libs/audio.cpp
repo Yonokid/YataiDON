@@ -831,6 +831,13 @@ void AudioEngine::set_music_volume(const std::string& name, float volume) {
     lock.unlock();
 }
 
+bool AudioEngine::is_music_stream_valid(const std::string& name) const {
+    lock.lock();
+    bool valid = music_streams.find(name) != music_streams.end();
+    lock.unlock();
+    return valid;
+}
+
 bool AudioEngine::is_music_stream_playing(const std::string& name) const {
     lock.lock();
     auto it = music_streams.find(name);

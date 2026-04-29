@@ -66,6 +66,7 @@ public:
     float get_music_time_played(const std::string& name) const override;
     void  set_music_volume(const std::string& name, float volume) override;
     bool  is_music_stream_playing(const std::string& name) const override;
+    bool is_music_stream_valid(const std::string& name) const override;
     void  stop_music_stream(const std::string& name)    override;
     void  unload_music_stream(const std::string& name)  override;
     void  unload_all_music() override;

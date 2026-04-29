@@ -59,6 +59,7 @@ public:
     virtual float get_music_time_length(const std::string& name) const = 0;
     virtual float get_music_time_played(const std::string& name) const = 0;
     virtual void  set_music_volume(const std::string& name, float volume) = 0;
+    virtual bool  is_music_stream_valid(const std::string& name) const = 0;
     virtual bool  is_music_stream_playing(const std::string& name) const = 0;
     virtual void  stop_music_stream(const std::string& name)    = 0;
     virtual void  unload_music_stream(const std::string& name)  = 0;
