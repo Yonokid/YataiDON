@@ -41,7 +41,7 @@ int calculate_base_score(const NoteList& notes) {
 }
 
 std::string test_encodings(const std::filesystem::path& file_path) {
-    std::ifstream file(file_path.c_str(), std::ios::binary);
+    std::ifstream file(file_path, std::ios::binary);
     if (!file.is_open()) {
         return "";
     }
@@ -446,7 +446,7 @@ TJAParser::notes_to_position(int diff) {
 
 std::vector<std::string> TJAParser::read_file_lines(const std::filesystem::path& path,
                                          const std::string& encoding) {
-        std::ifstream file(path.c_str(), std::ios::binary);
+        std::ifstream file(path, std::ios::binary);
         if (!file.is_open()) {
             auto u8 = path.u8string();
             throw std::runtime_error("Could not open file: " + std::string(u8.begin(), u8.end()));
