@@ -210,7 +210,7 @@ void TJAParser::get_metadata() {
                     metadata.bgmovie = std::filesystem::path();
                 } else {
                 #ifdef _WIN32
-                    metadata.bgmovie = convert_to_windows_path(file_path.parent_path(), trim(data_str)));
+                    metadata.bgmovie = convert_to_windows_path(file_path.parent_path(), trim(data_str));
                 #else
                     metadata.bgmovie = file_path.parent_path() / fs::path(trim(data_str));
                 #endif
