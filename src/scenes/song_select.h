@@ -27,6 +27,7 @@ protected:
     SongSelectState state;
 
     std::optional<Transition> game_transition;
+    std::optional<DanTransition> dan_transition;
     CoinOverlay coin_overlay;
     AllNetIcon allnet_indicator;
     std::unique_ptr<Timer> select_timer;

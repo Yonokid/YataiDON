@@ -27,6 +27,7 @@
 #include "fail_animation.h"
 #include "clear_animation.h"
 #include "fc_animation.h"
+#include "dan_gauge.h"
 #include <variant>
 
 namespace JudgePos {
@@ -55,8 +56,19 @@ public:
 
     std::optional<JudgeCounter> judge_counter;
     std::optional<Gauge> gauge;
+    DanGauge* dan_gauge = nullptr;  // non-owning; set by DanGameScreen
 
     ResultData get_result_score();
+
+    int get_good() const { return good_count; }
+    int get_ok()   const { return ok_count; }
+    int get_bad()  const { return bad_count; }
+    int get_score() const { return score; }
+    int get_max_combo() const { return max_combo; }
+    int get_total_drumroll() const { return total_drumroll; }
+    void set_is_dan(bool v) { is_dan = v; }
+
+    void reload_for_dan(std::optional<SongParser>& new_parser, int new_difficulty);
 
     void spawn_ending_anim();
 

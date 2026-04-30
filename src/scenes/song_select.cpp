@@ -20,6 +20,7 @@ void SongSelectScreen::on_screen_start() {
     state = SongSelectState::BROWSING;
 
     game_transition.reset();
+    dan_transition.reset();
 
     navigator.init(global_data.config->paths.tja_path);
     cached_stats = navigator.get_statistics(global_data.config->paths.tja_path[0]);
@@ -143,6 +144,13 @@ std::optional<Screens> SongSelectScreen::update() {
         }
     }
 
+    if (dan_transition.has_value()) {
+        dan_transition->update(current_time);
+        if (dan_transition->is_finished()) {
+            return on_screen_end(Screens::DAN_SELECT);
+        }
+    }
+
     if (ray::IsKeyPressed(global_data.config->keys.back_key)) {
         return on_screen_end(Screens::ENTRY);
     }
@@ -153,6 +161,9 @@ std::optional<Screens> SongSelectScreen::update() {
             diff_select_timer = std::make_unique<Timer>(60, current_time, [this]() { select_song((SongBox*)navigator.get_current_item()); });
         } else if (state == SongSelectState::SEARCHING) {
             search_box.emplace();
+        } else if (state == SongSelectState::DAN_SELECTED) {
+            dan_transition.emplace();
+            dan_transition->start();
         }
     }
 
@@ -200,4 +211,5 @@ void SongSelectScreen::draw() {
     if (diff_sort_selector) diff_sort_selector->draw();
     if (search_box) search_box->draw();
     if (game_transition.has_value()) game_transition->draw();
+    if (dan_transition.has_value()) dan_transition->draw();
 }

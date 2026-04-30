@@ -64,19 +64,42 @@ ResultData Player::get_result_score() {
     result.bad = bad_count;
     result.max_combo = max_combo;
     result.total_drumroll = total_drumroll;
-    if (gauge.has_value()) result.gauge_length = gauge->gauge_length;
+    if (dan_gauge) result.gauge_length = dan_gauge->gauge_length;
+    else if (gauge.has_value()) result.gauge_length = gauge->gauge_length;
     return result;
 }
 
 void Player::spawn_ending_anim() {
-    if (!gauge.has_value()) return;
-    if (!gauge->get_is_clear()) {
+    if (!gauge.has_value() && !dan_gauge) return;
+    bool is_clear = dan_gauge ? dan_gauge->get_is_clear() : gauge->get_is_clear();
+    if (!is_clear) {
         ending_anim = FailAnimation(is_2p);
     } else if (bad_count == 0) {
         ending_anim = FCAnimation(is_2p);
     } else {
         ending_anim = ClearAnimation(is_2p);
     }
+}
+
+void Player::reload_for_dan(std::optional<SongParser>& new_parser, int new_difficulty) {
+    parser = new_parser;
+    difficulty = new_difficulty;
+
+    don_notes.clear();
+    kat_notes.clear();
+    other_notes.clear();
+    draw_note_list.clear();
+    draw_note_buffer.clear();
+    branch_m.clear();
+    branch_e.clear();
+    branch_n.clear();
+    timeline.clear();
+    timeline_buffer.clear();
+    draw_judge_list.clear();
+
+    gauge.reset();
+    reset_chart();
+    gauge.reset();  // reset_chart recreates gauge; discard it for dan mode
 }
 
 void Player::handle_timeline(double ms_from_start) {
@@ -318,7 +341,9 @@ void Player::update(double ms_from_start, double current_ms, std::optional<Backg
     autoplay_manager(ms_from_start, current_ms, background);
     handle_input(ms_from_start, current_ms, background);
     nameplate.update(current_ms);
-    if (gauge.has_value()) {
+    if (dan_gauge) {
+        dan_gauge->update(current_ms);
+    } else if (gauge.has_value()) {
         gauge->update(current_ms);
         if (background.has_value()) {
             background->handle_gauge(player_num, gauge->get_progress(), gauge->get_is_clear(), gauge->get_is_rainbow());
@@ -730,7 +755,8 @@ void Player::play_note_manager(double current_ms, std::optional<Background>& bac
         combo = 0;
         if (background.has_value()) background->handle_bad(PlayerNum(1 + is_2p));
         bad_count++;
-        if (gauge.has_value()) gauge->add_bad();
+        if (dan_gauge) dan_gauge->add_bad();
+        else if (gauge.has_value()) gauge->add_bad();
 
         don_notes.pop_front();
         if (is_branch && branch_condition == "p") {
@@ -742,7 +768,8 @@ void Player::play_note_manager(double current_ms, std::optional<Background>& bac
         combo = 0;
         if (background.has_value()) background->handle_bad(PlayerNum(1 + is_2p));
         bad_count++;
-        if (gauge.has_value()) gauge->add_bad();
+        if (dan_gauge) dan_gauge->add_bad();
+        else if (gauge.has_value()) gauge->add_bad();
 
         kat_notes.pop_front();
         if (is_branch && branch_condition == "p") {
@@ -1023,7 +1050,8 @@ void Player::check_note(double ms_from_start, DrumType drum_type, double current
                 base_score_list.push_back(ScoreCounterAnimation(player_num, base_score));
             }
             note_correct(curr_note, current_ms);
-            if (gauge.has_value()) gauge->add_good();
+            if (dan_gauge) dan_gauge->add_good();
+            else if (gauge.has_value()) gauge->add_good();
             branch_condition_count++;
             branch_note_count++;
             if (background.has_value()) background->handle_good(PlayerNum(1 + is_2p));
@@ -1037,7 +1065,8 @@ void Player::check_note(double ms_from_start, DrumType drum_type, double current
                 base_score_list.push_back(ScoreCounterAnimation(player_num, 10 * std::floor(base_score / 2 / 10)));
             }
             note_correct(curr_note, current_ms);
-            if (gauge.has_value()) gauge->add_ok();
+            if (dan_gauge) dan_gauge->add_ok();
+            else if (gauge.has_value()) gauge->add_ok();
             branch_condition_count += 0.5;
             branch_note_count++;
             if (background.has_value()) background->handle_ok(PlayerNum(1 + is_2p));
@@ -1058,7 +1087,8 @@ void Player::check_note(double ms_from_start, DrumType drum_type, double current
             auto it = std::lower_bound(draw_note_buffer.begin(), draw_note_buffer.end(),
                                        note.index, [](const Note& n, int idx) { return n.index < idx; });
             if (it != draw_note_buffer.end() && *it == note) draw_note_buffer.erase(it);
-            if (gauge.has_value()) gauge->add_bad();
+            if (dan_gauge) dan_gauge->add_bad();
+            else if (gauge.has_value()) gauge->add_bad();
             if (background.has_value()) background->handle_bad(PlayerNum(1 + is_2p));
         }
     }

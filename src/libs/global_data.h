@@ -59,6 +59,20 @@ struct Modifiers {
     int subdiff = 0;
 };
 
+struct Exam {
+    std::string type;   // "gauge","combo","judgebad","judgegood","judgeperfect","hit","score"
+    int red = 0;
+    int gold = 0;
+    std::string range;  // "less" or "more"
+};
+
+struct DanSongEntry {
+    fs::path song_path;
+    int genre_index = 0;
+    int difficulty = 0;
+    int level = 0;
+};
+
 struct DanResultSong {
     int selected_difficulty = 0;
     int diff_level = 0;
@@ -84,7 +98,7 @@ struct DanResultData {
     float gauge_length = 0.0f;
     int max_combo = 0;
     std::vector<DanResultSong> songs;
-    std::vector<void*> exams;  // Using void* for Any type
+    std::vector<Exam> exams;
     std::vector<DanResultExam> exam_data;
 };
 
@@ -102,8 +116,8 @@ struct ResultData {
 struct SessionData {
     fs::path selected_song;
     std::string song_hash;
-    std::vector<std::tuple<void*, int, int, int>> selected_dan;  // Using void* for Any type
-    std::vector<void*> selected_dan_exam;  // Using void* for Exam objects
+    std::vector<DanSongEntry> selected_dan;
+    std::vector<Exam> selected_dan_exam;
     int dan_color = 0;
     int selected_difficulty = 0;
     std::string song_title = "default_title";

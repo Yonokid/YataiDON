@@ -62,7 +62,8 @@ enum SongSelectState {
     BROWSING = 0,
     SONG_SELECTED = 1,
     DIFF_SORTING = 2,
-    SEARCHING = 3
+    SEARCHING = 3,
+    DAN_SELECTED = 4
 };
 
 inline std::string branch_diff_to_string(BranchDifficulty difficulty) {

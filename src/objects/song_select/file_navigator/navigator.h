@@ -73,7 +73,6 @@ private:
     bool is_song_file(const fs::path& path);
     bool has_def_file(const std::filesystem::path& path);
     int  get_tja_count(const std::filesystem::path& path);
-    BoxDef parse_box_def(const fs::path& path);
     fs::path find_box_def_folder(const fs::path& song_path);
     void setup_back_box(const fs::path& path, bool has_children);
     bool has_child_folders(const fs::path& path);
@@ -106,6 +105,7 @@ public:
     void add_to_recent(const SongBox* song);
     void toggle_favorite(SongBox* song);
     void refresh_scores();
+    BoxDef parse_box_def(const fs::path& path);
     bool needs_diff_sort() const { return awaiting_diff_sort; }
     bool diff_sort_ready() { return awaiting_diff_sort; }
     void apply_diff_sort(int course, int level);

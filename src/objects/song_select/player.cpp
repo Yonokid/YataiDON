@@ -71,7 +71,9 @@ void SongSelectPlayer::start_background_diffs() {
 SongSelectState SongSelectPlayer::select_song() {
     audio->play_sound("don", "sound");
     BaseBox* item = navigator.get_current_item();
-    if (navigator.is_song(item)) {
+    if (navigator.is_directory(item) && item->genre_index == GenreIndex::DAN) {
+        return SongSelectState::DAN_SELECTED;
+    } else if (navigator.is_song(item)) {
         navigator.enter_diff_select();
         selected_song = true;
         SongBox* song_item = (SongBox*)item;

@@ -274,8 +274,10 @@ void ScriptManager::register_lua_bindings() {
         int index = 1;
         for (const auto& [path, id] : tex_id_map) {
             if (path.size() > prefix.size() && path.substr(0, prefix.size()) == prefix) {
-                keys[index] = path.substr(prefix.size());
-                ++index;
+                if (script_manager.tex.textures.find(id) != script_manager.tex.textures.end()) {
+                    keys[index] = path.substr(prefix.size());
+                    ++index;
+                }
             }
         }
         if (index == 1) return sol::nullopt;

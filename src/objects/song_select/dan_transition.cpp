@@ -1,11 +1,11 @@
 #include "dan_transition.h"
 
 DanTransition::DanTransition() {
-    slide_in = (MoveAnimation*)tex.get_animation(38);
     started = false;
 }
 
 void DanTransition::start() {
+    slide_in = (MoveAnimation*)tex.get_animation(38);
     slide_in->start();
     started = true;
 }

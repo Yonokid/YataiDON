@@ -32,6 +32,9 @@
 #include "scenes/song_select.h"
 #include "scenes/song_select_practice.h"
 #include "scenes/song_select_2p.h"
+#include "scenes/dan_select.h"
+#include "scenes/game_dan.h"
+#include "scenes/dan_result.h"
 #include "scenes/settings.h"
 #include "scenes/input_cali.h"
 #include "scenes/skin_viewer.h"
@@ -245,6 +248,9 @@ struct LoopState {
     std::unique_ptr<PracticeSongSelectScreen> practice_select_screen;
     std::unique_ptr<ResultScreen>            result_screen;
     std::unique_ptr<Result2PScreen>          result_2p_screen;
+    std::unique_ptr<DanSelectScreen>         dan_select_screen;
+    std::unique_ptr<DanGameScreen>           dan_game_screen;
+    std::unique_ptr<DanResultScreen>         dan_result_screen;
     std::unique_ptr<SettingsScreen>          settings_screen;
     std::unique_ptr<InputCaliScreen>         input_cali_screen;
     std::unique_ptr<SkinViewerScreen>        skin_viewer_screen;
@@ -408,6 +414,9 @@ int main(int argc, char* argv[]) {
     L.practice_select_screen = std::make_unique<PracticeSongSelectScreen>();
     L.result_screen          = std::make_unique<ResultScreen>();
     L.result_2p_screen       = std::make_unique<Result2PScreen>();
+    L.dan_select_screen      = std::make_unique<DanSelectScreen>();
+    L.dan_game_screen        = std::make_unique<DanGameScreen>();
+    L.dan_result_screen      = std::make_unique<DanResultScreen>();
     L.settings_screen        = std::make_unique<SettingsScreen>();
     L.input_cali_screen      = std::make_unique<InputCaliScreen>();
     L.skin_viewer_screen     = std::make_unique<SkinViewerScreen>();
@@ -423,6 +432,9 @@ int main(int argc, char* argv[]) {
         {Screens::PRACTICE_SELECT,  L.practice_select_screen.get()},
         {Screens::RESULT,           L.result_screen.get()},
         {Screens::RESULT_2P,        L.result_2p_screen.get()},
+        {Screens::DAN_SELECT,       L.dan_select_screen.get()},
+        {Screens::GAME_DAN,         L.dan_game_screen.get()},
+        {Screens::DAN_RESULT,       L.dan_result_screen.get()},
         {Screens::SETTINGS,         L.settings_screen.get()},
         {Screens::INPUT_CALI,       L.input_cali_screen.get()},
         {Screens::LOADING,          L.load_screen.get()},
