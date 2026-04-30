@@ -13,7 +13,7 @@ public:
     fs::path    file_path;
 
     SongParser() = default;
-    SongParser(const fs::path& path, int start_delay = 0);
+    SongParser(const fs::path& path, int start_delay = 0, PlayerNum player_num = PlayerNum::ALL);
     void get_metadata() {}
 
     std::tuple<NoteList, std::deque<NoteList>, std::deque<NoteList>, std::deque<NoteList>>

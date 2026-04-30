@@ -262,7 +262,7 @@ public:
 
     TJAParser() = default;
 
-    TJAParser(const std::filesystem::path& path, int start_delay = 0);
+    TJAParser(const std::filesystem::path& path, int start_delay = 0, PlayerNum player_num = PlayerNum::ALL);
 
     std::filesystem::path file_path;
     TJAMetadata metadata;
@@ -280,6 +280,7 @@ public:
 private:
     double current_ms;
     NoteList master_notes;
+    PlayerNum player_num;
     std::vector<std::string> data;
     std::deque<NoteList> branch_m;
     std::deque<NoteList> branch_e;

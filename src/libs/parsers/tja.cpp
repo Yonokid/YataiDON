@@ -90,8 +90,8 @@ std::string strip_comments(const std::string& code) {
     return result;
 }
 
-TJAParser::TJAParser(const std::filesystem::path& path, int start_delay)
-    : file_path(path), current_ms(static_cast<double>(start_delay)) {
+TJAParser::TJAParser(const std::filesystem::path& path, int start_delay, PlayerNum player_num)
+    : file_path(path), current_ms(static_cast<double>(start_delay)), player_num(player_num) {
 
     std::string encoding = test_encodings(file_path);
 
@@ -575,10 +575,26 @@ std::vector<std::vector<std::string>> TJAParser::data_to_notes(int diff) {
                               course_value == diff_name;
             }
             else if (target_found) {
-                if (note_start == -1 && (line == "#START")) {
-                    note_start = i + 1;
+                if (player_num == PlayerNum::P1) {
+                    if (note_start == -1 && (line == "#START P1")) {
+                        note_start = i + 1;
+                    }
+                    if (note_start == -1 && (line == "#START")) {
+                        note_start = i + 1;
+                    }
+                } else if (player_num == PlayerNum::P2) {
+                    if (note_start == -1 && (line == "#START P2")) {
+                        note_start = i + 1;
+                    }
+                    if (note_start == -1 && (line == "#START")) {
+                        note_start = i + 1;
+                    }
+                } else {
+                    if (note_start == -1 && (line == "#START")) {
+                        note_start = i + 1;
+                    }
                 }
-                else if (line == "#END" && note_start != -1) {
+                if (line == "#END" && note_start != -1) {
                     note_end = i;
                     break;
                 }
@@ -593,6 +609,44 @@ std::vector<std::vector<std::string>> TJAParser::data_to_notes(int diff) {
                 else if (line.find("#HBSCROLL") != std::string::npos) {
                     scroll_type = ScrollType::HBSCROLL;
                     continue;
+                }
+            }
+        }
+
+        if (note_start == -1) {
+            for (size_t i = 0; i < data.size(); i++) {
+                const std::string& line = data[i];
+                if (target_found) {
+                    if (line == "#START P1") {
+                        note_start = i + 1;
+                        break;
+                    }
+                }
+                if (line.find("COURSE:") == 0) {
+                    std::string course_value = to_lower(trim(line.substr(7)));
+                    bool is_digit = !course_value.empty() &&
+                                   std::all_of(course_value.begin(), course_value.end(), ::isdigit);
+                    target_found = (is_digit && std::stoi(course_value) == diff) ||
+                                  course_value == diff_name;
+                }
+            }
+        }
+
+        if (note_start == -1) {
+            for (size_t i = 0; i < data.size(); i++) {
+                const std::string& line = data[i];
+                if (target_found) {
+                    if (line == "#START P2") {
+                        note_start = i + 1;
+                        break;
+                    }
+                }
+                if (line.find("COURSE:") == 0) {
+                    std::string course_value = to_lower(trim(line.substr(7)));
+                    bool is_digit = !course_value.empty() &&
+                                   std::all_of(course_value.begin(), course_value.end(), ::isdigit);
+                    target_found = (is_digit && std::stoi(course_value) == diff) ||
+                                  course_value == diff_name;
                 }
             }
         }
