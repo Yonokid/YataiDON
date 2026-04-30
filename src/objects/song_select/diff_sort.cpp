@@ -151,15 +151,15 @@ void DiffSortSelect::draw_statistics() {
             std::string counter;
             if (selected_box == 5) {
                 if (j + 1 == 1) {
-                    counter = std::to_string(statistics[prev_diff][prev_level].clears);
-                } else {
                     counter = std::to_string(statistics[prev_diff][prev_level].full_combos);
+                } else {
+                    counter = std::to_string(statistics[prev_diff][prev_level].clears);
                 }
             } else {
                 if (j + 1 == 1) {
-                    counter = std::to_string(statistics[selected_box][selected_level].clears);
-                } else {
                     counter = std::to_string(statistics[selected_box][selected_level].full_combos);
+                } else {
+                    counter = std::to_string(statistics[selected_box][selected_level].clears);
                 }
             }
 
@@ -192,9 +192,9 @@ void DiffSortSelect::draw_statistics() {
 
         for (int j = 0; j < 2; j++) {
             if (j + 1 == 1) {
-                counter = std::to_string(diff_sort_sum_stat[selected_box][1]);
-            } else {
                 counter = std::to_string(diff_sort_sum_stat[selected_box][2]);
+            } else {
+                counter = std::to_string(diff_sort_sum_stat[selected_box][1]);
             }
             margin = tex.skin_config[SC::DIFF_SORT_MARGIN_1].x;
             total_width = counter.size() * margin;

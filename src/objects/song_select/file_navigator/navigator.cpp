@@ -230,6 +230,9 @@ void Navigator::parse_song_list(const fs::path& path, BoxDef box_def, bool inlin
         std::stringstream ss(line);
         std::string field;
         while (std::getline(ss, field, '|')) fields.push_back(field);
+        if (!line.empty() && line.back() == '|') {
+            fields.push_back("");
+        }
         if (fields.size() < 3) { out_lines.push_back(line); continue; }
 
         std::string hash     = fields[0];
@@ -245,12 +248,14 @@ void Navigator::parse_song_list(const fs::path& path, BoxDef box_def, bool inlin
             auto song_path_opt = find_song_by_title(title, subtitle);
             if (!song_path_opt) {
                 out_lines.push_back(line);
+                spdlog::warn("No song found for: {} | {}", title, subtitle);
                 continue;
             }
             final_path = *song_path_opt;
 
             std::string correct_hash = scores_manager.get_single_hash(final_path);
             out_lines.push_back(correct_hash + "|" + title + "|" + subtitle);
+            spdlog::info("Found song: {} | {} with hash {}", title, subtitle, correct_hash);
             needs_rewrite = true;
         }
 
@@ -1200,12 +1205,14 @@ void replace_all(std::string& str, const std::string& from, const std::string& t
 }
 
 std::string normalize_title(std::string s) {
-    s.erase(std::remove_if(s.begin(), s.end(), ::isspace), s.end());
-
     replace_all(s, "-New Audio-", "");
     replace_all(s, "-新曲-", "");
     replace_all(s, "-Old Audio-", "");
     replace_all(s, "-旧曲-", "");
+
+    s.erase(std::remove_if(s.begin(), s.end(), [](unsigned char c) {
+        return !std::isalnum(c);
+    }), s.end());
 
     std::transform(s.begin(), s.end(), s.begin(), ::tolower);
 
@@ -1226,6 +1233,20 @@ std::optional<fs::path> Navigator::find_song_by_title(const std::string& title, 
     // Fallback: title only
     for (auto& [key, path] : song_files) {
         if (normalize_title(key.first) == norm_title) {
+            return path;
+        }
+    }
+
+    for (auto& [key, path] : song_files) {
+        std::string indexed_title = normalize_title(key.first);
+
+        // Check if norm_title is inside indexed_title or vice-versa
+        if (indexed_title.find(norm_title) != std::string::npos ||
+            norm_title.find(indexed_title) != std::string::npos) {
+
+            // Safety: Don't match tiny fragments like "a" or "the"
+            if (norm_title.length() < 3 && indexed_title != norm_title) continue;
+
             return path;
         }
     }
