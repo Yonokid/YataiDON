@@ -122,16 +122,16 @@ TJAParser::TJAParser(const std::filesystem::path& path, int start_delay)
     branch_n = std::deque<NoteList>();
 }
 
-fs::path convert_to_windows_path(fs::path path) {
+fs::path convert_to_windows_path(fs::path parent_path, std::string path_str) {
     #ifdef _WIN32
     // data_str is raw Shift-JIS bytes, convert to wide string
-    int wlen = MultiByteToWideChar(932, 0, path.u8string().c_str(), -1, nullptr, 0);
+    int wlen = MultiByteToWideChar(932, 0, path_str.c_str(), -1, nullptr, 0);
     std::wstring wide(wlen, 0);
-    MultiByteToWideChar(932, 0, path.u8string().c_str(), -1, wide.data(), wlen);
-    fs::path result_path = path.parent_path() / wide;
+    MultiByteToWideChar(932, 0, path_str.c_str(), -1, wide.data(), wlen);
+    fs::path result_path = parent_path / wide;
     return result_path;
     #else
-    return path;
+    return fs::path(path_str);
     #endif
 }
 
@@ -179,7 +179,7 @@ void TJAParser::get_metadata() {
                 std::string data_str = trim(split_after_colon(item));
 
             #ifdef _WIN32
-                fs::path wave_path = convert_to_windows_path(file_path.parent_path() / data_str);
+                fs::path wave_path = convert_to_windows_path(file_path, data_str);
             #else
                 fs::path wave_path = file_path.parent_path() / data_str;
             #endif
@@ -210,7 +210,7 @@ void TJAParser::get_metadata() {
                     metadata.bgmovie = std::filesystem::path();
                 } else {
                 #ifdef _WIN32
-                    metadata.bgmovie = convert_to_windows_path(file_path.parent_path() / fs::path(trim(data_str)));
+                    metadata.bgmovie = convert_to_windows_path(file_path.parent_path(), trim(data_str)));
                 #else
                     metadata.bgmovie = file_path.parent_path() / fs::path(trim(data_str));
                 #endif
@@ -231,7 +231,7 @@ void TJAParser::get_metadata() {
                     metadata.preimage = std::filesystem::path();
                 } else {
                     #ifdef _WIN32
-                    metadata.preimage = convert_to_windows_path(file_path.parent_path() / fs::path(trim(data_str)));
+                    metadata.preimage = convert_to_windows_path(file_path.parent_path(), trim(data_str));
                     #else
                     metadata.preimage = file_path.parent_path() / fs::path(trim(data_str));
                     #endif
