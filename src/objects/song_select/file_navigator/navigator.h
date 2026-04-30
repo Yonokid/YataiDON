@@ -118,6 +118,8 @@ public:
     BaseBox* get_current_item();
     Statistics get_statistics(const fs::path& path);
 
+    std::optional<fs::path> find_song_by_title(const std::string& title, const std::string& subtitle);
+
     void move_left();
     void move_right();
     void skip_left();

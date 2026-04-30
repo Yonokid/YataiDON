@@ -471,8 +471,7 @@ std::vector<std::string> TJAParser::read_file_lines(const std::filesystem::path&
                                          const std::string& encoding) {
         std::ifstream file(path, std::ios::binary);
         if (!file.is_open()) {
-            auto u8 = path.u8string();
-            throw std::runtime_error("Could not open file: " + std::string(u8.begin(), u8.end()));
+            throw std::runtime_error("Could not open file: " + path.string());
         }
 
         if (encoding == "utf-8-sig") {

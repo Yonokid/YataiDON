@@ -236,20 +236,30 @@ void Navigator::parse_song_list(const fs::path& path, BoxDef box_def, bool inlin
         std::string title    = fields[1];
         std::string subtitle = fields[2];
 
-        fs::path song_path;
+        fs::path final_path;
+
         if (auto found = scores_manager.get_path_by_hash(hash)) {
-            song_path = *found;
+            final_path = *found;
             out_lines.push_back(line);
         } else {
-            auto it = song_files.find({title, subtitle});
-            if (it == song_files.end()) { out_lines.push_back(line); continue; }
-            song_path = it->second;
-            std::string correct_hash = scores_manager.get_single_hash(song_path);
+            auto song_path_opt = find_song_by_title(title, subtitle);
+            if (!song_path_opt) {
+                out_lines.push_back(line);
+                continue;
+            }
+            final_path = *song_path_opt;
+
+            std::string correct_hash = scores_manager.get_single_hash(final_path);
             out_lines.push_back(correct_hash + "|" + title + "|" + subtitle);
             needs_rewrite = true;
         }
 
-        auto box = std::make_unique<SongBox>(song_path, box_def, SongParser(song_path));
+        if (final_path.empty()) {
+            spdlog::error("Logic error: final_path is empty for {} | {}", title, subtitle);
+            continue;
+        }
+
+        auto box = std::make_unique<SongBox>(final_path, box_def, SongParser(final_path));
         box->preserve_order = true;
         if (songs_added > 0 && songs_added % 10 == 0) {
             BoxDef back_box_def;
@@ -282,8 +292,8 @@ void Navigator::load_current_directory_async(const fs::path path) {
     try {
         for (const fs::directory_entry& entry : fs::directory_iterator(path)) {
             if (abort_loading) break;
+            const fs::path& curr_path = entry.path();
             try {
-                const fs::path& curr_path = entry.path();
                 if (!fs::is_directory(curr_path)) {
                     if (curr_path.filename() == "song_list.txt") {
                         BoxDef entry_box_def = parse_box_def(curr_path);
@@ -681,8 +691,8 @@ void Navigator::load_songs_inline_async(const fs::path path, BoxDef box_def) {
     try {
         for (const fs::directory_entry& entry : fs::directory_iterator(path)) {
             if (abort_loading) break;
+            const fs::path& curr_path = entry.path();
             try {
-                const fs::path& curr_path = entry.path();
                 if (!fs::is_directory(curr_path)) {
                     if (curr_path.filename() == "song_list.txt") {
                         parse_song_list(curr_path, box_def, true);
@@ -706,7 +716,7 @@ void Navigator::load_songs_inline_async(const fs::path path, BoxDef box_def) {
                     if (ec) { ec.clear(); }
                 }
             } catch (const std::exception& e) {
-                spdlog::warn("Skipping entry: {}", e.what());
+                spdlog::warn("Skipping entry: {}, {}", e.what(), curr_path.string());
             }
         }
     } catch (const fs::filesystem_error& e) {
@@ -1177,6 +1187,50 @@ Statistics Navigator::get_statistics(const fs::path& path) {
     }
 
     return stats;
+}
+
+void replace_all(std::string& str, const std::string& from, const std::string& to) {
+    if (from.empty()) return;
+
+    size_t start_pos = 0;
+    while ((start_pos = str.find(from, start_pos)) != std::string::npos) {
+        str.replace(start_pos, from.length(), to);
+        start_pos += to.length();
+    }
+}
+
+std::string normalize_title(std::string s) {
+    s.erase(std::remove_if(s.begin(), s.end(), ::isspace), s.end());
+
+    replace_all(s, "-New Audio-", "");
+    replace_all(s, "-新曲-", "");
+    replace_all(s, "-Old Audio-", "");
+    replace_all(s, "-旧曲-", "");
+
+    std::transform(s.begin(), s.end(), s.begin(), ::tolower);
+
+    return s;
+}
+
+std::optional<fs::path> Navigator::find_song_by_title(const std::string& title, const std::string& subtitle) {
+    std::string norm_title = normalize_title(title);
+    std::string norm_subtitle = normalize_title(subtitle);
+
+    for (auto& [key, path] : song_files) {
+        if (normalize_title(key.first) == norm_title &&
+            normalize_title(key.second) == norm_subtitle) {
+            return path;
+        }
+    }
+
+    // Fallback: title only
+    for (auto& [key, path] : song_files) {
+        if (normalize_title(key.first) == norm_title) {
+            return path;
+        }
+    }
+
+    return std::nullopt;
 }
 
 Navigator navigator;
