@@ -179,7 +179,7 @@ void TJAParser::get_metadata() {
                 std::string data_str = trim(split_after_colon(item));
 
             #ifdef _WIN32
-                fs::path wave_path = convert_to_windows_path(file_path, data_str);
+                fs::path wave_path = convert_to_windows_path(file_path.parent_path(), data_str);
             #else
                 fs::path wave_path = file_path.parent_path() / data_str;
             #endif
