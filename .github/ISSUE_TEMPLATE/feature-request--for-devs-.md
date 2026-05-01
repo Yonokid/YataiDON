@@ -1,5 +1,5 @@
 ---
-name: Feature request (for Devs)
+name: Feature Request (for Devs)
 about: Suggest an idea for this simulator (for the codebase or backend)
 title: ''
 labels: Dev Feature, enhancement
