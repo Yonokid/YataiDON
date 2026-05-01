@@ -93,7 +93,7 @@ std::string strip_comments(const std::string& code) {
 TJAParser::TJAParser(const std::filesystem::path& path, int start_delay, PlayerNum player_num)
     : file_path(path), current_ms(static_cast<double>(start_delay)), player_num(player_num) {
 
-    std::string encoding = test_encodings(file_path);
+    encoding = test_encodings(file_path);
 
     std::vector<std::string> lines = read_file_lines(file_path, encoding);
 
@@ -122,14 +122,13 @@ TJAParser::TJAParser(const std::filesystem::path& path, int start_delay, PlayerN
     branch_n = std::deque<NoteList>();
 }
 
-fs::path convert_to_windows_path(fs::path parent_path, std::string path_str) {
+fs::path convert_to_windows_path(fs::path parent_path, std::string path_str, const std::string& encoding) {
     #ifdef _WIN32
-    // data_str is raw Shift-JIS bytes, convert to wide string
-    int wlen = MultiByteToWideChar(932, 0, path_str.c_str(), -1, nullptr, 0);
+    int codepage = (encoding.find("utf-8") != std::string::npos) ? 65001 : 932;
+    int wlen = MultiByteToWideChar(codepage, 0, path_str.c_str(), -1, nullptr, 0);
     std::wstring wide(wlen, 0);
-    MultiByteToWideChar(932, 0, path_str.c_str(), -1, wide.data(), wlen);
-    fs::path result_path = parent_path / wide;
-    return result_path;
+    MultiByteToWideChar(codepage, 0, path_str.c_str(), -1, wide.data(), wlen);
+    return parent_path / wide;
     #else
     return fs::path(path_str);
     #endif
@@ -179,7 +178,7 @@ void TJAParser::get_metadata() {
                 std::string data_str = trim(split_after_colon(item));
 
             #ifdef _WIN32
-                fs::path wave_path = convert_to_windows_path(file_path.parent_path(), data_str);
+                fs::path wave_path = convert_to_windows_path(file_path.parent_path(), data_str, encoding);
             #else
                 fs::path wave_path = file_path.parent_path() / data_str;
             #endif
@@ -210,7 +209,7 @@ void TJAParser::get_metadata() {
                     metadata.bgmovie = std::filesystem::path();
                 } else {
                 #ifdef _WIN32
-                    metadata.bgmovie = convert_to_windows_path(file_path.parent_path(), trim(data_str));
+                    metadata.bgmovie = convert_to_windows_path(file_path.parent_path(), trim(data_str), encoding);
                 #else
                     metadata.bgmovie = file_path.parent_path() / fs::path(trim(data_str));
                 #endif
@@ -231,7 +230,7 @@ void TJAParser::get_metadata() {
                     metadata.preimage = std::filesystem::path();
                 } else {
                     #ifdef _WIN32
-                    metadata.preimage = convert_to_windows_path(file_path.parent_path(), trim(data_str));
+                    metadata.preimage = convert_to_windows_path(file_path.parent_path(), trim(data_str), encoding);
                     #else
                     metadata.preimage = file_path.parent_path() / fs::path(trim(data_str));
                     #endif

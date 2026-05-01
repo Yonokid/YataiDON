@@ -379,16 +379,16 @@ std::string AudioEngine::path_to_string(const fs::path& path) const {
 
 std::string AudioEngine::load_sound(const fs::path& file_path, const std::string& name) {
     try {
-        std::string path_str = path_to_string(file_path);
-
         SF_INFO file_info;
         std::memset(&file_info, 0, sizeof(SF_INFO));
 
-        SNDFILE* file = sf_open(path_str.c_str(), SFM_READ, &file_info);
+        SNDFILE* file = nullptr;
+        #ifdef _WIN32
+        file = sf_wchar_open(file_path.wstring().c_str(), SFM_READ, &file_info);
+        #endif
 
         if (!file) {
-            // Try UTF-8 encoding as fallback
-            path_str = file_path.string();
+            std::string path_str = path_to_string(file_path);
             file = sf_open(path_str.c_str(), SFM_READ, &file_info);
         }
 
@@ -606,21 +606,16 @@ void AudioEngine::seek_sound(const std::string& name, float position) {
 
 std::string AudioEngine::load_music_stream(const fs::path& file_path, const std::string& name) {
     try {
-        std::string path_str = path_to_string(file_path);
-
         SF_INFO file_info;
         std::memset(&file_info, 0, sizeof(SF_INFO));
 
-        SNDFILE* file = sf_open(path_str.c_str(), SFM_READ, &file_info);
-
+        SNDFILE* file = nullptr;
         #ifdef _WIN32
-        if (!file) {
-            file = sf_wchar_open(file_path.wstring().c_str(), SFM_READ, &file_info);
-        }
+        file = sf_wchar_open(file_path.wstring().c_str(), SFM_READ, &file_info);
         #endif
 
         if (!file) {
-            path_str = file_path.string();
+            std::string path_str = path_to_string(file_path);
             file = sf_open(path_str.c_str(), SFM_READ, &file_info);
         }
 

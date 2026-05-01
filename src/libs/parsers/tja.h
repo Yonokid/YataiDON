@@ -281,6 +281,7 @@ private:
     double current_ms;
     NoteList master_notes;
     PlayerNum player_num;
+    std::string encoding;
     std::vector<std::string> data;
     std::deque<NoteList> branch_m;
     std::deque<NoteList> branch_e;
