@@ -613,16 +613,16 @@ std::string AudioEngine::load_music_stream(const fs::path& file_path, const std:
 
         SNDFILE* file = sf_open(path_str.c_str(), SFM_READ, &file_info);
 
-        if (!file) {
-            path_str = file_path.string();
-            file = sf_open(path_str.c_str(), SFM_READ, &file_info);
-        }
-
         #ifdef _WIN32
         if (!file) {
             file = sf_wchar_open(path_str.c_str(), SFM_READ, &file_info);
         }
         #endif
+
+        if (!file) {
+            path_str = file_path.string();
+            file = sf_open(path_str.c_str(), SFM_READ, &file_info);
+        }
 
         if (!file) {
             spdlog::error("Failed to open music file: {} - {}", file_path.string(), sf_strerror(NULL));
