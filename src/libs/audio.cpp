@@ -615,7 +615,7 @@ std::string AudioEngine::load_music_stream(const fs::path& file_path, const std:
 
         #ifdef _WIN32
         if (!file) {
-            file = sf_wchar_open(path_str.c_str(), SFM_READ, &file_info);
+            file = sf_wchar_open(path_str.wstring().c_str(), SFM_READ, &file_info);
         }
         #endif
 
