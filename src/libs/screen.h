@@ -26,7 +26,6 @@ public:
     virtual void on_screen_start() {
         try {
             tex.load_screen_textures(screen_name);
-            spdlog::info("Loaded textures for screen: {}", screen_name);
         } catch (const std::exception& e) {
             spdlog::warn("Failed to load textures for screen %s: %s",
                      screen_name.c_str(), e.what());

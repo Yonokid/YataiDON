@@ -97,7 +97,7 @@ void DanNavigator::init(const std::vector<fs::path>& song_paths) {
 
                     int tn = total_notes_for(songs);
                     boxes.push_back(std::make_unique<DanBox>(json_path, title, color, songs, exams, tn));
-                    spdlog::info("DanNavigator: loaded '{}'", title);
+                    spdlog::debug("DanNavigator: loaded '{}'", title);
                 } catch (const std::exception& ex) {
                     spdlog::warn("DanNavigator: error loading {}: {}", json_path.string(), ex.what());
                 }

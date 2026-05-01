@@ -330,7 +330,7 @@ void TextureWrapper::load_folder(const std::string& screen_name, const std::stri
                 }
             }
 
-            spdlog::info("Textures loaded from folder: {}", folder.string());
+            spdlog::debug("Textures loaded from folder: {}", folder.string());
 
         } catch (const std::exception& e) {
             spdlog::error("Failed to load textures from folder {}: {}",
