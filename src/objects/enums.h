@@ -27,7 +27,8 @@ enum class Screens {
     DEV_MENU,
     LOADING,
     INPUT_CALI,
-    SKIN_VIEWER
+    SKIN_VIEWER,
+    SANDBOX
 };
 
 enum class DrumType {
@@ -97,7 +98,7 @@ inline std::string screens_to_string(Screens screen) {
         "LOADING",
         "INPUT_CALI",
         "SKIN_VIEWER",
-        "LOADING",
+        "SANDBOX",
         "LOADING",
         "LOADING",
         "LOADING",

@@ -457,15 +457,15 @@ void TextureWrapper::draw_texture(uint32_t id, const DrawTextureParams& params) 
         const float scaled_half_height = (height * params.scale) * 0.5f;
 
         dest_rect = ray::Rectangle{
-            base_x + half_width - scaled_half_width + params.x,
-            base_y + half_height - scaled_half_height + params.y,
+            base_x + draw_offset_x + half_width - scaled_half_width + params.x,
+            base_y + draw_offset_y + half_height - scaled_half_height + params.y,
             tex_obj->x2[params.index] * params.scale + params.x2,
             tex_obj->y2[params.index] * params.scale + params.y2
         };
     } else {
         dest_rect = ray::Rectangle{
-            base_x + params.x,
-            base_y + params.y,
+            base_x + draw_offset_x + params.x,
+            base_y + draw_offset_y + params.y,
             tex_obj->x2[params.index] * params.scale + params.x2,
             tex_obj->y2[params.index] * params.scale + params.y2
         };

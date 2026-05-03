@@ -14,7 +14,7 @@ ClearAnimation::ClearAnimation(bool is_2p)
     bachio_move_out->start();
 
     for (int i = 0; i < 5; i++) {
-        FadeAnimation* fade = new FadeAnimation(100, 1.0f, false, false, 0.0f, i * 50);
+        FadeAnimation* fade = new FadeAnimation(100, 0.0f, false, false, 1.0f, i * 50);
         fade->start();
         clear_separate_fade_in.push_back(fade);
 

@@ -38,6 +38,7 @@
 #include "scenes/settings.h"
 #include "scenes/input_cali.h"
 #include "scenes/skin_viewer.h"
+#include "scenes/sandbox.h"
 
 #ifdef _WIN32
     #include <windows.h>
@@ -254,6 +255,7 @@ struct LoopState {
     std::unique_ptr<SettingsScreen>          settings_screen;
     std::unique_ptr<InputCaliScreen>         input_cali_screen;
     std::unique_ptr<SkinViewerScreen>        skin_viewer_screen;
+    std::unique_ptr<SandboxScreen>           sandbox_screen;
 };
 
 static LoopState* g_loop = nullptr;
@@ -420,6 +422,7 @@ int main(int argc, char* argv[]) {
     L.settings_screen        = std::make_unique<SettingsScreen>();
     L.input_cali_screen      = std::make_unique<InputCaliScreen>();
     L.skin_viewer_screen     = std::make_unique<SkinViewerScreen>();
+    L.sandbox_screen         = std::make_unique<SandboxScreen>();
 
     L.screen_mapping = {
         {Screens::ENTRY,            L.entry_screen.get()},
@@ -439,6 +442,7 @@ int main(int argc, char* argv[]) {
         {Screens::INPUT_CALI,       L.input_cali_screen.get()},
         {Screens::LOADING,          L.load_screen.get()},
         {Screens::SKIN_VIEWER,      L.skin_viewer_screen.get()},
+        {Screens::SANDBOX,          L.sandbox_screen.get()},
     };
 
     update_camera_for_window_size(L.camera, L.screen_width, L.screen_height);
