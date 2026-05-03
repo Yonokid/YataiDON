@@ -1,10 +1,6 @@
 #pragma once
-#include "../../libs/texture.h"
-#include "../../libs/scores.h"
-#include "../../libs/global_data.h"
-#include <array>
-#include <optional>
-#include <vector>
+
+#include "../../../libs/scores.h"
 
 class ScoreHistory {
 public:

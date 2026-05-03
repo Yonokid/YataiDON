@@ -1,7 +1,6 @@
 #pragma once
 
 #include "../../libs/animation.h"
-#include "../../libs/texture.h"
 #include "../../libs/parsers/tja.h"
 
 class GaugeHitEffect {

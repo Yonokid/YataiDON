@@ -1,9 +1,7 @@
 #pragma once
 
+#include "../../libs/global_data.h"
 #include "../../libs/animation.h"
-#include "../../libs/texture.h"
-#include "../../libs/ray.h"
-#include "../enums.h"
 
 class ScoreCounterAnimation {
 private:

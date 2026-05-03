@@ -1,6 +1,5 @@
 #pragma once
 
-#include "../../libs/texture.h"
 #include "../../libs/text.h"
 
 class Transition {

@@ -14,8 +14,6 @@
 #include "../game/clear_animation.h"
 #include "../game/fail_animation.h"
 
-// ─── Existing fixtures ────────────────────────────────────────────────────────
-
 struct JudgmentFixture : public SandboxScreen::Fixture {
     int  type_idx = 0;
     bool big      = false;

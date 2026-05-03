@@ -1,4 +1,5 @@
 #include "audio_engine.h"
+#include <spdlog/spdlog.h>
 
 std::unique_ptr<IAudioEngine> audio;
 

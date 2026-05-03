@@ -1,4 +1,7 @@
 #include "title.h"
+#include "../libs/global_data.h"
+#include "../libs/input.h"
+#include <random>
 
 void TitleScreen::on_screen_start() {
     Screen::on_screen_start();

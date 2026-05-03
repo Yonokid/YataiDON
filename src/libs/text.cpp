@@ -1,6 +1,5 @@
 #include "text.h"
-#include "raylib.h"
-
+#include <math.h>
 
 FontManager::FontManager() {}
 
@@ -175,7 +174,6 @@ static bool in_rotate_set(const std::string& s) {
     };
     return rotate_set.count(s) > 0;
 }
-
 
 OutlinedText::OutlinedText(std::string text, int font_size,
                            ray::Color color, ray::Color outline_color,

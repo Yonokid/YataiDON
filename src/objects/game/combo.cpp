@@ -1,4 +1,6 @@
 #include "combo.h"
+#include "../../libs/texture.h"
+#include <math.h>
 
 Combo::Combo(int combo, double current_ms)
     : combo(combo) {

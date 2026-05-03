@@ -1,9 +1,6 @@
 #pragma once
+
 #include "../libs/screen.h"
-#include <vector>
-#include <filesystem>
-#include <optional>
-#include <string>
 
 namespace fs = std::filesystem;
 

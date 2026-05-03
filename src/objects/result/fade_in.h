@@ -1,6 +1,7 @@
 #pragma once
 
-#include "../../libs/texture.h"
+#include "../../libs/global_data.h"
+#include "../../libs/animation.h"
 
 class FadeIn {
 public:

@@ -1,4 +1,7 @@
 #include "timer.h"
+#include "../../libs/global_data.h"
+#include "../../libs/texture.h"
+#include "../../libs/audio_engine.h"
 
 Timer::Timer(int time, double current_time_ms, std::function<void()> confirm_func)
     : time(time), last_time(current_time_ms), counter(std::to_string(time)),

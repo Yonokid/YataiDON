@@ -1,6 +1,4 @@
 #include "settings_box.h"
-#include "spdlog/spdlog.h"
-
 
 std::unique_ptr<BaseOptionBox> SettingsBox::make_option_box(const rapidjson::Value& opt) {
     std::string type        = opt["type"].GetString();

@@ -1,21 +1,15 @@
 #pragma once
-#include "../../libs/texture.h"
-#include "../../libs/audio.h"
-#include "../../libs/screen.h"
-#include "../objects/global/timer.h"
-#include "../../libs/text.h"
-#include "../objects/game/transition.h"
-#include "../objects/song_select/ura_switch.h"
-#include "../objects/song_select/dan_transition.h"
-#include "../objects/global/coin_overlay.h"
-#include "../objects/global/allnet_indicator.h"
-#include "../objects/global/indicator.h"
-#include "../objects/game/song_info.h"
+
+#include "../libs/screen.h"
 #include "../objects/song_select/player.h"
+#include "../objects/song_select/dan_transition.h"
 #include "../objects/song_select/search_box.h"
-#include "../objects/song_select/diff_sort.h"
-#include "../objects/song_select/file_navigator/navigator.h"
-#include "../objects/song_select/file_navigator/color_utils.h"
+#include "../objects/global/allnet_indicator.h"
+#include "../objects/global/coin_overlay.h"
+#include "../objects/global/timer.h"
+#include "../objects/global/indicator.h"
+#include "../objects/game/transition.h"
+#include "../objects/game/song_info.h"
 
 class SongSelectScreen : public Screen {
 protected:

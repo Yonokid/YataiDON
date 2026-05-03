@@ -1,4 +1,6 @@
 #include "warning_screen.h"
+#include "../../libs/texture.h"
+#include "../../libs/audio_engine.h"
 
 WarningX::WarningX() {
     resize = (TextureResizeAnimation*)tex.get_animation(0);
@@ -28,7 +30,6 @@ void WarningX::draw_bg() {
 void WarningX::draw_fg() {
     tex.draw_texture(WARNING::X_RED, {.scale=(float)resize->attribute, .center=true, .fade=fade_in->attribute});
 }
-
 
 WarningBachiHit::WarningBachiHit() {
     resize = (TextureResizeAnimation*)tex.get_animation(3);

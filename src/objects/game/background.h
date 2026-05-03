@@ -1,8 +1,5 @@
-#include "../../libs/texture.h"
-#include "../../libs/animation.h"
-#include "../../libs/script.h"
+#include "../../libs/global_data.h"
 #include <sol/sol.hpp>
-#include <spdlog/spdlog.h>
 
 class Background {
 private:

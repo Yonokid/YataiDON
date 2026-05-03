@@ -1,4 +1,5 @@
 #include "score_history.h"
+#include "../../../libs/texture.h"
 
 ScoreHistory::ScoreHistory(const std::array<std::optional<Score>, 5>& scores, double current_ms)
     : last_ms(current_ms)

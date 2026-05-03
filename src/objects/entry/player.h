@@ -1,12 +1,8 @@
 #pragma once
-#include "../../libs/config.h"
-#include "../../libs/texture.h"
-#include "../../libs/animation.h"
-#include "../../libs/audio.h"
-#include "../../libs/input.h"
+
+#include "box_manager.h"
 #include "../global/nameplate.h"
 #include "../global/indicator.h"
-#include "box_manager.h"
 
 class EntryPlayer {
 private:

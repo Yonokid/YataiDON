@@ -1,4 +1,6 @@
 #include "scores.h"
+#include "parsers/song_parser.h"
+#include <numeric>
 
 ScoresManager::ScoresManager(const fs::path& db_path) {
     sqlite3_open(db_path.string().c_str(), &db_fsd);

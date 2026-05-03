@@ -2,17 +2,10 @@
 
 #include "../libs/screen.h"
 #include "../libs/video.h"
-#include "../libs/text.h"
-#include "../libs/texture.h" // IWYU pragma: keep
-#include "../input.h" // IWYU pragma: keep
-#include "../audio.h" // IWYU pragma: keep
+#include "../objects/title/warning_screen.h"
 #include "../objects/global/allnet_indicator.h"
 #include "../objects/global/coin_overlay.h"
 #include "../objects/global/entry_overlay.h"
-
-#include <random> // IWYU pragma: keep
-
-#include "../objects/title/warning_screen.h"
 
 enum class TitleState {
     OP_VIDEO,

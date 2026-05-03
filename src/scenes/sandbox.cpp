@@ -1,7 +1,5 @@
 #include "sandbox.h"
-#include "../libs/animation.h"
 #include "../objects/sandbox/fixtures.h"
-#include <string>
 
 static constexpr int SB_PANEL_W  = 220;
 static constexpr int SB_ITEM_H   = 32;

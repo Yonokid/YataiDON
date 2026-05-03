@@ -1,11 +1,9 @@
 #include "navigator.h"
-#include "../../../libs/parsers/song_parser.h"
-#include <filesystem>
-#include <algorithm>
+#include "box_back.h"
+#include "color_utils.h"
 #include <random>
-#include <fstream>
-#include <set>
-#include <spdlog/spdlog.h>
+
+namespace ch = std::chrono;
 
 Navigator::Navigator() {
 }

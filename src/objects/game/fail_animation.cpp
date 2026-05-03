@@ -1,4 +1,6 @@
 #include "fail_animation.h"
+#include "../../libs/texture.h"
+#include "../../libs/audio_engine.h"
 
 FailAnimation::FailAnimation(bool is_2p)
     : is_2p(is_2p), name("in"), frame(0) {

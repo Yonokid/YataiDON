@@ -1,12 +1,10 @@
 #pragma once
 
-#include "../../libs/texture.h"
-#include "../../libs/audio.h"
 #include "../global/nameplate.h"
-#include "result_crown.h"
-#include "bottom_characters.h"
 #include "../enums.h"
+#include "bottom_characters.h"
 #include "gauge.h"
+#include "result_crown.h"
 #include "high_score_indicator.h"
 #include "score_animator.h"
 

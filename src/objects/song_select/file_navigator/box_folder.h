@@ -1,8 +1,7 @@
 #pragma once
+
 #include "box_base.h"
-#include "../../libs/text.h"
-#include "../../libs/audio.h"
-#include "../../libs/scores.h"
+#include "../../../libs/global_data.h"
 
 class FolderBox : public BaseBox {
 public:

@@ -1,4 +1,5 @@
 #include "box_base.h"
+#include "color_utils.h"
 
 BaseBox::BaseBox(const fs::path& path, const BoxDef& box_def)
     : path(path), texture_index(box_def.texture_index),

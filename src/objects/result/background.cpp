@@ -1,4 +1,5 @@
 #include "background.h"
+#include "../../libs/texture.h"
 
 ResultBackground::ResultBackground(PlayerNum player_num, float width) : player_num(player_num), width(width) {}
 

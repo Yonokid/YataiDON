@@ -1,9 +1,9 @@
 #pragma once
-#include "tja.h"
-#include "osu.h"
-#include <variant>
 
-// Unified parser type that handles both .tja and .osu files.
+#include <variant>
+#include "osu.h"
+#include "tja.h"
+
 // Exposes the same public interface as TJAParser so existing code
 // can be updated by substituting SongParser for TJAParser.
 class SongParser {

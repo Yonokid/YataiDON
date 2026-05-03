@@ -1,10 +1,8 @@
 #include "settings.h"
-#include <fstream>
-#include <sstream>
-#include <rapidjson/document.h>
+#include "../libs/audio.h"
+#include "../libs/input.h"
 #include <rapidjson/istreamwrapper.h>
 
-// Exposed from config.cpp (non-static).
 void save_config(const Config& config);
 
 void SettingsScreen::on_screen_start() {

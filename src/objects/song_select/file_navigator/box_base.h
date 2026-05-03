@@ -1,10 +1,7 @@
 #pragma once
-#include "../../libs/texture.h" // IWYU pragma: keep
-#include "../../libs/audio.h" // IWYU pragma: keep
+
 #include "../../libs/text.h"
-#include "../../libs/animation.h"
 #include "../../enums.h"
-#include "color_utils.h" // IWYU pragma: keep
 #include "box_yellow.h"
 
 struct BoxDef {

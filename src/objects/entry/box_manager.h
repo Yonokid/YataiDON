@@ -1,10 +1,6 @@
 #pragma once
-#include "../../libs/config.h"
-#include "../../libs/texture.h"
-#include "../../libs/animation.h"
-#include "../../libs/text.h"
+
 #include "box.h"
-#include <vector>
 
 class BoxManager {
 private:

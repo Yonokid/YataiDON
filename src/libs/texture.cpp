@@ -1,4 +1,7 @@
 #include "texture.h"
+#include <rapidjson/istreamwrapper.h>
+#include <spdlog/spdlog.h>
+#include <fstream>
 
 void TextureWrapper::init(const fs::path& skin_path) {
     graphics_path = skin_path;

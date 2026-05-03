@@ -1,4 +1,5 @@
 #include "ura_switch.h"
+#include "../../libs/texture.h"
 
 UraSwitchAnimation::UraSwitchAnimation() {
     texture_change = (TextureChangeAnimation*)tex.get_animation(7);

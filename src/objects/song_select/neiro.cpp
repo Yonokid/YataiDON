@@ -1,4 +1,5 @@
 #include "neiro.h"
+#include "../../libs/audio_engine.h"
 
 NeiroSelector::NeiroSelector(PlayerNum player_num) : player_num(player_num) {
     selected_sound = global_data.hit_sound[(int)player_num];

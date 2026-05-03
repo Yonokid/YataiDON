@@ -1,8 +1,7 @@
 #pragma once
-#include "global_data.h"
-#include <spdlog/spdlog.h>
-#include <sol/sol.hpp>
+
 #include "texture.h"
+#include <sol/sol.hpp>
 
 class ScriptManager {
 private:

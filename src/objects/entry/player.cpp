@@ -1,4 +1,5 @@
 #include "player.h"
+#include "../../libs/input.h"
 
 EntryPlayer::EntryPlayer(PlayerNum player_num, int side, BoxManager* box_manager)
     : player_num(player_num), side(side), box_manager(box_manager) {

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../../libs/texture.h" // IWYU pragma: keep
+#include "../../libs/animation.h"
 
 class DanTransition {
 private:

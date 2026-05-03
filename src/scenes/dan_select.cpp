@@ -1,12 +1,8 @@
 #include "dan_select.h"
-#include "../libs/input.h"
 #include "../libs/parsers/song_parser.h"
-#include <rapidjson/document.h>
+#include "../libs/input.h"
+#include "../objects/song_select/file_navigator/navigator.h"
 #include <rapidjson/istreamwrapper.h>
-#include <fstream>
-#include <spdlog/spdlog.h>
-
-// ─── DanNavigator ────────────────────────────────────────────────────────────
 
 int DanNavigator::total_notes_for(const std::vector<DanSongEntry>& songs) {
     int total = 0;

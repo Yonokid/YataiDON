@@ -1,15 +1,8 @@
 #pragma once
 
-#include <algorithm>
-#include <string>
-#include <vector>
-#include <map>
-#include <filesystem>
-#include <fstream>
-#include <stdexcept>
 #include <toml++/toml.h>
-
-#include "ray.h"
+#include <filesystem>
+#include <spdlog/spdlog.h>
 
 namespace fs = std::filesystem;
 

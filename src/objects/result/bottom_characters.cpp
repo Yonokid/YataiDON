@@ -1,4 +1,5 @@
 #include "bottom_characters.h"
+#include "../../libs/texture.h"
 
 BottomCharacters::BottomCharacters() {
     move_up = (MoveAnimation*)tex.get_animation(7);
@@ -87,7 +88,6 @@ void BottomCharacters::draw() {
     tex.draw_texture(BOTTOM::CHARA_0, {.frame=chara_0_index, .y=y});
     tex.draw_texture(BOTTOM::CHARA_1, {.frame=chara_1_index, .y=y});
 }
-
 
 bool BottomCharacters::is_finished() {
     return move_down->is_finished;

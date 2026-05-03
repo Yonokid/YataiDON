@@ -1,7 +1,5 @@
 #pragma once
 
-#include "../../libs/texture.h" // IWYU pragma: keep
-#include "../../libs/audio.h" // IWYU pragma: keep
 #include "file_navigator/navigator.h"
 
 class DiffSortSelect {

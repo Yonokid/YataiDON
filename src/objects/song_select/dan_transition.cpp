@@ -1,4 +1,5 @@
 #include "dan_transition.h"
+#include "../../libs/texture.h"
 
 DanTransition::DanTransition() {
     started = false;

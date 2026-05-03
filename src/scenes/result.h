@@ -1,14 +1,13 @@
 #pragma once
+
 #include "../libs/screen.h"
 #include "../libs/text.h"
-#include "../libs/texture.h"
-#include "../libs/input.h"
-#include "../objects/global/allnet_indicator.h"
-#include "../objects/global/coin_overlay.h"
 #include "../objects/result/background.h"
 #include "../objects/result/player.h"
 #include "../objects/result/fade_in.h"
 #include "../objects/game/song_info.h"
+#include "../objects/global/allnet_indicator.h"
+#include "../objects/global/coin_overlay.h"
 
 class ResultScreen : public Screen {
 protected:

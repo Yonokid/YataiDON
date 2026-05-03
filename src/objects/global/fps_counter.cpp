@@ -1,4 +1,6 @@
 #include "fps_counter.h"
+#include "../../libs/texture.h"
+#include "../../libs/text.h"
 
 FPSCounter::FPSCounter() {
     lastTime = get_current_ms();

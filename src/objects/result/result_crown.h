@@ -1,7 +1,6 @@
 #pragma once
 
-#include "../../libs/texture.h"
-#include "../../libs/audio.h"
+#include "../../libs/animation.h"
 
 enum CrownType {
     CROWN_CLEAR = 0,

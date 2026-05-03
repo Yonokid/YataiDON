@@ -1,4 +1,5 @@
 #include "score_counter_animation.h"
+#include "../../libs/texture.h"
 
 ScoreCounterAnimation::ScoreCounterAnimation(PlayerNum player_num, int counter) : counter(counter) {
     direction = 1;

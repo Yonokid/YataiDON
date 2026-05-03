@@ -1,4 +1,5 @@
 #pragma once
+
 #include "result.h"
 
 class Result2PScreen : public ResultScreen {

@@ -1,14 +1,8 @@
 #pragma once
 
-#include <filesystem>
-#include <memory>
-#include <string>
-
-#include "config.h"
 #ifndef __EMSCRIPTEN__
 #include "av.h"
 #endif
-#include "spdlog/spdlog.h"
 
 namespace fs = std::filesystem;
 

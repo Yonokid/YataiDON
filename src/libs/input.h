@@ -1,11 +1,7 @@
 #pragma once
 
 #include "global_data.h"
-#include "texture.h"
-#include <mutex>
-#include <atomic>
 #ifndef __EMSCRIPTEN__
-#include <thread>
 
 extern std::atomic<bool> input_thread_running;
 extern std::thread input_thread;

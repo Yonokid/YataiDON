@@ -1,6 +1,4 @@
 #pragma once
-#include "../../libs/config.h"
-#include "../../libs/texture.h"
 
 class EntryOverlay {
 private:

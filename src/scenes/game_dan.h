@@ -1,7 +1,6 @@
 #pragma once
+
 #include "game.h"
-#include "../objects/game/dan_gauge.h"
-#include "../objects/song_select/dan_transition.h"
 
 struct DanExamInfo {
     float   progress     = 0;
@@ -37,7 +36,7 @@ private:
     std::vector<bool> exam_failed;
     std::optional<DanInfoCache> dan_info_cache;
 
-    DanTransition dan_transition;
+    //DanTransition dan_transition;
 
     std::unique_ptr<OutlinedText> hori_name;
 

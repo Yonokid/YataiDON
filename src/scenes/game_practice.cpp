@@ -1,5 +1,4 @@
 #include "game_practice.h"
-#include "raylib.h"
 
 void PracticeGameScreen::on_screen_start() {
     GameScreen::on_screen_start();

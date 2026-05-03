@@ -1,4 +1,5 @@
 #include "input_cali.h"
+#include "../libs/input.h"
 
 static const fs::path CALI_TJA_PATH = "Songs/Calibration.tja";
 

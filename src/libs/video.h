@@ -1,7 +1,10 @@
 #pragma once
-#include "config.h"
-#include "audio.h"
-#include "texture.h"
+#include <filesystem>
+#include <optional>
+#include <array>
+#include <vector>
+#include "ray.h"
+#include "av.h"
 
 #ifdef __EMSCRIPTEN__
 
@@ -23,15 +26,6 @@ public:
 };
 
 #else  // !__EMSCRIPTEN__
-
-#include "av.h"
-
-#include <array>
-#include <filesystem>
-#include <memory>
-#include <optional>
-#include <vector>
-#include <cstdint>
 
 namespace fs = std::filesystem;
 

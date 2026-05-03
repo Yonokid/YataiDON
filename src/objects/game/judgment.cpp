@@ -1,4 +1,5 @@
 #include "judgment.h"
+#include "../../libs/texture.h"
 
 Judgment::Judgment(Judgments type, bool big)
     : type(type), big(big) {

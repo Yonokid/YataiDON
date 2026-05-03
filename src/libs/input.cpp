@@ -1,8 +1,5 @@
 #include "input.h"
-#include <unordered_map>
 #include <unordered_set>
-#include <cstring>
-#include <spdlog/spdlog.h>
 
 #ifdef _WIN32
 #include <windows.h>

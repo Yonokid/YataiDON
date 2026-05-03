@@ -1,4 +1,5 @@
 #include "diff_sort.h"
+#include "../../libs/audio_engine.h"
 
 DiffSortSelect::DiffSortSelect(Statistics statistics, int prev_diff, int prev_level) : prev_diff(prev_diff), prev_level(prev_level), statistics(statistics) {
     selected_box = -1;

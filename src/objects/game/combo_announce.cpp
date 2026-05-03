@@ -1,4 +1,6 @@
 #include "combo_announce.h"
+#include "../../libs/texture.h"
+#include "../../libs/audio_engine.h"
 
 ComboAnnounce::ComboAnnounce(int combo, double current_ms, PlayerNum player_num)
     : combo(combo), wait(current_ms), player_num(player_num),

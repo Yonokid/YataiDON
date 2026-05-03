@@ -1,4 +1,5 @@
 #include "song_select.h"
+#include "../libs/input.h"
 
 void SongSelectScreen::on_screen_start() {
     Screen::on_screen_start();

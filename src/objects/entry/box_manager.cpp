@@ -1,4 +1,5 @@
 #include "box_manager.h"
+#include "../../libs/global_data.h"
 
 BoxManager::BoxManager() : selected_box_index(0), is_2p(false) {
     box_locations = {Screens::SONG_SELECT, Screens::PRACTICE_SELECT, Screens::AI_SELECT, Screens::SETTINGS};

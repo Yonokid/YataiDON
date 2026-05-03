@@ -1,9 +1,5 @@
 #include "dan_result.h"
 #include "../libs/input.h"
-#include "../libs/global_data.h"
-#include <algorithm>
-
-// ─── DanResultGauge ──────────────────────────────────────────────────────────
 
 DanResultGauge::DanResultGauge(PlayerNum player_num, float gauge_len)
     : player_num(player_num), gauge_length(gauge_len)

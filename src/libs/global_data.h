@@ -1,6 +1,7 @@
 #pragma once
 
 #include "config.h"
+#include "ray.h"
 
 namespace fs = std::filesystem;
 

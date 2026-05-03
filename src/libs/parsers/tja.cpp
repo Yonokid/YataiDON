@@ -1,5 +1,5 @@
 #include "tja.h"
-#include "spdlog/spdlog.h"
+#include <random>
 
 double get_ms_per_measure(double bpm_val, double time_sig) {
     if (bpm_val == 0) return 0;
@@ -64,7 +64,6 @@ std::string test_encodings(const std::filesystem::path& file_path) {
 
     return "shift-jis";
 }
-
 
 std::string strip_comments(const std::string& code) {
     std::string result;

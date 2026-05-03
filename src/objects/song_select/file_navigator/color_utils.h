@@ -1,9 +1,8 @@
 #pragma once
-#include <array>
-#include <string>
-#include <optional>
-#include <map>
+
 #include "../../enums.h"
+#include "../../libs/ray.h"
+#include <optional>
 
 float rgb_to_hue(int r, int g, int b);
 float calculate_hue_shift(const ray::Color& source_rgb, const ray::Color& target_rgb);

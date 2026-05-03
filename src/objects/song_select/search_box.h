@@ -1,7 +1,7 @@
 #pragma once
-#include "../../libs/texture.h"
-#include "../../libs/audio.h"
-#include "../../libs/text.h"
+
+#include "../../libs/animation.h"
+#include "../../libs/ray.h"
 
 class SearchBox {
 private:

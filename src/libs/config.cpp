@@ -1,4 +1,6 @@
 #include "config.h"
+#include "ray.h"
+#include <algorithm>
 
 std::string getKeyString(int key_code) {
     // Handle alphanumeric keys

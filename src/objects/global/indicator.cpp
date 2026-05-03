@@ -1,4 +1,5 @@
 #include "indicator.h"
+#include "../../libs/global_data.h"
 
 Indicator::Indicator(State state) : state(state) {
     don_fade = (FadeAnimation*)global_tex.get_animation(6);

@@ -1,5 +1,5 @@
 #include "gauge.h"
-#include <algorithm>
+#include "../../libs/texture.h"
 
 Gauge::Gauge(PlayerNum player_num, int difficulty, int level, int total_notes)
     : player_num(player_num), difficulty(std::min((int)Difficulty::ONI, difficulty)),

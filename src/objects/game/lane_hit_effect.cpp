@@ -1,4 +1,5 @@
 #include "lane_hit_effect.h"
+#include "../../libs/texture.h"
 
 LaneHitEffect::LaneHitEffect(DrumType type, Judgments judgment)
             : type(type), judgment(judgment) {

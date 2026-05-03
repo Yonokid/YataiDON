@@ -1,4 +1,5 @@
 #include "background.h"
+#include "../../libs/script.h"
 
 Background::Background(PlayerNum player_num, float bpm, const std::string& scene_preset) {
     sol::state& lua = *script_manager.lua;

@@ -1,13 +1,10 @@
 #pragma once
+
 #include "../libs/screen.h"
-#include "../libs/audio.h"
-#include "../libs/config.h"
-#include "../libs/input.h"
-#include "../objects/global/indicator.h"
-#include "../objects/global/coin_overlay.h"
-#include "../objects/global/allnet_indicator.h"
 #include "../objects/settings/settings_box_manager.h"
-#include <optional>
+#include "../objects/global/allnet_indicator.h"
+#include "../objects/global/coin_overlay.h"
+#include "../objects/global/indicator.h"
 
 class SettingsScreen : public Screen {
 private:

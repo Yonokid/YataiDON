@@ -1,4 +1,5 @@
 #include "search_box.h"
+#include "../../libs/text.h"
 
 SearchBox::SearchBox() {
     current_search = "";

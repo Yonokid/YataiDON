@@ -1,44 +1,42 @@
-#include <optional>
+#include <iostream>
 #include <rlgl.h>
-#include <string>
-#include <filesystem>
-#include <clocale>
+
+#include "libs/global_data.h"
+#include "libs/audio.h"
+#include "libs/input.h"
+#include "libs/logging.h"
+#include "libs/screen.h"
+#include "libs/script.h"
+#include "libs/parsers/song_parser.h"
+
+#include "scenes/dan_result.h"
+#include "scenes/dan_select.h"
+#include "scenes/entry.h"
+#include "scenes/game.h"
+#include "scenes/game_2p.h"
+#include "scenes/game_dan.h"
+#include "scenes/game_practice.h"
+#include "scenes/input_cali.h"
+#include "scenes/loading.h"
+#include "scenes/result.h"
+#include "scenes/result_2p.h"
+#include "scenes/sandbox.h"
+#include "scenes/settings.h"
+#include "scenes/skin_viewer.h"
+#include "scenes/song_select.h"
+#include "scenes/song_select_2p.h"
+#include "scenes/song_select_practice.h"
+#include "scenes/title.h"
+
+#include "objects/global/fps_counter.h"
+
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
-#include "libs/ray.h"
-#include "libs/global_data.h"
-#include "libs/scores.h"
-#include "libs/screen.h"
-#include "libs/config.h"
-#include "libs/script.h"
-#include "libs/input.h"
-#include "libs/audio.h"
+
 #ifdef AUDIO_BACKEND_RAYLIB
 #include "libs/audio_raylib.h"
 #endif
-#include "libs/logging.h"
-#include "objects/global/fps_counter.h"
-
-#include "raylib.h"
-#include "scenes/game.h"
-#include "scenes/game_practice.h"
-#include "scenes/game_2p.h"
-#include "scenes/result.h"
-#include "scenes/result_2p.h"
-#include "scenes/title.h"
-#include "scenes/loading.h"
-#include "scenes/entry.h"
-#include "scenes/song_select.h"
-#include "scenes/song_select_practice.h"
-#include "scenes/song_select_2p.h"
-#include "scenes/dan_select.h"
-#include "scenes/game_dan.h"
-#include "scenes/dan_result.h"
-#include "scenes/settings.h"
-#include "scenes/input_cali.h"
-#include "scenes/skin_viewer.h"
-#include "scenes/sandbox.h"
 
 #ifdef _WIN32
     #include <windows.h>
@@ -162,12 +160,18 @@ Screens check_args(int argc, char* argv[]) {
             auto_play = true;
         } else if (arg == "--practice") {
             practice = true;
+        } else if (arg == "--sandbox") {
+            return Screens::SANDBOX;
+        } else if (arg == "--skin-viewer") {
+            return Screens::SKIN_VIEWER;
         } else if (arg == "--help" || arg == "-h") {
             std::cout << "Usage: " << argv[0] << " <song_path> [difficulty] [--auto] [--practice]\n";
             std::cout << "  song_path   : Path to the TJA song file\n";
             std::cout << "  difficulty  : Difficulty level (optional, defaults to max difficulty)\n";
             std::cout << "  --auto      : Enable auto mode\n";
             std::cout << "  --practice  : Start in practice mode\n";
+            std::cout << "  --skin-viewer : Open skin viewer\n";
+            std::cout << "  --sandbox   : Open sandbox mode\n";
             std::exit(0);
         } else if (song_path.empty()) {
             song_path = arg;

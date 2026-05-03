@@ -1,6 +1,6 @@
 #include "box_folder.h"
-#include "raylib.h"
-#include <memory>
+#include "../../../libs/scores.h"
+#include "../../../libs/audio_engine.h"
 
 FolderBox::FolderBox(const fs::path& path, const BoxDef& box_def, int tja_count, std::map<std::pair<std::string, std::string>, fs::path>& song_files)
     : BaseBox(path, box_def), tja_count(tja_count)

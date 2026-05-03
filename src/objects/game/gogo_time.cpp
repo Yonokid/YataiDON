@@ -1,4 +1,5 @@
 #include "gogo_time.h"
+#include "../../libs/texture.h"
 
 GogoTime::GogoTime() {
     fire_resize = (TextureResizeAnimation*)tex.get_animation(24, true);

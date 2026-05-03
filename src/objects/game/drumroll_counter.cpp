@@ -1,4 +1,5 @@
 #include "drumroll_counter.h"
+#include "../../libs/texture.h"
 
 DrumrollCounter::DrumrollCounter() {
      drumroll_count = 0;

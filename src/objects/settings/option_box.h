@@ -1,13 +1,8 @@
 #pragma once
-#include "../../libs/config.h"
-#include "../../libs/texture.h"
-#include "../../libs/animation.h"
+
+#include "config_ref.h"
 #include "../../libs/text.h"
 #include "../../libs/screen.h"
-#include "config_ref.h"
-#include <map>
-#include <vector>
-#include <string>
 
 class BaseOptionBox {
 protected:
@@ -65,7 +60,6 @@ public:
     void move_right() override;
     void draw()       override;
 };
-
 
 class StrOptionBox : public BaseOptionBox {
     std::string   value;

@@ -1,4 +1,5 @@
 #include "modifier.h"
+#include "../../libs/audio_engine.h"
 
 const std::map<std::string, std::string> ModifierSelector::TEX_MAP = {
     {"auto",    "mod_auto"},

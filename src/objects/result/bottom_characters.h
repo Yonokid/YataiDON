@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../../libs/texture.h"
+#include "../../libs/animation.h"
 #include "../enums.h"
 
 class BottomCharacters {

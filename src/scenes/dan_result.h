@@ -1,11 +1,11 @@
 #pragma once
+
 #include "../libs/screen.h"
+#include "../libs/global_data.h"
 #include "../libs/text.h"
-#include "../libs/texture.h"
-#include "../libs/audio.h"
+#include "../objects/result/background.h"
 #include "../objects/global/allnet_indicator.h"
 #include "../objects/global/coin_overlay.h"
-#include "../objects/result/background.h"
 
 class DanResultGauge {
 public:

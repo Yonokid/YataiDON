@@ -1,5 +1,7 @@
+#include "../../libs/texture.h"
 #include "judge_counter.h"
-#include <cmath>
+#include <math.h>
+
 
 JudgeCounter::JudgeCounter()
     : good(0), ok(0), bad(0), drumrolls(0) {

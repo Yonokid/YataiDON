@@ -1,7 +1,7 @@
-#ifndef AUDIO_BACKEND_RAYLIB
 #include "audio.h"
+#include "global_data.h"
 
-//for use with load_music_stream_memory
+#ifndef AUDIO_BACKEND_RAYLIB
 
 static sf_count_t vf_get_filelen(void* user_data) {
     auto* vf = static_cast<VirtualFile*>(user_data);
@@ -41,7 +41,6 @@ static sf_count_t vf_write(const void*, sf_count_t, void*) {
 static sf_count_t vf_tell(void* user_data) {
     return static_cast<VirtualFile*>(user_data)->pos;
 }
-
 
 AudioEngine::AudioEngine(int host_api_index, float sample_rate, unsigned long buffer_size, const VolumeConfig& volume_presets)
     : host_api_index(std::max(host_api_index, 0))
@@ -255,7 +254,6 @@ int AudioEngine::port_audio_callback(const void *inputBuffer, void *outputBuffer
     return paContinue;
 }
 
-
 bool AudioEngine::init_audio_device() {
     try {
         PaError err = Pa_Initialize();
@@ -290,7 +288,6 @@ bool AudioEngine::init_audio_device() {
         output_parameters.sampleFormat = paFloat32;
         output_parameters.suggestedLatency = device_info->defaultLowOutputLatency;
         output_parameters.hostApiSpecificStreamInfo = NULL;
-
 
         err = Pa_OpenStream(&stream, NULL, &output_parameters, target_sample_rate, buffer_size, paNoFlag, port_audio_callback, this);
         if (err != paNoError) {

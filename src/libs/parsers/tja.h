@@ -1,19 +1,10 @@
 #pragma once
 
-#include <functional>
-#include <optional>
-#include <string>
-#include <string>
-#include <sstream>
-#include <digestpp/algorithm/md5.hpp>
-#include <vector>
-#include <map>
-#include <filesystem>
-#include <sstream>
-#include <algorithm>
-#include <regex>
 #include "../global_data.h"
-#include <random>
+#include <digestpp/algorithm/md5.hpp>
+#include <deque>
+#include <functional>
+#include <regex>
 
 namespace fs = std::filesystem;
 
@@ -205,7 +196,6 @@ struct TJAMetadata {
     std::string scene_preset = "";
     std::map<int, CourseData> course_data;
 };
-
 
 struct TJAEXData {
     bool new_audio = false;

@@ -1,10 +1,8 @@
 #pragma once
-#include "../../libs/config.h"
+
 #include "../../libs/global_data.h"
 #include <variant>
-#include <stdexcept>
 
-// Holds a typed pointer into a Config field, enabling get/set by path string.
 struct ConfigRef {
     std::variant<bool*, int*, float*, std::string*, std::vector<int>*> ptr;
 

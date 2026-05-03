@@ -1,4 +1,6 @@
 #include "allnet_indicator.h"
+#include "../../libs/config.h"
+#include "../../libs/texture.h"
 
 AllNetIcon::AllNetIcon() : online(get_config().general.fake_online) {
 }

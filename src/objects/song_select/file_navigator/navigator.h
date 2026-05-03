@@ -1,18 +1,8 @@
 #pragma once
-#include <map>
-#include <set>
-#include <thread>
-#include <mutex>
-#include <atomic>
-#include <queue>
-#include "box_base.h"
-#include "box_folder.h"
-#include "box_back.h"
-#include "box_song.h"
-#include "genre_bg.h"
-#include <chrono>
 
-namespace ch = std::chrono;
+#include "genre_bg.h"
+#include "box_song.h"
+#include <queue>
 
 struct CourseStats {
     int total       = 0;

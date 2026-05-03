@@ -1,9 +1,7 @@
 #pragma once
+
 #include "texture.h"
-#include <unordered_set>
-#include <mutex>
 #include <future>
-#include <optional>
 
 class FontManager {
 private:

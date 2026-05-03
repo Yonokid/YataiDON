@@ -1,8 +1,6 @@
 #pragma once
+
 #include "../libs/screen.h"
-#include <memory>
-#include <vector>
-#include <string>
 
 class SandboxScreen : public Screen {
 public:

@@ -1,6 +1,5 @@
 #pragma once
 #include "game.h"
-#include "../objects/game/judge_counter.h"
 
 class PracticePlayer : public Player {
 public:

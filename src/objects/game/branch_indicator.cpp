@@ -1,4 +1,5 @@
 #include "branch_indicator.h"
+#include "../../libs/texture.h"
 
 BranchIndicator::BranchIndicator()
     : difficulty(BranchDifficulty::NORMAL), diff_2(BranchDifficulty::NORMAL), direction(1) {

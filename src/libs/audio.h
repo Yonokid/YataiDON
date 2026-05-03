@@ -1,20 +1,13 @@
 #pragma once
 
+#include "config.h"
 #include "audio_engine.h"
+#include "audio/portaudio.h"
+#include <sndfile.h>
+#include <samplerate.h>
 
 #ifndef AUDIO_BACKEND_RAYLIB
 
-#include <mutex>
-#include <unordered_map>
-
-#include "config.h"
-#include "audio/portaudio.h"
-#include "global_data.h"
-
-#include "audio/sndfile.h"
-#include "audio/samplerate.h"
-#include "av.h"
-#include "spdlog/spdlog.h"
 namespace fs = std::filesystem;
 
 struct VirtualFile {
@@ -64,7 +57,6 @@ struct music {
     std::shared_ptr<std::vector<uint8_t>> memory_buffer;
     VirtualFile                           vio_cursor;
 };
-
 
 class AudioEngine : public IAudioEngine {
 public:

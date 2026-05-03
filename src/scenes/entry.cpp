@@ -1,5 +1,5 @@
 #include "entry.h"
-#include "raylib.h"
+#include "../libs/input.h"
 
 void EntryScreen::on_screen_start() {
     Screen::on_screen_start();

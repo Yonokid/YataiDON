@@ -2,13 +2,7 @@
 
 #ifdef AUDIO_BACKEND_RAYLIB
 
-#include <memory>
-#include <string>
-#include <unordered_map>
-#include <vector>
-
 #include "audio_engine.h"
-#include "ray.h"
 
 // Holds a raylib Music stream plus the in-memory WAV buffer that must stay
 // alive as long as the stream is open (drwav keeps a raw pointer into it).

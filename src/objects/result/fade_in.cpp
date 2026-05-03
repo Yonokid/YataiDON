@@ -1,4 +1,5 @@
 #include "fade_in.h"
+#include "../../libs/texture.h"
 
 FadeIn::FadeIn(PlayerNum player_num) : player_num(player_num) {
     fade_in = (FadeAnimation*)tex.get_animation(15);

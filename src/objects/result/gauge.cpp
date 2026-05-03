@@ -1,4 +1,5 @@
 #include "gauge.h"
+#include "../../libs/texture.h"
 
 ResultGauge::ResultGauge(PlayerNum player_num, int gauge_length, bool is_2p)
 : player_num(player_num), gauge_length(gauge_length), is_2p(is_2p) {

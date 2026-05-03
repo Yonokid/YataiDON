@@ -1,4 +1,5 @@
 #include "gauge_hit_effect.h"
+#include "../../libs/texture.h"
 
 GaugeHitEffect::GaugeHitEffect(NoteType note_type, bool is_big, bool is_2p)
             : note_type(note_type), is_big(is_big), is_2p(is_2p) {

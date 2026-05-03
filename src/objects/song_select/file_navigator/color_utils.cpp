@@ -1,4 +1,7 @@
 #include "color_utils.h"
+#include <algorithm>
+#include <math.h>
+#include <stdexcept>
 
 float rgb_to_hue(int r, int g, int b) {
     float rf = r / 255.0f;

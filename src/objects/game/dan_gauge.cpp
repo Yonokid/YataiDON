@@ -1,4 +1,5 @@
 #include "dan_gauge.h"
+#include "../../libs/texture.h"
 
 DanGauge::DanGauge(PlayerNum player_num, int total_notes)
     : player_num(player_num), total_notes(total_notes) {}

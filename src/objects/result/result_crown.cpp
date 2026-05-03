@@ -1,4 +1,6 @@
 #include "result_crown.h"
+#include "../../libs/texture.h"
+#include "../../libs/audio_engine.h"
 
 ResultCrown::ResultCrown(bool is_2p) : is_2p(is_2p) {
     resize = (TextureResizeAnimation*)tex.get_animation(2);

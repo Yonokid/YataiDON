@@ -1,4 +1,6 @@
 #include "clear_animation.h"
+#include "../../libs/texture.h"
+#include "../../libs/audio_engine.h"
 
 ClearAnimation::ClearAnimation(bool is_2p)
     : is_2p(is_2p), draw_clear_full(false), name("in"), frame(0) {

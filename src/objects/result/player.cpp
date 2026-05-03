@@ -1,4 +1,5 @@
 #include "player.h"
+#include "../../libs/audio_engine.h"
 
 ResultPlayer::ResultPlayer(PlayerNum player_num, bool has_2p, bool is_2p)
 : player_num(player_num), has_2p(has_2p), is_2p(is_2p){

@@ -1,7 +1,6 @@
 #pragma once
 
-#include "../../libs/texture.h"
-#include "../../libs/audio.h"
+#include "../../libs/global_data.h"
 #include "../../libs/text.h"
 
 class NeiroSelector {

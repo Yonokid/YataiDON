@@ -1,12 +1,10 @@
 #pragma once
 
-#include <set>
-#include <unordered_map>
-
+#include <chrono>
 #include <rapidjson/document.h>
-#include <rapidjson/error/en.h>
-
-#include "global_data.h"
+#include <map>
+#include <unordered_map>
+#include <set>
 
 inline double get_current_ms() {
     using namespace std::chrono;

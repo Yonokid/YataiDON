@@ -1,7 +1,5 @@
-#include "../../libs/texture.h"
-#include "../../libs/text.h"
-#include "../../enums.h"
-#include "box_base.h"
+#pragma once
+
 #include "box_folder.h"
 
 class GenreBG {

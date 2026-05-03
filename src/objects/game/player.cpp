@@ -1,4 +1,6 @@
 #include "player.h"
+#include "../../libs/audio_engine.h"
+#include "../../libs/input.h"
 
 Player::Player(std::optional<SongParser>& parser_ref, PlayerNum player_num_param, int difficulty_param,
        bool is_2p_param, const Modifiers& modifiers_param)
@@ -533,7 +535,6 @@ void Player::reset_chart() {
             }
         }
     }
-
 
     this->timeline = notes.timeline;
 

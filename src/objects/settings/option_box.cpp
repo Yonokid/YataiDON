@@ -1,7 +1,5 @@
 #include "option_box.h"
-#include "../../libs/audio.h"
-#include "../../libs/input.h"
-#include "raylib.h"
+#include "../../libs/animation.h"
 
 std::string getKeyString(int key_code);
 

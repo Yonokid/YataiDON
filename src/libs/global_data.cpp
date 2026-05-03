@@ -1,6 +1,5 @@
 #include "global_data.h"
 
-// Global instance
 GlobalData global_data;
 
 void reset_session() {

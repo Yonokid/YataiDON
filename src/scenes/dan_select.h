@@ -1,14 +1,10 @@
 #pragma once
+
 #include "../libs/screen.h"
-#include "../libs/text.h"
-#include "../libs/audio.h"
-#include "../objects/enums.h"
-#include "../objects/global/timer.h"
-#include "../objects/global/coin_overlay.h"
-#include "../objects/global/allnet_indicator.h"
-#include "../objects/global/indicator.h"
 #include "../objects/song_select/file_navigator/box_dan.h"
-#include "../objects/song_select/file_navigator/navigator.h"
+#include "../objects/global/allnet_indicator.h"
+#include "../objects/global/coin_overlay.h"
+#include "../objects/global/indicator.h"
 
 class DanNavigator {
 public:

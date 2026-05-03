@@ -1,4 +1,5 @@
 #include "balloon_counter.h"
+#include "../../libs/texture.h"
 
 BalloonCounter::BalloonCounter(int count, bool is_2p)
  : balloon_count(0), balloon_total(count), is_popped(false), is_2p(is_2p) {

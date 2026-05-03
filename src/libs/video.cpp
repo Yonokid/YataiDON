@@ -1,4 +1,6 @@
 #include "video.h"
+#include "audio_engine.h"
+#include "texture.h"
 
 #ifndef __EMSCRIPTEN__
 

@@ -1,4 +1,5 @@
 #include "result.h"
+#include "../libs/input.h"
 
 void ResultScreen::on_screen_start() {
     Screen::on_screen_start();

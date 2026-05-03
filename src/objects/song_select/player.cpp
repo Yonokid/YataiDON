@@ -1,5 +1,6 @@
 #include "player.h"
-#include "modifier.h"
+#include "../../libs/audio_engine.h"
+#include "../../libs/input.h"
 
 SongSelectPlayer::SongSelectPlayer(PlayerNum player_num)
     : player_num(player_num)

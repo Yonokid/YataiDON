@@ -1,5 +1,8 @@
 #include "loading.h"
 #include "../libs/miniz/miniz.h"
+#include "../libs/global_data.h"
+#include "../libs/scores.h"
+#include "../libs/parsers/song_parser.h"
 
 static void extract_osz(const fs::path& osz_path) {
     fs::path out_dir = osz_path.parent_path() / osz_path.stem();

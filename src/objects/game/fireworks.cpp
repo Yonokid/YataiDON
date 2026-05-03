@@ -1,4 +1,5 @@
 #include "fireworks.h"
+#include "../../libs/texture.h"
 
 Fireworks::Fireworks() {
     explosion_anim = (TextureChangeAnimation*)tex.get_animation(23, true);

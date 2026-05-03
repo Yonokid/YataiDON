@@ -1,13 +1,10 @@
 #pragma once
 
 #include "../libs/screen.h"
-#include "../libs/parsers/song_parser.h"
 #include "../libs/video.h"
-#include "../libs/scores.h"
-
 #include "../objects/game/player.h"
-#include "../objects/game/song_info.h"
 #include "../objects/game/transition.h"
+#include "../objects/game/song_info.h"
 #include "../objects/game/result_transition.h"
 #include "../objects/global/allnet_indicator.h"
 

@@ -1,10 +1,4 @@
 #include "osu.h"
-#include <fstream>
-#include <sstream>
-#include <regex>
-#include <cmath>
-#include <digestpp/algorithm/md5.hpp>
-#include <spdlog/spdlog.h>
 
 std::vector<std::string> OsuParser::read_file_lines(const fs::path& path) {
     std::vector<std::string> lines;

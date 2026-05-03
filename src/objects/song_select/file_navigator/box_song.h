@@ -1,11 +1,8 @@
 #pragma once
+
 #include "box_base.h"
 #include "score_history.h"
-
-#include "../../libs/texture.h"
-#include "../../libs/audio.h"
-#include "../../libs/scores.h"
-#include "../../libs/parsers/song_parser.h"
+#include "../../../libs/parsers/song_parser.h"
 
 class SongBox : public BaseBox {
 public:
@@ -35,7 +32,6 @@ public:
     std::vector<Difficulty> get_diffs();
 
     void refresh_scores();
-
 
 protected:
     FadeAnimation* diff_fade_in;

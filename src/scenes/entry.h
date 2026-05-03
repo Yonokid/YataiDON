@@ -1,21 +1,14 @@
 #pragma once
-#include "../../libs/config.h"
-#include "../../libs/texture.h"
-#include "../../libs/animation.h"
-#include "../../libs/audio.h"
-#include "../../libs/input.h"
-#include "../../libs/screen.h"
-#include "../../libs/text.h"
-#include "../objects/global/nameplate.h"
-#include "../objects/global/timer.h"
-#include "../objects/global/indicator.h"
-#include "../objects/global/coin_overlay.h"
-#include "../objects/global/entry_overlay.h"
-#include "../objects/global/allnet_indicator.h"
+
+#include "../libs/screen.h"
 #include "../objects/entry/box_manager.h"
 #include "../objects/entry/player.h"
-#include <vector>
-#include <optional>
+#include "../objects/global/nameplate.h"
+#include "../objects/global/coin_overlay.h"
+#include "../objects/global/allnet_indicator.h"
+#include "../objects/global/entry_overlay.h"
+#include "../objects/global/timer.h"
+
 
 enum class EntryState {
     SELECT_SIDE = 0,

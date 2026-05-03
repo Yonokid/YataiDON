@@ -1,8 +1,5 @@
 #pragma once
 
-#include "../../libs/config.h"
-#include "../../libs/texture.h"
-
 class AllNetIcon {
 private:
     bool online;

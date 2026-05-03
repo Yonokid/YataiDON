@@ -1,4 +1,5 @@
 #include "song_info.h"
+#include "../../libs/global_data.h"
 
 SongInfo::SongInfo(const std::string& song_name, int genre)
     : song_name(song_name), genre(genre) {

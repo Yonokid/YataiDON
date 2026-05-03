@@ -1,8 +1,6 @@
 #pragma once
-#include "../../libs/texture.h"
-#include "../../libs/text.h"
-#include "../../libs/parsers/tja.h"
-#include "../../enums.h"
+
+#include "../../../libs/animation.h"
 
 class YellowBox {
 public:

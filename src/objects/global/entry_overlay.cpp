@@ -1,4 +1,6 @@
 #include "entry_overlay.h"
+#include "../../libs/config.h"
+#include "../../libs/texture.h"
 
 EntryOverlay::EntryOverlay() : online(get_config().general.fake_online) {
 }

@@ -1,14 +1,10 @@
 #pragma once
-#include "../../libs/texture.h"
-#include "../../libs/audio.h"
-#include "../../libs/input.h"
+
+#include "../global/nameplate.h"
 #include "neiro.h"
 #include "modifier.h"
-#include "diff_sort.h"
 #include "ura_switch.h"
-//#include "../../libs/chara_2d.h"
-#include "../global/nameplate.h"
-#include "../enums.h"
+#include "diff_sort.h"
 
 class SongSelectPlayer {
 public:

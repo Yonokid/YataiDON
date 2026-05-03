@@ -1,4 +1,5 @@
 #include "high_score_indicator.h"
+#include "../../libs/texture.h"
 
 HighScoreIndicator::HighScoreIndicator(int old_score, int new_score, bool is_2p)
 : is_2p(is_2p) {

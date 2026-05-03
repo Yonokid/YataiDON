@@ -1,35 +1,10 @@
 #pragma once
 
 #include <string>
-#include <set>
 #include <array>
-
-#include "../libs/global_data.h"
-#include "../texture.h"
-
-enum class Screens {
-    TITLE,
-    ENTRY,
-    SONG_SELECT,
-    GAME,
-    GAME_2P,
-    RESULT,
-    RESULT_2P,
-    SONG_SELECT_2P,
-    DAN_SELECT,
-    GAME_DAN,
-    DAN_RESULT,
-    PRACTICE_SELECT,
-    GAME_PRACTICE,
-    AI_SELECT,
-    AI_GAME,
-    SETTINGS,
-    DEV_MENU,
-    LOADING,
-    INPUT_CALI,
-    SKIN_VIEWER,
-    SANDBOX
-};
+#include <map>
+#include <set>
+#include <algorithm>
 
 enum class DrumType {
     DON = 1,
@@ -74,37 +49,6 @@ inline std::string branch_diff_to_string(BranchDifficulty difficulty) {
         "master"    // 2
     };
     return names[static_cast<int>(difficulty)];
-}
-
-inline std::string screens_to_string(Screens screen) {
-    static const std::array<std::string, 25> names = {
-        "TITLE",
-        "ENTRY",
-        "SONG_SELECT",
-        "GAME",
-        "GAME_2P",
-        "RESULT",
-        "RESULT_2P",
-        "SONG_SELECT_2P",
-        "DAN_SELECT",
-        "GAME_DAN",
-        "DAN_RESULT",
-        "PRACTICE_SELECT",
-        "GAME_PRACTICE",
-        "AI_SELECT",
-        "AI_GAME",
-        "SETTINGS",
-        "DEV_MENU",
-        "LOADING",
-        "INPUT_CALI",
-        "SKIN_VIEWER",
-        "SANDBOX",
-        "LOADING",
-        "LOADING",
-        "LOADING",
-        "LOADING"
-    };
-    return names[static_cast<int>(screen)];
 }
 
 enum class TextureIndex : int {

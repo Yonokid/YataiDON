@@ -1,11 +1,7 @@
 #pragma once
 
 #include "global_data.h"
-#include "parsers/song_parser.h"
-#include <array>
 #include <sqlite3.h>
-#include <spdlog/spdlog.h>
-#include <unordered_map>
 
 struct Score {
     Crown crown;

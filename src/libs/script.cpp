@@ -1,4 +1,5 @@
 #include "script.h"
+#include <spdlog/spdlog.h>
 
 void ScriptManager::init(fs::path script_path) {
     lua = std::make_unique<sol::state>();

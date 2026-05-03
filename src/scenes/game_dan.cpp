@@ -1,5 +1,5 @@
 #include "game_dan.h"
-#include <spdlog/spdlog.h>
+#include "../libs/input.h"
 
 void DanGameScreen::on_screen_start() {
     // Call the Screen base (loads textures/sounds) but NOT GameScreen::on_screen_start
@@ -34,8 +34,8 @@ void DanGameScreen::on_screen_start() {
 
     transition.emplace("", "", true);
     transition->start();
-    dan_transition = DanTransition();
-    dan_transition.start();
+    //dan_transition = DanTransition();
+    //dan_transition.start();
 
     result_transition = ResultTransition(PlayerNum::DAN);
     allnet_indicator  = AllNetIcon();
@@ -118,7 +118,7 @@ void DanGameScreen::change_song() {
     current_song_title = parser->metadata.title.count(lang) ? parser->metadata.title.at(lang) : parser->metadata.title.at("en");
     song_info = SongInfo(current_song_title, entry.genre_index);
 
-    dan_transition.start();
+    //dan_transition.start();
     start_ms = get_current_ms() - parser->metadata.offset * 1000;
 }
 
@@ -213,9 +213,9 @@ std::optional<Screens> DanGameScreen::update() {
 
     transition->update(current_time);
     current_ms = current_time - start_ms;
-    dan_transition.update(current_time);
+    //dan_transition.update(current_time);
 
-    if (transition->is_finished() && dan_transition.is_finished()) {
+    if (transition->is_finished() /*&& dan_transition.is_finished()*/) {
         start_song(current_ms);
     } else {
         start_ms = current_time - parser->metadata.offset * 1000;
@@ -421,7 +421,7 @@ void DanGameScreen::draw() {
     dan_gauge.draw();
     if (players.size() == 1)
         players[0]->draw(current_ms, 0, 184 * tex.screen_scale, mask_shader);
-    dan_transition.draw();
+    //dan_transition.draw();
     if (background.has_value()) background->draw_fore();
     draw_overlay();
 }

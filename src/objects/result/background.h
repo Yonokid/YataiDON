@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../../libs/texture.h"
+#include "../../libs/global_data.h"
 
 class ResultBackground {
 private:

@@ -1,10 +1,7 @@
 #pragma once
-#include "../../libs/config.h"
-#include "../../libs/texture.h"
+
 #include "../../libs/animation.h"
-#include "../../libs/audio.h"
 #include <functional>
-#include <string>
 
 class Timer {
 private:

@@ -1,4 +1,6 @@
 #include "animation.h"
+#include "global_data.h"
+#include "rapidjson/error/en.h"
 
 using std::runtime_error;
 

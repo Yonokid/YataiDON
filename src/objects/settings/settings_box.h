@@ -1,13 +1,7 @@
 #pragma once
-#include "../../libs/config.h"
-#include "../../libs/texture.h"
-#include "../../libs/animation.h"
+
 #include "../../libs/text.h"
 #include "option_box.h"
-#include <rapidjson/document.h>
-#include <optional>
-#include <vector>
-#include <string>
 
 class SettingsBox {
 private:

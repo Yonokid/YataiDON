@@ -1,14 +1,11 @@
 #pragma once
 
-#include <rapidjson/istreamwrapper.h>
-#include <unordered_map>
-#include <unordered_set>
-
 #include "animation.h"
-#include "config.h"
-#include "logging.h"
-
+#include "ray.h"
 #include "skin_config_generated.h"
+#include "texture_ids_generated.h" // IWYU pragma: keep
+#include <filesystem>
+#include <unordered_set>
 
 namespace fs = std::filesystem;
 using namespace rapidjson;
@@ -147,4 +144,3 @@ extern TextureWrapper global_tex;
 // TexID enum, per-subset namespaces, and tex_id_map — auto-generated from skin texture.json files
 // Usage: tex.draw_texture(YELLOW_BOX::CROWN_FC, {...})
 //        tex.textures[YELLOW_BOX::CROWN_FC]->width
-#include "texture_ids_generated.h"

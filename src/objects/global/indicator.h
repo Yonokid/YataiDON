@@ -1,8 +1,6 @@
 #pragma once
-#include "../../libs/config.h"
-#include "../../libs/texture.h"
+
 #include "../../libs/text.h"
-#include "../../libs/animation.h"
 
 class Indicator {
 public:

@@ -1,4 +1,5 @@
 #include "game.h"
+#include "../libs/scores.h"
 
 void GameScreen::on_screen_start() {
     Screen::on_screen_start();

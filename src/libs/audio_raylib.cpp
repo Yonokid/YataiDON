@@ -1,7 +1,6 @@
 #ifdef AUDIO_BACKEND_RAYLIB
 
 #include "audio_raylib.h"
-#include "spdlog/spdlog.h"
 
 // ---------------------------------------------------------------------------
 // Helpers

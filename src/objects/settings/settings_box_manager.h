@@ -1,9 +1,6 @@
 #pragma once
+
 #include "settings_box.h"
-#include <rapidjson/document.h>
-#include <optional>
-#include <vector>
-#include <string>
 
 class SettingsBoxManager {
 private:

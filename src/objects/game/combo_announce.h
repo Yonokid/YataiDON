@@ -1,9 +1,7 @@
 #pragma once
 
 #include "../../libs/animation.h"
-#include "../../libs/texture.h"
 #include "../../libs/global_data.h"
-#include "../../libs/audio.h"
 
 class ComboAnnounce {
 private:

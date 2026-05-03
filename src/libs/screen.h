@@ -1,9 +1,58 @@
 #pragma once
 
 #include "texture.h"
-#include "audio.h"
+#include "audio_engine.h"
+#include <spdlog/spdlog.h>
 
-#include "../objects/enums.h"
+enum class Screens {
+    TITLE,
+    ENTRY,
+    SONG_SELECT,
+    GAME,
+    GAME_2P,
+    RESULT,
+    RESULT_2P,
+    SONG_SELECT_2P,
+    DAN_SELECT,
+    GAME_DAN,
+    DAN_RESULT,
+    PRACTICE_SELECT,
+    GAME_PRACTICE,
+    AI_SELECT,
+    AI_GAME,
+    SETTINGS,
+    LOADING,
+    INPUT_CALI,
+    SKIN_VIEWER,
+    SANDBOX
+};
+
+inline std::string screens_to_string(Screens screen) {
+    static const std::array<std::string, 25> names = {
+        "TITLE",
+        "ENTRY",
+        "SONG_SELECT",
+        "GAME",
+        "GAME_2P",
+        "RESULT",
+        "RESULT_2P",
+        "SONG_SELECT_2P",
+        "DAN_SELECT",
+        "GAME_DAN",
+        "DAN_RESULT",
+        "PRACTICE_SELECT",
+        "GAME_PRACTICE",
+        "AI_SELECT",
+        "AI_GAME",
+        "SETTINGS",
+        "LOADING",
+        "INPUT_CALI",
+        "SKIN_VIEWER",
+        "SANDBOX",
+        "LOADING",
+    };
+    return names[static_cast<int>(screen)];
+}
 
 template <>
 struct fmt::formatter<Screens> : fmt::formatter<std::string> {
@@ -11,7 +60,6 @@ struct fmt::formatter<Screens> : fmt::formatter<std::string> {
         return fmt::formatter<std::string>::format(screens_to_string(screen), ctx);
     }
 };
-
 
 class Screen {
 
