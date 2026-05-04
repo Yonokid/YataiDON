@@ -108,13 +108,15 @@ OsuParser::OsuParser(const fs::path& path) : file_path(path) {
 
     // Metadata
     if (osu_meta.count("Version"))
-        metadata.title["en"] = osu_meta["Version"];
+        metadata.title["en"] = osu_meta["Title"];
     if (osu_meta.count("Creator"))
-        metadata.subtitle["en"] = osu_meta["Creator"];
+        metadata.subtitle["en"] = osu_meta["Artist"];
     if (osu_meta.count("TitleUnicode"))
         metadata.title["ja"] = osu_meta["TitleUnicode"];
     if (osu_meta.count("ArtistUnicode"))
         metadata.subtitle["ja"] = osu_meta["ArtistUnicode"];
+    if (osu_meta.count("Version"))
+        difficulty_name = osu_meta["Version"];
 
     if (general.count("AudioFilename"))
         metadata.wave = path.parent_path() / general["AudioFilename"];

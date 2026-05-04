@@ -7,10 +7,12 @@ public:
     fs::path file_path;
     TJAMetadata metadata;
     TJAEXData ex_data;
+    std::string difficulty_name;
 
     OsuParser() = default;
     explicit OsuParser(const fs::path& path);
     void get_metadata() {}
+    std::string get_difficulty_name() { return difficulty_name; }
 
     std::tuple<NoteList, std::deque<NoteList>, std::deque<NoteList>, std::deque<NoteList>>
     notes_to_position(int diff);

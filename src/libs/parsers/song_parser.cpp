@@ -16,6 +16,10 @@ void SongParser::sync() {
     }, impl);
 }
 
+std::string SongParser::get_difficulty_name() {
+    return std::visit([](auto& p) { return p.get_difficulty_name(); }, impl);
+}
+
 std::tuple<NoteList, std::deque<NoteList>, std::deque<NoteList>, std::deque<NoteList>>
 SongParser::notes_to_position(int diff) {
     return std::visit([diff](auto& p) {

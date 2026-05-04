@@ -6,6 +6,7 @@
 class FolderBox : public BaseBox {
 public:
     int tja_count;
+    bool is_osu_folder = false;
     std::map<int, Crown> crown;
     bool entered = false;
     std::unique_ptr<FadeAnimation> enter_fade;

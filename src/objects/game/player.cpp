@@ -558,11 +558,15 @@ void Player::reset_chart() {
     }
 
     //setup gauge
-    int stars;
+    int stars = 0;
     if (parser->metadata.course_data.empty()) {
         stars = 10;
     } else {
         stars = parser->metadata.course_data[difficulty].level;
+    }
+    if (stars == 0) {
+        difficulty = 3;
+        stars = 10;
     }
     int gauge_total_notes = 0;
     for (Note& note : total_notes.notes) {

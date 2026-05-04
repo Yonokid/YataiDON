@@ -57,7 +57,8 @@ void FolderBox::refresh_scores(std::map<std::pair<std::string, std::string>, fs:
                 }
             }
         }
-        if (entry.path().extension() == ".tja")
+        auto ext = entry.path().extension();
+        if (ext == ".tja" || ext == ".osu")
             update_crown(entry.path());
     }
 }
@@ -68,7 +69,15 @@ void FolderBox::load_text() {
     BaseBox::load_text();
     hori_name = std::make_unique<OutlinedText>(text_name, tex.skin_config[SC::SONG_HORI_NAME].font_size, ray::WHITE, ray::BLACK, false);
     tja_count_text = std::make_unique<OutlinedText>(std::to_string(tja_count), tex.skin_config[SC::SONG_TJA_COUNT].font_size, ray::WHITE, ray::BLACK, false);
-    if (fs::exists(fs::path(path / "box.png")) && !box_texture.has_value()) {
+    if (is_osu_folder) {
+        auto it = fs::directory_iterator(path);
+        while (it->path().extension() != ".jpg" && it->path().extension() != ".png") {
+            it++;
+        }
+        box_texture = ray::LoadTexture((it->path()).string().c_str());
+        ray::GenTextureMipmaps(&box_texture.value());
+        ray::SetTextureFilter(box_texture.value(), ray::TEXTURE_FILTER_TRILINEAR);
+    } else if (fs::exists(fs::path(path / "box.png")) && !box_texture.has_value()) {
         box_texture = ray::LoadTexture((path / "box.png").string().c_str());
         ray::GenTextureMipmaps(&box_texture.value());
         ray::SetTextureFilter(box_texture.value(), ray::TEXTURE_FILTER_TRILINEAR);

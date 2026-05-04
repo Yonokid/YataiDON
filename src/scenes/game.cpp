@@ -105,8 +105,8 @@ void GameScreen::load_hitsounds() {
 }
 
 void GameScreen::init_tja(fs::path song) {
-    int delay = (song.extension() == ".osu") ? 0 : start_delay;
-    parser = SongParser(song, delay);
+    start_delay = (song.extension() == ".osu") ? 0 : start_delay;
+    parser = SongParser(song, start_delay);
     if (fs::exists(parser->metadata.bgmovie)) {
         movie.emplace(parser->metadata.bgmovie);
     }

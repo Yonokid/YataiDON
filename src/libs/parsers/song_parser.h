@@ -15,6 +15,7 @@ public:
     SongParser() = default;
     SongParser(const fs::path& path, int start_delay = 0, PlayerNum player_num = PlayerNum::ALL);
     void get_metadata() {}
+    std::string get_difficulty_name();
 
     std::tuple<NoteList, std::deque<NoteList>, std::deque<NoteList>, std::deque<NoteList>>
     notes_to_position(int diff);

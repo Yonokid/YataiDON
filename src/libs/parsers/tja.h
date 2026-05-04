@@ -259,6 +259,7 @@ public:
     TJAEXData ex_data;
 
     void get_metadata();
+    std::string get_difficulty_name() { return ""; }
 
     using CommandHandler = std::function<void(const std::string&, ParserState&)>;
 

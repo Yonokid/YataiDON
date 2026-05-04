@@ -3,6 +3,12 @@
 #include "color_utils.h"
 #include <random>
 
+static std::unique_ptr<SongBox> make_song_box(const fs::path& path, const BoxDef& box_def, SongParser parser) {
+    if (path.extension() == ".osu")
+        return std::make_unique<SongBoxOsu>(path, box_def, std::move(parser));
+    return std::make_unique<SongBox>(path, box_def, std::move(parser));
+}
+
 namespace ch = std::chrono;
 
 Navigator::Navigator() {
@@ -262,7 +268,7 @@ void Navigator::parse_song_list(const fs::path& path, BoxDef box_def, bool inlin
             continue;
         }
 
-        auto box = std::make_unique<SongBox>(final_path, box_def, SongParser(final_path));
+        auto box = make_song_box(final_path, box_def, SongParser(final_path));
         box->preserve_order = true;
         if (songs_added > 0 && songs_added % 10 == 0) {
             BoxDef back_box_def;
@@ -304,20 +310,39 @@ void Navigator::load_current_directory_async(const fs::path path) {
                         continue;
                     }
                     if (is_song_file(curr_path))
-                        enqueue_box(std::make_unique<SongBox>(curr_path, box_def, SongParser(curr_path)));
+                        enqueue_box(make_song_box(curr_path, box_def, SongParser(curr_path)));
                     continue;
                 }
                 if (has_def_file(curr_path)) {
                     BoxDef entry_box_def = parse_box_def(curr_path);
                     enqueue_box(std::make_unique<FolderBox>(curr_path, entry_box_def, get_tja_count(curr_path), song_files));
+                } else if (is_osu_song_folder(curr_path)) {
+                    BoxDef osu_box_def = box_def;
+                    auto it = fs::directory_iterator(curr_path);
+                    while (it->path().extension() != ".osu") {
+                        ++it;
+                        if (it == fs::end(it)) break;
+                    }
+                    OsuParser title_parser = OsuParser(it->path());
+                    title_parser.get_metadata();
+                    osu_box_def.name = title_parser.metadata.title[global_data.config->general.language];
+                    std::unique_ptr<FolderBox> osu_folder = std::make_unique<FolderBox>(curr_path, osu_box_def, count_osu_files_direct(curr_path), song_files);
+                    osu_folder->is_osu_folder = true;
+                    enqueue_box(std::move(osu_folder));
                 } else {
                     std::error_code ec;
                     auto it = fs::recursive_directory_iterator(curr_path, ec);
                     while (it != fs::end(it)) {
                         if (abort_loading) break;
                         try {
-                            if (is_song_file(it->path()))
-                                enqueue_box(std::make_unique<SongBox>(it->path(), box_def, SongParser(it->path())));
+                            if (fs::is_directory(it->path()) && is_osu_song_folder(it->path())) {
+                                it.disable_recursion_pending();
+                                BoxDef osu_box_def = box_def;
+                                osu_box_def.name = it->path().filename().string();
+                                enqueue_box(std::make_unique<FolderBox>(it->path(), osu_box_def, count_osu_files_direct(it->path()), song_files));
+                            } else if (is_song_file(it->path())) {
+                                enqueue_box(make_song_box(it->path(), box_def, SongParser(it->path())));
+                            }
                         } catch (const std::exception& inner) {
                             spdlog::warn("Skipping song: {}", inner.what());
                         }
@@ -363,7 +388,7 @@ void Navigator::load_collection_new(const fs::path& path, const BoxDef& box_def)
                 back_box_def.genre_index   = GenreIndex::NAMCO;
                 enqueue_inline_box(std::make_unique<BackBox>(path.parent_path(), back_box_def));
             }
-            auto song = std::make_unique<SongBox>(entry.path(), box_def, SongParser(entry.path()));
+            auto song = make_song_box(entry.path(), box_def, SongParser(entry.path()));
             if (sibling_box_def.fore_color.has_value())
                 song->fore_color = sibling_box_def.fore_color;
             else if (sibling_box_def.back_color.has_value())
@@ -397,7 +422,7 @@ void Navigator::load_collection_difficulty(const fs::path& path, const BoxDef& b
                 back_box_def.genre_index   = GenreIndex::NAMCO;
                 enqueue_inline_box(std::make_unique<BackBox>(path.parent_path(), back_box_def));
             }
-            auto song = std::make_unique<SongBox>(entry.path(), box_def, parser);
+            auto song = make_song_box(entry.path(), box_def, parser);
             if (sibling_box_def.fore_color.has_value())
                 song->fore_color = sibling_box_def.fore_color;
             else if (sibling_box_def.back_color.has_value())
@@ -453,7 +478,7 @@ void Navigator::load_collection_favorite(const fs::path& path, const BoxDef& box
             back_box_def.genre_index   = GenreIndex::NAMCO;
             enqueue_inline_box(std::make_unique<BackBox>(path.parent_path(), back_box_def));
         }
-        auto song = std::make_unique<SongBox>(song_path, box_def, SongParser(song_path));
+        auto song = make_song_box(song_path, box_def, SongParser(song_path));
         song->is_favorite = true;
         fs::path genre_folder = find_box_def_folder(song_path);
         if (!genre_folder.empty()) {
@@ -540,7 +565,7 @@ void Navigator::load_collection_recent(const fs::path& path, const BoxDef& box_d
             back_box_def.genre_index   = GenreIndex::NAMCO;
             enqueue_inline_box(std::make_unique<BackBox>(path.parent_path(), back_box_def));
         }
-        auto song = std::make_unique<SongBox>(song_path, box_def, SongParser(song_path));
+        auto song = make_song_box(song_path, box_def, SongParser(song_path));
         fs::path genre_folder = find_box_def_folder(song_path);
         if (!genre_folder.empty()) {
             BoxDef genre_box_def = parse_box_def(genre_folder);
@@ -601,7 +626,7 @@ void Navigator::load_collection_recommended(const fs::path& path, const BoxDef& 
     for (int i = 0; i < count; i++) {
         if (abort_loading) break;
         const auto& [song_path, song_box_def] = all_songs[i];
-        auto song = std::make_unique<SongBox>(song_path, box_def, SongParser(song_path));
+        auto song = make_song_box(song_path, box_def, SongParser(song_path));
         if (song_box_def.fore_color.has_value())
             song->fore_color = song_box_def.fore_color;
         else if (song_box_def.back_color.has_value())
@@ -629,7 +654,7 @@ void Navigator::load_collection_search(const fs::path& path, const BoxDef& box_d
             back_box_def.genre_index   = GenreIndex::NAMCO;
             enqueue_inline_box(std::make_unique<BackBox>(path.parent_path(), back_box_def));
         }
-        auto song = std::make_unique<SongBox>(song_path, box_def, SongParser(song_path));
+        auto song = make_song_box(song_path, box_def, SongParser(song_path));
         fs::path genre_folder = find_box_def_folder(song_path);
         if (!genre_folder.empty()) {
             BoxDef genre_box_def = parse_box_def(genre_folder);
@@ -656,7 +681,7 @@ void Navigator::load_songs_inline_async(const fs::path path, BoxDef box_def) {
             back_box_def.genre_index   = GenreIndex::NAMCO;
             enqueue_inline_box(std::make_unique<BackBox>(path.parent_path(), back_box_def));
         }
-        auto box = std::make_unique<SongBox>(song_path, box_def, SongParser(song_path));
+        auto box = make_song_box(song_path, box_def, SongParser(song_path));
         box->fade_in(266);
         enqueue_inline_box(std::move(box));
         songs_added++;
@@ -702,21 +727,37 @@ void Navigator::load_songs_inline_async(const fs::path path, BoxDef box_def) {
                         continue;
                     }
                     if (is_song_file(curr_path))
-                        enqueue_inline_box(std::make_unique<SongBox>(curr_path, box_def, SongParser(curr_path)));
+                        enqueue_inline_box(make_song_box(curr_path, box_def, SongParser(curr_path)));
                     continue;
                 }
-                std::error_code ec;
-                auto it = fs::recursive_directory_iterator(curr_path, ec);
-                while (it != fs::end(it)) {
-                    if (abort_loading) break;
-                    try {
-                        if (is_song_file(it->path()))
-                            add_song(it->path());
-                    } catch (const std::exception& inner) {
-                        spdlog::warn("Skipping song: {}", inner.what());
+                if (is_osu_song_folder(curr_path)) {
+                    BoxDef osu_box_def = box_def;
+                    osu_box_def.name = curr_path.filename().string();
+                    auto folder = std::make_unique<FolderBox>(curr_path, osu_box_def, count_osu_files_direct(curr_path), song_files);
+                    folder->fade_in(266);
+                    enqueue_inline_box(std::move(folder));
+                } else {
+                    std::error_code ec;
+                    auto it = fs::recursive_directory_iterator(curr_path, ec);
+                    while (it != fs::end(it)) {
+                        if (abort_loading) break;
+                        try {
+                            if (fs::is_directory(it->path()) && is_osu_song_folder(it->path())) {
+                                it.disable_recursion_pending();
+                                BoxDef osu_box_def = box_def;
+                                osu_box_def.name = it->path().filename().string();
+                                auto folder = std::make_unique<FolderBox>(it->path(), osu_box_def, count_osu_files_direct(it->path()), song_files);
+                                folder->fade_in(266);
+                                enqueue_inline_box(std::move(folder));
+                            } else if (is_song_file(it->path())) {
+                                add_song(it->path());
+                            }
+                        } catch (const std::exception& inner) {
+                            spdlog::warn("Skipping song: {}", inner.what());
+                        }
+                        it.increment(ec);
+                        if (ec) { ec.clear(); }
                     }
-                    it.increment(ec);
-                    if (ec) { ec.clear(); }
                 }
             } catch (const std::exception& e) {
                 spdlog::warn("Skipping entry: {}, {}", e.what(), curr_path.string());
@@ -919,7 +960,7 @@ void Navigator::setup_back_box(const fs::path& path, bool has_children) {
 
 bool Navigator::has_child_folders(const fs::path& path) {
     for (const auto& entry : fs::directory_iterator(path))
-        if (fs::is_directory(entry.path()) && has_def_file(entry.path()))
+        if (fs::is_directory(entry.path()) && has_def_file(entry.path()) || is_osu_song_folder(entry.path()))
             return true;
     return false;
 }
@@ -932,6 +973,28 @@ bool Navigator::is_song_file(const fs::path& path) {
     if (!fs::is_regular_file(path)) return false;
     auto ext = path.extension();
     return ext == ".tja" || ext == ".osu";
+}
+
+bool Navigator::is_osu_song_folder(const fs::path& path) {
+    if (!fs::is_directory(path)) return false;
+    try {
+        for (const auto& entry : fs::directory_iterator(path)) {
+            if (fs::is_regular_file(entry.path()) && entry.path().extension() == ".osu")
+                return true;
+        }
+    } catch (...) {}
+    return false;
+}
+
+int Navigator::count_osu_files_direct(const fs::path& path) {
+    int count = 0;
+    try {
+        for (const auto& entry : fs::directory_iterator(path)) {
+            if (fs::is_regular_file(entry.path()) && entry.path().extension() == ".osu")
+                count++;
+        }
+    } catch (...) {}
+    return count;
 }
 
 bool Navigator::is_song(BaseBox* item) {

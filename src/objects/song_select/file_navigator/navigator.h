@@ -1,7 +1,7 @@
 #pragma once
 
 #include "genre_bg.h"
-#include "box_song.h"
+#include "box_song_osu.h"
 #include <queue>
 
 struct CourseStats {
@@ -61,6 +61,8 @@ private:
 
     void set_positions(bool init, float duration);
     bool is_song_file(const fs::path& path);
+    bool is_osu_song_folder(const fs::path& path);
+    int  count_osu_files_direct(const fs::path& path);
     bool has_def_file(const std::filesystem::path& path);
     int  get_tja_count(const std::filesystem::path& path);
     fs::path find_box_def_folder(const fs::path& song_path);
