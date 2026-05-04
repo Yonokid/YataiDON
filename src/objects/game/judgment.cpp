@@ -31,7 +31,7 @@ void Judgment::update(double current_ms) {
 void Judgment::draw(float judge_x, float judge_y) {
     float y = move_animation->attribute;
     int index = static_cast<int>(texture_animation->attribute);
-    float hit_fade = std::min(0.75, fade_animation_1->attribute);
+    float hit_fade = fade_animation_1->attribute;
     float fade = fade_animation_2->attribute;
 
     if (type == Judgments::GOOD) {

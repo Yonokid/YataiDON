@@ -27,7 +27,8 @@ private:
 
     FadeAnimation* gauge_update_anim;
     std::optional<FadeAnimation*> rainbow_fade_in;
-    TextureChangeAnimation* rainbow_animation;
+    double rainbow_start_ms = -1.0;
+    float rainbow_frac = 0.0f;
 
 public:
     float gauge_length;

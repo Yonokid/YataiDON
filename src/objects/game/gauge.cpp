@@ -64,7 +64,6 @@ Gauge::Gauge(PlayerNum player_num, int difficulty, int level, int total_notes)
     };
 
     gauge_update_anim = (FadeAnimation*)tex.get_animation(10);
-    rainbow_animation = (TextureChangeAnimation*)tex.get_animation(64);
 }
 
 float Gauge::get_progress() {
@@ -99,6 +98,8 @@ void Gauge::add_bad() {
     }
     if (previous_length == gauge_max && gauge_length < gauge_max) {
         if (rainbow_fade_in.has_value()) rainbow_fade_in.reset();
+        rainbow_start_ms = -1.0;
+        rainbow_frac = 0.0f;
     }
 }
 
@@ -109,6 +110,7 @@ void Gauge::update(double current_ms) {
     if (gauge_length == gauge_max && !rainbow_fade_in.has_value()) {
         rainbow_fade_in = (FadeAnimation*)tex.get_animation(63);
         rainbow_fade_in.value()->start();
+        rainbow_start_ms = current_ms;
     }
 
     gauge_update_anim->update(current_ms);
@@ -116,9 +118,8 @@ void Gauge::update(double current_ms) {
 
     if (rainbow_fade_in.has_value()) {
         rainbow_fade_in.value()->update(current_ms);
+        rainbow_frac = (float)fmod((current_ms - rainbow_start_ms) / 75.0, 8.0);
     }
-
-    rainbow_animation->update(current_ms);
 }
 
 void Gauge::draw(float y) {
@@ -145,22 +146,24 @@ void Gauge::draw(float y) {
         tex.draw_texture(GAUGE::BAR_CLEAR_BOTTOM, {.x = clear_point * bar_width, .y = y, .x2 = (gauge_length_int - clear_point) * bar_width, .index=mirrored});
     }
 
-    // Rainbow effect for full gauge
     if (gauge_length_int == gauge_max && rainbow_fade_in.has_value()) {
-        if (0 < rainbow_animation->attribute && rainbow_animation->attribute < 8) {
-            tex.draw_texture(tex_id_map.at("gauge/rainbow" + string_diff), {
-                .frame = (int)rainbow_animation->attribute - 1,
-                .mirror = mirror,
-                .y = y,
-                .fade = rainbow_fade_in.value()->attribute,
-                .index = mirrored,
-            });
-        }
+        float fade = rainbow_fade_in.value()->attribute;
+        int frame_a = (int)rainbow_frac % 8;
+        int frame_b = (frame_a + 1) % 8;
+        float t = rainbow_frac - (int)rainbow_frac;
+
         tex.draw_texture(tex_id_map.at("gauge/rainbow" + string_diff), {
-            .frame = (int)rainbow_animation->attribute,
+            .frame = frame_a,
             .mirror = mirror,
             .y = y,
-            .fade = std::min(rainbow_fade_in.value()->attribute, 0.75),
+            .fade = fade,
+            .index = mirrored,
+        });
+        tex.draw_texture(tex_id_map.at("gauge/rainbow" + string_diff), {
+            .frame = frame_b,
+            .mirror = mirror,
+            .y = y,
+            .fade = fade * t,
             .index = mirrored,
         });
     }
