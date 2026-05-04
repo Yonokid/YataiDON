@@ -13,6 +13,18 @@
 #include "../game/fc_animation.h"
 #include "../game/clear_animation.h"
 #include "../game/fail_animation.h"
+#include "../game/branch_indicator.h"
+#include "../game/gauge.h"
+#include "../game/judge_counter.h"
+#include "../game/kusudama_counter.h"
+#include "../game/note_arc.h"
+#include "../game/result_transition.h"
+#include "../game/transition.h"
+#include "../game/score_counter_animation.h"
+#include "../game/song_info.h"
+#include "texture_ids_generated.h"
+
+// ─── Existing fixtures ────────────────────────────────────────────────────────
 
 struct JudgmentFixture : public SandboxScreen::Fixture {
     int  type_idx = 0;
@@ -157,8 +169,8 @@ struct GaugeHitEffectFixture : public SandboxScreen::Fixture {
 
     void reset(double) override { active.reset(); type_idx = 0; big = false; }
     void on_space(double) override {
-        static const NoteType types[] = { NoteType::DON, NoteType::KAT };
-        active.emplace(types[type_idx], big, false);
+        static const NoteType types[] = { NoteType::DON, NoteType::KAT_L };
+        active.emplace(types[type_idx], big, types[type_idx] == NoteType::DON ? false : true);
     }
     void on_tab(double) override { big = !big; }
 
@@ -205,7 +217,7 @@ struct ScoreCounterFixture : public SandboxScreen::Fixture {
 
     ScoreCounterFixture() { name = "ScoreCounter"; }
 
-    uint32_t anchor_texture_id() override { return LANE::SCORE_NUMBER; }
+    uint32_t anchor_texture_id() override { return LANE::LANE_SCORE_COVER; }
 
     void reset(double ms) override {
         score = 0;
@@ -300,18 +312,20 @@ struct BalloonCounterFixture : public SandboxScreen::Fixture {
 
 struct ComboAnnounceFixture : public SandboxScreen::Fixture {
     int type_idx = 0;
+    PlayerNum player_num = PlayerNum::P1;
     std::optional<ComboAnnounce> active;
 
     static constexpr int combos[] = { 100, 200, 500, 1000 };
 
     ComboAnnounceFixture() { name = "ComboAnnounce"; }
 
-    uint32_t anchor_texture_id() override { return COMBO::COMBO; }
+    uint32_t anchor_texture_id() override { return COMBO::ANNOUNCE_BG_1P; }
 
     void reset(double) override { active.reset(); type_idx = 0; }
     void on_space(double ms) override {
-        active.emplace(combos[type_idx], ms, PlayerNum::P1);
+        active.emplace(combos[type_idx], ms, player_num);
     }
+    void on_tab(double) override { player_num = player_num == PlayerNum::P1 ? PlayerNum::P2 : PlayerNum::P1; }
 
     void update(double ms) override {
         if (active && active->is_finished) active.reset();
@@ -408,4 +422,301 @@ struct FireworksFixture : public SandboxScreen::Fixture {
         return { std::string("Active : ") + (active.has_value() ? "yes" : "no") };
     }
     std::string controls() override { return "SPACE/L-CLICK: trigger  R/R-CLICK: reset"; }
+};
+
+// ─── Additional fixtures ──────────────────────────────────────────────────────
+
+struct BranchIndicatorFixture : public SandboxScreen::Fixture {
+    std::optional<BranchIndicator> active;
+    int type_idx = 0;
+    bool last_was_up = false;
+
+    static constexpr BranchDifficulty diffs[] = {
+        BranchDifficulty::NORMAL, BranchDifficulty::EXPERT, BranchDifficulty::MASTER
+    };
+
+    BranchIndicatorFixture() { name = "BranchIndicator"; }
+
+    uint32_t anchor_texture_id() override { return BRANCH::EXPERT_BG; }
+
+    void reset(double) override { active.emplace(); last_was_up = false; }
+    void on_space(double) override {
+        if (!active) active.emplace();
+        active->level_up(diffs[type_idx]);
+        last_was_up = true;
+    }
+    void on_tab(double) override {
+        if (!active) active.emplace();
+        active->level_down(diffs[type_idx]);
+        last_was_up = false;
+    }
+
+    void update(double ms) override { if (active) active->update(ms); }
+    void draw()            override { if (active) active->draw(0); }
+
+    std::vector<std::string> type_names() override { return {"NORMAL", "EXPERT", "MASTER"}; }
+    int  get_type() override { return type_idx; }
+    void set_type(int idx, double) override { type_idx = idx; }
+
+    std::vector<std::string> debug_lines() override {
+        return { std::string("Last  : ") + (last_was_up ? "level_up" : "level_down") };
+    }
+    std::string controls() override { return "SPACE/L-CLICK: level up  VARIANT: level down  R/R-CLICK: reset"; }
+};
+
+struct GaugeFixture : public SandboxScreen::Fixture {
+    std::optional<Gauge> active;
+    PlayerNum player_num = PlayerNum::P1;
+    int type_idx = 0;
+
+    GaugeFixture() { name = "Gauge"; }
+
+    uint32_t anchor_texture_id() override { return GAUGE::OVERLAY_HARD; }
+
+    void reset(double) override { active.emplace(player_num, 2, 5, 100); type_idx = 0; }
+    void on_space(double) override {
+        if (!active) return;
+        if (type_idx == 0)      active->add_good();
+        else if (type_idx == 1) active->add_ok();
+        else                    active->add_bad();
+    }
+    void on_tab(double) override { player_num = player_num == PlayerNum::P1 ? PlayerNum::P2 : PlayerNum::P1; }
+
+    void update(double ms) override { if (active) active->update(ms); }
+    void draw()            override { if (active) active->draw(0); }
+
+    std::vector<std::string> type_names() override { return {"GOOD", "OK", "BAD"}; }
+    int  get_type() override { return type_idx; }
+    void set_type(int idx, double) override { type_idx = idx; }
+
+    std::vector<std::string> debug_lines() override {
+        if (!active) return {};
+        return {
+            "Progress : " + std::to_string((int)(active->get_progress() * 100)) + "%",
+            std::string("Clear    : ") + (active->get_is_clear()   ? "yes" : "no"),
+            std::string("Rainbow  : ") + (active->get_is_rainbow() ? "yes" : "no"),
+        };
+    }
+    std::string controls() override { return "SPACE/L-CLICK: add hit  R/R-CLICK: reset"; }
+};
+
+struct JudgeCounterFixture : public SandboxScreen::Fixture {
+    std::optional<JudgeCounter> counter;
+    int good = 0, ok = 0, bad = 0, rolls = 0;
+    int type_idx = 0;
+
+    JudgeCounterFixture() { name = "JudgeCounter"; }
+
+    uint32_t anchor_texture_id() override { return JUDGE_COUNTER::BG; }
+
+    void reset(double) override {
+        good = ok = bad = rolls = 0;
+        counter.emplace();
+        counter->update(good, ok, bad, rolls);
+        type_idx = 0;
+    }
+    void on_space(double) override {
+        if (!counter) return;
+        if (type_idx == 0)      good++;
+        else if (type_idx == 1) ok++;
+        else if (type_idx == 2) bad++;
+        else                    rolls++;
+        counter->update(good, ok, bad, rolls);
+    }
+
+    void update(double) override {}
+    void draw()         override { if (counter) counter->draw(); }
+
+    std::vector<std::string> type_names() override { return {"GOOD", "OK", "BAD", "DRUMROLL"}; }
+    int  get_type() override { return type_idx; }
+    void set_type(int idx, double) override { type_idx = idx; }
+
+    std::vector<std::string> debug_lines() override {
+        return {
+            "Good     : " + std::to_string(good),
+            "OK       : " + std::to_string(ok),
+            "Bad      : " + std::to_string(bad),
+            "Drumroll : " + std::to_string(rolls),
+        };
+    }
+    std::string controls() override { return "SPACE/L-CLICK: increment selected  R/R-CLICK: reset"; }
+};
+
+struct KusudamaCounterFixture : public SandboxScreen::Fixture {
+    std::optional<KusudamaCounter> counter;
+    int hit_count  = 0;
+    int preset_idx = 0;
+
+    static constexpr int totals[] = { 5, 10, 20, 50 };
+
+    KusudamaCounterFixture() { name = "KusudamaCounter"; }
+
+    uint32_t anchor_texture_id() override { return KUSUDAMA::RENDA; }
+
+    void reset(double ms) override {
+        hit_count = 0;
+        counter.emplace(totals[preset_idx]);
+        counter->update(ms, 0);
+    }
+    void on_space(double ms) override {
+        if (!counter || counter->is_finished() || hit_count >= totals[preset_idx]) return;
+        counter->update(ms, ++hit_count);
+    }
+
+    void update(double ms) override { if (counter) counter->update(ms, hit_count); }
+    void draw()            override { if (counter) counter->draw(); }
+
+    std::vector<std::string> type_names() override { return {"5 hits", "10 hits", "20 hits", "50 hits"}; }
+    int  get_type() override { return preset_idx; }
+    void set_type(int idx, double ms) override { preset_idx = idx; reset(ms); }
+
+    std::vector<std::string> debug_lines() override {
+        return {
+            "Hits : " + std::to_string(hit_count) + " / " + std::to_string(totals[preset_idx]),
+            std::string("Done : ") + (counter && counter->is_finished() ? "yes" : "no"),
+        };
+    }
+    std::string controls() override { return "SPACE/L-CLICK: hit  R/R-CLICK: reset"; }
+};
+
+struct NoteArcFixture : public SandboxScreen::Fixture {
+    std::optional<NoteArc> active;
+    ray::Shader mask_shader{};
+    int type_idx = 0;
+
+    static constexpr NoteType arc_note_types[] = { NoteType::DON, NoteType::DON_L };
+    static constexpr bool     arc_is_balloon[]  = { false,                  true              };
+
+    NoteArcFixture() {
+        name = "NoteArc";
+        mask_shader = ray::LoadShader("shader/dummy.vs", "shader/mask.fs");
+        auto rm = std::dynamic_pointer_cast<SingleTexture>(tex.textures[BALLOON::RAINBOW_MASK]);
+        auto r  = std::dynamic_pointer_cast<SingleTexture>(tex.textures[BALLOON::RAINBOW]);
+        if (rm && r) {
+            SetShaderValueTexture(mask_shader, GetShaderLocation(mask_shader, "texture0"), rm->texture);
+            SetShaderValueTexture(mask_shader, GetShaderLocation(mask_shader, "texture1"), r->texture);
+        }
+    }
+    ~NoteArcFixture() { ray::UnloadShader(mask_shader); }
+
+    uint32_t anchor_texture_id() override { return BALLOON::RAINBOW; }
+
+    void reset(double) override { active.reset(); }
+    void on_space(double ms) override {
+        active.emplace(arc_note_types[type_idx], ms, PlayerNum::P1, false, arc_is_balloon[type_idx]);
+    }
+
+    void update(double ms) override {
+        if (active && active->is_finished()) active.reset();
+        if (active) active->update(ms);
+    }
+    void draw() override { if (active) active->draw(0, mask_shader); }
+
+    std::vector<std::string> type_names() override { return {"Normal", "Balloon"}; }
+    int  get_type() override { return type_idx; }
+    void set_type(int idx, double) override { type_idx = idx; }
+
+    std::vector<std::string> debug_lines() override {
+        return { std::string("Active : ") + (active.has_value() ? "yes" : "no") };
+    }
+    std::string controls() override { return "SPACE/L-CLICK: trigger  R/R-CLICK: reset"; }
+};
+
+struct ResultTransitionFixture : public SandboxScreen::Fixture {
+    std::optional<ResultTransition> active;
+
+    ResultTransitionFixture() { name = "ResultTransition"; }
+
+    uint32_t anchor_texture_id() override { return RESULT_TRANSITION::_1P_SHUTTER; }
+
+    void reset(double) override { active.emplace(PlayerNum::P1); }
+    void on_space(double) override {
+        if (!active) active.emplace(PlayerNum::P1);
+        active->start();
+    }
+
+    void update(double ms) override { if (active) active->update(ms); }
+    void draw()            override { if (active) active->draw(); }
+
+    std::vector<std::string> debug_lines() override {
+        return {
+            std::string("Started  : ") + (active && active->is_started  ? "yes" : "no"),
+            std::string("Finished : ") + (active && active->is_finished ? "yes" : "no"),
+        };
+    }
+    std::string controls() override { return "SPACE/L-CLICK: start  R/R-CLICK: reset"; }
+};
+
+struct TransitionFixture : public SandboxScreen::Fixture {
+    std::optional<Transition> active;
+
+    TransitionFixture() { name = "Transition"; }
+
+    uint32_t anchor_texture_id() override { return RAINBOW_TRANSITION::TEXT_BG; }
+
+    void reset(double) override { active.emplace("Test Song", "Test Subtitle", false); }
+    void on_space(double) override {
+        if (!active) active.emplace("Test Song", "Test Subtitle", false);
+        active->start();
+    }
+
+    void update(double ms) override { if (active) active->update(ms); }
+    void draw()            override { if (active) active->draw(); }
+
+    std::vector<std::string> debug_lines() override {
+        return { std::string("Finished : ") + (active && active->is_finished() ? "yes" : "no") };
+    }
+    std::string controls() override { return "SPACE/L-CLICK: start  R/R-CLICK: reset"; }
+};
+
+struct ScoreCounterAnimFixture : public SandboxScreen::Fixture {
+    std::optional<ScoreCounterAnimation> active;
+    int type_idx = 0;
+
+    static constexpr int scores[] = { 500, 1000, 5000, 10000 };
+
+    ScoreCounterAnimFixture() { name = "ScoreCounterAnim"; }
+
+    uint32_t anchor_texture_id() override { return LANE::SCORE_NUMBER; }
+
+    void reset(double) override { active.reset(); type_idx = 0; }
+    void on_space(double) override { active.emplace(PlayerNum::P1, scores[type_idx]); }
+
+    void update(double ms) override {
+        if (active && active->is_finished()) active.reset();
+        if (active) active->update(ms);
+    }
+    void draw() override { if (active) active->draw(0); }
+
+    std::vector<std::string> type_names() override { return {"500", "1000", "5000", "10000"}; }
+    int  get_type() override { return type_idx; }
+    void set_type(int idx, double) override { type_idx = idx; }
+
+    std::vector<std::string> debug_lines() override {
+        return { std::string("Active : ") + (active.has_value() ? "yes" : "no") };
+    }
+    std::string controls() override { return "SPACE/L-CLICK: trigger  R/R-CLICK: reset"; }
+};
+
+struct SongInfoFixture : public SandboxScreen::Fixture {
+    std::optional<SongInfo> active;
+    int genre = 0;
+
+    SongInfoFixture() { name = "SongInfo"; }
+
+    uint32_t anchor_texture_id() override { return SONG_INFO::GENRE; }
+
+    void reset(double) override { active.emplace("Test Song", genre); }
+    void on_tab(double) override {
+        genre = (genre + 1) % 9;
+        active.emplace("Test Song", genre);
+    }
+
+    void update(double ms) override { if (active) active->update(ms); }
+    void draw()            override { if (active) active->draw(); }
+
+    std::vector<std::string> debug_lines() override {
+        return { "Genre : " + std::to_string(genre) };
+    }
+    std::string controls() override { return "VARIANT: cycle genre  R/R-CLICK: reset"; }
 };

@@ -97,6 +97,9 @@ void Gauge::add_bad() {
     if (gauge_length < 0) {
         gauge_length = 0;
     }
+    if (previous_length == gauge_max && gauge_length < gauge_max) {
+        if (rainbow_fade_in.has_value()) rainbow_fade_in.reset();
+    }
 }
 
 void Gauge::update(double current_ms) {

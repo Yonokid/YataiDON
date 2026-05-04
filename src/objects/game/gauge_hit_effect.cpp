@@ -83,14 +83,14 @@ void GaugeHitEffect::draw(float y) {
     //Circle effect texture
     ray::Color texture_color;
     if (circle_fadein->is_finished) {
-        texture_color = ray::Fade(ray::WHITE, circle_fadein->attribute);
+        texture_color = ray::Fade(ray::WHITE, std::min(circle_fadein->attribute, fade_out->attribute));
     } else {
-        texture_color = ray::Fade(ray::YELLOW, circle_fadein->attribute);
+        texture_color = ray::Fade(ray::YELLOW, std::min(circle_fadein->attribute, fade_out->attribute));
     }
     if (is_big) {
-        tex.draw_texture(GAUGE::HIT_EFFECT_CIRCLE_BIG, {.color=texture_color, .y=y, .index=is_2p});
+        tex.draw_texture(GAUGE::HIT_EFFECT_CIRCLE_BIG, {.color=texture_color, .y=y, .fade=fade_out->attribute, .index=is_2p});
     } else {
-        tex.draw_texture(GAUGE::HIT_EFFECT_CIRCLE, {.color=texture_color, .y=y, .index=is_2p});
+        tex.draw_texture(GAUGE::HIT_EFFECT_CIRCLE, {.color=texture_color, .y=y, .fade=fade_out->attribute, .index=is_2p});
     }
 }
 

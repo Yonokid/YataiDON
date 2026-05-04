@@ -26,6 +26,7 @@ private:
     double current_ms       = 0.0;
     double fixture_start_ms = 0.0;
     bool   paused           = false;
+    int    panel_scroll     = 0;
 
     static constexpr int    PANEL_W  = 220;
     static constexpr int    ITEM_H   = 32;
