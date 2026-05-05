@@ -2,6 +2,7 @@
 
 #include "../libs/screen.h"
 #include "../objects/entry/box_manager.h"
+#include "../objects/entry/entry_script.h"
 #include "../objects/entry/player.h"
 #include "../objects/global/nameplate.h"
 #include "../objects/global/coin_overlay.h"
@@ -22,6 +23,7 @@ private:
     std::unique_ptr<BoxManager> box_manager;
     EntryState state;
 
+    EntryScript lua_entry;
     Nameplate nameplate;
     CoinOverlay coin_overlay;
     AllNetIcon allnet_indicator;
@@ -29,8 +31,6 @@ private:
     std::unique_ptr<Timer> timer;
 
     bool screen_init;
-    FadeAnimation* side_select_fade;
-    FadeAnimation* bg_flicker;
     //Chara2D* chara;
     bool announce_played;
     std::vector<std::unique_ptr<EntryPlayer>> players;

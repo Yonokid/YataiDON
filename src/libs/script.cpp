@@ -6,8 +6,21 @@ void ScriptManager::init(fs::path script_path) {
     lua->open_libraries(sol::lib::base, sol::lib::package, sol::lib::string,
                         sol::lib::math, sol::lib::table);
 
+    std::string skin_scripts_dir = script_path.string();
+        std::string package_path = skin_scripts_dir + "/?.lua;" +
+                                   skin_scripts_dir + "/?/init.lua";
+        (*lua)["package"]["path"] = package_path;
+
     for (const auto& script : fs::directory_iterator(script_path)) {
-        scripts[script.path().stem().string()] = script.path().string();
+        fs::path p = script.path();
+        if (fs::is_directory(p)) {
+            fs::path lua_file = p / (p.stem().string() + ".lua");
+            if (fs::exists(lua_file)) {
+                scripts[p.stem().string()] = lua_file.string();
+            }
+        } else if (p.extension() == ".lua") {
+            scripts[p.stem().string()] = p.string();
+        }
     }
     spdlog::debug("Loaded scripts:");
     for (const auto& [name, path] : scripts) {

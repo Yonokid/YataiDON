@@ -12,11 +12,8 @@ void EntryScreen::on_screen_start() {
     nameplate = Nameplate(plate_info.name, plate_info.title, PlayerNum::ALL, -1, false, false, 0);
 
     timer = std::make_unique<Timer>(60, get_current_ms(), [this]() { box_manager->select_box(); });
-    screen_init = true;
 
-    side_select_fade = (FadeAnimation*)tex.get_animation(0);
-    bg_flicker = (FadeAnimation*)tex.get_animation(1);
-    side_select_fade->start();
+    lua_entry.start_side_select();
 
     //chara = new Chara2D(0);
     announce_played = false;
@@ -87,12 +84,12 @@ std::optional<Screens> EntryScreen::handle_input() {
             NameplateConfig plate_info = global_data.config->nameplate_2p;
             nameplate = Nameplate(plate_info.name, plate_info.title, PlayerNum::ALL, -1, false, false, 1);
             //chara = new Chara2D(1);
-            side_select_fade->restart();
+            lua_entry.restart_side_select();
             side = 1;
         } else if (players[0] && players[0]->player_num == PlayerNum::P2 && (is_l_don_pressed(PlayerNum::P1) || is_r_don_pressed(PlayerNum::P1))) {
             audio->play_sound("don", "sound");
             state = EntryState::SELECT_SIDE;
-            side_select_fade->restart();
+            lua_entry.restart_side_select();
             side = 1;
         }
     }
@@ -102,8 +99,7 @@ std::optional<Screens> EntryScreen::handle_input() {
 std::optional<Screens> EntryScreen::update() {
     Screen::update();
     double current_time = get_current_ms();
-    side_select_fade->update(current_time);
-    bg_flicker->update(current_time);
+    lua_entry.update(current_time);
     box_manager->update(current_time, is_2p);
     timer->update(current_time);
     nameplate.update(current_time);
@@ -126,26 +122,12 @@ std::optional<Screens> EntryScreen::update() {
 }
 
 void EntryScreen::draw_background() {
-    tex.draw_texture(BACKGROUND::BG);
-    tex.draw_texture(BACKGROUND::TOWER);
-    tex.draw_texture(BACKGROUND::SHOPS_CENTER);
-    tex.draw_texture(BACKGROUND::PEOPLE);
-    tex.draw_texture(BACKGROUND::SHOPS_LEFT);
-    tex.draw_texture(BACKGROUND::SHOPS_RIGHT);
-    tex.draw_texture(BACKGROUND::LIGHTS, {.scale=2.0f, .fade=bg_flicker->attribute});
+    lua_entry.draw_background();
 }
 
 void EntryScreen::draw_side_select(float fade) {
     auto& skin = tex.skin_config;
-    tex.draw_texture(SIDE_SELECT::BOX_TOP_LEFT,    {.fade=fade});
-    tex.draw_texture(SIDE_SELECT::BOX_TOP_RIGHT,   {.fade=fade});
-    tex.draw_texture(SIDE_SELECT::BOX_BOTTOM_LEFT, {.fade=fade});
-    tex.draw_texture(SIDE_SELECT::BOX_BOTTOM_RIGHT,{.fade=fade});
-    tex.draw_texture(SIDE_SELECT::BOX_TOP,         {.fade=fade});
-    tex.draw_texture(SIDE_SELECT::BOX_BOTTOM,      {.fade=fade});
-    tex.draw_texture(SIDE_SELECT::BOX_LEFT,        {.fade=fade});
-    tex.draw_texture(SIDE_SELECT::BOX_RIGHT,       {.fade=fade});
-    tex.draw_texture(SIDE_SELECT::BOX_CENTER,      {.fade=fade});
+    lua_entry.draw_side_select(side);
 
     text_question->draw({
         .x=skin[SC::ENTRY_QUESTION].x - text_question->width / 2,
@@ -155,26 +137,11 @@ void EntryScreen::draw_side_select(float fade) {
 
     //chara->draw(skin["chara_entry"].x, skin["chara_entry"].y);
 
-    tex.draw_texture(SIDE_SELECT::_1P,     {.fade=fade});
-    tex.draw_texture(SIDE_SELECT::CANCEL, {.fade=fade});
-    tex.draw_texture(SIDE_SELECT::_2P,     {.fade=fade});
-
-    if (side == 0) {
-        tex.draw_texture(SIDE_SELECT::_1P_HIGHLIGHT,  {.fade=fade});
-        tex.draw_texture(SIDE_SELECT::_1P2P_OUTLINE,  {.mirror="horizontal", .fade=fade, .index=0});
-    } else if (side == 1) {
-        tex.draw_texture(SIDE_SELECT::CANCEL_HIGHLIGHT, {.fade=fade});
-        tex.draw_texture(SIDE_SELECT::CANCEL_OUTLINE,   {.fade=fade});
-    } else {
-        tex.draw_texture(SIDE_SELECT::_2P_HIGHLIGHT, {.fade=fade});
-        tex.draw_texture(SIDE_SELECT::_1P2P_OUTLINE, {.fade=fade, .index=1});
-    }
-
     auto& tex_obj = tex.textures[SIDE_SELECT::CANCEL];
     float text_x = tex_obj->x[0] + ((float)tex_obj->width / 2) - (text_cancel->width / 2);
     float text_y = tex_obj->y[0] + ((float)tex_obj->height / 2) - (text_cancel->height / 2);
     text_cancel->draw({.x=text_x, .y=text_y, .fade=fade});
-    nameplate.draw(tex.skin_config[SC::NAMEPLATE_ENTRY].x, tex.skin_config[SC::NAMEPLATE_ENTRY].y, fade);
+    nameplate.draw(skin[SC::NAMEPLATE_ENTRY].x, skin[SC::NAMEPLATE_ENTRY].y, fade);
 }
 
 void EntryScreen::draw_player_drum() {
@@ -195,23 +162,16 @@ void EntryScreen::draw() {
     draw_player_drum();
 
     if (state == EntryState::SELECT_SIDE) {
-        draw_side_select(side_select_fade->attribute);
+        draw_side_select(lua_entry.get_side_select_fade());
     } else if (state == EntryState::SELECT_MODE) {
         draw_mode_select();
     }
 
-    tex.draw_texture(SIDE_SELECT::FOOTER);
-
-    if (players[0] && players[1]) {
-        // both players present, no footer sides needed
-    } else if (!players[0]) {
-        tex.draw_texture(SIDE_SELECT::FOOTER_LEFT);
-        tex.draw_texture(SIDE_SELECT::FOOTER_RIGHT);
-    } else if (players[0] && players[0]->player_num == PlayerNum::P1) {
-        tex.draw_texture(SIDE_SELECT::FOOTER_RIGHT);
-    } else if (players[0] && players[0]->player_num == PlayerNum::P2) {
-        tex.draw_texture(SIDE_SELECT::FOOTER_LEFT);
-    }
+    bool p1_joined = (players[0] && players[0]->player_num == PlayerNum::P1) ||
+                     (players[1] && players[1]->player_num == PlayerNum::P1);
+    bool p2_joined = (players[0] && players[0]->player_num == PlayerNum::P2) ||
+                     (players[1] && players[1]->player_num == PlayerNum::P2);
+    lua_entry.draw_footer(p1_joined, p2_joined);
 
     for (auto& player : players) {
         if (player) {
@@ -219,7 +179,7 @@ void EntryScreen::draw() {
         }
     }
 
-    tex.draw_texture(GLOBAL::PLAYER_ENTRY);
+    lua_entry.draw_player_entry();
 
     if (box_manager->is_finished()) {
         ray::DrawRectangle(0, 0, tex.screen_width, tex.screen_height, ray::BLACK);
