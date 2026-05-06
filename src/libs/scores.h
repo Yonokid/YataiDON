@@ -31,6 +31,7 @@ public:
     std::string get_single_hash(const fs::path& path);
     std::optional<fs::path> get_path_by_hash(const std::string& single_hash);
     void add_song(const std::array<std::string, 5>& hash, const std::string& title, const std::string& subtitle);
+    void remap_hashes(const std::unordered_map<std::string, std::string>& old_to_new);
     int add_player(const std::string& name);
 };
 

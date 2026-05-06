@@ -97,13 +97,23 @@ TJAParser::TJAParser(const std::filesystem::path& path, int start_delay, PlayerN
     std::vector<std::string> lines = read_file_lines(file_path, encoding);
 
     for (const auto& line : lines) {
-        std::string cleaned = strip_comments(line);
-        cleaned.erase(0, cleaned.find_first_not_of(" \t\r\n"));
-        cleaned.erase(cleaned.find_last_not_of(" \t\r\n") + 1);
-
-        if (!cleaned.empty()) {
-            data.push_back(cleaned);
+        std::string cleaned;
+        size_t comment_pos = line.find("//");
+        if (comment_pos == std::string::npos) {
+            cleaned = line;
+        } else if (comment_pos > 0) {
+            std::string prefix = line.substr(0, comment_pos);
+            auto non_space = std::find_if(prefix.begin(), prefix.end(),
+                                         [](unsigned char c) { return !std::isspace(c); });
+            if (non_space != prefix.end()) {
+                cleaned = std::move(prefix);
+            }
         }
+
+        size_t start = cleaned.find_first_not_of(" \t\r\n");
+        if (start == std::string::npos) continue;
+        size_t end = cleaned.find_last_not_of(" \t\r\n");
+        data.push_back(cleaned.substr(start, end - start + 1));
     }
 
     metadata = TJAMetadata();
@@ -353,7 +363,14 @@ TJAParser::notes_to_position(int diff) {
     if (metadata.course_data.count(diff) == 0) {
         return std::make_tuple(NoteList(), std::deque<NoteList>(), std::deque<NoteList>(), std::deque<NoteList>());
     }
-    auto commands = build_command_registry();
+    if (cached_cmds.empty()) {
+        auto cmds = build_command_registry();
+        cached_cmds = std::vector<std::pair<std::string, CommandHandler>>(cmds.begin(), cmds.end());
+        std::sort(cached_cmds.begin(), cached_cmds.end(),
+            [](const auto& a, const auto& b) {
+                return a.first.length() > b.first.length();
+            });
+    }
     auto notes = data_to_notes(diff);
 
     ParserState state;
@@ -379,17 +396,7 @@ TJAParser::notes_to_position(int diff) {
         for (const auto& part : bar) {
             // Handle commands (lines starting with #)
             if (!part.empty() && part[0] == '#') {
-                // Sort commands by length (longest first) for proper matching
-                std::vector<std::pair<std::string, CommandHandler>> sorted_cmds(
-                    commands.begin(), commands.end()
-                );
-                std::sort(sorted_cmds.begin(), sorted_cmds.end(),
-                            [](const auto& a, const auto& b) {
-                                return a.first.length() > b.first.length();
-                            });
-
-                // Find and execute matching command handler
-                for (const auto& [cmd_prefix, handler] : sorted_cmds) {
+                for (const auto& [cmd_prefix, handler] : cached_cmds) {
                     if (part.find(cmd_prefix) == 0) {
                         std::string value = trim(part.substr(cmd_prefix.length()));
                         handler(value, state);
@@ -449,7 +456,7 @@ TJAParser::notes_to_position(int diff) {
                 }
 
                 // Create and add note
-                Note note = add_note(std::string(1, item), state);
+                Note note = add_note(item, state);
                 current_ms += increment;
                 state.curr_note_list->push_back(note);
                 state.index++;
@@ -897,6 +904,7 @@ void TJAParser::handle_BRANCHSTART(const std::string& value, ParserState& state)
     state.start_branch_y_scroll = state.scroll_y_modifier;
     state.start_branch_barline = state.barline_display;
     state.branch_balloon_index = state.balloon_index;
+    state.branch_balloon_cursor = state.balloon_cursor;
 
     std::string branch_params = value;
 
@@ -1023,6 +1031,7 @@ void TJAParser::handle_N(const std::string& value, ParserState& state) {
     state.scroll_y_modifier = state.start_branch_y_scroll;
     state.barline_display = state.start_branch_barline;
     state.balloon_index = state.branch_balloon_index;
+    state.balloon_cursor = state.branch_balloon_cursor;
     state.is_branching = true;
 }
 
@@ -1037,6 +1046,7 @@ void TJAParser::handle_E(const std::string& value, ParserState& state) {
     state.scroll_y_modifier = state.start_branch_y_scroll;
     state.barline_display = state.start_branch_barline;
     state.balloon_index = state.branch_balloon_index;
+    state.balloon_cursor = state.branch_balloon_cursor;
     state.is_branching = true;
 }
 
@@ -1051,6 +1061,7 @@ void TJAParser::handle_M(const std::string& value, ParserState& state) {
     state.scroll_y_modifier = state.start_branch_y_scroll;
     state.barline_display = state.start_branch_barline;
     state.balloon_index = state.branch_balloon_index;
+    state.balloon_cursor = state.branch_balloon_cursor;
     state.is_branching = true;
 }
 
@@ -1120,16 +1131,12 @@ Note TJAParser::add_bar(ParserState& state) {
     return bar_line;
 }
 
-Note TJAParser::add_note(const std::string& item, ParserState& state) {
+Note TJAParser::add_note(char item, ParserState& state) {
     Note note = Note();
     note.hit_ms = this->current_ms;
     state.delay_last_note_ms = this->current_ms;
     note.display = true;
-    if (std::isalpha(std::stoi(item))) {
-        note.type = NoteType::ROLL_HEAD_L;
-    } else {
-        note.type = NoteType(std::stof(item));
-    }
+    note.type = NoteType(item - '0');
     note.index = state.index;
     note.bpm = state.bpm;
     note.scroll_x = state.scroll_x_modifier;
@@ -1145,10 +1152,9 @@ Note TJAParser::add_note(const std::string& item, ParserState& state) {
         return note;
     } else if (note.type == NoteType::BALLOON_HEAD || note.type == NoteType::KUSUDAMA) {
         state.balloon_index++;
-        note.count = (!state.balloons.empty()) ? state.balloons[0] : 1;
-        if (!state.balloons.empty()) {
-            state.balloons.erase(state.balloons.begin());
-        }
+        note.count = (state.balloon_cursor < state.balloons.size())
+            ? state.balloons[state.balloon_cursor] : 1;
+        state.balloon_cursor++;
         return note;
     }
 
@@ -1354,7 +1360,6 @@ std::vector<std::pair<int, int>> find_streams(const std::deque<Note>& modded_not
 }
 
 std::string TJAParser::get_song_hash() {
-    get_metadata();
     digestpp::md5 hasher;
     for (const auto& [course, course_data] : metadata.course_data) {
         for (int diff = course; diff < 4; diff++) {
@@ -1362,8 +1367,12 @@ std::string TJAParser::get_song_hash() {
 
             auto absorb_notes = [&](const NoteList& note_list) {
                 for (const Note& note : note_list.notes) {
-                    auto h = note.hash();
-                    hasher.absorb(reinterpret_cast<const char*>(&h), sizeof(h));
+                    hasher.absorb(reinterpret_cast<const char*>(&note.bpm), sizeof(note.bpm));
+                    hasher.absorb(reinterpret_cast<const char*>(&note.hit_ms), sizeof(note.hit_ms));
+                    hasher.absorb(reinterpret_cast<const char*>(&note.scroll_x), sizeof(note.scroll_x));
+                    hasher.absorb(reinterpret_cast<const char*>(&note.scroll_y), sizeof(note.scroll_y));
+                    int t = static_cast<int>(note.type);
+                    hasher.absorb(reinterpret_cast<const char*>(&t), sizeof(t));
                 }
             };
 
@@ -1377,7 +1386,6 @@ std::string TJAParser::get_song_hash() {
 }
 
 std::string TJAParser::get_diff_hash(int difficulty) {
-    get_metadata();
     digestpp::md5 hasher;
     auto [notes, branch_m, branch_e, branch_n] = notes_to_position(difficulty);
     auto total_notes = notes.notes.size();
@@ -1390,8 +1398,12 @@ std::string TJAParser::get_diff_hash(int difficulty) {
 
     auto absorb_notes = [&](const NoteList& note_list) {
         for (const Note& note : note_list.notes) {
-            auto h = note.hash();
-            hasher.absorb(reinterpret_cast<const char*>(&h), sizeof(h));
+            hasher.absorb(reinterpret_cast<const char*>(&note.bpm), sizeof(note.bpm));
+            hasher.absorb(reinterpret_cast<const char*>(&note.hit_ms), sizeof(note.hit_ms));
+            hasher.absorb(reinterpret_cast<const char*>(&note.scroll_x), sizeof(note.scroll_x));
+            hasher.absorb(reinterpret_cast<const char*>(&note.scroll_y), sizeof(note.scroll_y));
+            int t = static_cast<int>(note.type);
+            hasher.absorb(reinterpret_cast<const char*>(&t), sizeof(t));
         }
     };
 

@@ -90,38 +90,17 @@ public:
         return hit_ms == other.hit_ms && index == other.index;
     }
 
-    virtual std::string get_hash_data() const {
-        std::vector<std::string> hash_fields = {"bpm", "hit_ms", "scroll_x", "scroll_y", "type"};
-        std::ostringstream oss;
-        oss << "[";
-        for (const auto& field : hash_fields) {
-            oss << "('" << field << "', ";
-            if (field == "type") oss << (int)type;
-            else if (field == "hit_ms") oss << hit_ms;
-            else if (field == "bpm") oss << bpm;
-            else if (field == "scroll_x") oss << scroll_x;
-            else if (field == "scroll_y") oss << scroll_y;
-            oss << "), ";
-        }
-        oss << "('__class__', 'Note')]";
-        return oss.str();
-    }
-
-    std::string get_hash() const {
-        std::string data = get_hash_data();
-
-        // Use digestpp to compute MD5
-        digestpp::md5 hasher;
-        hasher.absorb(data);
-        std::string hash_hex = hasher.hexdigest();
-
-        return hash_hex;
-    }
-
     size_t hash() const {
-        std::string md5_hash = get_hash();
-        std::string first_8_chars = md5_hash.substr(0, 8);
-        return std::stoull(first_8_chars, nullptr, 16);
+        size_t h = 0;
+        auto combine = [&](size_t v) {
+            h ^= v + 0x9e3779b9 + (h << 6) + (h >> 2);
+        };
+        combine(std::hash<double>{}(bpm));
+        combine(std::hash<double>{}(hit_ms));
+        combine(std::hash<double>{}(scroll_x));
+        combine(std::hash<double>{}(scroll_y));
+        combine(std::hash<int>{}(static_cast<int>(type)));
+        return h;
     }
 };
 
@@ -215,7 +194,9 @@ struct ParserState {
     std::deque<TimelineObject>* curr_timeline;
     double index = 0;
     std::vector<int> balloons;
+    size_t balloon_cursor = 0;
     double balloon_index = 0;
+    size_t branch_balloon_cursor = 0;
     std::optional<Note> prev_note;
     bool barline_added = false;
     double sudden_appear = 0.0f;
@@ -315,6 +296,7 @@ private:
                           std::optional<Note> section_bar);
 
     std::map<std::string, CommandHandler> build_command_registry();
+    std::vector<std::pair<std::string, CommandHandler>> cached_cmds;
 
     void handle_MEASURE(const std::string& value, ParserState& state);
     void handle_SCROLL(const std::string& value, ParserState& state);
@@ -338,7 +320,7 @@ private:
     void handle_LYRIC(const std::string& value, ParserState& state);
 
     Note add_bar(ParserState& state);
-    Note add_note(const std::string& item, ParserState& state);
+    Note add_note(char item, ParserState& state);
 };
 
 double get_ms_per_measure(double bpm_val, double time_sig);

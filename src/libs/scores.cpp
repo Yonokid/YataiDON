@@ -286,6 +286,44 @@ void ScoresManager::add_song(const std::array<std::string, 5>& hashes, const std
     sqlite3_finalize(stmt);
 }
 
+void ScoresManager::remap_hashes(const std::unordered_map<std::string, std::string>& old_to_new) {
+    if (old_to_new.empty()) return;
+
+    sqlite3_exec(db_fsd, "BEGIN TRANSACTION;", nullptr, nullptr, nullptr);
+
+    sqlite3_stmt* scores_stmt;
+    sqlite3_prepare_v2(db_fsd,
+        "UPDATE scores SET hash = ? WHERE hash = ?;",
+        -1, &scores_stmt, nullptr);
+
+    std::array<sqlite3_stmt*, 5> song_stmts;
+    for (int i = 0; i < 5; i++) {
+        std::string q = "UPDATE songs SET hash_" + std::to_string(i)
+                      + " = ? WHERE hash_" + std::to_string(i) + " = ?;";
+        sqlite3_prepare_v2(db_fsd, q.c_str(), -1, &song_stmts[i], nullptr);
+    }
+
+    for (const auto& [old_h, new_h] : old_to_new) {
+        sqlite3_bind_text(scores_stmt, 1, new_h.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(scores_stmt, 2, old_h.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_step(scores_stmt);
+        sqlite3_reset(scores_stmt);
+
+        for (int i = 0; i < 5; i++) {
+            sqlite3_bind_text(song_stmts[i], 1, new_h.c_str(), -1, SQLITE_TRANSIENT);
+            sqlite3_bind_text(song_stmts[i], 2, old_h.c_str(), -1, SQLITE_TRANSIENT);
+            sqlite3_step(song_stmts[i]);
+            sqlite3_reset(song_stmts[i]);
+        }
+    }
+
+    sqlite3_finalize(scores_stmt);
+    for (auto& s : song_stmts) sqlite3_finalize(s);
+
+    sqlite3_exec(db_fsd, "COMMIT;", nullptr, nullptr, nullptr);
+    spdlog::info("remap_hashes: remapped {} hash pairs", old_to_new.size());
+}
+
 int ScoresManager::add_player(const std::string& name) {
     sqlite3_stmt* stmt;
 
