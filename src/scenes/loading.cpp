@@ -77,6 +77,8 @@ void LoadingScreen::load_song_hashes() {
                     hashes[0] = parser.get_diff_hash(0);
                 } else {
                     for (const auto& [course, course_data] : parser.metadata.course_data) {
+                        if (course < 0 || course >= static_cast<int>(hashes.size()))
+                            continue;
                         hashes[course] = parser.get_diff_hash(course);
                     }
                 }

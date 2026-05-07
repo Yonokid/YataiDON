@@ -113,6 +113,8 @@ void migrate_hash_cache(SongCache& hash_cache, const fs::path& cache_path) {
                 new_hashes[0] = parser.get_diff_hash(0);
             } else {
                 for (const auto& [course, course_data] : parser.metadata.course_data) {
+                    if (course < 0 || course >= static_cast<int>(new_hashes.size()))
+                        continue;
                     new_hashes[course] = parser.get_diff_hash(course);
                 }
             }
