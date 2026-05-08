@@ -196,8 +196,8 @@ jobs:
 
       - name: Repackage artifacts
         run: |
-          zip -r YataiDON-Linux.zip YataiDON Skins shader config.toml lib/
-          zip -r YataiDON-Windows.zip YataiDON.exe Skins shader config.toml *.dll
+          zip -r YataiDON-Linux.zip YataiDON Skins shader Songs config.toml lib/
+          zip -r YataiDON-Windows.zip YataiDON.exe Skins Songs shader config.toml *.dll
 
       - name: Upload Release
         uses: softprops/action-gh-release@v2
