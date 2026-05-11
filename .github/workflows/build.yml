@@ -120,6 +120,7 @@ jobs:
 
     steps:
       - name: Configure Git credentials
+        shell: bash
         run: |
           git config --global url."https://${{ secrets.GITEA_USER }}:${{ secrets.GITEA_TOKEN }}@ese.tjadataba.se/".insteadOf "https://ese.tjadataba.se/"
 
