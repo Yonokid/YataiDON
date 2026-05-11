@@ -119,6 +119,10 @@ jobs:
         shell: msys2 {0}
 
     steps:
+      - name: Configure Git credentials
+        run: |
+          git config --global url."https://${{ secrets.GITEA_USER }}:${{ secrets.GITEA_TOKEN }}@ese.tjadataba.se/".insteadOf "https://ese.tjadataba.se/"
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
