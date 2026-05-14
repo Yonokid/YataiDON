@@ -1,32 +1,11 @@
 #include "rapidjson/document.h"
 #include <rapidjson/istreamwrapper.h>
-#include <unordered_map>
-#include <array>
 #include <vector>
 #include <filesystem>
 
 namespace fs = std::filesystem;
 
 void set_working_directory_to_executable();
-
-struct SongCacheEntry {
-    std::filesystem::file_time_type mtime;
-    std::array<std::string, 5> hashes;
-    std::string title;
-    std::string subtitle;
-};
-
-using SongCache = std::unordered_map<std::string, SongCacheEntry>;
-
-static constexpr uint32_t CACHE_MAGIC   = 0x59444343; // "YDCC"
-static constexpr uint32_t CACHE_VERSION = 2;
-
-void save_hash_cache(const SongCache& cache,
-                     const fs::path& cache_path);
-
-std::pair<int, SongCache> load_hash_cache(const fs::path& cache_path);
-
-void migrate_hash_cache(SongCache& cache, const fs::path& cache_path);
 
 void extract_osz(const fs::path& osz_path);
 

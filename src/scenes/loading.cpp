@@ -5,6 +5,7 @@
 #include "../libs/song_parser.h"
 
 void LoadingScreen::on_screen_start() {
+    Screen::on_screen_start();
     progress_bar_width = tex.screen_width * 0.43;
     progress_bar_height = 50 * tex.screen_scale;
     progress_bar_x = (tex.screen_width - progress_bar_width) / 2;
@@ -17,17 +18,7 @@ void LoadingScreen::on_screen_start() {
     loading_thread = std::thread(&LoadingScreen::load_song_hashes, this);
 }
 
-SongCache hash_cache;
-
 void LoadingScreen::load_song_hashes() {
-    const fs::path cache_path = "song_cache.bin";
-    auto [cache_version, loaded_cache] = load_hash_cache(cache_path);
-    hash_cache = std::move(loaded_cache);
-
-    if (cache_version < static_cast<int>(CACHE_VERSION) && !hash_cache.empty()) {
-        migrate_hash_cache(hash_cache, cache_path);
-    }
-
     std::atomic<int> songs_loaded = 0;
     const int thread_count = std::max(1u, std::thread::hardware_concurrency());
     std::vector<std::thread> threads;
@@ -48,23 +39,9 @@ void LoadingScreen::load_song_hashes() {
             std::array<std::string, 5> hashes;
             std::string title, subtitle;
 
-            {
-                std::lock_guard<std::mutex> lock(scores_mutex);
-                auto it = hash_cache.find(path);
-                if (it != hash_cache.end() && it->second.mtime == mtime) {
-                    hashes   = it->second.hashes;
-                    title    = it->second.title;
-                    subtitle = it->second.subtitle;
-                    scores_manager.add_song(hashes, title, subtitle);
-                    scores_manager.add_path_binding(songs[i], hashes);
-                    progress = (float)++songs_loaded / songs.size();
-                    continue;
-                }
-            }
-
             try {
                 SongParser parser(songs[i]);
-                spdlog::info("Parsing song: {}", path);
+                spdlog::debug("Parsing song: {}", path);
                 if (songs[i].extension() == ".osu") {
                     hashes[0] = parser.get_diff_hash(0);
                 } else {
@@ -85,7 +62,6 @@ void LoadingScreen::load_song_hashes() {
             scores_manager.add_song(hashes, title, subtitle);
             scores_manager.add_path_binding(songs[i], hashes);
 
-            hash_cache[path] = { mtime, hashes, title, subtitle };
             progress = (float)++songs_loaded / songs.size();
         }
     };
@@ -98,7 +74,6 @@ void LoadingScreen::load_song_hashes() {
     }
     for (auto& t : threads) t.join();
 
-    save_hash_cache(hash_cache, cache_path);
     if (fs::exists(fs::path("scores_pytaiko.db"))) {
         scores_manager.py_taiko_import(fs::path("scores_pytaiko.db"));
         fs::remove(fs::path("scores_pytaiko.db"));
