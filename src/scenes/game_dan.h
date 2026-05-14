@@ -31,7 +31,7 @@ private:
     int total_notes = 0;
     int dan_color = 0;
 
-    DanGauge dan_gauge{PlayerNum::P1, 1};  // initialized properly in init_dan()
+    Gauge dan_gauge{GaugeMode::DAN, PlayerNum::P1, 1};  // initialized properly in init_dan()
 
     std::vector<bool> exam_failed;
     std::optional<DanInfoCache> dan_info_cache;

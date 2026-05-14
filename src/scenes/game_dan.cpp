@@ -63,7 +63,7 @@ void DanGameScreen::init_dan() {
     dan_info_cache.reset();
 
     // Set up gauge
-    dan_gauge = DanGauge(global_data.player_num, total_notes);
+    dan_gauge = Gauge(GaugeMode::DAN, global_data.player_num, total_notes);
 
     // Create player for first song
     const auto& first = sd.selected_dan[0];

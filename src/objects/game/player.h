@@ -20,7 +20,6 @@
 #include "lane_hit_effect.h"
 #include "note_arc.h"
 #include "gauge.h"
-#include "dan_gauge.h"
 #include "judge_counter.h"
 #include "score_counter.h"
 #include "score_counter_animation.h"
@@ -51,7 +50,7 @@ public:
 
     std::optional<JudgeCounter> judge_counter;
     std::optional<Gauge> gauge;
-    DanGauge* dan_gauge = nullptr;  // non-owning; set by DanGameScreen
+    Gauge* dan_gauge = nullptr;  // non-owning; set by DanGameScreen
 
     ResultData get_result_score();
 

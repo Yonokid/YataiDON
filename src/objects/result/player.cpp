@@ -89,7 +89,7 @@ void ResultPlayer::update_score_animation(double current_ms, bool is_skipped) {
 void ResultPlayer::update(double current_ms, bool fade_in_finished, bool is_skipped) {
     this->fade_in_finished = fade_in_finished;
     if (this->fade_in_finished && !gauge.has_value()) {
-        gauge.emplace(ResultGauge(player_num, global_data.session_data[(int)player_num].result_data.gauge_length, is_2p));
+        gauge.emplace(ResultGauge(GaugeMode::NORMAL, player_num, global_data.session_data[(int)player_num].result_data.gauge_length, is_2p));
         bottom_characters.start();
     }
     if (state.has_value()) {

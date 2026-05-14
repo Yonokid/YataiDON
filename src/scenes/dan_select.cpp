@@ -3,6 +3,7 @@
 #include "../libs/input.h"
 #include "../objects/song_select/file_navigator/navigator.h"
 #include "../libs/filesystem.h"
+#include <filesystem>
 
 int DanNavigator::total_notes_for(const std::vector<DanSongEntry>& songs) {
     int total = 0;
@@ -86,14 +87,18 @@ void DanNavigator::init(const std::vector<fs::path>& song_paths) {
     boxes.clear();
     selected_index = 0;
 
-    for (const fs::path& json_path : song_paths) {
+    for (const fs::path& root_path : song_paths) {
         try {
-            if (auto box = load_dan_box(json_path)) {
-                boxes.push_back(std::move(box));
+            for (const auto& entry : fs::recursive_directory_iterator(root_path)) {
+                if (entry.path().filename() == "dan.json") {
+                    if (auto box = load_dan_box(entry.path())) {
+                        boxes.push_back(std::move(box));
+                    }
+                }
             }
         } catch (const std::exception& ex) {
-            spdlog::warn("DanNavigator: error loading {}: {}", json_path.string(), ex.what());
-        }
+            spdlog::warn("DanNavigator: error loading {}: {}", root_path.string(), ex.what());
+            }
     };
 
     if (boxes.empty()) { spdlog::warn("DanNavigator: no dan courses found"); return; }

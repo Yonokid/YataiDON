@@ -6,6 +6,8 @@
 #include <set>
 #include <algorithm>
 
+enum class GaugeMode { NORMAL, DAN };
+
 enum class DrumType {
     DON = 1,
     KAT = 2

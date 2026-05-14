@@ -579,7 +579,7 @@ void Player::reset_chart() {
             gauge_total_notes++;
         }
     }
-    gauge = Gauge(player_num, difficulty, stars, gauge_total_notes);
+    gauge = Gauge(GaugeMode::NORMAL, player_num, gauge_total_notes, difficulty, stars);
 
     //setup score
     base_score = 0;

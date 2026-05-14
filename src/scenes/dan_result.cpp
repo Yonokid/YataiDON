@@ -1,54 +1,6 @@
 #include "dan_result.h"
 #include "../libs/input.h"
 
-DanResultGauge::DanResultGauge(PlayerNum player_num, float gauge_len)
-    : player_num(player_num), gauge_length(gauge_len)
-    , visual_length(gauge_len * 8), is_rainbow(gauge_len == 89.0f) {}
-
-void DanResultGauge::update(double current_ms) {
-    if (!anims_loaded) {
-        tamashii_fire_change = (TextureChangeAnimation*)tex.get_animation(25);
-        rainbow_animation    = (TextureChangeAnimation*)tex.get_animation(64);
-        rainbow_fade_in      = (FadeAnimation*)tex.get_animation(63);
-        rainbow_animation->start();
-        rainbow_fade_in->start();
-        anims_loaded = true;
-    }
-    is_rainbow = (gauge_length == gauge_max);
-    tamashii_fire_change->update(current_ms);
-    rainbow_animation->update(current_ms);
-    rainbow_fade_in->update(current_ms);
-    if (rainbow_animation->is_finished) rainbow_animation->restart();
-}
-
-void DanResultGauge::draw(double fade) {
-    if (!anims_loaded) return;
-    tex.draw_texture(GAUGE::_1P_UNFILLED, {.fade=fade});
-
-    if (!is_rainbow)
-        tex.draw_texture(GAUGE::_1P_BAR, {.x2=visual_length-8, .fade=fade});
-
-    if (is_rainbow) {
-        float rf = std::min((float)rainbow_fade_in->attribute, (float)fade);
-        if (rainbow_animation->attribute > 0 && rainbow_animation->attribute < 8)
-            tex.draw_texture(GAUGE::RAINBOW, {.frame=(int)rainbow_animation->attribute-1, .fade=rf});
-        tex.draw_texture(GAUGE::RAINBOW, {.frame=(int)rainbow_animation->attribute, .fade=std::min(rf, 0.75f)});
-    }
-
-    tex.draw_texture(GAUGE::OVERLAY, {.fade=std::min(fade, 0.15)});
-    tex.draw_texture(GAUGE::FOOTER,  {.fade=fade});
-
-    if (is_rainbow) {
-        tex.draw_texture(GAUGE::TAMASHII_FIRE, {.frame=(int)tamashii_fire_change->attribute, .scale=0.75f, .center=true, .fade=fade});
-        tex.draw_texture(GAUGE::TAMASHII,      {.fade=fade});
-        int f = (int)tamashii_fire_change->attribute;
-        if (f == 0 || f == 1 || f == 4 || f == 5)
-            tex.draw_texture(GAUGE::TAMASHII_OVERLAY, {.fade=std::min(fade, 0.5)});
-    } else {
-        tex.draw_texture(GAUGE::TAMASHII_DARK, {.fade=fade});
-    }
-}
-
 // ─── DanResultScreen ─────────────────────────────────────────────────────────
 
 void DanResultScreen::on_screen_start() {
@@ -61,7 +13,7 @@ void DanResultScreen::on_screen_start() {
 
     const SessionData& sd = global_data.session_data[(int)global_data.player_num];
     background.emplace(PlayerNum::DAN, tex.screen_width);
-    //gauge = std::make_unique<DanResultGauge>(global_data.player_num, sd.dan_result_data.gauge_length);
+    //gauge = std::make_unique<ResultGauge>(GaugeMode::DAN, global_data.player_num, sd.dan_result_data.gauge_length);
 
     int font_size = tex.skin_config[SC::DAN_TITLE].font_size;
     hori_name = std::make_unique<OutlinedText>(sd.dan_result_data.dan_title, font_size, ray::WHITE, ray::BLACK, false);

@@ -4,27 +4,9 @@
 #include "../libs/global_data.h"
 #include "../libs/text.h"
 #include "../objects/result/background.h"
+#include "../objects/result/gauge.h"
 #include "../objects/global/allnet_indicator.h"
 #include "../objects/global/coin_overlay.h"
-
-class DanResultGauge {
-public:
-    DanResultGauge(PlayerNum player_num, float gauge_length);
-    void update(double current_ms);
-    void draw(double fade);
-
-private:
-    PlayerNum player_num;
-    float gauge_length;
-    float visual_length;
-    const float gauge_max = 89.0f;
-    bool is_rainbow;
-
-    bool anims_loaded = false;
-    TextureChangeAnimation* tamashii_fire_change = nullptr;
-    TextureChangeAnimation* rainbow_animation    = nullptr;
-    FadeAnimation*          rainbow_fade_in      = nullptr;
-};
 
 class DanResultScreen : public Screen {
 public:
@@ -42,7 +24,7 @@ private:
     FadeAnimation* page2_fade = nullptr;
 
     std::optional<ResultBackground> background;
-    std::unique_ptr<DanResultGauge>  gauge;
+    std::unique_ptr<ResultGauge>  gauge;
     std::unique_ptr<OutlinedText>    hori_name;
     std::vector<std::unique_ptr<OutlinedText>> song_names;
 

@@ -96,6 +96,10 @@ rapidjson::Document read_json_file(fs::path file_path) {
         throw std::runtime_error("File not found: " + file_path.string());
     }
 
+    if (file_path.extension() != ".json") {
+        throw std::runtime_error("File is not a json file: " + file_path.string());
+    }
+
     std::ifstream ifs(file_path);
 
     if (!ifs) {

@@ -472,7 +472,7 @@ struct GaugeFixture : public SandboxScreen::Fixture {
 
     uint32_t anchor_texture_id() override { return GAUGE::OVERLAY_HARD; }
 
-    void reset(double) override { active.emplace(player_num, 2, 5, 100); type_idx = 0; }
+    void reset(double) override { active.emplace(GaugeMode::NORMAL, player_num, 100, 2, 5); type_idx = 0; }
     void on_space(double) override {
         if (!active) return;
         if (type_idx == 0)      active->add_good();
