@@ -3,6 +3,8 @@
 SongParser::SongParser(const fs::path& path, int start_delay, PlayerNum player_num) {
     if (path.extension() == ".osu")
         impl = OsuParser(path);
+    else if (path.extension() == ".bin")
+        impl = FumenParser(path);
     else
         impl = TJAParser(path, start_delay, player_num);
     sync();

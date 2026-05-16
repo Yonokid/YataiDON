@@ -80,7 +80,7 @@ std::vector<fs::path> get_song_files(std::vector<fs::path> root_path) {
             for (const auto& entry : std::filesystem::recursive_directory_iterator(
                      path, std::filesystem::directory_options::skip_permission_denied)) {
                 auto ext = entry.path().extension();
-                if (ext == ".tja" || ext == ".osu") {
+                if (ext == ".tja" || ext == ".osu" || ext == ".bin") {
                     songs.push_back(entry.path());
                 }
             }

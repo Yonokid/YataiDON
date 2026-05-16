@@ -1,6 +1,7 @@
 #pragma once
 
 #include <variant>
+#include "parsers/fumen.h"
 #include "parsers/osu.h"
 #include "parsers/tja.h"
 
@@ -24,6 +25,6 @@ public:
     std::string get_diff_hash(int difficulty);
 
 private:
-    std::variant<TJAParser, OsuParser> impl;
+    std::variant<TJAParser, OsuParser, FumenParser> impl;
     void sync();
 };
