@@ -31,6 +31,7 @@ EntryScript::EntryScript() {
     fn_get_side_select_fade = lua_object["get_side_select_fade"];
     fn_draw_background      = lua_object["draw_background"];
     fn_draw_side_select     = lua_object["draw_side_select"];
+    fn_draw_side_select_buttons     = lua_object["draw_side_select_buttons"];
     fn_draw_footer          = lua_object["draw_footer"];
     fn_draw_player_entry    = lua_object["draw_player_entry"];
 }
@@ -73,8 +74,16 @@ void EntryScript::draw_background() {
     }
 }
 
-void EntryScript::draw_side_select(int side) {
-    auto result = fn_draw_side_select(lua_object, side);
+void EntryScript::draw_side_select() {
+    auto result = fn_draw_side_select(lua_object);
+    if (!result.valid()) {
+        sol::error err = result;
+        spdlog::error("Error calling Entry:draw_side_select: {}", err.what());
+    }
+}
+
+void EntryScript::draw_side_select_buttons(int side) {
+    auto result = fn_draw_side_select_buttons(lua_object, side);
     if (!result.valid()) {
         sol::error err = result;
         spdlog::error("Error calling Entry:draw_side_select: {}", err.what());

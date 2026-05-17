@@ -90,7 +90,7 @@ void draw_outer_border(int screen_width, int screen_height, ray::Color last_colo
 
 Screens check_args(int argc, char* argv[]) {
     if (argc == 1) {
-        return Screens::LOADING;
+        return Screens::ENTRY;
     }
 
     std::string song_path;

@@ -21,7 +21,8 @@ EntryPlayer::EntryPlayer(PlayerNum player_num, int side, BoxManager* box_manager
     indicator = std::make_unique<Indicator>(Indicator::State::SELECT);
 
     int chara_id = (side == 0) ? 0 : 1;
-    //chara = new Chara2D(chara_id);
+    fs::path chara_path = "combined.glb";
+    chara = std::make_unique<Chara3D>(chara_path);
 
     drum_move_1 = (MoveAnimation*)tex.get_animation(2);
     drum_move_2 = (MoveAnimation*)tex.get_animation(3);
@@ -55,7 +56,7 @@ void EntryPlayer::update(double current_time) {
     nameplate_fadein->update(current_time);
     nameplate->update(current_time);
     indicator->update(current_time);
-    //chara->update(current_time);
+    chara->update(current_time);
 }
 
 void EntryPlayer::draw_drum() {
@@ -80,7 +81,7 @@ void EntryPlayer::draw_drum() {
     }
 
     float chara_y = tex.skin_config[SC::ENTRY_CHARA_OFFSET_R].y + move_y;
-    //chara->draw(chara_x, chara_y, chara_mirror);
+    chara->draw(chara_x, chara_y);
 
     float scale = cloud_resize->attribute;
     if (cloud_resize->is_finished) {

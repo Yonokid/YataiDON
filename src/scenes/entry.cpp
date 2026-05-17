@@ -16,7 +16,8 @@ void EntryScreen::on_screen_start() {
     lua_entry = std::make_unique<EntryScript>();
     lua_entry->start_side_select();
 
-    //chara = new Chara2D(0);
+    fs::path chara_path = "combined.glb";
+    chara = std::make_unique<Chara3D>(chara_path);
     announce_played = false;
     players.clear();
     players.resize(2);
@@ -79,7 +80,6 @@ std::optional<Screens> EntryScreen::handle_input() {
             state = EntryState::SELECT_SIDE;
             NameplateConfig plate_info = global_data.config->nameplate_2p;
             nameplate = Nameplate(plate_info.name, plate_info.title, PlayerNum::ALL, -1, false, false, 1);
-            //chara = new Chara2D(1);
             lua_entry->restart_side_select();
             side = 1;
         } else if (players[0] && players[0]->player_num == PlayerNum::P2 && (is_l_don_pressed(PlayerNum::P1) || is_r_don_pressed(PlayerNum::P1))) {
@@ -99,7 +99,7 @@ std::optional<Screens> EntryScreen::update() {
     box_manager->update(current_time, is_2p);
     timer->update(current_time);
     nameplate.update(current_time);
-    //chara->update(current_time, 100, false, false);
+    chara->update(current_time);
     for (auto& player : players) {
         if (player) player->update(current_time);
     }
@@ -123,9 +123,10 @@ void EntryScreen::draw_background() {
 
 void EntryScreen::draw_side_select(float fade) {
     auto& skin = tex.skin_config;
-    lua_entry->draw_side_select(side);
+    lua_entry->draw_side_select();
 
-    //chara->draw(skin["chara_entry"].x, skin["chara_entry"].y);
+    chara->draw(tex.skin_config[SC::CHARA_ENTRY].x, tex.skin_config[SC::CHARA_ENTRY].y);
+    lua_entry->draw_side_select_buttons(side);
     nameplate.draw(skin[SC::NAMEPLATE_ENTRY].x, skin[SC::NAMEPLATE_ENTRY].y, fade);
 }
 

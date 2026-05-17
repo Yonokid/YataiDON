@@ -9,6 +9,7 @@
 #include "../objects/global/allnet_indicator.h"
 #include "../objects/global/entry_overlay.h"
 #include "../objects/global/timer.h"
+#include "../objects/global/chara_3d.h"
 
 
 enum class EntryState {
@@ -31,7 +32,7 @@ private:
     std::unique_ptr<Timer> timer;
 
     bool screen_init;
-    //Chara2D* chara;
+    std::unique_ptr<Chara3D> chara;
     bool announce_played;
     std::vector<std::unique_ptr<EntryPlayer>> players;
 

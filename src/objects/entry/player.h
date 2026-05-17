@@ -3,6 +3,7 @@
 #include "box_manager.h"
 #include "../global/nameplate.h"
 #include "../global/indicator.h"
+#include "../global/chara_3d.h"
 
 class EntryPlayer {
 private:
@@ -11,7 +12,7 @@ private:
 
     std::unique_ptr<Nameplate> nameplate;
     std::unique_ptr<Indicator> indicator;
-    //Chara2D* chara;
+    std::unique_ptr<Chara3D> chara;
 
     MoveAnimation* drum_move_1;
     MoveAnimation* drum_move_2;
