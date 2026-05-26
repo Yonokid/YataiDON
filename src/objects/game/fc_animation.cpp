@@ -129,7 +129,7 @@ void FCAnimation::draw() {
         .index = (int)is_2p
     });
 
-    tex.draw_texture(tex_id_map.at("ending_anim/bachio_l_" + name), {
+    tex.draw_texture(tex.get_enum("ending_anim/bachio_l_" + name), {
         .frame = frame,
         .x = (float)((-bachio_move_out->attribute - bachio_move_out_2->attribute) * 1.15f),
         .y = (float)(-bachio_move_up->attribute),
@@ -137,7 +137,7 @@ void FCAnimation::draw() {
         .index = (int)is_2p
     });
 
-    tex.draw_texture(tex_id_map.at("ending_anim/bachio_r_" + name), {
+    tex.draw_texture(tex.get_enum("ending_anim/bachio_r_" + name), {
         .frame = frame,
         .x = (float)((bachio_move_out->attribute + bachio_move_out_2->attribute) * 1.15f),
         .y = (float)(-bachio_move_up->attribute),

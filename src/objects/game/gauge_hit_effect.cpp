@@ -77,7 +77,7 @@ void GaugeHitEffect::draw(float y) {
 
     //Note type texture
     SkinInfo pos_data = tex.skin_config[SC::GAUGE_HIT_EFFECT_NOTE];
-    tex.draw_texture(tex_id_map.at("notes/" + (std::to_string((int)note_type))),
+    tex.draw_texture(tex.get_enum("notes/" + (std::to_string((int)note_type))),
         {.x=pos_data.x, .y=y+pos_data.y + (pos_data.height * is_2p), .fade=fade_out->attribute});
 
     //Circle effect texture

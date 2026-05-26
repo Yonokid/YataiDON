@@ -154,16 +154,16 @@ void Gauge::draw(float y) {
         bool mirrored = y > tex.screen_height / 2.0f;
         std::string mirror = mirrored ? "vertical" : "";
 
-        tex.draw_texture(tex_id_map.at("gauge/border" + string_diff), {.mirror = mirror, .y = y});
+        tex.draw_texture(tex.get_enum("gauge/border" + string_diff), {.mirror = mirror, .y = y});
 
-        tex.draw_texture(tex_id_map.at("gauge/" + (std::to_string((int)player_num) + "p_unfilled" + string_diff)),
+        tex.draw_texture(tex.get_enum("gauge/" + (std::to_string((int)player_num) + "p_unfilled" + string_diff)),
                          {.mirror = mirror, .y = y, .index = mirrored});
 
         int gauge_length_int = (int)gauge_length;
         int clear_point      = clear_start[difficulty];
-        float bar_width      = tex.textures[tex_id_map.at("gauge/" + std::to_string((int)player_num) + "p_bar")]->width;
+        float bar_width      = tex.textures[tex.get_enum("gauge/" + std::to_string((int)player_num) + "p_bar")]->width;
 
-        tex.draw_texture(tex_id_map.at("gauge/" + (std::to_string((int)player_num) + "p_bar")),
+        tex.draw_texture(tex.get_enum("gauge/" + (std::to_string((int)player_num) + "p_bar")),
                          {.y = y, .x2 = std::min(gauge_length_int * bar_width, (clear_point - 1) * bar_width) - bar_width, .index = mirrored});
 
         if (gauge_length_int >= clear_point - 1)
@@ -184,9 +184,9 @@ void Gauge::draw(float y) {
             int   frame_a = (int)rainbow_frac % 8;
             int   frame_b = (frame_a + 1) % 8;
             float t       = rainbow_frac - (int)rainbow_frac;
-            tex.draw_texture(tex_id_map.at("gauge/rainbow" + string_diff),
+            tex.draw_texture(tex.get_enum("gauge/rainbow" + string_diff),
                              {.frame = frame_a, .mirror = mirror, .y = y, .fade = fade, .index = mirrored});
-            tex.draw_texture(tex_id_map.at("gauge/rainbow" + string_diff),
+            tex.draw_texture(tex.get_enum("gauge/rainbow" + string_diff),
                              {.frame = frame_b, .mirror = mirror, .y = y, .fade = fade * t, .index = mirrored});
         }
 
@@ -200,13 +200,13 @@ void Gauge::draw(float y) {
                                  {.x = gauge_length_int * bar_width, .y = y,
                                   .fade = gauge_update_anim->attribute, .index = mirrored});
             } else {
-                tex.draw_texture(tex_id_map.at("gauge/" + (std::to_string((int)player_num) + "p_bar_fade")),
+                tex.draw_texture(tex.get_enum("gauge/" + (std::to_string((int)player_num) + "p_bar_fade")),
                                  {.x = gauge_length_int * bar_width, .y = y,
                                   .fade = gauge_update_anim->attribute, .index = mirrored});
             }
         }
 
-        tex.draw_texture(tex_id_map.at("gauge/overlay" + string_diff),
+        tex.draw_texture(tex.get_enum("gauge/overlay" + string_diff),
                          {.mirror = mirror, .y = y, .fade = 0.15f, .index = mirrored});
 
         if (gauge_length_int >= clear_point - 1) {

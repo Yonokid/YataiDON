@@ -102,7 +102,7 @@ void DiffSortSelect::input_right() {
 
 void DiffSortSelect::draw_statistics() {
     std::string player_num_str = std::to_string((int)global_data.player_num);
-    tex.draw_texture(tex_id_map.at("diff_sort/stat_bg_" + player_num_str + "p"));
+    tex.draw_texture(tex.get_enum("diff_sort/stat_bg_" + player_num_str + "p"));
     tex.draw_texture(DIFF_SORT::STAT_OVERLAY);
     tex.draw_texture(DIFF_SORT::STAT_DIFF, {.frame=std::min(selected_box, 4)});
 

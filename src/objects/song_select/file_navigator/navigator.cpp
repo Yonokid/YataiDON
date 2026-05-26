@@ -323,10 +323,10 @@ void Navigator::load_current_directory_async(const fs::path path) {
                 } else if (is_osu_song_folder(curr_path)) {
                     BoxDef osu_box_def = box_def;
                     auto it = fs::directory_iterator(curr_path);
-                    while (it->path().extension() != ".osu") {
+                    auto end = fs::end(it);
+                    while (it != end && it->path().extension() != ".osu")
                         ++it;
-                        if (it == fs::end(it)) break;
-                    }
+                    if (it == end) continue;
                     OsuParser title_parser = OsuParser(it->path());
                     title_parser.get_metadata();
                     osu_box_def.name = title_parser.metadata.title[global_data.config->general.language];

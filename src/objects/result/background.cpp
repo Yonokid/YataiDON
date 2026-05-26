@@ -10,7 +10,7 @@ void ResultBackground::draw() {
         footer_height = tex.textures[BACKGROUND::FOOTER_1P]->height;
     } else {
         std::string footer_key = "footer_" + std::to_string((int)player_num) + "p";
-        footer_height = tex.textures[tex_id_map.at("background/" + footer_key)]->height;
+        footer_height = tex.textures[tex.get_enum("background/" + footer_key)]->height;
     }
 
     if (player_num == PlayerNum::TWO_PLAYER) {
@@ -25,10 +25,10 @@ void ResultBackground::draw() {
         while (x < width) {
             std::string footer_key = "footer_" + std::to_string((int)player_num) + "p";
             std::string background_key = "background_" + std::to_string((int)player_num) + "p";
-            tex.draw_texture(tex_id_map.at("background/" + (background_key)), {.x=x, .y=-((float)tex.screen_height/2)});
-            tex.draw_texture(tex_id_map.at("background/" + (background_key)), {.x=x, .y=(float)tex.screen_height/2});
-            tex.draw_texture(tex_id_map.at("background/" + (footer_key)), {.x=x, .y=-(footer_height/2)});
-            tex.draw_texture(tex_id_map.at("background/" + (footer_key)), {.x=x, .y=(float)tex.screen_height-(footer_height/2)});
+            tex.draw_texture(tex.get_enum("background/" + (background_key)), {.x=x, .y=-((float)tex.screen_height/2)});
+            tex.draw_texture(tex.get_enum("background/" + (background_key)), {.x=x, .y=(float)tex.screen_height/2});
+            tex.draw_texture(tex.get_enum("background/" + (footer_key)), {.x=x, .y=-(footer_height/2)});
+            tex.draw_texture(tex.get_enum("background/" + (footer_key)), {.x=x, .y=(float)tex.screen_height-(footer_height/2)});
             x += (float)tex.screen_width / 5;
         }
     }

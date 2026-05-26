@@ -231,7 +231,7 @@ void PracticeGameScreen::draw_drumroll_scrobble(const Note& head, double current
         if (is_big) tex.draw_texture(NOTES::DRUMROLL_BIG_TAIL, {.color = color, .x = end_pos, .y = y_pos});
         else        tex.draw_texture(NOTES::DRUMROLL_TAIL,     {.color = color, .x = end_pos, .y = y_pos});
         TexID head_tex = tex_id_map.count("notes/" + std::to_string((int)head.type))
-                         ? tex_id_map.at("notes/" + std::to_string((int)head.type)) : TexID(0);
+                         ? tex.get_enum("notes/" + std::to_string((int)head.type)) : TexID(0);
         tex.draw_texture(head_tex, {.color = color, .x = start_pos - tex.textures[NOTES::_9]->width / 2.0f, .y = y_pos});
     }
     tex.draw_texture(NOTES::MOJI_DRUMROLL_MID, {.x = start_pos, .y = moji_y, .x2 = length});
@@ -256,7 +256,7 @@ void PracticeGameScreen::draw_balloon_scrobble(const Note& head, double current_
     else                                position = start_pos;
     if (head.display) {
         TexID head_tex = tex_id_map.count("notes/" + std::to_string((int)head.type))
-                         ? tex_id_map.at("notes/" + std::to_string((int)head.type)) : TexID(0);
+                         ? tex.get_enum("notes/" + std::to_string((int)head.type)) : TexID(0);
         tex.draw_texture(head_tex, {.x = position - offset - tex.textures[NOTES::_9]->width / 2.0f, .y = y_pos});
         tex.draw_texture(NOTES::_10, {.x = position - offset + tex.textures[NOTES::_10]->width - tex.textures[NOTES::_9]->width / 2.0f, .y = y_pos});
     }
@@ -283,7 +283,7 @@ void PracticeGameScreen::draw_notes_scrobble(double current_ms) const {
             if (note.display) {
                 float x = get_scrobble_position_x(note, current_ms);
                 TexID note_tex = tex_id_map.count("notes/" + std::to_string((int)note.type))
-                                 ? tex_id_map.at("notes/" + std::to_string((int)note.type)) : TexID(0);
+                                 ? tex.get_enum("notes/" + std::to_string((int)note.type)) : TexID(0);
                 tex.draw_texture(note_tex, {.center = true, .x = x - tex.textures[NOTES::_9]->width / 2.0f, .y = tex.skin_config[SC::NOTES].y + y});
             }
             float moji_x = get_scrobble_position_x(note, current_ms) - tex.textures[NOTES::MOJI]->width / 2.0f;

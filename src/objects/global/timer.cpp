@@ -55,6 +55,6 @@ void Timer::draw(float x, float y) {
     float total_width = counter.size() * margin;
     for (int i = 0; i < (int)counter.size(); i++) {
         int digit = counter[i] - '0';
-        global_tex.draw_texture(tex_id_map.at("timer/" + (counter_name)), {.frame=digit, .scale=(float)num_resize->attribute, .center=true, .x=-(total_width/2) + (i * margin)});
+        global_tex.draw_texture(tex.get_enum("timer/" + (counter_name)), {.frame=digit, .scale=(float)num_resize->attribute, .center=true, .x=-(total_width/2) + (i * margin)});
     }
 }

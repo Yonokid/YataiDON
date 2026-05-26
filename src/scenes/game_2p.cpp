@@ -20,7 +20,7 @@ void Game2PScreen::init_tja(fs::path song) {
     auto& titles = parser->metadata.title;
     auto& subtitles = parser->metadata.subtitle;
     const std::string& lang = global_data.config->general.language;
-    std::string title = titles.count(lang) ? titles.at(lang) : titles.at("en");
+    std::string title = titles.count(lang) ? titles.at(lang) : titles.count("en") ? titles.at("en") : titles.empty() ? "" : titles.begin()->second;
     std::string subtitle = subtitles.count(lang) ? subtitles.at(lang) : "";
 
     global_data.session_data[(int)PlayerNum::P1].song_title = title;

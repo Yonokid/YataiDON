@@ -9,7 +9,7 @@ SongBoxOsu::SongBoxOsu(const fs::path& path, const BoxDef& box_def, SongParser p
 
     const std::string& lang = global_data.config->general.language;
     auto& subtitles = parser.metadata.subtitle;
-    text_subtitle = subtitles.count(lang) ? subtitles.at(lang) : subtitles.at("en");
+    text_subtitle = subtitles.count(lang) ? subtitles.at(lang) : subtitles.count("en") ? subtitles.at("en") : subtitles.empty() ? "" : subtitles.begin()->second;
 
     is_favorite = false;
     diff_fade_in = (FadeAnimation*)tex.get_animation(12);
@@ -63,7 +63,7 @@ void SongBoxOsu::draw_open() {
         bpm_text->draw({.x = tex.skin_config[SC::SONG_BOX_BPM].x, .y = tex.skin_config[SC::SONG_BOX_BPM].y, .fade=open_fade->attribute});
 
     if (is_favorite)
-        tex.draw_texture(tex_id_map.at("yellow_box/favorite_" + std::to_string((int)global_data.player_num) + "p"), {.fade=open_fade->attribute});
+        tex.draw_texture(tex.get_enum("yellow_box/favorite_" + std::to_string((int)global_data.player_num) + "p"), {.fade=open_fade->attribute});
 
     for (int i = 0; i < 4; i++) {
         tex.draw_texture(YELLOW_BOX::DIFFICULTY_BAR,        {.frame=i, .x=i*offset, .fade=open_fade->attribute});

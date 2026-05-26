@@ -33,8 +33,8 @@ Player::Player(std::optional<SongParser>& parser_ref, PlayerNum player_num_param
     kat_hitsound = "hitsound_kat_" + std::to_string((int)player_num) + "p";
 
     std::string pnum = std::to_string((int)player_num);
-    lane_cover_tex_id = tex_id_map.at("lane/" + pnum + "p_lane_cover");
-    lane_icon_tex_id  = tex_id_map.at("lane/" + pnum + "p_icon");
+    lane_cover_tex_id = tex.get_enum("lane/" + pnum + "p_lane_cover");
+    lane_icon_tex_id  = tex.get_enum("lane/" + pnum + "p_icon");
     for (int t = 1; t <= 9; ++t) {
         auto it = tex_id_map.find("notes/" + std::to_string(t));
         note_tex_ids[t] = (it != tex_id_map.end()) ? it->second : TexID(0);

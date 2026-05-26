@@ -33,7 +33,7 @@ void ComboAnnounce::draw(float y) {
     float fade_value = is_finished ? fade->attribute : 1 - fade->attribute;
 
     std::string bg_name = "announce_bg_" + std::to_string(static_cast<int>(player_num)) + "p";
-    tex.draw_texture(tex_id_map.at("combo/" + (bg_name)), {.y=y, .fade = fade_value,});
+    tex.draw_texture(tex.get_enum("combo/" + (bg_name)), {.y=y, .fade = fade_value,});
 
     if (combo >= 1000) {
         int thousands = combo / 1000;

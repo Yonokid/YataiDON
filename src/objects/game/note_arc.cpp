@@ -112,7 +112,7 @@ void NoteArc::draw(float y, ray::Shader mask_shader) {
             }
         }
     }
-    tex.draw_texture(tex_id_map.at("notes/" + (std::to_string((int)note_type))), {.x=x_i, .y=y + y_i});
+    tex.draw_texture(tex.get_enum("notes/" + (std::to_string((int)note_type))), {.x=x_i, .y=y + y_i});
 }
 
 bool NoteArc::is_finished() const {

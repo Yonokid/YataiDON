@@ -42,8 +42,8 @@ void Nameplate::draw(float x, float y, float fade) {
     float offset = 0;
     if ((int)player_num != 0) {
         std::string player_num_str = std::to_string((int)player_num);
-        global_tex.draw_texture(tex_id_map.at("nameplate/" + (player_num_str + "p")), {.x=x, .y=y, .fade=fade});
-        offset = (global_tex.textures[tex_id_map.at("nameplate/" + player_num_str + "p")]->width / 2.0f);
+        global_tex.draw_texture(tex.get_enum("nameplate/" + (player_num_str + "p")), {.x=x, .y=y, .fade=fade});
+        offset = (global_tex.textures[tex.get_enum("nameplate/" + player_num_str + "p")]->width / 2.0f);
     }
 
     float name_width = std::min(name->width, (float)global_tex.textures[NAMEPLATE::FRAME_TOP]->width - padding - offset - dan_offset);

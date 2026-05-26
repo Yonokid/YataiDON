@@ -44,21 +44,21 @@ void ResultTransition::draw() {
             });
         } else {
             std::string player_str = std::to_string(static_cast<int>(player_num)) + "p";
-            global_tex.draw_texture(tex_id_map.at("result_transition/" + (player_str + "_shutter")), {
+            global_tex.draw_texture(tex.get_enum("result_transition/" + (player_str + "_shutter")), {
                 .frame = 0,
                 .x = x,
                 .y = (float)(-tex.screen_height + move->attribute)
             });
-            global_tex.draw_texture(tex_id_map.at("result_transition/" + (player_str + "_shutter")), {
+            global_tex.draw_texture(tex.get_enum("result_transition/" + (player_str + "_shutter")), {
                 .frame = 0,
                 .x = x,
                 .y = (float)(tex.screen_height - move->attribute)
             });
-            global_tex.draw_texture(tex_id_map.at("result_transition/" + (player_str + "_shutter_footer")), {
+            global_tex.draw_texture(tex.get_enum("result_transition/" + (player_str + "_shutter_footer")), {
                 .x = x,
                 .y = (float)(-(tex_height * 3) + move->attribute)
             });
-            global_tex.draw_texture(tex_id_map.at("result_transition/" + (player_str + "_shutter_footer")), {
+            global_tex.draw_texture(tex.get_enum("result_transition/" + (player_str + "_shutter_footer")), {
                 .x = x,
                 .y = (float)(tex.screen_height + (tex_height * 2) - move->attribute)
             });

@@ -8,10 +8,10 @@ SongBox::SongBox(const fs::path& path, const BoxDef& box_def, SongParser parser)
     parser.get_metadata();
     auto& titles = parser.metadata.title;
     const std::string& lang = global_data.config->general.language;
-    text_name = titles.count(lang) ? titles.at(lang) : titles.at("en");
+    text_name = titles.count(lang) ? titles.at(lang) : titles.count("en") ? titles.at("en") : titles.empty() ? "" : titles.begin()->second;
 
     auto& subtitles = parser.metadata.subtitle;
-    text_subtitle = subtitles.count(lang) ? subtitles.at(lang) : subtitles.at("en");
+    text_subtitle = subtitles.count(lang) ? subtitles.at(lang) : subtitles.count("en") ? subtitles.at("en") : subtitles.empty() ? "" : subtitles.begin()->second;
 
     is_favorite = false;
     diff_fade_in = (FadeAnimation*)tex.get_animation(12);
@@ -195,7 +195,7 @@ void SongBox::draw_diff_select(bool is_ura) {
             tex.draw_texture(YELLOW_BOX::STAR_URA, {.x=std::min(course_diff, (int)Difficulty::ONI)*offset_x, .y=j*star_offset_y, .fade=diff_fade_in->attribute});
         if (course.is_branching && ((int)(get_current_ms() / 1000)) % 2 == 0) {
             std::string bname = (course_diff == (int)Difficulty::URA) ? "branch_indicator_ura" : "branch_indicator_diff";
-            tex.draw_texture(tex_id_map.at("yellow_box/" + (bname)), {.x=std::min(course_diff, (int)Difficulty::ONI)*offset_x, .fade=diff_fade_in->attribute});
+            tex.draw_texture(tex.get_enum("yellow_box/" + (bname)), {.x=std::min(course_diff, (int)Difficulty::ONI)*offset_x, .fade=diff_fade_in->attribute});
         }
     }
     draw_text();
@@ -242,7 +242,7 @@ void SongBox::draw_open() {
     }
 
     if (is_favorite)
-        tex.draw_texture(tex_id_map.at("yellow_box/favorite_" + std::to_string((int)global_data.player_num) + "p_" + global_data.config->general.language), {.fade=open_fade->attribute});
+        tex.draw_texture(tex.get_enum("yellow_box/favorite_" + std::to_string((int)global_data.player_num) + "p_" + global_data.config->general.language), {.fade=open_fade->attribute});
 
     for (int i = 0; i < 4; i++) {
         tex.draw_texture(YELLOW_BOX::DIFFICULTY_BAR, {.frame=i, .x=i*offset, .fade=open_fade->attribute});

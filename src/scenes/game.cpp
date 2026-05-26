@@ -112,7 +112,7 @@ void GameScreen::init_tja(fs::path song) {
     auto& subtitles = parser->metadata.subtitle;
     const std::string& lang = global_data.config->general.language;
 
-    global_data.session_data[(int)global_data.player_num].song_title = titles.count(lang) ? titles.at(lang) : titles.at("en");
+    global_data.session_data[(int)global_data.player_num].song_title = titles.count(lang) ? titles.at(lang) : titles.count("en") ? titles.at("en") : titles.empty() ? "" : titles.begin()->second;
     global_data.session_data[(int)global_data.player_num].song_subtitle = subtitles.count(lang) ? subtitles.at(lang) : "";
 
     if (fs::exists(parser->metadata.wave) && !song_music.has_value()) {

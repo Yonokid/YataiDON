@@ -328,28 +328,28 @@ void SongSelectPlayer::draw_selector(bool is_half, float fade_in) {
         if (prev_diff == Difficulty::NEIRO && selected_difficulty >= Difficulty::EASY) {
             if (!diff_selector_move_2->is_finished) {
                 float bx = (((int)prev_diff + 3) * balloon_offset_2) + balloon_offset_1 + (diff_selector_move_2->attribute * direction);
-                tex.draw_texture(tex_id_map.at("diff_select/" + (p + "_balloon" + half_suffix)),      {.x=bx, .fade=fade});
-                tex.draw_texture(tex_id_map.at("diff_select/" + (p + "_outline_back" + half_suffix)), {.x=(((int)prev_diff + 3) * balloon_offset_2) + ((float)diff_selector_move_2->attribute * direction)});
+                tex.draw_texture(tex.get_enum("diff_select/" + (p + "_balloon" + half_suffix)),      {.x=bx, .fade=fade});
+                tex.draw_texture(tex.get_enum("diff_select/" + (p + "_outline_back" + half_suffix)), {.x=(((int)prev_diff + 3) * balloon_offset_2) + ((float)diff_selector_move_2->attribute * direction)});
             } else {
                 Difficulty difficulty = std::min(Difficulty::ONI, selected_difficulty);
-                tex.draw_texture(tex_id_map.at("diff_select/" + (p + "_balloon" + half_suffix)), {.x=((int)difficulty * offset), .fade=fade});
-                tex.draw_texture(tex_id_map.at("diff_select/" + (p + "_outline" + half_suffix)), {.x=((int)difficulty * offset)});
+                tex.draw_texture(tex.get_enum("diff_select/" + (p + "_balloon" + half_suffix)), {.x=((int)difficulty * offset), .fade=fade});
+                tex.draw_texture(tex.get_enum("diff_select/" + (p + "_outline" + half_suffix)), {.x=((int)difficulty * offset)});
             }
         } else if (!diff_selector_move_2->is_finished) {
             if (selected_difficulty != Difficulty::BACK) {
-                tex.draw_texture(tex_id_map.at("diff_select/" + (p + "_outline_back" + half_suffix)), {.x=(((int)prev_diff + 3) * balloon_offset_2) + ((float)diff_selector_move_2->attribute * direction)});
+                tex.draw_texture(tex.get_enum("diff_select/" + (p + "_outline_back" + half_suffix)), {.x=(((int)prev_diff + 3) * balloon_offset_2) + ((float)diff_selector_move_2->attribute * direction)});
                 float bx = (((int)prev_diff + 3) * balloon_offset_2) + balloon_offset_1 + (diff_selector_move_2->attribute * direction);
-                tex.draw_texture(tex_id_map.at("diff_select/" + (p + "_balloon" + half_suffix)), {.x=bx, .fade=fade});
+                tex.draw_texture(tex.get_enum("diff_select/" + (p + "_balloon" + half_suffix)), {.x=bx, .fade=fade});
             } else {
-                tex.draw_texture(tex_id_map.at("diff_select/" + (p + "_outline_back" + half_suffix)), {.x=(((int)prev_diff + 3) * balloon_offset_2) + ((float)diff_selector_move_2->attribute * direction), .fade=fade});
+                tex.draw_texture(tex.get_enum("diff_select/" + (p + "_outline_back" + half_suffix)), {.x=(((int)prev_diff + 3) * balloon_offset_2) + ((float)diff_selector_move_2->attribute * direction), .fade=fade});
             }
         } else {
             if (selected_difficulty != Difficulty::BACK) {
-                tex.draw_texture(tex_id_map.at("diff_select/" + (p + "_outline_back" + half_suffix)), {.x=(((int)selected_difficulty + 3) * balloon_offset_2)});
+                tex.draw_texture(tex.get_enum("diff_select/" + (p + "_outline_back" + half_suffix)), {.x=(((int)selected_difficulty + 3) * balloon_offset_2)});
                 float bx = (((int)selected_difficulty + 3) * balloon_offset_2) + balloon_offset_1;
-                tex.draw_texture(tex_id_map.at("diff_select/" + (p + "_balloon" + half_suffix)), {.x=bx, .fade=fade});
+                tex.draw_texture(tex.get_enum("diff_select/" + (p + "_balloon" + half_suffix)), {.x=bx, .fade=fade});
             } else {
-                tex.draw_texture(tex_id_map.at("diff_select/" + (p + "_outline_back" + half_suffix)), {.x=(((int)selected_difficulty + 3) * balloon_offset_2), .fade=fade});
+                tex.draw_texture(tex.get_enum("diff_select/" + (p + "_outline_back" + half_suffix)), {.x=(((int)selected_difficulty + 3) * balloon_offset_2), .fade=fade});
             }
         }
     } else {
@@ -357,12 +357,12 @@ void SongSelectPlayer::draw_selector(bool is_half, float fade_in) {
         if (!diff_selector_move_1->is_finished) {
             Difficulty difficulty = std::min(Difficulty::ONI, prev_diff);
             float bx = ((int)difficulty * offset) + (diff_selector_move_1->attribute * direction);
-            tex.draw_texture(tex_id_map.at("diff_select/" + (p + "_balloon" + half_suffix)), {.x=bx, .fade=fade});
-            tex.draw_texture(tex_id_map.at("diff_select/" + (p + "_outline" + half_suffix)), {.x=bx});
+            tex.draw_texture(tex.get_enum("diff_select/" + (p + "_balloon" + half_suffix)), {.x=bx, .fade=fade});
+            tex.draw_texture(tex.get_enum("diff_select/" + (p + "_outline" + half_suffix)), {.x=bx});
         } else {
             Difficulty difficulty = std::min(Difficulty::ONI, selected_difficulty);
-            tex.draw_texture(tex_id_map.at("diff_select/" + (p + "_balloon" + half_suffix)), {.x=((int)difficulty * offset), .fade=fade});
-            tex.draw_texture(tex_id_map.at("diff_select/" + (p + "_outline" + half_suffix)), {.x=((int)difficulty * offset)});
+            tex.draw_texture(tex.get_enum("diff_select/" + (p + "_balloon" + half_suffix)), {.x=((int)difficulty * offset), .fade=fade});
+            tex.draw_texture(tex.get_enum("diff_select/" + (p + "_outline" + half_suffix)), {.x=((int)difficulty * offset)});
         }
     }
 }
