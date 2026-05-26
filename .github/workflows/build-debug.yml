@@ -9,6 +9,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Configure Git credentials
+        run: |
+          git config --global url."https://${{ secrets.GITEA_USER }}:${{ secrets.GITEA_TOKEN }}@ese.tjadataba.se/".insteadOf "https://ese.tjadataba.se/"
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -60,14 +64,21 @@ jobs:
             libsndio-dev \
             libpipewire-0.3-dev
 
+      - name: Setup SDL3
+        id: sdl
+        uses: libsdl-org/setup-sdl@main
+        with:
+          install-linux-dependencies: true
+          version: 3-head
+          build-type: Debug
+
       - name: Configure CMake
         run: |
           cmake -B build \
             -G Ninja \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_CXX_COMPILER=g++ \
-            -DCMAKE_C_COMPILER=gcc \
-            -DFETCH_SDL3=ON
+            -DCMAKE_C_COMPILER=gcc
 
       - name: Build
         run: cmake --build build --config Debug
@@ -78,6 +89,7 @@ jobs:
           cp build/bin/YataiDON release/YataiDON-Linux/
           cp -r Skins release/YataiDON-Linux/
           cp -r shader release/YataiDON-Linux/
+          cp -r Songs release/YataiDON-Linux/
           cp config.toml release/YataiDON-Linux/
           chmod +x release/YataiDON-Linux/YataiDON
 
@@ -120,6 +132,11 @@ jobs:
         shell: msys2 {0}
 
     steps:
+      - name: Configure Git credentials
+        shell: bash
+        run: |
+          git config --global url."https://${{ secrets.GITEA_USER }}:${{ secrets.GITEA_TOKEN }}@ese.tjadataba.se/".insteadOf "https://ese.tjadataba.se/"
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -148,8 +165,7 @@ jobs:
             -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_CXX_COMPILER=g++ \
-            -DCMAKE_C_COMPILER=gcc \
-            -DFETCH_SDL3=OFF
+            -DCMAKE_C_COMPILER=gcc
 
       - name: Build
         run: cmake --build build --config Release
@@ -161,6 +177,7 @@ jobs:
           cp build/bin/*.dll release/YataiDON-Windows/ 2>/dev/null || true
           cp -r Skins release/YataiDON-Windows/
           cp -r shader release/YataiDON-Windows/
+          cp -r Songs release/YataiDON-Windows/
           cp config.toml release/YataiDON-Windows/
 
       - name: Upload Windows package
