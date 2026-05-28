@@ -10,17 +10,25 @@ A TJA player and Taiko simulator written in C++ using the [raylib](https://www.r
 
 ## Features
 
-- Cross-platform compatibility (Windows, macOS, Linux)
+- Cross-platform compatibility (Windows, Linux)
 - Controller Support
 - Low latency audio via ASIO or WDM-KS
 - Recursive and Dynamic Song Select Menu
 - Multithreaded Input
+- Multiple chart format support (TJA, Fumen, OSU/OSZ)
+- Background video playback via FFmpeg
+- Skin system with customizable graphics, sounds, and Lua scripting
+- Branches (Normal/Expert/Master difficulty branches)
+- Song search and favorites system
+- Multi-language support
+- 3D Don-chan character with animations
 
 ## Modes
 
 - **1 Player**: Single player mode.
 - **2 Player**: Up to 2 players simultaneously.
 - **Dan Dojo**: Challenge mode for back to back songs.
+- **Practice Mode**: Freely scrobble through a song and practice
 
 ## System Requirements
 
@@ -44,7 +52,7 @@ Download the latest release for your operating system from the [releases page](h
 2. Run `YataiDON.exe`
 
 #### Linux
-- Run `YataiDON.bin`
+1. Run `YataiDON.bin`
 
 ## Building from Source
 
@@ -56,6 +64,7 @@ See the wiki when it is available
 - Press **ESC** during any screen to go back
 - Press **Space Bar** during song select to favorite a song
 - Press **Left Control** or **Right Control** to skip songs by 7
+- Press **F5** during song select to refresh
 - Generic drum keybinds can be customized in `config.toml` or through the in-game settings menu
 
 ## Contributing
@@ -100,6 +109,7 @@ People (in no particular order):
 - [Komi](https://github.com/0auBSQ/)
 - [sumandrew](https://github.com/somepin)
 - [WallK](https://github.com/WallK)
+- [dpkgluci](https://github.com/germe-deb)
 - [chuchy](https://github.com/magickale) (osu parser)
 - [churrochef](github.com/churro-chef) (vertical scroll)
 - [cainan](https://github.com/cainan-c/) (3d don chan)
