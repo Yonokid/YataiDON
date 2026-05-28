@@ -35,7 +35,6 @@ message(STATUS "C++ files found: ${CppFiles}")
 
 add_executable(${PROJECT_NAME} ${CppFiles} ${HeaderFiles})
 add_dependencies(${PROJECT_NAME} skin_config_gen texture_ids_gen)
-add_backward(${PROJECT_NAME})
 
 if(WIN32)
   foreach(_lib avformat avcodec avutil swscale swresample)
@@ -70,7 +69,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     sol2::sol2
     SQLite3_lib
     miniz
-    Backward::Interface
+    cpptrace::cpptrace
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE

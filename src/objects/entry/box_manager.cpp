@@ -13,7 +13,7 @@ BoxManager::BoxManager() : selected_box_index(0), is_2p(false) {
     };
     boxes.push_back(std::make_unique<Box>(make_text(SC::ENTRY_GAME),       box_locations[0]));
     boxes.push_back(std::make_unique<Box>(make_text(SC::ENTRY_PRACTICE),   box_locations[1]));
-    boxes.push_back(std::make_unique<Box>(make_text(SC::ENTRY_AI_BATTLE),  box_locations[2]));
+    //boxes.push_back(std::make_unique<Box>(make_text(SC::ENTRY_AI_BATTLE),  box_locations[2]));
     boxes.push_back(std::make_unique<Box>(make_text(SC::ENTRY_SETTINGS),   box_locations[3]));
 
     num_boxes = boxes.size();
@@ -78,7 +78,7 @@ void BoxManager::move_right() {
 void BoxManager::update(double current_time_ms, bool is_2p) {
     this->is_2p = is_2p;
     if (this->is_2p) {
-        box_locations = {Screens::SONG_SELECT_2P, Screens::PRACTICE_SELECT, Screens::AI_SELECT, Screens::SETTINGS};
+        box_locations = {Screens::SONG_SELECT_2P, Screens::PRACTICE_SELECT, /*Screens::AI_SELECT,*/ Screens::SETTINGS};
         for (int i = 0; i < num_boxes; i++) {
             boxes[i]->location = box_locations[i];
         }

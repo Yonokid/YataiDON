@@ -10,7 +10,8 @@ echo ""
 
 # Clean and build
 rm -rf build
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
+find .cmake-deps -maxdepth 1 -name '*-subbuild' -type d -exec rm -rf {} + 2>/dev/null || true
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -G Ninja \
   $(command -v ccache &>/dev/null && echo "-DCMAKE_CXX_COMPILER_LAUNCHER=ccache")
 cmake --build build -j$(nproc)
 
