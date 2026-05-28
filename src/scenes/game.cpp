@@ -121,6 +121,15 @@ void GameScreen::init_tja(fs::path song) {
 
     players.push_back(std::make_unique<Player>(parser, global_data.player_num, global_data.session_data[(int)global_data.player_num].selected_difficulty, false, global_data.modifiers[(int)global_data.player_num]));
     start_ms = get_current_ms() - parser->metadata.offset*1000 - (double)global_data.config->general.audio_offset;
+
+    if (start_delay > 0 && parser->metadata.bpm > 0) {
+        double approx_travel_time = 240000.0 / parser->metadata.bpm;
+        double initial_ms = parser->metadata.offset * 1000 + (double)global_data.config->general.audio_offset;
+        double extra_delay = initial_ms - (double)start_delay + approx_travel_time;
+        if (extra_delay > 0.0) {
+            start_ms += extra_delay;
+        }
+    }
 }
 
 void GameScreen::start_song(double ms_from_start) {
