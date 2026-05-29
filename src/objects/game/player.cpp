@@ -617,6 +617,11 @@ void Player::reset_chart() {
     }
 }
 
+std::optional<Note> Player::get_first_note() {
+    if (draw_note_list.empty()) return std::nullopt;
+    return draw_note_list.front();
+}
+
 float Player::get_position_x(const Note& note, double current_ms) {
     if (delay_start.has_value()) {
         current_ms = delay_start.value();

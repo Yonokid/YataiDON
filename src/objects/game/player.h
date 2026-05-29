@@ -54,6 +54,8 @@ public:
     std::optional<Gauge> gauge;
     Gauge* dan_gauge = nullptr;  // non-owning; set by DanGameScreen
 
+    std::optional<Note> get_first_note();
+
     ResultData get_result_score();
 
     int get_good() const { return good_count; }
