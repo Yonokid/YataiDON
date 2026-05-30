@@ -261,7 +261,9 @@ void GameScreen::resync_song(double current_ms) {
 void GameScreen::end_song() {
     if (ms_from_start >= players[0]->end_time + 1000 && !score_saved) {
         global_data.session_data[(int)players[0]->player_num].result_data = players[0]->get_result_score();
-        save_score((int)players[0]->player_num);
+        if (!global_data.modifiers[(int)players[0]->player_num].auto_play) {
+            save_score((int)players[0]->player_num);
+        }
         for (auto& player : players) {
             player->spawn_ending_anim();
         }
