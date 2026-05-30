@@ -200,21 +200,62 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch'
     steps:
-      - name: Download All Artifacts
+      - name: Download Linux artifact
         uses: actions/download-artifact@v4
         with:
-          pattern: YataiDON-*
-          merge-multiple: true
+          name: YataiDON-Linux
+          path: linux/
 
-      - name: Repackage artifacts
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: YataiDON-Windows
+          path: windows/
+
+      - name: Package release assets
         run: |
-          zip -r YataiDON-Linux.zip YataiDON Skins shader Songs config.toml lib/
-          zip -r YataiDON-Windows.zip YataiDON.exe Skins Songs shader config.toml *.dll
+          # Full zips for manual download
+          (cd linux   && zip -r ../YataiDON-Linux.zip .)
+          (cd windows && zip -r ../YataiDON-Windows.zip .)
+
+          # Linux updater assets (individual files for selective update)
+          cp linux/YataiDON ./YataiDON
+
+          tar -czf shader.tar.gz -C linux shader/
+
+          # Individual skin files — '/' encoded as '__' to avoid asset name collisions
+          find linux/Skins -type f -not -path '*/.git/*' | while read -r filepath; do
+            rel_path="${filepath#linux/}"
+            encoded="${rel_path//\//__}"
+            cp "$filepath" "$encoded"
+          done
+
+          if [ -d linux/lib ]; then
+            tar -czf lib.tar.gz -C linux lib/
+          fi
+
+          # Checksums — paths relative to install dir (excludes Songs and config.toml)
+          (
+            cd linux
+            sha256sum YataiDON
+            find shader -type f | sort | xargs sha256sum
+            find Skins -type f -not -path '*/.git/*' | sort | xargs sha256sum
+            if [ -d lib ]; then
+              find lib -type f | sort | xargs sha256sum
+            fi
+          ) > checksums.sha256
 
       - name: Upload Release
         uses: softprops/action-gh-release@v2
         with:
-          files: YataiDON-*.zip
+          files: |
+            YataiDON-Linux.zip
+            YataiDON-Windows.zip
+            YataiDON
+            shader.tar.gz
+            lib.tar.gz
+            Skins__*.*
+            checksums.sha256
           name: "YataiDON [Latest Release]"
           tag_name: "latest"
           make_latest: true

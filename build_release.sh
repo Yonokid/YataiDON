@@ -26,3 +26,13 @@ else
     echo "Error: Executable not found at build/bin/YataiDON"
     exit 1
 fi
+
+# Generate checksums for all shipped files
+echo ""
+echo "Generating checksums.sha256..."
+{
+    sha256sum YataiDON
+    find shader -type f | sort | xargs sha256sum
+    find Skins -type f -not -path '*/.git/*' | sort | xargs sha256sum
+} > checksums.sha256
+echo "checksums.sha256 written ($(wc -l < checksums.sha256) files)"
