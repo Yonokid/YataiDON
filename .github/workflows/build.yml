@@ -105,6 +105,25 @@ jobs:
             [ -f "$so" ] && patchelf --set-rpath '$ORIGIN' "$so" 2>/dev/null || true
           done
 
+          # Skin manifest for git-managed skins (pulled via git by updater)
+          git submodule status | while IFS=' ' read -r commit path _; do
+            url=$(git config -f .gitmodules submodule."$path".url)
+            printf '%s\t%s\t%s\n' "$path" "$url" "${commit#[-+ ]}"
+          done > release/YataiDON-Linux/skin-manifest.tsv
+
+          # Checksums — excludes git-managed skins, Songs, config.toml
+          SUBMODULE_SKINS=$(awk -F'\t' '{print $1}' release/YataiDON-Linux/skin-manifest.tsv)
+          (
+            cd release/YataiDON-Linux
+            sha256sum YataiDON
+            find shader -type f | sort | xargs sha256sum
+            find Skins -type f -not -path '*/.git/*' | sort | while IFS= read -r f; do
+              skin_dir="Skins/$(echo "$f" | cut -d/ -f2)"
+              echo "$SUBMODULE_SKINS" | grep -qx "$skin_dir" || sha256sum "$f"
+            done
+            [ -d lib ] && find lib -type f | sort | xargs sha256sum || true
+          ) > release/YataiDON-Linux/checksums.sha256
+
       - name: Upload Linux package
         uses: actions/upload-artifact@v4
         with:
@@ -218,32 +237,24 @@ jobs:
           (cd linux   && zip -r ../YataiDON-Linux.zip .)
           (cd windows && zip -r ../YataiDON-Windows.zip .)
 
-          # Linux updater assets (individual files for selective update)
+          # Binary and archives
           cp linux/YataiDON ./YataiDON
-
           tar -czf shader.tar.gz -C linux shader/
+          [ -d linux/lib ] && tar -czf lib.tar.gz -C linux lib/ || true
 
-          # Individual skin files — '/' encoded as '__' to avoid asset name collisions
-          find linux/Skins -type f -not -path '*/.git/*' | while read -r filepath; do
+          # Checksums and skin manifest generated during build
+          cp linux/checksums.sha256 ./checksums.sha256
+          cp linux/skin-manifest.tsv ./skin-manifest.tsv
+
+          # Individual files for non-git-managed skins only ('/' encoded as '__')
+          SUBMODULE_SKINS=$(awk -F'\t' '{print $1}' linux/skin-manifest.tsv)
+          while IFS= read -r filepath; do
             rel_path="${filepath#linux/}"
+            skin_dir="Skins/$(echo "$rel_path" | cut -d/ -f2)"
+            echo "$SUBMODULE_SKINS" | grep -qx "$skin_dir" && continue || true
             encoded="${rel_path//\//__}"
             cp "$filepath" "$encoded"
-          done
-
-          if [ -d linux/lib ]; then
-            tar -czf lib.tar.gz -C linux lib/
-          fi
-
-          # Checksums — paths relative to install dir (excludes Songs and config.toml)
-          (
-            cd linux
-            sha256sum YataiDON
-            find shader -type f | sort | xargs sha256sum
-            find Skins -type f -not -path '*/.git/*' | sort | xargs sha256sum
-            if [ -d lib ]; then
-              find lib -type f | sort | xargs sha256sum
-            fi
-          ) > checksums.sha256
+          done < <(find linux/Skins -type f -not -path '*/.git/*')
 
       - name: Upload Release
         uses: softprops/action-gh-release@v2
@@ -254,8 +265,9 @@ jobs:
             YataiDON
             shader.tar.gz
             lib.tar.gz
-            Skins__*.*
+            Skins__*
             checksums.sha256
+            skin-manifest.tsv
           name: "YataiDON [Latest Release]"
           tag_name: "latest"
           make_latest: true
