@@ -955,7 +955,7 @@ void Player::check_drumroll(double current_ms, DrumType drum_type, std::optional
     draw_arc_list.push_back(NoteArc(NoteType(drum_type), current_ms, PlayerNum(is_2p + 1), (int)drum_type == 3 || (int)drum_type == 4, false));
     curr_drumroll_count++;
     total_drumroll++;
-    if (branch_condition != "p") {
+    if (branch_condition == "r") {
         branch_condition_count++;
     }
     if (background.has_value()) background->handle_drumroll(PlayerNum(is_2p + 1));
@@ -1082,7 +1082,9 @@ void Player::check_note(double ms_from_start, DrumType drum_type, double current
             note_correct(curr_note, current_ms);
             if (dan_gauge) dan_gauge->add_good();
             else if (gauge.has_value()) gauge->add_good();
-            branch_condition_count++;
+            if (branch_condition == "p") {
+                branch_condition_count++;
+            }
             branch_note_count++;
             if (background.has_value()) background->handle_good(PlayerNum(1 + is_2p));
 
@@ -1097,7 +1099,9 @@ void Player::check_note(double ms_from_start, DrumType drum_type, double current
             note_correct(curr_note, current_ms);
             if (dan_gauge) dan_gauge->add_ok();
             else if (gauge.has_value()) gauge->add_ok();
-            branch_condition_count += 0.5;
+            if (branch_condition == "p") {
+                branch_condition_count += 0.5;
+            }
             branch_note_count++;
             if (background.has_value()) background->handle_ok(PlayerNum(1 + is_2p));
 
