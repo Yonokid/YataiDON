@@ -191,6 +191,7 @@ jobs:
         run: cmake --build build --config Release
 
       - name: Prepare release package
+        shell: bash
         run: |
           mkdir -p release/YataiDON-Windows
           cp build/bin/YataiDON.exe release/YataiDON-Windows/
