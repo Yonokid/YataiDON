@@ -64,9 +64,7 @@ private:
     void set_positions(bool init, float duration);
     bool is_song_file(const fs::path& path);
     bool is_osu_song_folder(const fs::path& path);
-    int  count_osu_files_direct(const fs::path& path);
     bool has_def_file(const std::filesystem::path& path);
-    int  get_tja_count(const std::filesystem::path& path);
     fs::path find_box_def_folder(const fs::path& song_path);
     void setup_back_box(const fs::path& path, bool has_children);
     bool has_child_folders(const fs::path& path);

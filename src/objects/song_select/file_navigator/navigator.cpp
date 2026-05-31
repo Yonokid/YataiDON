@@ -317,11 +317,10 @@ void Navigator::load_current_directory_async(const fs::path path) {
                 }
                 if (has_def_file(curr_path)) {
                     BoxDef entry_box_def = parse_box_def(curr_path);
-                    int tja_count = get_tja_count(curr_path);
-                    if (entry_box_def.collection == "RECOMMENDED") {
-                        tja_count = 10;
-                    }
-                    enqueue_box(std::make_unique<FolderBox>(curr_path, entry_box_def, tja_count, song_files));
+                    auto folder = std::make_unique<FolderBox>(curr_path, entry_box_def, song_files);
+                    if (entry_box_def.collection == "RECOMMENDED")
+                        folder->tja_count = 10;
+                    enqueue_box(std::move(folder));
                 } else if (is_osu_song_folder(curr_path)) {
                     BoxDef osu_box_def = box_def;
                     auto it = fs::directory_iterator(curr_path);
@@ -332,7 +331,7 @@ void Navigator::load_current_directory_async(const fs::path path) {
                     OsuParser title_parser = OsuParser(it->path());
                     title_parser.get_metadata();
                     osu_box_def.name = title_parser.metadata.title[global_data.config->general.language];
-                    std::unique_ptr<FolderBox> osu_folder = std::make_unique<FolderBox>(curr_path, osu_box_def, count_osu_files_direct(curr_path), song_files);
+                    std::unique_ptr<FolderBox> osu_folder = std::make_unique<FolderBox>(curr_path, osu_box_def, song_files);
                     osu_folder->is_osu_folder = true;
                     enqueue_box(std::move(osu_folder));
                 } else {
@@ -345,7 +344,7 @@ void Navigator::load_current_directory_async(const fs::path path) {
                                 it.disable_recursion_pending();
                                 BoxDef osu_box_def = box_def;
                                 osu_box_def.name = it->path().filename().string();
-                                enqueue_box(std::make_unique<FolderBox>(it->path(), osu_box_def, count_osu_files_direct(it->path()), song_files));
+                                enqueue_box(std::make_unique<FolderBox>(it->path(), osu_box_def, song_files));
                             } else if (is_song_file(it->path())) {
                                 enqueue_box(make_song_box(it->path(), box_def, SongParser(it->path())));
                             }
@@ -622,7 +621,7 @@ void Navigator::load_songs_inline_async(const fs::path path, BoxDef box_def) {
                 if (is_osu_song_folder(curr_path)) {
                     BoxDef osu_box_def = box_def;
                     osu_box_def.name = curr_path.filename().string();
-                    auto folder = std::make_unique<FolderBox>(curr_path, osu_box_def, count_osu_files_direct(curr_path), song_files);
+                    auto folder = std::make_unique<FolderBox>(curr_path, osu_box_def, song_files);
                     folder->fade_in(266);
                     enqueue_inline_box(std::move(folder));
                 } else {
@@ -635,7 +634,7 @@ void Navigator::load_songs_inline_async(const fs::path path, BoxDef box_def) {
                                 it.disable_recursion_pending();
                                 BoxDef osu_box_def = box_def;
                                 osu_box_def.name = it->path().filename().string();
-                                auto folder = std::make_unique<FolderBox>(it->path(), osu_box_def, count_osu_files_direct(it->path()), song_files);
+                                auto folder = std::make_unique<FolderBox>(it->path(), osu_box_def, song_files);
                                 folder->fade_in(266);
                                 enqueue_inline_box(std::move(folder));
                             } else if (is_song_file(it->path())) {
@@ -723,25 +722,6 @@ bool Navigator::has_def_file(const std::filesystem::path& path) {
     return false;
 }
 
-int Navigator::get_tja_count(const std::filesystem::path& path) {
-    int count = 0;
-    try {
-        std::error_code ec;
-        auto it = fs::recursive_directory_iterator(path, ec);
-        while (it != fs::end(it)) {
-            auto ext = it->path().extension();
-            if (ext == ".tja" || ext == ".osu") count++;
-            if (it->path().filename() == "song_list.txt") {
-                std::ifstream file(it->path());
-                std::string line;
-                while (std::getline(file, line)) count++;
-            }
-            it.increment(ec);
-            if (ec) { ec.clear(); }
-        }
-    } catch (const fs::filesystem_error&) {}
-    return count;
-}
 
 void Navigator::exit_inline() {
     if (!inline_state) return;
@@ -766,7 +746,7 @@ void Navigator::begin_inline_load() {
     int approx_items = (pending_inline_box_def.collection == "RECOMMENDED" ||
                         pending_inline_box_def.collection == "DIFFICULTY")
                        ? 10
-                       : get_tja_count(pending_inline_path.value());
+                       : pending_inline_folder->tja_count;
     items[open_index]->enter_box();
     genre_bg_start = 0;
     genre_bg_end   = 0;
@@ -867,16 +847,6 @@ bool Navigator::is_osu_song_folder(const fs::path& path) {
     return false;
 }
 
-int Navigator::count_osu_files_direct(const fs::path& path) {
-    int count = 0;
-    try {
-        for (const auto& entry : fs::directory_iterator(path)) {
-            if (fs::is_regular_file(entry.path()) && entry.path().extension() == ".osu")
-                count++;
-        }
-    } catch (...) {}
-    return count;
-}
 
 bool Navigator::is_song(BaseBox* item) {
     return is_song_file(item->path);

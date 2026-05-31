@@ -15,7 +15,7 @@ public:
     std::unique_ptr<OutlinedText> hori_name;
     std::unique_ptr<OutlinedText> tja_count_text;
 
-    FolderBox(const fs::path& path, const BoxDef& box_def, int tja_count, std::map<std::pair<std::string, std::string>, fs::path>& song_files);
+    FolderBox(const fs::path& path, const BoxDef& box_def, std::map<std::pair<std::string, std::string>, fs::path>& song_files);
     ~FolderBox() override;
 
     void load_text() override;

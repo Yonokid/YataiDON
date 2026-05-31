@@ -3,8 +3,8 @@
 #include "../../../libs/scores.h"
 #include "../../../libs/audio.h"
 
-FolderBox::FolderBox(const fs::path& path, const BoxDef& box_def, int tja_count, std::map<std::pair<std::string, std::string>, fs::path>& song_files)
-    : BaseBox(path, box_def), tja_count(tja_count)
+FolderBox::FolderBox(const fs::path& path, const BoxDef& box_def, std::map<std::pair<std::string, std::string>, fs::path>& song_files)
+    : BaseBox(path, box_def), tja_count(0)
 {
     this->text_name = box_def.name;
     enter_fade = std::make_unique<FadeAnimation>(166);
@@ -13,6 +13,7 @@ FolderBox::FolderBox(const fs::path& path, const BoxDef& box_def, int tja_count,
 
 void FolderBox::refresh_scores(std::map<std::pair<std::string, std::string>, fs::path>& song_files) {
     crown.clear();
+    tja_count = 0;
     std::set<int> disqualified;
 
     auto update_crown = [&](const fs::path& file_path) {
@@ -38,13 +39,18 @@ void FolderBox::refresh_scores(std::map<std::pair<std::string, std::string>, fs:
 
     for (const auto& entry : fs::recursive_directory_iterator(path)) {
         if (entry.path().filename() == "song_list.txt") {
-            for (const auto& e : read_song_list(entry.path()))
+            auto entries = read_song_list(entry.path());
+            tja_count += (int)entries.size();
+            for (const auto& e : entries)
                 if (auto found = scores_manager.get_path_by_hash(e.hash))
                     update_crown(*found);
+            continue;
         }
         auto ext = entry.path().extension();
-        if (ext == ".tja" || ext == ".osu")
+        if (ext == ".tja" || ext == ".osu") {
+            tja_count++;
             update_crown(entry.path());
+        }
     }
 }
 
