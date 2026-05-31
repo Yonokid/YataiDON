@@ -2,11 +2,10 @@
 #
 # Expected GitHub release assets:
 #   checksums-windows.sha256    sha256sum-format, relative paths from install dir
-#                               (excludes git-managed skins)
-#   skin-manifest.tsv           path<TAB>repo_url<TAB>commit<TAB>checksums_url
-#   update-windows.tar.gz       binary + dlls + shader + bundled skins
+#   update-windows.tar.gz       binary + dlls + shader
 #
-# Skin repos must contain a checksums.sha256 at their root.
+# Skins with a .skin-repo file are updated independently from the skin's own repo.
+# .skin-repo format: line 1 = repo URL, line 2 (optional) = branch (default: main)
 #
 # Usage (standalone):   powershell -ExecutionPolicy Bypass -File update.ps1
 # Usage (from game):    update.bat --wait-pid <PID>
@@ -38,6 +37,22 @@ function Get-SkinRawUrl {
     }
 }
 
+function Get-LatestSkinCommit {
+    param([string]$RepoUrl, [string]$Branch = "main")
+    $base = $RepoUrl.TrimEnd('/') -replace '\.git$', ''
+    if ($base -match 'github\.com') {
+        $ownerRepo = ($base -split 'github\.com/')[-1]
+        $data = Invoke-RestMethod -Uri "https://api.github.com/repos/$ownerRepo/commits/HEAD" -TimeoutSec 10
+        return $data.sha
+    } else {
+        $uri    = [System.Uri]$base
+        $path   = $uri.AbsolutePath.Trim('/')
+        $host   = "$($uri.Scheme)://$($uri.Host)"
+        $data   = Invoke-RestMethod -Uri "$host/api/v1/repos/$path/branches/$Branch" -TimeoutSec 10
+        return $data.commit.id
+    }
+}
+
 try {
     # --- Fetch release metadata ---
     Log "Checking for updates..."
@@ -56,14 +71,6 @@ try {
     $ChecksumsPath = Join-Path $TmpDir "checksums.sha256"
     Invoke-WebRequest -Uri $AssetMap["checksums-windows.sha256"] -OutFile $ChecksumsPath -TimeoutSec 30
 
-    # --- Download skin manifest ---
-    $SkinManifestPath = Join-Path $TmpDir "skin-manifest.tsv"
-    if ($AssetMap.ContainsKey("skin-manifest.tsv")) {
-        Invoke-WebRequest -Uri $AssetMap["skin-manifest.tsv"] -OutFile $SkinManifestPath -TimeoutSec 10
-    } else {
-        New-Item -ItemType File -Path $SkinManifestPath | Out-Null
-    }
-
     # --- Check main package ---
     $NeedPackage = $false
     foreach ($line in Get-Content $ChecksumsPath) {
@@ -81,26 +88,40 @@ try {
         }
     }
 
-    # --- Check installed skins against manifest ---
-    $NeedSkinCount = 0
-    foreach ($line in Get-Content $SkinManifestPath) {
-        if ([string]::IsNullOrWhiteSpace($line)) { continue }
-        $parts = $line -split "`t"
-        if ($parts.Count -lt 4) { continue }
-        $skinPath, $repoUrl, $expectedCommit, $checksumsUrl = $parts
+    # --- Check installed skins ---
+    $SkinUpdates = [System.Collections.Generic.List[object]]::new()
+    $SkinsDir = Join-Path $InstallDir "Skins"
+    if (Test-Path $SkinsDir) {
+        foreach ($skinDir in Get-ChildItem -Path $SkinsDir -Directory) {
+            $skinRepoFile = Join-Path $skinDir.FullName ".skin-repo"
+            if (-not (Test-Path $skinRepoFile)) { continue }
 
-        $localVersionFile = Join-Path $InstallDir $skinPath ".skin-version"
-        $localCommit = if (Test-Path $localVersionFile) { (Get-Content $localVersionFile -Raw).Trim() } else { "none" }
-        if ($localCommit -ne $expectedCommit) { $NeedSkinCount++ }
+            $lines   = Get-Content $skinRepoFile
+            $repoUrl = $lines[0].Trim()
+            $branch  = if ($lines.Count -gt 1 -and $lines[1].Trim() -ne '') { $lines[1].Trim() } else { "main" }
+
+            try {
+                $latestCommit = Get-LatestSkinCommit -RepoUrl $repoUrl -Branch $branch
+            } catch {
+                Log "Warning: could not fetch latest commit for $($skinDir.Name) — skipping"
+                continue
+            }
+
+            $localVersionFile = Join-Path $skinDir.FullName ".skin-version"
+            $localCommit = if (Test-Path $localVersionFile) { (Get-Content $localVersionFile -Raw).Trim() } else { "none" }
+            if ($localCommit -eq $latestCommit) { continue }
+
+            $SkinUpdates.Add(@($skinDir.FullName, $repoUrl, $latestCommit))
+        }
     }
 
-    if (-not $NeedPackage -and $NeedSkinCount -eq 0) {
+    if (-not $NeedPackage -and $SkinUpdates.Count -eq 0) {
         Log "Already up to date."
         Set-Content $VersionFile $LatestTag
         exit 0
     }
 
-    Log "Updates needed — package: $([int]$NeedPackage) | skins: $NeedSkinCount"
+    Log "Updates needed — package: $([int]$NeedPackage) | skins: $($SkinUpdates.Count)"
 
     # --- Wait for game process if requested ---
     if ($WaitPid -ne "") {
@@ -124,56 +145,48 @@ try {
     }
 
     # --- Update skins ---
-    if ($NeedSkinCount -gt 0) {
-        foreach ($line in Get-Content $SkinManifestPath) {
-            if ([string]::IsNullOrWhiteSpace($line)) { continue }
-            $parts = $line -split "`t"
-            if ($parts.Count -lt 4) { continue }
-            $skinPath, $repoUrl, $expectedCommit, $checksumsUrl = $parts
+    foreach ($update in $SkinUpdates) {
+        $skinDirPath, $repoUrl, $latestCommit = $update
+        $skinName = Split-Path -Leaf $skinDirPath
+        Log "Checking $skinName..."
 
-            $localDir         = Join-Path $InstallDir $skinPath
-            $localVersionFile = Join-Path $localDir ".skin-version"
-            $localCommit = if (Test-Path $localVersionFile) { (Get-Content $localVersionFile -Raw).Trim() } else { "none" }
-            if ($localCommit -eq $expectedCommit) { continue }
-
-            Log "Checking $skinPath..."
-            $skinChecksumsPath = Join-Path $TmpDir "skin-checksums.sha256"
-            try {
-                Invoke-WebRequest -Uri $checksumsUrl -OutFile $skinChecksumsPath -TimeoutSec 30
-            } catch {
-                Log "Warning: could not fetch checksums for $skinPath — skipping"
-                continue
-            }
-
-            $changed = 0
-            foreach ($cline in Get-Content $skinChecksumsPath) {
-                $cparts = $cline -split '\s+', 2
-                if ($cparts.Count -lt 2) { continue }
-                $expectedHash = $cparts[0].ToUpper()
-                $relPath      = $cparts[1]
-                $localFile    = Join-Path $localDir ($relPath.Replace('/', '\'))
-
-                if (Test-Path $localFile) {
-                    $actualHash = (Get-FileHash $localFile -Algorithm SHA256).Hash
-                    if ($actualHash -eq $expectedHash) { continue }
-                }
-
-                $rawUrl = Get-SkinRawUrl -RepoUrl $repoUrl -Commit $expectedCommit -FilePath $relPath
-                $parentDir = Split-Path -Parent $localFile
-                if (-not (Test-Path $parentDir)) { New-Item -ItemType Directory -Path $parentDir | Out-Null }
-                try {
-                    Invoke-WebRequest -Uri $rawUrl -OutFile "$localFile.tmp"
-                    Move-Item -Force "$localFile.tmp" $localFile
-                    $changed++
-                } catch {
-                    Log "Warning: failed to download $relPath"
-                    Remove-Item -Force "$localFile.tmp" -ErrorAction SilentlyContinue
-                }
-            }
-
-            Set-Content $localVersionFile $expectedCommit
-            Log "$skinPath`: $changed file(s) updated."
+        $checksumsUrl      = Get-SkinRawUrl -RepoUrl $repoUrl -Commit $latestCommit -FilePath "checksums.sha256"
+        $skinChecksumsPath = Join-Path $TmpDir "skin-checksums.sha256"
+        try {
+            Invoke-WebRequest -Uri $checksumsUrl -OutFile $skinChecksumsPath -TimeoutSec 30
+        } catch {
+            Log "Warning: could not fetch checksums for $skinName — skipping"
+            continue
         }
+
+        $changed = 0
+        foreach ($cline in Get-Content $skinChecksumsPath) {
+            $cparts = $cline -split '\s+', 2
+            if ($cparts.Count -lt 2) { continue }
+            $expectedHash = $cparts[0].ToUpper()
+            $relPath      = $cparts[1]
+            $localFile    = Join-Path $skinDirPath ($relPath.Replace('/', '\'))
+
+            if (Test-Path $localFile) {
+                $actualHash = (Get-FileHash $localFile -Algorithm SHA256).Hash
+                if ($actualHash -eq $expectedHash) { continue }
+            }
+
+            $rawUrl    = Get-SkinRawUrl -RepoUrl $repoUrl -Commit $latestCommit -FilePath $relPath
+            $parentDir = Split-Path -Parent $localFile
+            if (-not (Test-Path $parentDir)) { New-Item -ItemType Directory -Path $parentDir | Out-Null }
+            try {
+                Invoke-WebRequest -Uri $rawUrl -OutFile "$localFile.tmp"
+                Move-Item -Force "$localFile.tmp" $localFile
+                $changed++
+            } catch {
+                Log "Warning: failed to download $relPath"
+                Remove-Item -Force "$localFile.tmp" -ErrorAction SilentlyContinue
+            }
+        }
+
+        Set-Content (Join-Path $skinDirPath ".skin-version") $latestCommit
+        Log "$skinName`: $changed file(s) updated."
     }
 
     Set-Content $VersionFile $LatestTag

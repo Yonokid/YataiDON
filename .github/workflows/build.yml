@@ -105,36 +105,13 @@ jobs:
             [ -f "$so" ] && patchelf --set-rpath '$ORIGIN' "$so" 2>/dev/null || true
           done
 
-          # Skin manifest for git-managed skins
-          # Fields: path<TAB>repo_url<TAB>commit<TAB>checksums_url
-          git submodule status | while IFS=' ' read -r commit path _; do
-            url=$(git config -f .gitmodules submodule."$path".url)
-            c="${commit#[-+ ]}"
-            base="${url%.git}"
-            if echo "$base" | grep -q "github.com"; then
-              checksums_url="${base/github.com/raw.githubusercontent.com}/$c/checksums.sha256"
-            else
-              checksums_url="$base/raw/commit/$c/checksums.sha256"
-            fi
-            printf '%s\t%s\t%s\t%s\n' "$path" "$url" "$c" "$checksums_url"
-          done > release/YataiDON-Linux/skin-manifest.tsv
-
-          # Checksums — binary + shader + lib only (skins handled separately)
+          # Checksums — binary + shader + lib only (skins handled separately via skin repos)
           (
             cd release/YataiDON-Linux
             sha256sum YataiDON
             find shader -type f | sort | xargs sha256sum
             [ -d lib ] && find lib -type f | sort | xargs sha256sum || true
           ) > release/YataiDON-Linux/checksums-linux.sha256
-
-          # Per-skin checksums for individual file updates (no git required)
-          while IFS=$'\t' read -r skin_path repo_url commit; do
-            skin_name=$(basename "$skin_path")
-            (
-              cd "release/YataiDON-Linux/$skin_path"
-              find . -type f -not -path './.git/*' | sort | xargs sha256sum | sed 's|^\./||'
-            ) > "release/YataiDON-Linux/skin-${skin_name}.sha256"
-          done < release/YataiDON-Linux/skin-manifest.tsv
 
       - name: Upload Linux package
         uses: actions/upload-artifact@v4
@@ -201,22 +178,7 @@ jobs:
           cp -r Songs release/YataiDON-Windows/
           cp config.toml release/YataiDON-Windows/
 
-          # Skin manifest for git-managed skins
-          # Fields: path<TAB>repo_url<TAB>commit<TAB>checksums_url
-          git submodule status | while IFS=' ' read -r commit path _; do
-            url=$(git config -f .gitmodules submodule."$path".url)
-            c="${commit#[-+ ]}"
-            base="${url%.git}"
-            if echo "$base" | grep -q "github.com"; then
-              checksums_url="${base/github.com/raw.githubusercontent.com}/$c/checksums.sha256"
-            else
-              checksums_url="$base/raw/commit/$c/checksums.sha256"
-            fi
-            printf '%s\t%s\t%s\t%s\n' "$path" "$url" "$c" "$checksums_url"
-          done > release/YataiDON-Windows/skin-manifest.tsv
-
-          # Checksums — excludes git-managed skins, Songs, config.toml
-          # Checksums — binary + dlls + shader only (skins handled separately)
+          # Checksums — binary + dlls + shader only (skins handled separately via skin repos)
           (
             cd release/YataiDON-Windows
             sha256sum YataiDON.exe
@@ -276,7 +238,6 @@ jobs:
           # Metadata files
           cp linux/checksums-linux.sha256   ./checksums-linux.sha256
           cp windows/checksums-windows.sha256 ./checksums-windows.sha256
-          cp linux/skin-manifest.tsv ./skin-manifest.tsv
 
           # Linux update package: binary + shader + lib
           UPDATE_LINUX="YataiDON shader/"
@@ -300,7 +261,6 @@ jobs:
             update-windows.tar.gz
             checksums-linux.sha256
             checksums-windows.sha256
-            skin-manifest.tsv
           name: "YataiDON [Latest Release]"
           tag_name: "latest"
           make_latest: true

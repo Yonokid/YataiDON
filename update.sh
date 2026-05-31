@@ -3,11 +3,10 @@
 #
 # Expected GitHub release assets:
 #   checksums-linux.sha256  sha256sum-format, relative paths from install dir
-#                           (excludes git-managed skins)
-#   skin-manifest.tsv       path<TAB>repo_url<TAB>commit<TAB>checksums_url
 #   update-linux.tar.gz     binary + shader + lib
 #
-# Skin repos must contain a checksums.sha256 at their root.
+# Skins with a .skin-repo file are updated independently from the skin's own repo.
+# .skin-repo format: line 1 = repo URL, line 2 (optional) = branch (default: main)
 #
 # Usage (standalone):   ./update.sh
 # Usage (from game):    ./update.sh --wait-pid <PID>
@@ -36,7 +35,6 @@ done
 die() { echo "[update] Error: $*" >&2; exit 1; }
 log() { echo "[update] $*"; }
 
-# Derive raw file URL from repo URL + commit + filepath
 skin_raw_url() {
     local repo_url="$1" commit="$2" filepath="$3"
     local base="${repo_url%.git}"
@@ -45,6 +43,32 @@ skin_raw_url() {
     else
         echo "$base/raw/commit/$commit/$filepath"
     fi
+}
+
+# Fetch latest commit SHA from a repo URL (GitHub or Gitea).
+# Reads repo URL from $1; optional branch from $2 (default: main).
+get_latest_commit() {
+    python3 - "$1" "${2:-main}" <<'PYEOF'
+import json, sys, subprocess, urllib.parse
+url = sys.argv[1].strip().rstrip('/')
+if url.endswith('.git'):
+    url = url[:-4]
+branch = sys.argv[2]
+parsed = urllib.parse.urlparse(url)
+path = parsed.path.strip('/')
+
+if 'github.com' in parsed.netloc:
+    api = f'https://api.github.com/repos/{path}/commits/HEAD'
+    r = subprocess.run(['curl', '-sfL', '--max-time', '10', api], capture_output=True, text=True)
+    if r.returncode != 0: sys.exit(1)
+    print(json.loads(r.stdout)['sha'])
+else:
+    base = f'{parsed.scheme}://{parsed.netloc}'
+    api = f'{base}/api/v1/repos/{path}/branches/{branch}'
+    r = subprocess.run(['curl', '-sfL', '--max-time', '10', api], capture_output=True, text=True)
+    if r.returncode != 0: sys.exit(1)
+    print(json.loads(r.stdout)['commit']['id'])
+PYEOF
 }
 
 # --- Fetch release metadata ---
@@ -67,17 +91,10 @@ asset_url() {
     awk -F'\t' -v name="$1" '$1==name {print $2}' "$TMP_DIR/assets.tsv"
 }
 
-# --- Download checksums and skin manifest ---
+# --- Download checksums ---
 CHECKSUMS_URL=$(asset_url "checksums-linux.sha256")
 [ -z "$CHECKSUMS_URL" ] && die "No checksums-linux.sha256 in release $LATEST_TAG"
 curl -sfL --max-time 30 -o "$TMP_DIR/checksums.sha256" "$CHECKSUMS_URL"
-
-SKIN_MANIFEST_URL=$(asset_url "skin-manifest.tsv")
-if [ -n "$SKIN_MANIFEST_URL" ]; then
-    curl -sfL --max-time 10 -o "$TMP_DIR/skin-manifest.tsv" "$SKIN_MANIFEST_URL"
-else
-    touch "$TMP_DIR/skin-manifest.tsv"
-fi
 
 # --- Check main package ---
 NEED_PACKAGE=0
@@ -91,15 +108,27 @@ while read -r expected_hash rel_path; do
     break
 done < "$TMP_DIR/checksums.sha256"
 
-# --- Check installed skins against manifest ---
+# --- Check installed skins ---
+touch "$TMP_DIR/skin-updates.tsv"
 NEED_SKIN_COUNT=0
-while IFS=$'\t' read -r skin_path repo_url expected_commit checksums_url; do
-    [ -z "$skin_path" ] && continue
-    local_version_file="$INSTALL_DIR/$skin_path/.skin-version"
-    local_commit="none"
-    [ -f "$local_version_file" ] && local_commit=$(cat "$local_version_file")
-    [ "$local_commit" != "$expected_commit" ] && NEED_SKIN_COUNT=$((NEED_SKIN_COUNT+1))
-done < "$TMP_DIR/skin-manifest.tsv"
+for skin_repo_file in "$INSTALL_DIR"/Skins/*/.skin-repo; do
+    [ -f "$skin_repo_file" ] || continue
+    skin_dir=$(dirname "$skin_repo_file")
+    repo_url=$(sed -n '1p' "$skin_repo_file" | tr -d '[:space:]')
+    branch=$(sed -n '2p' "$skin_repo_file" | tr -d '[:space:]')
+    branch="${branch:-main}"
+
+    latest_commit=$(get_latest_commit "$repo_url" "$branch") || {
+        log "Warning: could not fetch latest commit for $(basename "$skin_dir") — skipping"
+        continue
+    }
+
+    local_commit=$(cat "$skin_dir/.skin-version" 2>/dev/null || echo "none")
+    [ "$local_commit" = "$latest_commit" ] && continue
+
+    printf '%s\t%s\t%s\n' "$skin_dir" "$repo_url" "$latest_commit" >> "$TMP_DIR/skin-updates.tsv"
+    NEED_SKIN_COUNT=$((NEED_SKIN_COUNT+1))
+done
 
 if [ $NEED_PACKAGE -eq 0 ] && [ $NEED_SKIN_COUNT -eq 0 ]; then
     log "Already up to date."
@@ -129,28 +158,22 @@ fi
 
 # --- Update skins ---
 if [ $NEED_SKIN_COUNT -gt 0 ]; then
-    while IFS=$'\t' read -r skin_path repo_url expected_commit checksums_url; do
-        [ -z "$skin_path" ] && continue
-        local_dir="$INSTALL_DIR/$skin_path"
-        local_version_file="$local_dir/.skin-version"
-        local_commit="none"
-        [ -f "$local_version_file" ] && local_commit=$(cat "$local_version_file")
-        [ "$local_commit" = "$expected_commit" ] && continue
-
-        log "Checking $skin_path..."
+    while IFS=$'\t' read -r skin_dir repo_url latest_commit; do
+        log "Checking $(basename "$skin_dir")..."
+        checksums_url=$(skin_raw_url "$repo_url" "$latest_commit" "checksums.sha256")
         curl -sfL --max-time 30 -o "$TMP_DIR/skin-checksums.sha256" "$checksums_url" || {
-            log "Warning: could not fetch checksums for $skin_path — skipping"
+            log "Warning: could not fetch checksums for $(basename "$skin_dir") — skipping"
             continue
         }
 
         changed=0
         while read -r expected_hash rel_path; do
-            local_file="$local_dir/$rel_path"
+            local_file="$skin_dir/$rel_path"
             if [ -f "$local_file" ]; then
                 actual_hash=$(sha256sum "$local_file" | awk '{print $1}')
                 [ "$actual_hash" = "$expected_hash" ] && continue
             fi
-            raw_url=$(skin_raw_url "$repo_url" "$expected_commit" "$rel_path")
+            raw_url=$(skin_raw_url "$repo_url" "$latest_commit" "$rel_path")
             mkdir -p "$(dirname "$local_file")"
             curl -sfL -o "$local_file.tmp" "$raw_url" && mv "$local_file.tmp" "$local_file" || {
                 log "Warning: failed to download $rel_path"
@@ -160,9 +183,9 @@ if [ $NEED_SKIN_COUNT -gt 0 ]; then
             changed=$((changed+1))
         done < "$TMP_DIR/skin-checksums.sha256"
 
-        echo "$expected_commit" > "$local_version_file"
-        log "$skin_path: $changed file(s) updated."
-    done < "$TMP_DIR/skin-manifest.tsv"
+        echo "$latest_commit" > "$skin_dir/.skin-version"
+        log "$(basename "$skin_dir"): $changed file(s) updated."
+    done < "$TMP_DIR/skin-updates.tsv"
 fi
 
 echo "$LATEST_TAG" > "$VERSION_FILE"
