@@ -41,17 +41,22 @@ function Get-SkinFileUrl {
 try {
     # --- Fetch release metadata ---
     Log "Checking for updates..."
-    $Release   = Invoke-RestMethod -Uri $ApiUrl -TimeoutSec 10
-    $LatestTag = $Release.tag_name
-    $LocalTag  = if (Test-Path $VersionFile) { (Get-Content $VersionFile -Raw).Trim() } else { "none" }
-    Log "Local: $LocalTag | Latest: $LatestTag"
+    $Release         = Invoke-RestMethod -Uri $ApiUrl -TimeoutSec 10
+    $LatestReleaseId = [string]$Release.id
+    $LocalReleaseId  = if (Test-Path $VersionFile) { (Get-Content $VersionFile -Raw).Trim() } else { "" }
+    Log "Local release id: $LocalReleaseId | Latest: $LatestReleaseId ($($Release.tag_name))"
+
+    if ($LocalReleaseId -eq $LatestReleaseId) {
+        Log "Already up to date."
+        exit 0
+    }
 
     $AssetMap = @{}
     foreach ($asset in $Release.assets) { $AssetMap[$asset.name] = $asset.browser_download_url }
 
     # --- Download checksums ---
     if (-not $AssetMap.ContainsKey("checksums-windows.sha256")) {
-        Die "No checksums-windows.sha256 in release $LatestTag"
+        Die "No checksums-windows.sha256 in release $($Release.tag_name)"
     }
     $ChecksumsPath = Join-Path $TmpDir "checksums.sha256"
     Invoke-WebRequest -Uri $AssetMap["checksums-windows.sha256"] -OutFile $ChecksumsPath -TimeoutSec 30
@@ -82,7 +87,7 @@ try {
             $skinRepoFile = Join-Path $skinDir.FullName ".skin-repo"
             if (-not (Test-Path $skinRepoFile)) { continue }
 
-            $lines   = Get-Content $skinRepoFile
+            $lines   = @(Get-Content $skinRepoFile)
             $repoUrl = $lines[0].Trim()
             $branch  = if ($lines.Count -gt 1 -and $lines[1].Trim() -ne '') { $lines[1].Trim() } else { "main" }
 
@@ -118,7 +123,7 @@ try {
 
     if (-not $NeedPackage -and $SkinUpdates.Count -eq 0) {
         Log "Already up to date."
-        Set-Content $VersionFile $LatestTag
+        Set-Content $VersionFile $LatestReleaseId
         exit 0
     }
 
@@ -134,7 +139,7 @@ try {
     # --- Download and extract main package ---
     if ($NeedPackage) {
         if (-not $AssetMap.ContainsKey("update-windows.tar.gz")) {
-            Die "No update-windows.tar.gz in release $LatestTag"
+            Die "No update-windows.tar.gz in release $($Release.tag_name)"
         }
         $TarPath = Join-Path $TmpDir "update-windows.tar.gz"
         Log "Downloading update-windows.tar.gz..."
@@ -180,8 +185,8 @@ try {
         Log "$skinName`: $changed file(s) updated."
     }
 
-    Set-Content $VersionFile $LatestTag
-    Log "Update complete ($LatestTag). Restart YataiDON to apply."
+    Set-Content $VersionFile $LatestReleaseId
+    Log "Update complete ($($Release.tag_name)). Restart YataiDON to apply."
 
 } finally {
     Remove-Item -Recurse -Force $TmpDir -ErrorAction SilentlyContinue
