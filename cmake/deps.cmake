@@ -6,7 +6,7 @@ if(NOT WIN32)
   endif()
 endif()
 
-find_package(SDL3 QUIET CONFIG)
+find_package(SDL3 QUIET CONFIG REQUIRED)
 if(SDL3_FOUND)
   message(STATUS "Using system SDL3")
 else()

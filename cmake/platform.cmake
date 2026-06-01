@@ -46,6 +46,11 @@ elseif(APPLE)
         "-framework CoreFoundation"
         "-framework CoreMedia"
     )
+  if(TARGET SDL3::SDL3-static)
+    target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3-static)
+  elseif(TARGET SDL3::SDL3)
+    target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3)
+  endif()
 elseif(UNIX)
   target_link_libraries(${PROJECT_NAME} PRIVATE
         GL
