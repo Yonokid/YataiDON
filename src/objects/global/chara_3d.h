@@ -95,19 +95,19 @@ private:
     AnimIndex prev_anim_idx = AnimIndex::DON_BALLOON_FAILURE;
     bool is_looping = true;
 
-    ray::Shader outline_shader;
-    float outline_thickness = 0.012f;
-
     ray::Shader fxaa_shader;
     int fxaa_size_loc = -1;
     ray::RenderTexture2D fxaa_target = {};
     int fxaa_target_w = 0;
     int fxaa_target_h = 0;
 
+    ray::Shader outline_shader;
+
     void set_texture(fs::path& texture_path, int material_index);
     void load_face_textures(fs::path& face_dir);
     void load_face_anims(fs::path& anim_path);
     void apply_face(int face_index);
+    void draw_outline(float x, float y);
     void draw_3d(float x, float y);
 public:
     Chara3D(std::string& model_name, bool mirror = false);

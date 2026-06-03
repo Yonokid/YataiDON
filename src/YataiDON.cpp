@@ -6,6 +6,7 @@
 #include "libs/filesystem.h"
 #include "libs/input.h"
 #include "libs/logging.h"
+#include "libs/camera_utils.h"
 #include "libs/screen.h"
 #include "libs/script.h"
 #include "libs/song_parser.h"
@@ -38,47 +39,6 @@
 
 namespace fs = std::filesystem;
 
-void update_camera_for_window_size(ray::Camera3D& camera, int virtual_width, int virtual_height) {
-    int screen_width = ray::GetScreenWidth();
-    int screen_height = ray::GetScreenHeight();
-
-    float rotation_rad = global_data.camera.rotation * DEG2RAD;
-    camera.up         = { std::sin(rotation_rad), -std::cos(rotation_rad), 0.0f };
-    camera.projection = ray::CAMERA_ORTHOGRAPHIC;
-
-    if (screen_width == 0 || screen_height == 0) {
-        camera.fovy     = (float)virtual_height;
-        camera.position = { virtual_width * 0.5f, virtual_height * 0.5f, -100.0f };
-        camera.target   = { virtual_width * 0.5f, virtual_height * 0.5f, 0.0f };
-        return;
-    }
-
-    float scale = std::min((float)screen_width / virtual_width, (float)screen_height / virtual_height);
-
-    float base_offset_x = (screen_width - (virtual_width * scale)) * 0.5f;
-    float base_offset_y = (screen_height - (virtual_height * scale)) * 0.5f;
-
-    float effective_zoom = scale * global_data.camera.zoom;
-
-    float zoom_offset_x = (virtual_width * scale * (global_data.camera.zoom - 1.0f)) * 0.5f;
-    float zoom_offset_y = (virtual_height * scale * (global_data.camera.zoom - 1.0f)) * 0.5f;
-
-    float h_scale = global_data.camera.h_scale;
-    float v_scale = global_data.camera.v_scale;
-
-    float h_scale_offset_x = (virtual_width * scale * (h_scale - 1.0f)) * 0.5f;
-    float v_scale_offset_y = (virtual_height * scale * (v_scale - 1.0f)) * 0.5f;
-
-    float offset_x = base_offset_x - zoom_offset_x - h_scale_offset_x + (global_data.camera.offset.x * scale);
-    float offset_y = base_offset_y - zoom_offset_y - v_scale_offset_y + (global_data.camera.offset.y * scale);
-
-    float world_center_x = (screen_width * 0.5f - offset_x) / effective_zoom;
-    float world_center_y = (screen_height * 0.5f - offset_y) / effective_zoom;
-
-    camera.fovy     = (float)screen_height / effective_zoom;
-    camera.position = { world_center_x, world_center_y, -100.0f };
-    camera.target   = { world_center_x, world_center_y, 0.0f };
-}
 
 void draw_outer_border(int screen_width, int screen_height, ray::Color last_color) {
     DrawRectangle(-screen_width, 0, screen_width, screen_height, last_color);
@@ -179,7 +139,7 @@ Screens check_args(int argc, char* argv[]) {
 struct LoopState {
     std::unordered_map<Screens, std::unique_ptr<Screen>> screens;
     Screens current_screen = Screens::LOADING;
-    ray::Camera3D camera   = {};
+    ray::Camera2D camera   = {};
     int screen_width       = 0;
     int screen_height      = 0;
     std::chrono::duration<double> target_duration = std::chrono::duration<double>(1.0 / 60.0);
@@ -204,8 +164,7 @@ static void run_frame() {
         spdlog::info("Toggled borderless windowed mode");
     }
 
-    update_camera_for_window_size(L.camera, L.screen_width, L.screen_height);
-    global_data.main_camera = L.camera;
+    L.camera = compute_camera2d(L.screen_width, L.screen_height);
 
     ray::BeginDrawing();
 
@@ -214,8 +173,7 @@ static void run_frame() {
         L.last_color = global_data.camera.border_color;
     }
 
-    ray::BeginMode3D(L.camera);
-    rlDisableDepthTest();
+    ray::BeginMode2D(L.camera);
     ray::BeginBlendMode(ray::BLEND_CUSTOM_SEPARATE);
 
     Screen* screen = L.screens[L.current_screen].get();
@@ -241,7 +199,7 @@ static void run_frame() {
     draw_outer_border(L.screen_width, L.screen_height, L.last_color);
 
     ray::EndBlendMode();
-    ray::EndMode3D();
+    ray::EndMode2D();
     ray::EndDrawing();
 
     if (!next_screen.has_value()) {
@@ -318,7 +276,7 @@ int main(int argc, char* argv[]) {
     L.screens[Screens::SANDBOX]         = std::make_unique<SandboxScreen>();
     L.screens[Screens::GAME_OVER]       = std::make_unique<GameOverScreen>();
 
-    update_camera_for_window_size(L.camera, L.screen_width, L.screen_height);
+    L.camera = compute_camera2d(L.screen_width, L.screen_height);
 
     if (global_data.config->video.borderless) {
         ray::ToggleBorderlessWindowed();

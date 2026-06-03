@@ -140,7 +140,6 @@ struct CameraConfig {
 struct GlobalData {
     int songs_played = 0;
     CameraConfig camera;
-    ray::Camera3D main_camera = {};
     Config* config = nullptr;  // Using pointer, initialize appropriately
     int total_songs = 0;
     std::vector<int> hit_sound = {0, 0, 0};

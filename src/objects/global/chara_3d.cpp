@@ -1,20 +1,12 @@
 #include "chara_3d.h"
 #include "../../libs/animation.h"
+#include "../../libs/camera_utils.h"
 #include "../../libs/global_data.h"
 #include <fstream>
 #include <rapidjson/document.h>
-
-extern "C" void rlEnableDepthTest(void);
-extern "C" void rlDisableDepthTest(void);
-extern "C" void rlDrawRenderBatchActive(void);
-extern "C" void rlEnableBackfaceCulling(void);
-extern "C" void rlDisableBackfaceCulling(void);
-extern "C" void rlSetCullFace(int mode);
-extern "C" void glClear(unsigned int mask);
-static constexpr int         RL_CULL_FACE_FRONT      = 0;
-static constexpr int         RL_CULL_FACE_BACK       = 1;
-static constexpr unsigned int GL_DEPTH_BUFFER_BIT    = 0x00000100;
-
+extern "C" { void rlSetCullFace(int mode); }
+static constexpr int RL_CULL_FACE_FRONT = 0;
+static constexpr int RL_CULL_FACE_BACK  = 1;
 
 static ray::Matrix rotation_xyz(float ax, float ay, float az) {
     float cx = cosf(-ax), sx = sinf(-ax);
@@ -123,9 +115,14 @@ static std::unordered_map<std::string, int> parse_glb_material_indices(
 }
 
 Chara3D::Chara3D(std::string& model_name, bool mirror) {
+    fxaa_shader   = ray::LoadShader("shader/dummy.vs", "shader/fxaa.fs");
+    fxaa_size_loc = ray::GetShaderLocation(fxaa_shader, "textureSize");
+
     outline_shader = ray::LoadShader("shader/outline.vs", "shader/outline.fs");
-    fxaa_shader    = ray::LoadShader("shader/dummy.vs",   "shader/fxaa.fs");
-    fxaa_size_loc  = ray::GetShaderLocation(fxaa_shader, "textureSize");
+    int thickness_loc = ray::GetShaderLocation(outline_shader, "outlineThickness");
+    float thickness = 0.01f;
+    ray::SetShaderValue(outline_shader, thickness_loc, &thickness, ray::SHADER_UNIFORM_FLOAT);
+
     this->mirror = mirror;
     fs::path root_path = fs::path("Skins") / global_data.config->paths.skin / "Models";
     fs::path model_path = root_path / "cos" / (model_name + ".glb");
@@ -176,9 +173,9 @@ Chara3D::~Chara3D() {
         cos_model.materials[face_material_index].maps[ray::MATERIAL_MAP_DIFFUSE].texture.id = 0;
     ray::UnloadModelAnimations(anims, anim_count);
     ray::UnloadModel(cos_model);
-    ray::UnloadShader(outline_shader);
     ray::UnloadShader(fxaa_shader);
     if (fxaa_target.id != 0) ray::UnloadRenderTexture(fxaa_target);
+    ray::UnloadShader(outline_shader);
     for (auto& tex : face_textures)
         ray::UnloadTexture(tex);
 }
@@ -363,41 +360,34 @@ void Chara3D::update(double current_ms) {
     }
 }
 
-void Chara3D::draw_3d(float x, float y) {
-    rlDrawRenderBatchActive();
-    glClear(GL_DEPTH_BUFFER_BIT);
-    rlEnableDepthTest();
-
-    ray::Matrix saved = cos_model.transform;
-    float y_angle = mirror ? -rot_y : rot_y;
-    cos_model.transform = rotation_xyz(rot_x * DEG2RAD, y_angle * DEG2RAD, rot_z * DEG2RAD);
-
-    ray::Shader saved_shaders[cos_model.materialCount];
+void Chara3D::draw_outline(float x, float y) {
+    std::vector<ray::Shader> saved(cos_model.materialCount);
     for (int i = 0; i < cos_model.materialCount; i++) {
-        saved_shaders[i] = cos_model.materials[i].shader;
+        saved[i] = cos_model.materials[i].shader;
         cos_model.materials[i].shader = outline_shader;
     }
 
-    int thickness_loc = ray::GetShaderLocation(outline_shader, "outlineThickness");
-    ray::SetShaderValue(outline_shader, thickness_loc, &outline_thickness, ray::SHADER_UNIFORM_FLOAT);
+    ray::Matrix saved_transform = cos_model.transform;
+    float y_angle = mirror ? -rot_y : rot_y;
+    cos_model.transform = rotation_xyz(rot_x * DEG2RAD, y_angle * DEG2RAD, rot_z * DEG2RAD);
 
-    rlDisableDepthTest();
-    rlEnableBackfaceCulling();
     rlSetCullFace(RL_CULL_FACE_FRONT);
     ray::DrawModel(cos_model, {x, y, 400.0f}, scale, ray::WHITE);
     rlSetCullFace(RL_CULL_FACE_BACK);
 
+    cos_model.transform = saved_transform;
     for (int i = 0; i < cos_model.materialCount; i++)
-        cos_model.materials[i].shader = saved_shaders[i];
+        cos_model.materials[i].shader = saved[i];
+}
 
-    rlDrawRenderBatchActive();
-    glClear(GL_DEPTH_BUFFER_BIT);
-    rlEnableDepthTest();
+void Chara3D::draw_3d(float x, float y) {
+    ray::Matrix saved = cos_model.transform;
+    float y_angle = mirror ? -rot_y : rot_y;
+    cos_model.transform = rotation_xyz(rot_x * DEG2RAD, y_angle * DEG2RAD, rot_z * DEG2RAD);
+
     ray::DrawModel(cos_model, {x, y, 400.0f}, scale, ray::WHITE);
 
     cos_model.transform = saved;
-    rlDisableBackfaceCulling();
-    rlDisableDepthTest();
 }
 
 void Chara3D::draw(float x, float y) {
@@ -413,28 +403,28 @@ void Chara3D::draw(float x, float y) {
         ray::SetShaderValue(fxaa_shader, fxaa_size_loc, ts, ray::SHADER_UNIFORM_VEC2);
     }
 
-    // Temporarily exit the caller's BeginMode3D so we can use BeginTextureMode.
-    // We re-enter at the end to keep the caller's EndMode3D balanced.
-    ray::EndMode3D();
+    ray::Camera2D cam2d = compute_camera2d(tex.screen_width, tex.screen_height);
+    ray::Camera3D cam3d = camera2d_to_3d(cam2d);
+
+    ray::EndMode2D();
     ray::EndBlendMode();
 
     ray::BeginTextureMode(fxaa_target);
     ray::ClearBackground(ray::BLANK);
     ray::BeginBlendMode(ray::BLEND_CUSTOM_SEPARATE);
-    ray::BeginMode3D(global_data.main_camera);
+    ray::BeginMode3D(cam3d);
+    draw_outline(x, y);
     draw_3d(x, y);
     ray::EndMode3D();
     ray::EndBlendMode();
     ray::EndTextureMode();
 
-    // Composite the FXAA-smoothed character onto the screen.
     ray::BeginShaderMode(fxaa_shader);
     ray::DrawTextureRec(fxaa_target.texture,
         {0, 0, (float)rw, -(float)rh},
         {0, 0}, ray::WHITE);
     ray::EndShaderMode();
 
-    // Restore the outer rendering context for whoever called us.
     ray::BeginBlendMode(ray::BLEND_CUSTOM_SEPARATE);
-    ray::BeginMode3D(global_data.main_camera);
+    ray::BeginMode2D(cam2d);
 }
