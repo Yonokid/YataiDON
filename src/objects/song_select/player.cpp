@@ -1,10 +1,15 @@
 #include "player.h"
 #include "../../libs/audio.h"
 #include "../../libs/input.h"
+#include "../../libs/scores.h"
 
 SongSelectPlayer::SongSelectPlayer(PlayerNum player_num)
     : player_num(player_num)
 {
+    int player_id = (player_num == global_data.first_login_player) ? global_data.config->general.player_1_id : global_data.config->general.player_2_id;
+    if (auto p = scores_manager.get_player_data(player_id))
+        player_data = *p;
+
     NameplateConfig plate_info;
     if (player_num == PlayerNum::P2) {
         plate_info = global_data.config->nameplate_2p;
@@ -23,7 +28,14 @@ SongSelectPlayer::SongSelectPlayer(PlayerNum player_num)
     diff_select_move_right = false;
     last_moved = 0;
 
-    chara = std::make_unique<Chara3D>(global_data.config->general.costume_name, player_num == PlayerNum::P2);
+    std::string costume_name = std::to_string(player_data.chara_cos_index);
+    chara = std::make_unique<Chara3D>(costume_name, player_num == PlayerNum::P2);
+    if (player_data.player_id > 0) {
+        chara->set_don_colors(player_data.chara_color_1, player_data.chara_color_2, player_data.chara_color_3);
+        chara->apply_face(player_data.chara_face_index);
+    } else {
+        chara->set_don_colors(chara_default_color_1(player_id), chara_default_color_2(player_id), {249, 240, 225, 255});
+    }
     chara->set_anim(AnimIndex::DON_SELECT_LOOP);
 
     diff_selector_move_1          = (MoveAnimation*)tex.get_animation(26, true);
@@ -50,6 +62,7 @@ void SongSelectPlayer::update(double current_time) {
         neiro_selector->update(current_time);
         if (neiro_selector->is_finished) {
             neiro_selector.reset();
+            scores_manager.save_player_data(player_data);
             chara->set_anim(AnimIndex::DON_SELECT_PANELDOWN);
         }
     }
@@ -58,6 +71,7 @@ void SongSelectPlayer::update(double current_time) {
         modifier_selector->update(current_time);
         if (modifier_selector->is_finished) {
             modifier_selector.reset();
+            scores_manager.save_player_data(player_data);
             chara->set_anim(AnimIndex::DON_SELECT_PANELDOWN);
         }
     }
@@ -226,10 +240,10 @@ SongSelectState SongSelectPlayer::handle_input_selecting() {
             neiro_selector->confirm();
         } else {
             if (selected_difficulty == Difficulty::MODIFIER) {
-                modifier_selector = ModifierSelector(player_num);
+                modifier_selector = ModifierSelector(player_num, &player_data);
                 chara->set_anim(AnimIndex::DON_SELECT_PANELUP);
             } else if (selected_difficulty == Difficulty::NEIRO) {
-                neiro_selector = NeiroSelector(player_num);
+                neiro_selector = NeiroSelector(player_num, &player_data);
                 chara->set_anim(AnimIndex::DON_SELECT_PANELUP);
             } else if (selected_difficulty >= Difficulty::EASY) {
                 voice_played = true;

@@ -13,8 +13,9 @@ fake_online = false
 practice_mode_bar_delay = 1
 score_method = "shinuchi"
 display_bpm = false
-costume_name = "0"
 webcam_number = -1
+player_1_id = 1
+player_2_id = 2
 
 [nameplate_1p]
 name = 'どんちゃん'

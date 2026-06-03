@@ -42,6 +42,7 @@ struct Chara3DFixture : public SandboxScreen::Fixture {
 
     void reset(double) override {
         active.emplace(model_names[model_idx]);
+        active->set_don_colors({104, 191, 192, 255}, {249, 71, 40, 255}, {249, 240, 225, 255});
         active->set_anim(static_cast<AnimIndex>(anim_idx));
     }
 

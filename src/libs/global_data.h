@@ -142,19 +142,18 @@ struct GlobalData {
     CameraConfig camera;
     Config* config = nullptr;  // Using pointer, initialize appropriately
     int total_songs = 0;
-    std::vector<int> hit_sound = {0, 0, 0};
     PlayerNum player_num = PlayerNum::P1;
+    PlayerNum first_login_player = PlayerNum::P1;
     int input_locked = 0;
-    std::vector<Modifiers> modifiers = std::vector<Modifiers>(3);
     std::vector<SessionData> session_data = std::vector<SessionData>(3);
 
     GlobalData() {
         // Initialize vectors with default-constructed elements
-        modifiers.resize(3);
         session_data.resize(3);
     }
 };
 
 void reset_session();
+int get_player_id(PlayerNum player_num);
 
 extern GlobalData global_data;

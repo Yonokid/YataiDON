@@ -1,10 +1,20 @@
 #include "player.h"
 #include "../../libs/audio.h"
+#include "../../libs/scores.h"
 
 ResultPlayer::ResultPlayer(PlayerNum player_num, bool has_2p, bool is_2p)
 : player_num(player_num), has_2p(has_2p), is_2p(is_2p){
     fade_in_bottom = (FadeAnimation*)tex.get_animation(1);
-    chara = std::make_unique<Chara3D>(global_data.config->general.costume_name);
+    int player_id = get_player_id(player_num);
+    auto pd = scores_manager.get_player_data(player_id);
+    std::string costume_name = pd ? std::to_string(pd->chara_cos_index) : "0";
+    chara = std::make_unique<Chara3D>(costume_name);
+    if (pd) {
+        chara->set_don_colors(pd->chara_color_1, pd->chara_color_2, pd->chara_color_3);
+        chara->apply_face(pd->chara_face_index);
+    } else {
+        chara->set_don_colors(chara_default_color_1(player_id), chara_default_color_2(player_id), {249, 240, 225, 255});
+    }
     chara->set_anim(AnimIndex::DON_NORMAL);
     SessionData& session_data = global_data.session_data[(int)player_num];
     score_animator = ScoreAnimator(session_data.result_data.score);
@@ -155,22 +165,23 @@ void ResultPlayer::draw_total_score() {
 }
 
 void ResultPlayer::draw_modifiers() {
-    if (global_data.modifiers[(int)player_num].display) {
+    Modifiers mods = player_data_to_modifiers(scores_manager.get_player_data(get_player_id(player_num)).value_or(PlayerData{}));
+    if (mods.display) {
         tex.draw_texture(SCORE::MOD_DORON, {.index=is_2p});
     }
-    if (global_data.modifiers[(int)player_num].inverse) {
+    if (mods.inverse) {
         tex.draw_texture(SCORE::MOD_ABEKOBE, {.index=is_2p});
     }
-    if (global_data.modifiers[(int)player_num].random == 1) {
+    if (mods.random == 1) {
         tex.draw_texture(SCORE::MOD_KIMAGURE, {.index=is_2p});
-    } else if (global_data.modifiers[(int)player_num].random == 2) {
+    } else if (mods.random == 2) {
         tex.draw_texture(SCORE::MOD_DETARAME, {.index=is_2p});
     }
-    if (global_data.modifiers[(int)player_num].speed >= 40) {
+    if (mods.speed >= 40) {
         tex.draw_texture(SCORE::MOD_YONBAI, {.index=is_2p});
-    } else if (global_data.modifiers[(int)player_num].speed >= 30) {
+    } else if (mods.speed >= 30) {
         tex.draw_texture(SCORE::MOD_SANBAI, {.index=is_2p});
-    } else if (global_data.modifiers[(int)player_num].speed > 10) {
+    } else if (mods.speed > 10) {
         tex.draw_texture(SCORE::MOD_BAISAKU, {.index=is_2p});
     }
 }

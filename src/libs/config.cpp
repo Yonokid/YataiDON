@@ -214,8 +214,9 @@ Config get_config() {
         config.general.score_method = (*general)["score_method"].value_or("standard");
         config.general.display_bpm = (*general)["display_bpm"].value_or(false);
         config.general.song_limit = (*general)["song_limit"].value_or(0);
-        config.general.costume_name = (*general)["costume_name"].value_or("cos_000000");
         config.general.webcam_number = (*general)["webcam_number"].value_or(-1);
+        config.general.player_1_id = (*general)["player_1_id"].value_or(1);
+        config.general.player_2_id = (*general)["player_2_id"].value_or(1);
     }
 
     // Parse nameplate_1p
@@ -364,8 +365,9 @@ void save_config(const Config& config) {
         {"practice_mode_bar_delay", config.general.practice_mode_bar_delay},
         {"score_method", config.general.score_method},
         {"song_limit", config.general.song_limit},
-        {"costume_name", config.general.costume_name},
-        {"webcam_number", config.general.webcam_number}
+        {"webcam_number", config.general.webcam_number},
+        {"player_1_id", config.general.player_1_id},
+        {"player_2_id", config.general.player_2_id}
     });
 
     // Nameplate 1P

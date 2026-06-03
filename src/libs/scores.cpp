@@ -1,4 +1,5 @@
 #include "scores.h"
+#include "color_utils.h"
 #include "song_parser.h"
 #include <numeric>
 
@@ -14,13 +15,63 @@ ScoresManager::ScoresManager(const fs::path& db_path) {
     };
     sqlite3_exec(db_fsd, "PRAGMA user_version;", callback, &version, nullptr);
 
-    sqlite3_exec(db_fsd, "PRAGMA user_version = 1;", nullptr, nullptr, nullptr);
+    if (version < 2) {
+        const char* migrations[] = {
+            "ALTER TABLE players ADD COLUMN modifier_auto BOOL NOT NULL DEFAULT 0;",
+            "ALTER TABLE players ADD COLUMN title TEXT NOT NULL DEFAULT '';",
+            "ALTER TABLE players ADD COLUMN title_bg INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE players ADD COLUMN dan INTEGER NOT NULL DEFAULT -1;",
+            "ALTER TABLE players ADD COLUMN gold BOOL NOT NULL DEFAULT 0;",
+            "ALTER TABLE players ADD COLUMN rainbow BOOL NOT NULL DEFAULT 0;",
+            "ALTER TABLE players ADD COLUMN modifier_speed INTEGER NOT NULL DEFAULT 10;",
+            "ALTER TABLE players ADD COLUMN modifier_display BOOL NOT NULL DEFAULT 0;",
+            "ALTER TABLE players ADD COLUMN modifier_inverse BOOL NOT NULL DEFAULT 0;",
+            "ALTER TABLE players ADD COLUMN modifier_random INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE players ADD COLUMN neiro_index INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE players ADD COLUMN chara_color_1 TEXT NOT NULL DEFAULT '#68BFC0';",
+            "ALTER TABLE players ADD COLUMN chara_color_2 TEXT NOT NULL DEFAULT '#F94728';",
+            "ALTER TABLE players ADD COLUMN chara_color_3 TEXT NOT NULL DEFAULT '#F9F0E1';",
+            "ALTER TABLE players ADD COLUMN chara_head_index INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE players ADD COLUMN chara_body_index INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE players ADD COLUMN chara_cos_index INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE players ADD COLUMN chara_is_costume BOOL NOT NULL DEFAULT 1;",
+            "ALTER TABLE players ADD COLUMN chara_paint_index INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE players ADD COLUMN chara_face_index INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE players ADD COLUMN chara_acce_index INTEGER NOT NULL DEFAULT 0;",
+        };
+        for (const char* sql : migrations) {
+            sqlite3_exec(db_fsd, sql, nullptr, nullptr, nullptr);
+        }
+    }
+
+    sqlite3_exec(db_fsd, "PRAGMA user_version = 2;", nullptr, nullptr, nullptr);
 
     std::string create_players =
         "CREATE TABLE IF NOT EXISTS players"
         "(player_id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "created_at DATETIME DEFAULT CURRENT_TIMESTAMP,"
         "username TEXT NOT NULL UNIQUE,"
-        "created_at DATETIME DEFAULT CURRENT_TIMESTAMP);";
+        "title TEXT NOT NULL,"
+        "title_bg INTEGER NOT NULL DEFAULT 0,"
+        "dan INTEGER NOT NULL DEFAULT -1,"
+        "gold BOOL NOT NULL DEFAULT 0,"
+        "rainbow BOOL NOT NULL DEFAULT 0,"
+        "modifier_auto BOOL NOT NULL DEFAULT 0,"
+        "modifier_speed INTEGER NOT NULL DEFAULT 10,"
+        "modifier_display BOOL NOT NULL DEFAULT 0,"
+        "modifier_inverse BOOL NOT NULL DEFAULT 0,"
+        "modifier_random INTEGER NOT NULL DEFAULT 0,"
+        "neiro_index INTEGER NOT NULL DEFAULT 0,"
+        "chara_color_1 TEXT NOT NULL DEFAULT '#68BFC0',"
+        "chara_color_2 TEXT NOT NULL DEFAULT '#F94728',"
+        "chara_color_3 TEXT NOT NULL DEFAULT '#F9F0E1',"
+        "chara_head_index INTEGER NOT NULL DEFAULT 0,"
+        "chara_body_index INTEGER NOT NULL DEFAULT 0,"
+        "chara_cos_index INTEGER NOT NULL DEFAULT 0,"
+        "chara_is_costume BOOL NOT NULL DEFAULT 1,"
+        "chara_paint_index INTEGER NOT NULL DEFAULT 0,"
+        "chara_face_index INTEGER NOT NULL DEFAULT 0,"
+        "chara_acce_index INTEGER NOT NULL DEFAULT 0);";
 
     std::string create_songs =
         "CREATE TABLE IF NOT EXISTS songs"
@@ -383,6 +434,112 @@ int ScoresManager::add_player(const std::string& name) {
 
     sqlite3_finalize(stmt);
     return id;
+}
+
+std::optional<PlayerData> ScoresManager::get_player_data(int player_id) {
+    sqlite3_stmt* stmt;
+    const char* query =
+        "SELECT player_id, username, title, title_bg, dan, gold, rainbow,"
+        " modifier_auto, modifier_speed, modifier_display, modifier_inverse, modifier_random,"
+        " neiro_index, chara_color_1, chara_color_2, chara_color_3,"
+        " chara_head_index, chara_body_index, chara_cos_index, chara_is_costume,"
+        " chara_paint_index, chara_face_index, chara_acce_index"
+        " FROM players WHERE player_id = ?;";
+
+    if (sqlite3_prepare_v2(db_fsd, query, -1, &stmt, nullptr) != SQLITE_OK) {
+        spdlog::error("get_player: failed to prepare: {}", sqlite3_errmsg(db_fsd));
+        return std::nullopt;
+    }
+
+    sqlite3_bind_int(stmt, 1, player_id);
+
+    if (sqlite3_step(stmt) != SQLITE_ROW) {
+        sqlite3_finalize(stmt);
+        return std::nullopt;
+    }
+
+    auto col_str = [&](int i) -> std::string {
+        auto* p = reinterpret_cast<const char*>(sqlite3_column_text(stmt, i));
+        return p ? p : "";
+    };
+
+    PlayerData p;
+    p.player_id       = sqlite3_column_int(stmt, 0);
+    p.username        = col_str(1);
+    p.title           = col_str(2);
+    p.title_bg        = sqlite3_column_int(stmt, 3);
+    p.dan             = sqlite3_column_int(stmt, 4);
+    p.gold            = sqlite3_column_int(stmt, 5);
+    p.rainbow         = sqlite3_column_int(stmt, 6);
+    p.modifier_auto   = sqlite3_column_int(stmt, 7);
+    p.modifier_speed  = sqlite3_column_int(stmt, 8);
+    p.modifier_display  = sqlite3_column_int(stmt, 9);
+    p.modifier_inverse  = sqlite3_column_int(stmt, 10);
+    p.modifier_random   = sqlite3_column_int(stmt, 11);
+    p.neiro_index       = sqlite3_column_int(stmt, 12);
+    p.chara_color_1     = parse_hex_color(col_str(13));
+    p.chara_color_2     = parse_hex_color(col_str(14));
+    p.chara_color_3     = parse_hex_color(col_str(15));
+    p.chara_head_index  = sqlite3_column_int(stmt, 16);
+    p.chara_body_index  = sqlite3_column_int(stmt, 17);
+    p.chara_cos_index   = sqlite3_column_int(stmt, 18);
+    p.chara_is_costume  = sqlite3_column_int(stmt, 19);
+    p.chara_paint_index = sqlite3_column_int(stmt, 20);
+    p.chara_face_index  = sqlite3_column_int(stmt, 21);
+    p.chara_acce_index  = sqlite3_column_int(stmt, 22);
+
+    sqlite3_finalize(stmt);
+    return p;
+}
+
+void ScoresManager::save_player_data(const PlayerData& player) {
+    sqlite3_stmt* stmt;
+    const char* query =
+        "UPDATE players SET"
+        " username = ?, title = ?, title_bg = ?, dan = ?, gold = ?, rainbow = ?,"
+        " modifier_auto = ?, modifier_speed = ?, modifier_display = ?, modifier_inverse = ?, modifier_random = ?,"
+        " neiro_index = ?, chara_color_1 = ?, chara_color_2 = ?, chara_color_3 = ?,"
+        " chara_head_index = ?, chara_body_index = ?, chara_cos_index = ?, chara_is_costume = ?,"
+        " chara_paint_index = ?, chara_face_index = ?, chara_acce_index = ?"
+        " WHERE player_id = ?;";
+
+    if (sqlite3_prepare_v2(db_fsd, query, -1, &stmt, nullptr) != SQLITE_OK) {
+        spdlog::error("save_player: failed to prepare: {}", sqlite3_errmsg(db_fsd));
+        return;
+    }
+
+    std::string c1 = color_to_hex(player.chara_color_1);
+    std::string c2 = color_to_hex(player.chara_color_2);
+    std::string c3 = color_to_hex(player.chara_color_3);
+
+    sqlite3_bind_text(stmt,  1, player.username.c_str(),  -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt,  2, player.title.c_str(),     -1, SQLITE_STATIC);
+    sqlite3_bind_int (stmt,  3, player.title_bg);
+    sqlite3_bind_int (stmt,  4, player.dan);
+    sqlite3_bind_int (stmt,  5, player.gold);
+    sqlite3_bind_int (stmt,  6, player.rainbow);
+    sqlite3_bind_int (stmt,  7, player.modifier_auto);
+    sqlite3_bind_int (stmt,  8, player.modifier_speed);
+    sqlite3_bind_int (stmt,  9, player.modifier_display);
+    sqlite3_bind_int (stmt, 10, player.modifier_inverse);
+    sqlite3_bind_int (stmt, 11, player.modifier_random);
+    sqlite3_bind_int (stmt, 12, player.neiro_index);
+    sqlite3_bind_text(stmt, 13, c1.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 14, c2.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 15, c3.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_int (stmt, 16, player.chara_head_index);
+    sqlite3_bind_int (stmt, 17, player.chara_body_index);
+    sqlite3_bind_int (stmt, 18, player.chara_cos_index);
+    sqlite3_bind_int (stmt, 19, player.chara_is_costume);
+    sqlite3_bind_int (stmt, 20, player.chara_paint_index);
+    sqlite3_bind_int (stmt, 21, player.chara_face_index);
+    sqlite3_bind_int (stmt, 22, player.chara_acce_index);
+    sqlite3_bind_int (stmt, 23, player.player_id);
+
+    if (sqlite3_step(stmt) != SQLITE_DONE)
+        spdlog::error("save_player: failed to update player {}: {}", player.player_id, sqlite3_errmsg(db_fsd));
+
+    sqlite3_finalize(stmt);
 }
 
 void ScoresManager::begin_transaction() {

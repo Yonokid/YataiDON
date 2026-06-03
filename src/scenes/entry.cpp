@@ -1,5 +1,6 @@
 #include "entry.h"
 #include "../libs/input.h"
+#include "../libs/scores.h"
 
 void EntryScreen::on_screen_start() {
     Screen::on_screen_start();
@@ -22,12 +23,24 @@ void EntryScreen::on_screen_start() {
     lua_entry = std::make_unique<EntryScript>();
     lua_entry->start_side_select();
 
-    chara = std::make_unique<Chara3D>(global_data.config->general.costume_name);
+    reload_preview_chara(global_data.config->general.player_1_id);
     announce_played = false;
     players.clear();
     players.resize(2);
 
     audio.play_sound("bgm", VolumePreset::MUSIC);
+}
+
+void EntryScreen::reload_preview_chara(int player_id) {
+    auto pd = scores_manager.get_player_data(player_id);
+    std::string costume_name = pd ? std::to_string(pd->chara_cos_index) : "0";
+    chara = std::make_unique<Chara3D>(costume_name);
+    if (pd) {
+        chara->set_don_colors(pd->chara_color_1, pd->chara_color_2, pd->chara_color_3);
+        chara->apply_face(pd->chara_face_index);
+    } else {
+        chara->set_don_colors(chara_default_color_1(player_id), chara_default_color_2(player_id), {249, 240, 225, 255});
+    }
 }
 
 Screens EntryScreen::on_screen_end(Screens next_screen) {
@@ -49,6 +62,7 @@ std::optional<Screens> EntryScreen::handle_input() {
                 global_data.player_num = PlayerNum::P1;
                 is_2p = true;
             } else {
+                global_data.first_login_player = global_data.player_num;
                 players[0] = std::make_unique<EntryPlayer>(global_data.player_num, side, box_manager.get());
                 players[0]->start_animations();
                 is_2p = false;
@@ -91,11 +105,13 @@ std::optional<Screens> EntryScreen::handle_input() {
             nameplate = Nameplate(plate_info.name, plate_info.title, PlayerNum::ALL, -1, false, false, 1);
             lua_entry->restart_side_select();
             side = 1;
+            reload_preview_chara(global_data.config->general.player_2_id);
         } else if (players[0] && players[0]->player_num == PlayerNum::P2 && (is_l_don_pressed(PlayerNum::P1) || is_r_don_pressed(PlayerNum::P1))) {
             audio.play_sound("don", VolumePreset::SOUND);
             state = EntryState::SELECT_SIDE;
             lua_entry->restart_side_select();
             side = 1;
+            reload_preview_chara(global_data.config->general.player_2_id);
         }
     }
     return std::nullopt;

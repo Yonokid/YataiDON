@@ -39,6 +39,8 @@ public:
 
     void on_screen_start() override;
 
+    virtual Modifiers get_player_modifiers(PlayerNum pn);
+
     Screens on_screen_end(Screens next_screen) override;
 
     void load_hitsounds();

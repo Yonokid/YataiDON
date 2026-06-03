@@ -37,6 +37,7 @@ private:
     bool announce_played;
     std::vector<std::unique_ptr<EntryPlayer>> players;
 
+    void reload_preview_chara(int player_id);
     void draw_background();
     void draw_side_select(float fade);
     void draw_player_drum();

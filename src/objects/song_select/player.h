@@ -10,6 +10,7 @@
 class SongSelectPlayer {
 public:
     PlayerNum player_num;
+    PlayerData player_data;
     Difficulty selected_difficulty;
     Difficulty prev_diff;
     std::vector<Difficulty> curr_diffs;

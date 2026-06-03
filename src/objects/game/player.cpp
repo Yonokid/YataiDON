@@ -1,6 +1,7 @@
 #include "player.h"
 #include "../../libs/audio.h"
 #include "../../libs/input.h"
+#include "../../libs/scores.h"
 
 Player::Player(std::optional<SongParser>& parser_ref, PlayerNum player_num_param, int difficulty_param,
        bool is_2p_param, const Modifiers& modifiers_param)
@@ -52,7 +53,16 @@ Player::Player(std::optional<SongParser>& parser_ref, PlayerNum player_num_param
         plate_info = global_data.config->nameplate_1p;
     }
     nameplate = Nameplate(plate_info.name, plate_info.title, global_data.player_num, plate_info.dan, plate_info.gold, plate_info.rainbow, plate_info.title_bg);
-    chara = std::make_unique<Chara3D>(global_data.config->general.costume_name);
+    int player_id = get_player_id(player_num);
+    auto pd = scores_manager.get_player_data(player_id);
+    std::string costume_name = pd ? std::to_string(pd->chara_cos_index) : "0";
+    chara = std::make_unique<Chara3D>(costume_name);
+    if (pd) {
+        chara->set_don_colors(pd->chara_color_1, pd->chara_color_2, pd->chara_color_3);
+        chara->apply_face(pd->chara_face_index);
+    } else {
+        chara->set_don_colors(chara_default_color_1(player_id), chara_default_color_2(player_id), {249, 240, 225, 255});
+    }
     chara->set_anim(AnimIndex::DON_NORMAL);
     if (global_data.config->general.judge_counter) {
         judge_counter = JudgeCounter();
@@ -1206,8 +1216,7 @@ void Player::handle_input(double ms_from_start, double current_ms, std::optional
 
         while (input.check_func(player_num)) {
             spawn_hit_effects(input.drum_type, input.side);
-            if (global_data.hit_sound[(int)player_num] != -1)
-                audio.play_sound(input.sound, VolumePreset::HITSOUND);
+            audio.play_sound(input.sound, VolumePreset::HITSOUND);
             check_note(ms_from_start, input.drum_type, current_ms, background);
         }
     }

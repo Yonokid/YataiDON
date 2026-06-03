@@ -113,7 +113,6 @@ private:
     void set_texture(fs::path& texture_path, int material_index);
     void load_face_textures(fs::path& face_dir);
     void load_face_anims(fs::path& anim_path);
-    void apply_face(int face_index);
     void draw_outline(float x, float y);
     void draw_3d(float x, float y);
 public:
@@ -121,6 +120,7 @@ public:
 
     ~Chara3D();
 
+    void apply_face(int face_index);
     void set_body_texture(fs::path& texture_path);
     void set_face_rim_texture(fs::path& texture_path);
 

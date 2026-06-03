@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../../libs/global_data.h"
+#include "../../libs/scores.h"
 #include "../../libs/text.h"
 
 class ModifierSelector {
@@ -9,6 +10,7 @@ private:
     static const std::array<std::string, 5> MOD_NAMES;
 
     PlayerNum player_num;
+    PlayerData* player;
     int current_mod_index;
     std::string language;
     int direction;
@@ -45,7 +47,7 @@ public:
     bool is_confirmed;
     MoveAnimation* move;
 
-    ModifierSelector(PlayerNum player_num);
+    ModifierSelector(PlayerNum player_num, PlayerData* player);
     void update(double current_ms);
     void confirm();
     void left();

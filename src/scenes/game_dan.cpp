@@ -75,7 +75,7 @@ void DanGameScreen::init_dan() {
     players.clear();
     players.push_back(std::make_unique<Player>(
         parser, global_data.player_num, first.difficulty, false,
-        global_data.modifiers[(int)global_data.player_num]));
+        get_player_modifiers(global_data.player_num)));
     players[0]->set_is_dan(true);
     players[0]->gauge.reset();
     players[0]->dan_gauge = &dan_gauge;

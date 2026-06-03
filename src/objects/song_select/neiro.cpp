@@ -1,8 +1,8 @@
 #include "neiro.h"
 #include "../../libs/audio.h"
 
-NeiroSelector::NeiroSelector(PlayerNum player_num) : player_num(player_num) {
-    selected_sound = global_data.hit_sound[(int)player_num];
+NeiroSelector::NeiroSelector(PlayerNum player_num, PlayerData* player) : player_num(player_num), player(player) {
+    selected_sound = player->neiro_index;
     is_finished = false;
     is_confirmed = false;
     direction = -1;
@@ -85,11 +85,7 @@ void NeiroSelector::right() {
 
 void NeiroSelector::confirm() {
     if (move->is_started && !move->is_finished) return;
-    if (selected_sound == (int)sounds.size() - 1) {
-        global_data.hit_sound[(int)player_num] = -1;
-    } else {
-        global_data.hit_sound[(int)player_num] = selected_sound;
-    }
+    player->neiro_index = selected_sound == (int)sounds.size() - 1 ? -1 : selected_sound;
     is_confirmed = true;
     move->restart();
 }

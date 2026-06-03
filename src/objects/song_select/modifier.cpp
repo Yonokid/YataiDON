@@ -14,21 +14,19 @@ const std::array<std::string, 5> ModifierSelector::MOD_NAMES = {
 
 // Maps mod_index to the bool fields in Modifiers (auto, display, inverse)
 bool ModifierSelector::get_bool(int mod_index) {
-    auto& m = global_data.modifiers[(int)player_num];
     switch (mod_index) {
-        case 0: return m.auto_play;
-        case 2: return m.display;
-        case 3: return m.inverse;
+        case 0: return player->modifier_auto;
+        case 2: return player->modifier_display;
+        case 3: return player->modifier_inverse;
         default: return false;
     }
 }
 
 void ModifierSelector::set_bool(int mod_index, bool value) {
-    auto& m = global_data.modifiers[(int)player_num];
     switch (mod_index) {
-        case 0: m.auto_play = value; break;
-        case 2: m.display   = value; break;
-        case 3: m.inverse   = value; break;
+        case 0: player->modifier_auto    = value; break;
+        case 2: player->modifier_display = value; break;
+        case 3: player->modifier_inverse = value; break;
         default: break;
     }
 }
@@ -37,7 +35,7 @@ std::unique_ptr<OutlinedText> ModifierSelector::make_text(const std::string& str
     return std::make_unique<OutlinedText>(str, tex.skin_config[SC::MODIFIER_TEXT].font_size, ray::WHITE, ray::BLACK, false, 3.5f);
 }
 
-ModifierSelector::ModifierSelector(PlayerNum player_num) : player_num(player_num) {
+ModifierSelector::ModifierSelector(PlayerNum player_num, PlayerData* player) : player_num(player_num), player(player) {
     current_mod_index = 0;
     is_confirmed = false;
     is_finished = false;
@@ -62,13 +60,13 @@ ModifierSelector::ModifierSelector(PlayerNum player_num) : player_num(player_num
 
     text_true      = make_text(tex.skin_config[SC::MODIFIER_TEXT_TRUE].text.at(language));
     text_false     = make_text(tex.skin_config[SC::MODIFIER_TEXT_FALSE].text.at(language));
-    text_speed     = make_text(std::format("{:.1f}", global_data.modifiers[(int)player_num].speed / 10.0f));
+    text_speed     = make_text(std::format("{:.1f}", player->modifier_speed / 10.0f));
     text_kimagure  = make_text(tex.skin_config[SC::MODIFIER_TEXT_KIMAGURE].text.at(language));
     text_detarame  = make_text(tex.skin_config[SC::MODIFIER_TEXT_DETARAME].text.at(language));
 
     text_true_2     = make_text(tex.skin_config[SC::MODIFIER_TEXT_TRUE].text.at(language));
     text_false_2    = make_text(tex.skin_config[SC::MODIFIER_TEXT_FALSE].text.at(language));
-    text_speed_2    = make_text(std::format("{:.1f}", global_data.modifiers[(int)player_num].speed / 10.0f));
+    text_speed_2    = make_text(std::format("{:.1f}", player->modifier_speed / 10.0f));
     text_kimagure_2 = make_text(tex.skin_config[SC::MODIFIER_TEXT_KIMAGURE].text.at(language));
     text_detarame_2 = make_text(tex.skin_config[SC::MODIFIER_TEXT_DETARAME].text.at(language));
 }
@@ -97,16 +95,14 @@ void ModifierSelector::start_text_animation(int dir) {
     direction = dir;
 
     const std::string& mod_name = MOD_NAMES[current_mod_index];
-    auto& modifiers = global_data.modifiers[(int)player_num];
-
     if (mod_name == "speed") {
         text_speed_2 = std::move(text_speed);
-        text_speed = make_text(std::format("{:.1f}", modifiers.speed / 10.0f));
+        text_speed = make_text(std::format("{:.1f}", player->modifier_speed / 10.0f));
     } else if (mod_name == "random") {
-        if (modifiers.random == 1) {
+        if (player->modifier_random == 1) {
             text_kimagure = std::move(text_kimagure_2);
             text_kimagure_2 = make_text(tex.skin_config[SC::MODIFIER_TEXT_KIMAGURE].text.at(language));
-        } else if (modifiers.random == 2) {
+        } else if (player->modifier_random == 2) {
             text_detarame = std::move(text_detarame_2);
             text_detarame_2 = make_text(tex.skin_config[SC::MODIFIER_TEXT_DETARAME].text.at(language));
         }
@@ -125,13 +121,12 @@ void ModifierSelector::start_text_animation(int dir) {
 void ModifierSelector::left() {
     if (is_confirmed) return;
     const std::string& mod_name = MOD_NAMES[current_mod_index];
-    auto& modifiers = global_data.modifiers[(int)player_num];
 
     if (mod_name == "speed") {
-        modifiers.speed = std::max(1, modifiers.speed - 1);
+        player->modifier_speed = std::max(1, player->modifier_speed - 1);
         start_text_animation(-1);
     } else if (mod_name == "random") {
-        modifiers.random = std::max(0, modifiers.random - 1);
+        player->modifier_random = std::max(0, player->modifier_random - 1);
         start_text_animation(-1);
     } else {
         set_bool(current_mod_index, !get_bool(current_mod_index));
@@ -142,13 +137,12 @@ void ModifierSelector::left() {
 void ModifierSelector::right() {
     if (is_confirmed) return;
     const std::string& mod_name = MOD_NAMES[current_mod_index];
-    auto& modifiers = global_data.modifiers[(int)player_num];
 
     if (mod_name == "speed") {
-        modifiers.speed += 1;
+        player->modifier_speed += 1;
         start_text_animation(1);
     } else if (mod_name == "random") {
-        modifiers.random = (modifiers.random + 1) % 3;
+        player->modifier_random = (player->modifier_random + 1) % 3;
         start_text_animation(1);
     } else {
         set_bool(current_mod_index, !get_bool(current_mod_index));
@@ -185,7 +179,6 @@ void ModifierSelector::draw() {
     for (int i = 0; i < (int)MOD_NAMES.size(); i++) {
         float row_y = move_val + (i * mod_offset_y);
         const std::string& mod_name = MOD_NAMES[i];
-        auto& modifiers = global_data.modifiers[(int)player_num];
         bool is_current = (i == current_mod_index);
 
         tex.draw_texture(MODIFIER::BACKGROUND,                              {.x=x, .y=row_y});
@@ -204,17 +197,17 @@ void ModifierSelector::draw() {
             float tx = text_base_x - (text_speed->width / 2.0f);
             draw_animated_text(text_speed, text_speed_2, tx + x, text_y, is_current);
 
-            float spd = modifiers.speed;
+            float spd = player->modifier_speed;
             if      (spd >= 40) tex.draw_texture(MODIFIER::MOD_YONBAI,         {.x=x, .y=row_y});
             else if (spd >= 30) tex.draw_texture(MODIFIER::MOD_SANBAI,         {.x=x, .y=row_y});
             else if (spd >  10) tex.draw_texture(tex.get_enum("modifier/" + (TEX_MAP.at(mod_name))), {.x=x, .y=row_y});
 
         } else if (mod_name == "random") {
-            if (modifiers.random == 1) {
+            if (player->modifier_random == 1) {
                 float tx = text_base_x - (text_kimagure->width / 2.0f);
                 draw_animated_text(text_kimagure, text_kimagure_2, tx + x, text_y, is_current);
                 tex.draw_texture(tex.get_enum("modifier/" + (TEX_MAP.at(mod_name))), {.x=x, .y=row_y});
-            } else if (modifiers.random == 2) {
+            } else if (player->modifier_random == 2) {
                 float tx = text_base_x - (text_detarame->width / 2.0f);
                 draw_animated_text(text_detarame, text_detarame_2, tx + x, text_y, is_current);
                 tex.draw_texture(MODIFIER::MOD_DETARAME, {.x=x, .y=row_y});

@@ -35,11 +35,11 @@ void Game2PScreen::init_tja(fs::path song) {
     players.push_back(std::make_unique<Player>(
         parser, PlayerNum::P1,
         global_data.session_data[(int)PlayerNum::P1].selected_difficulty, false,
-        global_data.modifiers[(int)PlayerNum::P1]));
+        get_player_modifiers(PlayerNum::P1)));
     players.push_back(std::make_unique<Player>(
         parser_2p, PlayerNum::P2,
         global_data.session_data[(int)PlayerNum::P2].selected_difficulty, true,
-        global_data.modifiers[(int)PlayerNum::P2]));
+        get_player_modifiers(PlayerNum::P2)));
 
     start_ms = get_current_ms() - parser->metadata.offset * 1000;
 }

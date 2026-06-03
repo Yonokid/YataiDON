@@ -1,11 +1,13 @@
 #pragma once
 
 #include "../../libs/global_data.h"
+#include "../../libs/scores.h"
 #include "../../libs/text.h"
 
 class NeiroSelector {
 private:
     PlayerNum player_num;
+    PlayerData* player;
     int selected_sound;
     int direction;
     std::vector<std::string> sounds;
@@ -26,7 +28,7 @@ public:
     bool is_confirmed;
     MoveAnimation* move;
 
-    NeiroSelector(PlayerNum player_num);
+    NeiroSelector(PlayerNum player_num, PlayerData* player);
     void update(double current_ms);
     void left();
     void right();

@@ -1,5 +1,6 @@
 #include "player.h"
 #include "../../libs/input.h"
+#include "../../libs/scores.h"
 
 EntryPlayer::EntryPlayer(PlayerNum player_num, int side, BoxManager* box_manager)
     : player_num(player_num), side(side), box_manager(box_manager) {
@@ -20,7 +21,18 @@ EntryPlayer::EntryPlayer(PlayerNum player_num, int side, BoxManager* box_manager
     );
     indicator = std::make_unique<Indicator>(Indicator::State::SELECT);
 
-    chara = std::make_unique<Chara3D>(global_data.config->general.costume_name, player_num == PlayerNum::P2);
+    {
+        int player_id = get_player_id(player_num);
+        auto pd = scores_manager.get_player_data(player_id);
+        std::string costume_name = pd ? std::to_string(pd->chara_cos_index) : "0";
+        chara = std::make_unique<Chara3D>(costume_name, player_num == PlayerNum::P2);
+        if (pd) {
+            chara->set_don_colors(pd->chara_color_1, pd->chara_color_2, pd->chara_color_3);
+            chara->apply_face(pd->chara_face_index);
+        } else {
+            chara->set_don_colors(chara_default_color_1(player_id), chara_default_color_2(player_id), {249, 240, 225, 255});
+        }
+    }
 
     drum_move_1 = (MoveAnimation*)tex.get_animation(2);
     drum_move_2 = (MoveAnimation*)tex.get_animation(3);
@@ -130,11 +142,23 @@ void EntryPlayer::handle_input() {
                 chara_index = selected_index;
                 std::string model_name = costume_menu->get_costume_name();
                 chara = std::make_unique<Chara3D>(model_name, player_num == PlayerNum::P2);
+                {
+                    int player_id = get_player_id(player_num);
+                    if (auto pd = scores_manager.get_player_data(player_id)) {
+                        chara->set_don_colors(pd->chara_color_1, pd->chara_color_2, pd->chara_color_3);
+                        chara->apply_face(pd->chara_face_index);
+                    } else {
+                        chara->set_don_colors(chara_default_color_1(player_id), chara_default_color_2(player_id), {249, 240, 225, 255});
+                    }
+                }
             }
         }
         if (costume_menu->confirmed) {
-            global_data.config->general.costume_name = costume_menu->get_costume_name();
-            save_config(*global_data.config);
+            int player_id = get_player_id(player_num);
+            if (auto pd = scores_manager.get_player_data(player_id)) {
+                pd->chara_cos_index = std::stoi(costume_menu->get_costume_name());
+                scores_manager.save_player_data(*pd);
+            }
             costume_menu.reset();
             audio.play_sound("costume_select_" + std::to_string((int)player_num) + "p", VolumePreset::SOUND);
             chara->set_anim(AnimIndex::DON_BALLOON_SUCCESS);

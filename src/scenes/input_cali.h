@@ -6,6 +6,7 @@ class InputCaliScreen : public GameScreen {
 public:
     InputCaliScreen() : GameScreen("game") {}
 
+    Modifiers get_player_modifiers(PlayerNum pn) override;
     void on_screen_start() override;
     Screens on_screen_end(Screens next_screen) override;
     std::optional<Screens> update() override;

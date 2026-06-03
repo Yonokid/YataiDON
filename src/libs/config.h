@@ -21,8 +21,9 @@ struct GeneralConfig {
     std::string score_method;
     bool display_bpm;
     int song_limit;
-    std::string costume_name;
     int webcam_number;
+    int player_1_id;
+    int player_2_id;
 };
 
 struct NameplateConfig {

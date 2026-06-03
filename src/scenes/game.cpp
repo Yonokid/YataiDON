@@ -84,22 +84,19 @@ Screens GameScreen::on_screen_end(Screens next_screen) {
     return Screen::on_screen_end(next_screen);
 }
 
+Modifiers GameScreen::get_player_modifiers(PlayerNum pn) {
+    return player_data_to_modifiers(scores_manager.get_player_data(get_player_id(pn)).value_or(PlayerData{}));
+}
+
 void GameScreen::load_hitsounds() {
     fs::path sounds_dir = audio.sounds_path;
-    if (global_data.hit_sound[(int)global_data.player_num] == -1) {
-        audio.load_sound("", "hitsound_don_1p");
-        audio.load_sound(sounds_dir / "hit_sounds" / std::to_string(global_data.hit_sound[(int)PlayerNum::P1]) / "ka.wav", "hitsound_kat_1p");
-        audio.load_sound(sounds_dir / "hit_sounds" / std::to_string(global_data.hit_sound[(int)PlayerNum::P1]) / "don.wav", "hitsound_don_1p");
-        audio.load_sound(sounds_dir / "hit_sounds" / std::to_string(global_data.hit_sound[(int)PlayerNum::P2]) / "ka.wav", "hitsound_kat_2p");
-        audio.load_sound(sounds_dir / "hit_sounds" / std::to_string(global_data.hit_sound[(int)PlayerNum::P2]) / "don.wav", "hitsound_don_2p");
-        spdlog::info("Loaded wav hit sounds for 1P and 2P");
-    } else {
-        audio.load_sound(sounds_dir / "hit_sounds" / std::to_string(global_data.hit_sound[(int)PlayerNum::P1]) / "don.ogg", "hitsound_don_1p");
-        audio.load_sound(sounds_dir / "hit_sounds" / std::to_string(global_data.hit_sound[(int)PlayerNum::P1]) / "ka.ogg", "hitsound_kat_1p");
-        audio.load_sound(sounds_dir / "hit_sounds" / std::to_string(global_data.hit_sound[(int)PlayerNum::P2]) / "don.ogg", "hitsound_don_2p");
-        audio.load_sound(sounds_dir / "hit_sounds" / std::to_string(global_data.hit_sound[(int)PlayerNum::P2]) / "ka.ogg", "hitsound_kat_2p");
-        spdlog::info("Loaded ogg hit sounds for 1P and 2P");
-    }
+    int neiro_p1 = scores_manager.get_player_data(get_player_id(PlayerNum::P1)).value_or(PlayerData{}).neiro_index;
+    int neiro_p2 = scores_manager.get_player_data(get_player_id(PlayerNum::P2)).value_or(PlayerData{}).neiro_index;
+    audio.load_sound(sounds_dir / "hit_sounds" / std::to_string(neiro_p1) / "don.ogg", "hitsound_don_1p");
+    audio.load_sound(sounds_dir / "hit_sounds" / std::to_string(neiro_p1) / "ka.ogg",  "hitsound_kat_1p");
+    audio.load_sound(sounds_dir / "hit_sounds" / std::to_string(neiro_p2) / "don.ogg", "hitsound_don_2p");
+    audio.load_sound(sounds_dir / "hit_sounds" / std::to_string(neiro_p2) / "ka.ogg",  "hitsound_kat_2p");
+    spdlog::info("Loaded ogg hit sounds for 1P and 2P");
 }
 
 void GameScreen::init_tja(fs::path song) {
@@ -119,7 +116,7 @@ void GameScreen::init_tja(fs::path song) {
         song_music = audio.load_sound(parser->metadata.wave, "song");
     }
 
-    players.push_back(std::make_unique<Player>(parser, global_data.player_num, global_data.session_data[(int)global_data.player_num].selected_difficulty, false, global_data.modifiers[(int)global_data.player_num]));
+    players.push_back(std::make_unique<Player>(parser, global_data.player_num, global_data.session_data[(int)global_data.player_num].selected_difficulty, false, get_player_modifiers(global_data.player_num)));
     start_ms = get_current_ms() - parser->metadata.offset*1000 - (double)global_data.config->general.audio_offset;
 
     std::optional<Note> first_note = players.back()->get_first_note();
@@ -262,7 +259,7 @@ void GameScreen::resync_song(double current_ms) {
 void GameScreen::end_song() {
     if (ms_from_start >= players[0]->end_time + 1000 && !score_saved) {
         global_data.session_data[(int)players[0]->player_num].result_data = players[0]->get_result_score();
-        if (!global_data.modifiers[(int)players[0]->player_num].auto_play) {
+        if (!players[0]->is_auto_play()) {
             save_score((int)players[0]->player_num);
         }
         for (auto& player : players) {

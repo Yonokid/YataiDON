@@ -3,10 +3,15 @@
 
 static const fs::path CALI_TJA_PATH = "Songs/Calibration.tja";
 
+Modifiers InputCaliScreen::get_player_modifiers(PlayerNum pn) {
+    Modifiers mods = GameScreen::get_player_modifiers(pn);
+    mods.auto_play = true;
+    return mods;
+}
+
 void InputCaliScreen::on_screen_start() {
     SessionData& session_data = global_data.session_data[(int)global_data.player_num];
     session_data.selected_song = CALI_TJA_PATH;
-    global_data.modifiers[(int)global_data.player_num].auto_play = true;
     session_data.selected_difficulty = 2;
     GameScreen::on_screen_start();
 
@@ -16,7 +21,6 @@ void InputCaliScreen::on_screen_start() {
 }
 
 Screens InputCaliScreen::on_screen_end(Screens next_screen) {
-    global_data.modifiers[(int)global_data.player_num].auto_play = false;
     global_data.config->general.audio_offset = average_latency * -1;
     return GameScreen::on_screen_end(next_screen);
 }

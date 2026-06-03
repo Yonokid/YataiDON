@@ -61,6 +61,7 @@ public:
     int get_good() const { return good_count; }
     int get_ok()   const { return ok_count; }
     int get_bad()  const { return bad_count; }
+    bool is_auto_play() const { return modifiers.auto_play; }
     int get_score() const { return score; }
     int get_max_combo() const { return max_combo; }
     int get_total_drumroll() const { return total_drumroll; }

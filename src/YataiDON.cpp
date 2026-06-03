@@ -131,7 +131,7 @@ Screens check_args(int argc, char* argv[]) {
     Screens current_screen = practice ? Screens::GAME_PRACTICE : Screens::GAME;
     global_data.session_data[(int)PlayerNum::P1].selected_song = path;
     global_data.session_data[(int)PlayerNum::P1].selected_difficulty = selected_difficulty;
-    global_data.modifiers[(int)PlayerNum::P1].auto_play = auto_play;
+    //global_data.modifiers[(int)PlayerNum::P1].auto_play = auto_play;
 
     return current_screen;
 }

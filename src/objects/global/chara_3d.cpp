@@ -162,7 +162,6 @@ Chara3D::Chara3D(std::string& model_name, bool mirror) {
     anims = ray::LoadModelAnimations(anim_path.string().c_str(), &anim_count);
     reindex_animations(cos_model, glb_model, anims, anim_count);
     ray::UnloadModel(glb_model);
-    set_don_colors({104, 191, 192, 255}, {249, 71, 40, 255}, {249, 240, 225, 255});
 
     fs::path face_dir = root_path / "face";
     load_face_textures(face_dir);
