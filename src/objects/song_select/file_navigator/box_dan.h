@@ -24,7 +24,7 @@ public:
 protected:
     void draw_closed() override;
     void draw_open() override;
-    void draw_diff_select(bool is_ura) override { draw_open(); }
+    void draw_diff_select() override { draw_open(); }
 
 private:
     void draw_exam_box();

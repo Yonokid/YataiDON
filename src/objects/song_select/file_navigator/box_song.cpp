@@ -154,8 +154,8 @@ void SongBox::draw_closed() {
     }
 }
 
-void SongBox::draw_diff_select(bool is_ura) {
-    BaseBox::draw_diff_select(is_ura);
+void SongBox::draw_diff_select() {
+    BaseBox::draw_diff_select();
     tex.draw_texture(tex.get_enum("diff_select/back_" + global_data.config->general.language),   {.fade=diff_fade_in->attribute});
     tex.draw_texture(tex.get_enum("diff_select/option_" + global_data.config->general.language), {.fade=diff_fade_in->attribute});
     tex.draw_texture(tex.get_enum("diff_select/neiro_" + global_data.config->general.language),  {.fade=diff_fade_in->attribute});
@@ -177,8 +177,8 @@ void SongBox::draw_diff_select(bool is_ura) {
 
     for (int i = 0; i < 4; i++) {
         if (i == (int)Difficulty::ONI && is_ura) {
-            tex.draw_texture(DIFF_SELECT::DIFF_TOWER,    {.frame=4, .x=i*offset_x, });
-            tex.draw_texture(DIFF_SELECT::URA_ONI_PLATE, {});
+            tex.draw_texture(DIFF_SELECT::DIFF_TOWER,    {.frame=4, .x=i*offset_x, .fade=diff_fade_in->attribute});
+            tex.draw_texture(DIFF_SELECT::URA_ONI_PLATE, {.fade=diff_fade_in->attribute});
         } else {
             tex.draw_texture(DIFF_SELECT::DIFF_TOWER, {.frame=i, .x=i*offset_x, .fade=diff_fade_in->attribute});
         }

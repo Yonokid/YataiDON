@@ -215,7 +215,7 @@ void GenreBG::draw_exit_anim(float start_position, float end_position, FolderBox
                 .y=tex.skin_config[SC::GENRE_BG_TITLE].y,
                 .x2 = dest_width - name->width, .fade=fade->attribute});
 
-    box->draw(false);
+    box->draw();
 }
 
 void GenreBG::draw(float start_position, float end_position, FolderBox* folder) {

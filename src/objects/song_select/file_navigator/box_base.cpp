@@ -157,15 +157,15 @@ void BaseBox::draw_open() {
     }
 }
 
-void BaseBox::draw_diff_select(bool is_ura) {
+void BaseBox::draw_diff_select() {
     if (yellow_box.has_value())
         yellow_box->draw();
 }
 
-void BaseBox::draw(bool is_ura)
+void BaseBox::draw()
 {
     if (yellow_box.has_value() && yellow_box->is_diff_select) {
-        draw_diff_select(is_ura);
+        draw_diff_select();
     } else if (yellow_box.has_value() && yellow_box_opened) {
         draw_open();
     } else {

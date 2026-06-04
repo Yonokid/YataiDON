@@ -459,7 +459,32 @@ std::optional<PlayerData> ScoresManager::get_player_data(int player_id) {
 
     if (sqlite3_step(stmt) != SQLITE_ROW) {
         sqlite3_finalize(stmt);
-        return std::nullopt;
+
+        // Player not found — insert a default row with the requested player_id
+        sqlite3_stmt* ins;
+        const char* ins_query =
+            "INSERT OR IGNORE INTO players (player_id, username, title) VALUES (?, ?, 'Donder Debut!');";
+        if (sqlite3_prepare_v2(db_fsd, ins_query, -1, &ins, nullptr) == SQLITE_OK) {
+            std::string default_name = "Player " + std::to_string(player_id);
+            sqlite3_bind_int (ins, 1, player_id);
+            sqlite3_bind_text(ins, 2, default_name.c_str(), -1, SQLITE_TRANSIENT);
+            sqlite3_step(ins);
+            sqlite3_finalize(ins);
+        } else {
+            spdlog::error("get_player: failed to insert default player {}: {}", player_id, sqlite3_errmsg(db_fsd));
+            return std::nullopt;
+        }
+
+        // Re-query the newly inserted row
+        if (sqlite3_prepare_v2(db_fsd, query, -1, &stmt, nullptr) != SQLITE_OK) {
+            spdlog::error("get_player: failed to re-prepare after insert: {}", sqlite3_errmsg(db_fsd));
+            return std::nullopt;
+        }
+        sqlite3_bind_int(stmt, 1, player_id);
+        if (sqlite3_step(stmt) != SQLITE_ROW) {
+            sqlite3_finalize(stmt);
+            return std::nullopt;
+        }
     }
 
     auto col_str = [&](int i) -> std::string {

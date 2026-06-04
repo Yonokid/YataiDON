@@ -1015,7 +1015,7 @@ void Navigator::draw_background() {
     }
 }
 
-void Navigator::draw(bool is_ura) {
+void Navigator::draw() {
     if (genre_bg.has_value()) {
         float start_pos;
         float end_pos;
@@ -1034,7 +1034,7 @@ void Navigator::draw(bool is_ura) {
     }
     for (auto& box : items) {
         if (box->position > -100 && box->position < tex.screen_width + 100) {
-            box->draw(is_ura);
+            box->draw();
         }
     }
 }

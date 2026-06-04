@@ -120,7 +120,7 @@ public:
 
     void update(double current_ms);
     void draw_background();
-    void draw(bool is_ura);
+    void draw();
     void draw_score_history();
 };
 

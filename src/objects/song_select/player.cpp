@@ -319,6 +319,8 @@ void SongSelectPlayer::toggle_ura_mode() {
     selected_difficulty = Difficulty(7 - (int)selected_difficulty);
     ura_switch.emplace();
     ura_switch->start(is_ura);
+    SongBox* song = dynamic_cast<SongBox*>(navigator.get_current_item());
+    if (song) song->is_ura = is_ura;
 }
 
 void SongSelectPlayer::draw_selector(bool is_half, float fade_in) {

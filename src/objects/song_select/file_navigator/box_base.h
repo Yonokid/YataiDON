@@ -49,7 +49,7 @@ public:
     virtual void load_text();
     virtual void get_scores() {}
     virtual void draw_score_history() {}
-    virtual void draw_diff_select(bool is_ura);
+    virtual void draw_diff_select();
 
     virtual void reset();
     void set_position(float target_position);
@@ -65,7 +65,7 @@ public:
     void move_box(float target_position, float duration);
     virtual void update(double current_ms);
 
-    virtual void draw(bool is_ura);
+    virtual void draw();
 
 protected:
     MoveAnimation* open_anim;

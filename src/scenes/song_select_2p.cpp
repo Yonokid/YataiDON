@@ -130,7 +130,7 @@ void SongSelect2PScreen::draw_overlays() {
 void SongSelect2PScreen::draw() {
     player->draw_background_diffs(state);
     player_2->draw_background_diffs(state);
-    if (screen_init) navigator.draw(player->is_ura);
+    if (screen_init) navigator.draw();
     script->draw_footer();
 
     bool same_diff = (player->selected_difficulty == player_2->selected_difficulty);

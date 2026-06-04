@@ -178,7 +178,7 @@ void DanNavigator::draw() {
     for (auto& b : boxes) {
         float pos = b->position;
         if (pos >= -156 * tex.screen_scale && pos <= tex.screen_width + 144 * tex.screen_scale) {
-            b->draw(false);
+            b->draw();
         }
     }
 }
