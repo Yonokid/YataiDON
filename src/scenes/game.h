@@ -61,7 +61,7 @@ public:
 
     void update_background(double current_ms);
 
-    void save_score(int player_id);
+    void save_score(int player_id, PlayerNum player_num);
 
     std::optional<Screens> update() override;
 

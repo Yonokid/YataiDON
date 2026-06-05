@@ -74,9 +74,11 @@ std::optional<Screens> Game2PScreen::update() {
     }
     else if (ms_from_start >= players[0]->end_time) {
         if (ms_from_start >= players[0]->end_time + 1000 && !score_saved) {
+            global_data.session_data[global_data.config->general.player_1_id].result_data = players[0]->get_result_score();
+            global_data.session_data[global_data.config->general.player_2_id].result_data = players[1]->get_result_score();
+            save_score(global_data.config->general.player_1_id, PlayerNum::P1);
+            save_score(global_data.config->general.player_2_id, PlayerNum::P2);
             for (int i = 0; i < 2; i++) {
-                global_data.session_data[i + 1].result_data = players[i]->get_result_score();
-                save_score(i + 1);
                 players[i]->spawn_ending_anim();
             }
             global_data.songs_played += 1;

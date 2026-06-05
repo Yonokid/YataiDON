@@ -198,9 +198,9 @@ void GameScreen::update_background(double current_ms) {
     }
 }
 
-void GameScreen::save_score(int player_id) {
+void GameScreen::save_score(int player_id, PlayerNum player_num) {
     Score score;
-    SessionData& session_data = global_data.session_data[player_id];
+    SessionData& session_data = global_data.session_data[(int)player_num];
     std::string hash = session_data.song_hash;
     score.score = session_data.result_data.score;
     score.good = session_data.result_data.good;
@@ -208,7 +208,7 @@ void GameScreen::save_score(int player_id) {
     score.bad = session_data.result_data.bad;
     score.max_combo = session_data.result_data.max_combo;
     score.drumroll = session_data.result_data.total_drumroll;
-    auto prev_score = scores_manager.get_score(hash, global_data.session_data[player_id].selected_difficulty, player_id);
+    auto prev_score = scores_manager.get_score(hash, global_data.session_data[(int)player_num].selected_difficulty, player_id);
     if (prev_score.has_value()) {
         session_data.result_data.prev_score = prev_score->score;
     }
@@ -260,7 +260,7 @@ void GameScreen::end_song() {
     if (ms_from_start >= players[0]->end_time + 1000 && !score_saved) {
         global_data.session_data[(int)players[0]->player_num].result_data = players[0]->get_result_score();
         if (!players[0]->is_auto_play()) {
-            save_score((int)players[0]->player_num);
+            save_score(global_data.config->general.player_1_id, players[0]->player_num);
         }
         for (auto& player : players) {
             player->spawn_ending_anim();

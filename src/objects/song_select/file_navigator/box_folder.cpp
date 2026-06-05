@@ -20,7 +20,7 @@ void FolderBox::refresh_scores(std::map<std::pair<std::string, std::string>, fs:
         auto& hashes = scores_manager.get_hashes(file_path);
         for (int diff = 0; diff < 5; diff++) {
             if (hashes[diff].empty()) continue;
-            auto score = scores_manager.get_score(hashes[diff], diff, 1);
+            auto score = scores_manager.get_score(hashes[diff], diff, global_data.config->general.player_1_id);
 
             if (!score || score->crown == Crown::NONE) {
                 crown.erase(diff);

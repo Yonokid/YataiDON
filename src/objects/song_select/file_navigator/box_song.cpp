@@ -21,7 +21,7 @@ SongBox::SongBox(const fs::path& path, const BoxDef& box_def, SongParser parser)
 void SongBox::refresh_scores() {
     hashes = scores_manager.get_hashes(path);
     for (int i = 0; i < 5; i++) {
-        scores[i] = scores_manager.get_score(hashes[i], i, 1);
+        scores[i] = scores_manager.get_score(hashes[i], i, global_data.config->general.player_1_id);
     }
     score_history.reset();
 }
