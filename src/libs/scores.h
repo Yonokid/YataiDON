@@ -45,6 +45,8 @@ private:
     sqlite3* db_fsd;
     std::unordered_map<fs::path, std::array<std::string, 5>> path_to_hashes;
     std::unordered_map<std::string, fs::path> single_hash_to_path;
+    std::map<std::tuple<std::string, int, int>, Score> score_cache;
+    void load_score_cache();
 public:
     int player_1;
     int player_2;

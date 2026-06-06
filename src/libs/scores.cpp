@@ -118,6 +118,44 @@ ScoresManager::ScoresManager(const fs::path& db_path) {
         "INSERT OR IGNORE INTO players (player_id, username, title) VALUES (1, 'Don-chan', 'Donder Debut!');",
         nullptr, nullptr, nullptr);
 
+    load_score_cache();
+}
+
+void ScoresManager::load_score_cache() {
+    score_cache.clear();
+
+    sqlite3_stmt* stmt;
+    const char* query =
+        "SELECT player_id, hash, difficulty, score, good, ok, bad, drumroll, max_combo, crown, rank "
+        "FROM scores "
+        "ORDER BY crown DESC, score DESC;";
+    if (sqlite3_prepare_v2(db_fsd, query, -1, &stmt, nullptr) != SQLITE_OK) {
+        spdlog::error("load_score_cache: failed to prepare statement: {}", sqlite3_errmsg(db_fsd));
+        return;
+    }
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        int player_id = sqlite3_column_int(stmt, 0);
+        const unsigned char* hash_text = sqlite3_column_text(stmt, 1);
+        std::string hash = hash_text ? reinterpret_cast<const char*>(hash_text) : "";
+        int difficulty = sqlite3_column_int(stmt, 2);
+
+        // Rows are ordered best-first, so the first row seen for a key is the best one.
+        auto key = std::make_tuple(hash, difficulty, player_id);
+        if (score_cache.count(key)) continue;
+
+        Score s;
+        s.score     = sqlite3_column_int(stmt, 3);
+        s.good      = sqlite3_column_int(stmt, 4);
+        s.ok        = sqlite3_column_int(stmt, 5);
+        s.bad       = sqlite3_column_int(stmt, 6);
+        s.drumroll  = sqlite3_column_int(stmt, 7);
+        s.max_combo = sqlite3_column_int(stmt, 8);
+        s.crown     = static_cast<Crown>(sqlite3_column_int(stmt, 9));
+        s.rank      = static_cast<Rank>(sqlite3_column_int(stmt, 10));
+        score_cache.emplace(std::move(key), s);
+    }
+    sqlite3_finalize(stmt);
 }
 
 
@@ -258,38 +296,13 @@ void ScoresManager::py_taiko_import(const fs::path& old_db_path) {
     sqlite3_finalize(sel);
     sqlite3_close(old_db);
     spdlog::info("py_taiko_import: done — {} imported, {} skipped", imported, skipped);
+
+    if (imported > 0) load_score_cache();
 }
 
 std::optional<Score> ScoresManager::get_score(std::string& hash, int difficulty, int player_id) {
-    sqlite3_stmt* stmt;
-    char query[256];
-    snprintf(query, sizeof(query),
-        "SELECT score, good, ok, bad, drumroll, max_combo, crown, rank "
-        "FROM scores "
-        "WHERE player_id = ? AND hash = ? AND difficulty = ?"
-        "ORDER BY crown DESC, score DESC "
-        "LIMIT 1;");
-    if (sqlite3_prepare_v2(db_fsd, query, -1, &stmt, nullptr) != SQLITE_OK) {
-        spdlog::error("get_score: failed to prepare statement: {}", sqlite3_errmsg(db_fsd));
-        return std::nullopt;
-    }
-    sqlite3_bind_int(stmt, 1, player_id);
-    sqlite3_bind_text(stmt, 2, hash.c_str(), -1, nullptr);
-    sqlite3_bind_int(stmt, 3, difficulty);
-    if (sqlite3_step(stmt) == SQLITE_ROW) {
-        Score result;
-        result.score     = sqlite3_column_int(stmt, 0);
-        result.good      = sqlite3_column_int(stmt, 1);
-        result.ok        = sqlite3_column_int(stmt, 2);
-        result.bad       = sqlite3_column_int(stmt, 3);
-        result.drumroll  = sqlite3_column_int(stmt, 4);
-        result.max_combo = sqlite3_column_int(stmt, 5);
-        result.crown     = static_cast<Crown>(sqlite3_column_int(stmt, 6));
-        result.rank      = static_cast<Rank>(sqlite3_column_int(stmt, 7));
-        sqlite3_finalize(stmt);
-        return result;
-    }
-    sqlite3_finalize(stmt);
+    auto it = score_cache.find(std::make_tuple(hash, difficulty, player_id));
+    if (it != score_cache.end()) return it->second;
     return std::nullopt;
 }
 
@@ -321,6 +334,14 @@ Score ScoresManager::save_score(std::string& hash, int difficulty, int player_id
     sqlite3_step(stmt);
     sqlite3_finalize(stmt);
     spdlog::info("Saved score for hash: {} score: {} crown: {}", hash, score.score, (int)score.crown);
+
+    auto key = std::make_tuple(hash, difficulty, player_id);
+    auto it = score_cache.find(key);
+    bool is_better = it == score_cache.end() ||
+        score.crown > it->second.crown ||
+        (score.crown == it->second.crown && score.score > it->second.score);
+    if (is_better) score_cache[key] = score;
+
     return score;
 }
 
@@ -408,6 +429,8 @@ void ScoresManager::remap_hashes(const std::unordered_map<std::string, std::stri
 
     sqlite3_exec(db_fsd, "COMMIT;", nullptr, nullptr, nullptr);
     spdlog::info("remap_hashes: remapped {} hash pairs", old_to_new.size());
+
+    load_score_cache();
 }
 
 int ScoresManager::add_player(const std::string& name) {
