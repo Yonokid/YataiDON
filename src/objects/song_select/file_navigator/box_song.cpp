@@ -20,6 +20,12 @@ SongBox::SongBox(const fs::path& path, const BoxDef& box_def, SongParser parser)
 
 void SongBox::refresh_scores() {
     hashes = scores_manager.get_hashes(path);
+    for (const auto& [course, course_data] : parser.metadata.course_data) {
+        if (course < 0 || course >= static_cast<int>(hashes.size()))
+            continue;
+        if (hashes[course].empty())
+            hashes[course] = parser.get_diff_hash(course);
+    }
     for (int i = 0; i < 5; i++) {
         scores[i] = scores_manager.get_score(hashes[i], i, global_data.config->general.player_1_id);
     }
