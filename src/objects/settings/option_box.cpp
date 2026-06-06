@@ -211,6 +211,9 @@ void StrOptionBox::update(double current_time) {
             value = input_string;
             confirm();
             is_highlighted = false;
+        } else if (ray::IsKeyPressed(ray::KEY_V) && ray::IsKeyDown(ray::KEY_LEFT_CONTROL)) {
+            input_string += ray::GetClipboardText();
+            rebuild_text();
         }
         int key = ray::GetCharPressed();
         if (key > 0) {
