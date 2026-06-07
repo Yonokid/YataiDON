@@ -71,6 +71,9 @@ elseif(ANDROID)
   endif()
   target_compile_definitions(${PROJECT_NAME} PRIVATE PLATFORM_ANDROID)
   target_link_options(${PROJECT_NAME} PRIVATE -Wl,-z,max-page-size=16384)
+  target_include_directories(${PROJECT_NAME} PRIVATE
+    ${ANDROID_NDK}/sources/android/native_app_glue
+  )
 elseif(UNIX)
   target_link_libraries(${PROJECT_NAME} PRIVATE
         GL
