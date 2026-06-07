@@ -316,16 +316,13 @@ jobs:
           key: android-cmake-deps-${{ hashFiles('cmake/deps.cmake') }}
           restore-keys: android-cmake-deps-
 
-      - name: Install CMake 4.3.0
-        run: |
-          wget -q https://github.com/Kitware/CMake/releases/download/v4.3.0/cmake-4.3.0-linux-x86_64.tar.gz
-          tar -xzf cmake-4.3.0-linux-x86_64.tar.gz -C $HOME
-          echo "CMAKE_BIN_DIR=$HOME/cmake-4.3.0-linux-x86_64/bin" >> $GITHUB_ENV
+      - name: Install CMake 3.22.1 via SDK
+        run: sdkmanager "cmake;3.22.1"
 
       - name: Write local.properties
         run: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
-          echo "cmake.dir=$CMAKE_BIN_DIR" >> android/local.properties
+          echo "cmake.dir=$ANDROID_SDK_ROOT/cmake/3.22.1/bin" >> android/local.properties
 
       - name: Decode keystore
         run: |
