@@ -37,7 +37,7 @@ void BaseBox::load_text() {
     name = make_unique<OutlinedText>(text_name, font_size, ray::WHITE, fore_color.value(), true);
 
     if (back_color.has_value()) {
-        shader = ray::LoadShader("shader/dummy.vs", "shader/colortransform.fs");
+        shader = load_shader("shader/dummy.vs", "shader/colortransform.fs");
         shader_loaded = true;
         const auto& target_rgb = back_color.value();
         float src[3] = { 142 / 255.0f, 212 / 255.0f, 30 / 255.0f };

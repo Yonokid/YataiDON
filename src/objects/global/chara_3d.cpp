@@ -115,16 +115,16 @@ static std::unordered_map<std::string, int> parse_glb_material_indices(
 }
 
 Chara3D::Chara3D(std::string& model_name, bool mirror) {
-    fxaa_shader   = ray::LoadShader("shader/dummy.vs", "shader/fxaa.fs");
+    fxaa_shader   = load_shader("shader/dummy.vs", "shader/fxaa.fs");
     fxaa_size_loc = ray::GetShaderLocation(fxaa_shader, "textureSize");
 
-    outline_pass_shader = ray::LoadShader("shader/dummy.vs", "shader/outline_pass.fs");
+    outline_pass_shader = load_shader("shader/dummy.vs", "shader/outline_pass.fs");
     outline_pass_size_loc = ray::GetShaderLocation(outline_pass_shader, "textureSize");
     outline_pass_thickness_loc = ray::GetShaderLocation(outline_pass_shader, "outlineThickness");
     float outline_thickness = 3.0f;
     ray::SetShaderValue(outline_pass_shader, outline_pass_thickness_loc, &outline_thickness, ray::SHADER_UNIFORM_FLOAT);
 
-    outline_shader = ray::LoadShader("shader/outline.vs", "shader/outline.fs");
+    outline_shader = load_shader("shader/outline.vs", "shader/outline.fs");
     int thickness_loc = ray::GetShaderLocation(outline_shader, "outlineThickness");
     float thickness = 0.0035f;
     ray::SetShaderValue(outline_shader, thickness_loc, &thickness, ray::SHADER_UNIFORM_FLOAT);

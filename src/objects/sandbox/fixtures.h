@@ -588,7 +588,7 @@ struct NoteArcFixture : public SandboxScreen::Fixture {
 
     NoteArcFixture() {
         name = "NoteArc";
-        mask_shader = ray::LoadShader("shader/dummy.vs", "shader/mask.fs");
+        mask_shader = load_shader("shader/dummy.vs", "shader/mask.fs");
         auto rm = std::dynamic_pointer_cast<SingleTexture>(tex.textures[BALLOON::RAINBOW_MASK]);
         auto r  = std::dynamic_pointer_cast<SingleTexture>(tex.textures[BALLOON::RAINBOW]);
         if (rm && r) {

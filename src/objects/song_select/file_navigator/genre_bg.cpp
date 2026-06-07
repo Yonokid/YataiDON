@@ -8,7 +8,7 @@ GenreBG::GenreBG(std::string& text_name, std::optional<ray::Color> color, Textur
     name = make_unique<OutlinedText>(text_name, font_size, ray::WHITE, ray::BLACK, false);
 
     if (color.has_value()) {
-        shader = ray::LoadShader("shader/dummy.vs", "shader/colortransform.fs");
+        shader = load_shader("shader/dummy.vs", "shader/colortransform.fs");
         float src[3] = { 142 / 255.0f, 212 / 255.0f, 30 / 255.0f };
         float tgt[3] = { color.value().r / 255.0f, color.value().g / 255.0f, color.value().b / 255.0f };
         int source_loc = ray::GetShaderLocation(shader, "sourceColor");

@@ -3,7 +3,7 @@
 
 void GameScreen::on_screen_start() {
     Screen::on_screen_start();
-    mask_shader = ray::LoadShader("shader/dummy.vs", "shader/mask.fs");
+    mask_shader = load_shader("shader/dummy.vs", "shader/mask.fs");
     ms_from_start = 0;
     start_ms = 0;
     start_delay = 1000.0f;

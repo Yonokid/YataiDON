@@ -11,7 +11,7 @@ void SongSelectScreen::on_screen_start() {
     diff_fade_out = (FadeAnimation*)tex.get_animation(2);
     script = std::make_unique<SongSelectScript>();
 
-    shader = ray::LoadShader("shader/dummy.vs", "shader/colortransform.fs");
+    shader = load_shader("shader/dummy.vs", "shader/colortransform.fs");
 
     state = SongSelectState::BROWSING;
 
