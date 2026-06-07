@@ -12,10 +12,19 @@
 #endif
 
 void set_working_directory_to_executable() {
-#ifdef _WIN32
+#ifdef __ANDROID__
+    std::filesystem::path exe_dir("/sdcard/YataiDON");
+    std::error_code ec;
+    std::filesystem::create_directories(exe_dir, ec);
+    std::filesystem::current_path(exe_dir);
+    spdlog::info("Working directory set to: {}", exe_dir.string());
+#elif _WIN32
     wchar_t buffer[MAX_PATH];
     GetModuleFileNameW(NULL, buffer, MAX_PATH);
     std::filesystem::path exe_path(buffer);
+    std::filesystem::path exe_dir = exe_path.parent_path();
+    std::filesystem::current_path(exe_dir);
+    spdlog::info("Working directory set to: {}", exe_dir.string());
 #elif __APPLE__
     char buffer[PATH_MAX];
     uint32_t size = sizeof(buffer);
@@ -23,13 +32,14 @@ void set_working_directory_to_executable() {
         spdlog::error("Failed to get executable path: buffer too small");
         return;
     }
-    // Resolve symlinks to get the real path
     char resolved[PATH_MAX];
     if (realpath(buffer, resolved) == nullptr) {
         spdlog::error("Failed to resolve executable path");
         return;
     }
-    std::filesystem::path exe_path(resolved);
+    std::filesystem::path exe_dir = std::filesystem::path(resolved).parent_path();
+    std::filesystem::current_path(exe_dir);
+    spdlog::info("Working directory set to: {}", exe_dir.string());
 #else
     char buffer[PATH_MAX];
     ssize_t len = readlink("/proc/self/exe", buffer, sizeof(buffer) - 1);
@@ -38,11 +48,10 @@ void set_working_directory_to_executable() {
         return;
     }
     buffer[len] = '\0';
-    std::filesystem::path exe_path(buffer);
-#endif
-    std::filesystem::path exe_dir = exe_path.parent_path();
+    std::filesystem::path exe_dir = std::filesystem::path(buffer).parent_path();
     std::filesystem::current_path(exe_dir);
     spdlog::info("Working directory set to: {}", exe_dir.string());
+#endif
 }
 
 void extract_osz(const fs::path& osz_path) {

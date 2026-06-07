@@ -1,5 +1,8 @@
 #include <iostream>
 #include <rlgl.h>
+#ifdef PLATFORM_ANDROID
+#include <SDL3/SDL_main.h>
+#endif
 
 #include "libs/audio.h"
 #include "libs/global_data.h"
@@ -222,6 +225,7 @@ static void run_frame() {
 int main(int argc, char* argv[]) {
     spdlog::info("Starting YataiDON");
     set_working_directory_to_executable();
+    init_scores_manager();
     global_data.config = new Config(get_config());
     unsigned int flags = ray::FLAG_WINDOW_RESIZABLE;
     if (global_data.config->video.vsync) {

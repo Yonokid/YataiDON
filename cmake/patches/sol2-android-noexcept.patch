@@ -1,0 +1,173 @@
+diff --git a/include/sol/function_types_stateless.hpp b/include/sol/function_types_stateless.hpp
+index a2f66ba..4a83e77 100644
+--- a/include/sol/function_types_stateless.hpp
++++ b/include/sol/function_types_stateless.hpp
+@@ -35,8 +35,8 @@ namespace sol { namespace function_detail {
+ 		using traits_type = meta::bind_traits<function_type>;
+ 
+ 		static int real_call(lua_State* L)
+-#if SOL_IS_ON(SOL_COMPILER_VCXX)
+-		// MSVC is broken, what a surprise...
++#if SOL_IS_ON(SOL_COMPILER_VCXX) || defined(__ANDROID__)
++		// MSVC/Android NDK Clang 18: noexcept on template call prevents lua_CFunction conversion
+ #else
+ 			noexcept(traits_type::is_noexcept)
+ #endif
+@@ -70,8 +70,8 @@ namespace sol { namespace function_detail {
+ 		typedef lua_bind_traits<function_type> traits_type;
+ 
+ 		static int real_call(lua_State* L)
+-#if SOL_IS_ON(SOL_COMPILER_VCXX)
+-		// MSVC is broken, what a surprise...
++#if SOL_IS_ON(SOL_COMPILER_VCXX) || defined(__ANDROID__)
++		// MSVC/Android NDK Clang 18: noexcept on template call prevents lua_CFunction conversion
+ #else
+ 			noexcept(traits_type::is_noexcept)
+ #endif
+@@ -88,8 +88,8 @@ namespace sol { namespace function_detail {
+ 
+ 		template <bool is_yielding, bool no_trampoline>
+ 		static int call(lua_State* L)
+-#if SOL_IS_ON(SOL_COMPILER_VCXX)
+-		// MSVC is broken, what a surprise...
++#if SOL_IS_ON(SOL_COMPILER_VCXX) || defined(__ANDROID__)
++		// MSVC/Android NDK Clang 18: noexcept on template call prevents lua_CFunction conversion
+ #else
+ 			noexcept(traits_type::is_noexcept)
+ #endif
+@@ -110,8 +110,8 @@ namespace sol { namespace function_detail {
+ 		}
+ 
+ 		int operator()(lua_State* L)
+-#if SOL_IS_ON(SOL_COMPILER_VCXX)
+-		// MSVC is broken, what a surprise...
++#if SOL_IS_ON(SOL_COMPILER_VCXX) || defined(__ANDROID__)
++		// MSVC/Android NDK Clang 18: noexcept on template call prevents lua_CFunction conversion
+ #else
+ 			noexcept(traits_type::is_noexcept)
+ #endif
+@@ -126,8 +126,8 @@ namespace sol { namespace function_detail {
+ 		typedef lua_bind_traits<function_type> traits_type;
+ 
+ 		static int real_call(lua_State* L)
+-#if SOL_IS_ON(SOL_COMPILER_VCXX)
+-		// MSVC is broken, what a surprise...
++#if SOL_IS_ON(SOL_COMPILER_VCXX) || defined(__ANDROID__)
++		// MSVC/Android NDK Clang 18: noexcept on template call prevents lua_CFunction conversion
+ #else
+ 			noexcept(traits_type::is_noexcept)
+ #endif
+@@ -153,8 +153,8 @@ namespace sol { namespace function_detail {
+ 
+ 		template <bool is_yielding, bool no_trampoline>
+ 		static int call(lua_State* L)
+-#if SOL_IS_ON(SOL_COMPILER_VCXX)
+-		// MSVC is broken, what a surprise...
++#if SOL_IS_ON(SOL_COMPILER_VCXX) || defined(__ANDROID__)
++		// MSVC/Android NDK Clang 18: noexcept on template call prevents lua_CFunction conversion
+ #else
+ 			noexcept(traits_type::is_noexcept)
+ #endif
+@@ -175,8 +175,8 @@ namespace sol { namespace function_detail {
+ 		}
+ 
+ 		int operator()(lua_State* L)
+-#if SOL_IS_ON(SOL_COMPILER_VCXX)
+-		// MSVC is broken, what a surprise...
++#if SOL_IS_ON(SOL_COMPILER_VCXX) || defined(__ANDROID__)
++		// MSVC/Android NDK Clang 18: noexcept on template call prevents lua_CFunction conversion
+ #else
+ 			noexcept(traits_type::is_noexcept)
+ #endif
+@@ -191,8 +191,8 @@ namespace sol { namespace function_detail {
+ 		typedef lua_bind_traits<function_type> traits_type;
+ 
+ 		static int real_call(lua_State* L)
+-#if SOL_IS_ON(SOL_COMPILER_VCXX)
+-		// MSVC is broken, what a surprise...
++#if SOL_IS_ON(SOL_COMPILER_VCXX) || defined(__ANDROID__)
++		// MSVC/Android NDK Clang 18: noexcept on template call prevents lua_CFunction conversion
+ #else
+ 			noexcept(traits_type::is_noexcept)
+ #endif
+@@ -216,8 +216,8 @@ namespace sol { namespace function_detail {
+ 
+ 		template <bool is_yielding, bool no_trampoline>
+ 		static int call(lua_State* L)
+-#if SOL_IS_ON(SOL_COMPILER_VCXX)
+-		// MSVC is broken, what a surprise...
++#if SOL_IS_ON(SOL_COMPILER_VCXX) || defined(__ANDROID__)
++		// MSVC/Android NDK Clang 18: noexcept on template call prevents lua_CFunction conversion
+ #else
+ 			noexcept(traits_type::is_noexcept)
+ #endif
+@@ -238,8 +238,8 @@ namespace sol { namespace function_detail {
+ 		}
+ 
+ 		int operator()(lua_State* L)
+-#if SOL_IS_ON(SOL_COMPILER_VCXX)
+-		// MSVC is broken, what a surprise...
++#if SOL_IS_ON(SOL_COMPILER_VCXX) || defined(__ANDROID__)
++		// MSVC/Android NDK Clang 18: noexcept on template call prevents lua_CFunction conversion
+ #else
+ 			noexcept(traits_type::is_noexcept)
+ #endif
+@@ -254,8 +254,8 @@ namespace sol { namespace function_detail {
+ 		typedef lua_bind_traits<function_type> traits_type;
+ 
+ 		static int real_call(lua_State* L)
+-#if SOL_IS_ON(SOL_COMPILER_VCXX)
+-		// MSVC is broken, what a surprise...
++#if SOL_IS_ON(SOL_COMPILER_VCXX) || defined(__ANDROID__)
++		// MSVC/Android NDK Clang 18: noexcept on template call prevents lua_CFunction conversion
+ #else
+ 			noexcept(traits_type::is_noexcept)
+ #endif
+@@ -268,8 +268,8 @@ namespace sol { namespace function_detail {
+ 
+ 		template <bool is_yielding, bool no_trampoline>
+ 		static int call(lua_State* L)
+-#if SOL_IS_ON(SOL_COMPILER_VCXX)
+-		// MSVC is broken, what a surprise...
++#if SOL_IS_ON(SOL_COMPILER_VCXX) || defined(__ANDROID__)
++		// MSVC/Android NDK Clang 18: noexcept on template call prevents lua_CFunction conversion
+ #else
+ 			noexcept(traits_type::is_noexcept)
+ #endif
+@@ -290,8 +290,8 @@ namespace sol { namespace function_detail {
+ 		}
+ 
+ 		int operator()(lua_State* L)
+-#if SOL_IS_ON(SOL_COMPILER_VCXX)
+-		// MSVC is broken, what a surprise...
++#if SOL_IS_ON(SOL_COMPILER_VCXX) || defined(__ANDROID__)
++		// MSVC/Android NDK Clang 18: noexcept on template call prevents lua_CFunction conversion
+ #else
+ 			noexcept(traits_type::is_noexcept)
+ #endif
+@@ -320,7 +320,11 @@ namespace sol { namespace function_detail {
+ 		}
+ 
+ 		template <bool is_yielding, bool no_trampoline>
+-		static int call(lua_State* L) noexcept(std::is_nothrow_copy_assignable_v<T>) {
++		static int call(lua_State* L)
++#ifndef __ANDROID__
++			noexcept(std::is_nothrow_copy_assignable_v<T>)
++#endif
++		{
+ 			int nr;
+ 			if constexpr (no_trampoline) {
+ 				nr = real_call(L);
+@@ -360,7 +364,11 @@ namespace sol { namespace function_detail {
+ 		}
+ 
+ 		template <bool is_yielding, bool no_trampoline>
+-		static int call(lua_State* L) noexcept(std::is_nothrow_copy_assignable_v<T>) {
++		static int call(lua_State* L)
++#ifndef __ANDROID__
++			noexcept(std::is_nothrow_copy_assignable_v<T>)
++#endif
++		{
+ 			int nr;
+ 			if constexpr (no_trampoline) {
+ 				nr = real_call(L);

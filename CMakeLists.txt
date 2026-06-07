@@ -33,7 +33,11 @@ file(GLOB_RECURSE HeaderFiles
 )
 message(STATUS "C++ files found: ${CppFiles}")
 
-add_executable(${PROJECT_NAME} ${CppFiles} ${HeaderFiles})
+if(ANDROID)
+  add_library(${PROJECT_NAME} SHARED ${CppFiles} ${HeaderFiles})
+else()
+  add_executable(${PROJECT_NAME} ${CppFiles} ${HeaderFiles})
+endif()
 add_dependencies(${PROJECT_NAME} skin_config_gen texture_ids_gen)
 
 if(WIN32)
@@ -68,8 +72,11 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     sol2::sol2
     SQLite3_lib
     miniz
-    cpptrace::cpptrace
 )
+
+if(NOT ANDROID)
+  target_link_libraries(${PROJECT_NAME} PRIVATE cpptrace::cpptrace)
+endif()
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
     FFmpeg::avformat
@@ -86,6 +93,7 @@ include(cmake/platform.cmake)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
 )
 
 add_custom_target(run
@@ -103,7 +111,7 @@ message(STATUS "C++ Standard: ${CMAKE_CXX_STANDARD}")
 message(STATUS "Platform: ${CMAKE_SYSTEM_NAME}")
 message(STATUS "PortAudio Library: ${PORTAUDIO_LIBRARY}")
 message(STATUS "SDL3: ${SDL3_VERSION}")
-if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT WIN32)
+if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT WIN32 AND NOT ANDROID)
   message(STATUS "Sanitizers: AddressSanitizer, LeakSanitizer, UndefinedBehaviorSanitizer")
 endif()
 message(STATUS "===============================================================")

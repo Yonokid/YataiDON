@@ -6,9 +6,14 @@
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/dup_filter_sink.h>
+#ifdef __ANDROID__
+#include <spdlog/sinks/android_sink.h>
+#endif
 #include <csignal>
 #include <exception>
+#ifndef __ANDROID__
 #include <cpptrace/cpptrace.hpp>
+#endif
 
 #ifdef _WIN32
 #include <windows.h>
@@ -69,12 +74,14 @@ static LONG WINAPI crash_exception_filter(EXCEPTION_POINTERS* ep) {
 #endif
 
 static void log_stacktrace() {
+#ifndef __ANDROID__
     try {
         std::ostringstream oss;
         cpptrace::generate_trace().print(oss, false);
         spdlog::critical("Stack trace:\n{}", oss.str());
         spdlog::default_logger()->flush();
     } catch (...) {}
+#endif
 }
 
 void handle_exception() {
@@ -124,7 +131,12 @@ void setup_logging(const std::string& log_level_str) {
             std::chrono::seconds(5));
         dup_filter->add_sink(file_sink);
 
+#ifdef __ANDROID__
+        auto android_sink = std::make_shared<spdlog::sinks::android_sink_mt>("YataiDON");
+        std::vector<spdlog::sink_ptr> sinks {android_sink, dup_filter};
+#else
         std::vector<spdlog::sink_ptr> sinks {console_sink, dup_filter};
+#endif
         auto logger = std::make_shared<spdlog::logger>("",
             sinks.begin(), sinks.end());
 

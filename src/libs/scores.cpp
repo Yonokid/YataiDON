@@ -602,6 +602,8 @@ void ScoresManager::commit() {
     sqlite3_exec(db_fsd, "COMMIT;", nullptr, nullptr, nullptr);
 }
 
-//std::string score_path = (global_data.config->general.score_method == ScoreMethod::GEN3) ? "scores_gen3.db" : "scores.db";
+ScoresManager* _scores_manager_ptr = nullptr;
 
-ScoresManager scores_manager("scores.db");
+void init_scores_manager() {
+    _scores_manager_ptr = new ScoresManager("scores.db");
+}

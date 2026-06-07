@@ -51,6 +51,26 @@ elseif(APPLE)
   elseif(TARGET SDL3::SDL3)
     target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3)
   endif()
+elseif(ANDROID)
+  target_link_libraries(${PROJECT_NAME} PRIVATE
+        log
+        android
+        EGL
+        GLESv3
+        z
+        aaudio
+        OpenSLES
+        vorbis
+        vorbisfile
+        ogg
+    )
+  if(TARGET SDL3::SDL3-static)
+    target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3-static)
+  elseif(TARGET SDL3::SDL3)
+    target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3)
+  endif()
+  target_compile_definitions(${PROJECT_NAME} PRIVATE PLATFORM_ANDROID)
+  target_link_options(${PROJECT_NAME} PRIVATE -Wl,-z,max-page-size=16384)
 elseif(UNIX)
   target_link_libraries(${PROJECT_NAME} PRIVATE
         GL
@@ -87,7 +107,14 @@ elseif(UNIX)
 endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-  if(NOT WIN32)
+  if(ANDROID)
+    target_compile_options(${PROJECT_NAME} PRIVATE
+            -O0
+            -g
+            -fmax-errors=0
+            -fno-omit-frame-pointer
+        )
+  elseif(NOT WIN32)
     target_compile_options(${PROJECT_NAME} PRIVATE
             -O0
             -g
@@ -132,6 +159,11 @@ else()
           -O2
           -DNDEBUG
           -flto=auto
+      )
+  elseif(ANDROID)
+    target_compile_options(${PROJECT_NAME} PRIVATE
+          -O2
+          -DNDEBUG
       )
   else()
     target_compile_options(${PROJECT_NAME} PRIVATE

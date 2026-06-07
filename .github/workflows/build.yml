@@ -270,10 +270,79 @@ jobs:
           path: release/YataiDON-macOS/
           if-no-files-found: error
 
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Configure Git credentials
+        run: |
+          git config --global url."https://${{ secrets.GITEA_USER }}:${{ secrets.GITEA_TOKEN }}@ese.tjadataba.se/".insteadOf "https://ese.tjadataba.se/"
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install NDK r27d
+        run: sdkmanager "ndk;27.3.13750724"
+
+      - name: Cache FFmpeg for Android arm64
+        id: cache-ffmpeg
+        uses: actions/cache@v4
+        with:
+          path: .android-ffmpeg
+          key: android-ffmpeg-${{ hashFiles('tools/build_ffmpeg_android.sh') }}
+
+      - name: Build FFmpeg for Android
+        if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
+        run: |
+          export ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/27.3.13750724
+          bash tools/build_ffmpeg_android.sh
+
+      - name: Cache CMake dependencies
+        uses: actions/cache@v4
+        with:
+          path: .cmake-deps
+          key: android-cmake-deps-${{ hashFiles('cmake/deps.cmake') }}
+          restore-keys: android-cmake-deps-
+
+      - name: Write local.properties
+        run: echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
+
+      - name: Decode keystore
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/yataidon-release.jks
+          printf 'storeFile=yataidon-release.jks\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
+            "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" \
+            "${{ secrets.ANDROID_KEY_ALIAS }}" \
+            "${{ secrets.ANDROID_KEY_PASSWORD }}" \
+            > android/keystore.properties
+
+      - name: Build Release APK
+        working-directory: android
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: YataiDON-Android
+          path: android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+
   build-summary:
     name: Build Summary
     runs-on: ubuntu-latest
-    needs: [build-linux, build-windows, build-macos]
+    needs: [build-linux, build-windows, build-macos, build-android]
     if: always()
 
     steps:
@@ -282,8 +351,12 @@ jobs:
           echo "Linux build: ${{ needs.build-linux.result }}"
           echo "Windows build: ${{ needs.build-windows.result }}"
           echo "macOS build: ${{ needs.build-macos.result }}"
+          echo "Android build: ${{ needs.build-android.result }}"
 
-          if [[ "${{ needs.build-linux.result }}" != "success" ]] || [[ "${{ needs.build-windows.result }}" != "success" ]] || [[ "${{ needs.build-macos.result }}" != "success" ]]; then
+          if [[ "${{ needs.build-linux.result }}" != "success" ]] || \
+             [[ "${{ needs.build-windows.result }}" != "success" ]] || \
+             [[ "${{ needs.build-macos.result }}" != "success" ]] || \
+             [[ "${{ needs.build-android.result }}" != "success" ]]; then
             echo "One or more builds failed!"
             exit 1
           fi
@@ -291,7 +364,7 @@ jobs:
           echo "All builds completed successfully!"
 
   release:
-    needs: [build-linux, build-windows, build-macos]
+    needs: [build-linux, build-windows, build-macos, build-android]
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch'
     steps:
@@ -313,12 +386,19 @@ jobs:
           name: YataiDON-macOS
           path: macos/
 
+      - name: Download Android artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: YataiDON-Android
+          path: android-out/
+
       - name: Package release assets
         run: |
           # Full zips for manual download
           (cd linux   && zip -r ../YataiDON-Linux.zip .)
           (cd windows && zip -r ../YataiDON-Windows.zip .)
           (cd macos   && zip -r ../YataiDON-macOS.zip .)
+          cp android-out/app-release.apk YataiDON-Android.apk
 
           # Metadata files
           cp linux/checksums-linux.sha256     ./checksums-linux.sha256
@@ -349,6 +429,7 @@ jobs:
             YataiDON-Linux.zip
             YataiDON-Windows.zip
             YataiDON-macOS.zip
+            YataiDON-Android.apk
             update-linux.tar.gz
             update-windows.tar.gz
             update-macos.tar.gz

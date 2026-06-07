@@ -9,6 +9,28 @@
 #include <atomic>
 #include <shared_mutex>
 
+#ifdef __ANDROID__
+// NDK r27d libc++ omits std::atomic_ref; polyfill with __atomic builtins
+namespace std {
+    template<typename T>
+    struct atomic_ref {
+        T& ref;
+        explicit atomic_ref(T& t) noexcept : ref(t) {}
+        T load(memory_order order = memory_order_seq_cst) const noexcept {
+            T val;
+            __atomic_load(&ref, &val, static_cast<int>(order));
+            return val;
+        }
+        void store(T desired, memory_order order = memory_order_seq_cst) noexcept {
+            __atomic_store(&ref, &desired, static_cast<int>(order));
+        }
+        T fetch_add(T val, memory_order order = memory_order_seq_cst) noexcept {
+            return __atomic_fetch_add(&ref, val, static_cast<int>(order));
+        }
+    };
+}
+#endif
+
 namespace fs = std::filesystem;
 
 enum class VolumePreset {
@@ -118,17 +140,22 @@ private:
 
     PaStream* stream;
     PaStreamParameters output_parameters;
+#ifdef __ANDROID__
+    void* android_stream_ptr = nullptr; // AAudioStream*, type-erased to avoid platform header in .h
+#endif
 
     std::unordered_map<std::string, sound> sounds;
     std::unordered_map<std::string, music> music_streams;
 
+    std::string path_to_string(const fs::path& path) const;
+
+public:
+    // Public so the Android AAudio C-callback (file-scope static) can call it.
     static int port_audio_callback(const void *inputBuffer, void *outputBuffer,
                                 unsigned long framesPerBuffer,
                                 const PaStreamCallbackTimeInfo* timeInfo,
                                 PaStreamCallbackFlags statusFlags,
                                 void *userData);
-
-    std::string path_to_string(const fs::path& path) const;
 };
 
 extern AudioEngine audio;

@@ -108,6 +108,21 @@
       "cacheVariables": {
         "CMAKE_CXX_COMPILER": "clang++"
       }
+    },
+    {
+      "name": "android-arm64",
+      "displayName": "Android ARM64",
+      "description": "Android arm64-v8a, API 29+. Requires ANDROID_NDK_HOME env var. Set ANDROID_FFMPEG_PREFIX to a prebuilt FFmpeg directory (include/ + lib/).",
+      "binaryDir": "${sourceDir}/build-android-arm64",
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_TOOLCHAIN_FILE": "$env{ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake",
+        "ANDROID_ABI": "arm64-v8a",
+        "ANDROID_PLATFORM": "android-29",
+        "ANDROID_STL": "c++_shared",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
     }
   ],
   "buildPresets": [

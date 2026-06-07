@@ -1,4 +1,100 @@
 #include "audio.h"
+#ifdef __ANDROID__
+#include <aaudio/AAudio.h>
+extern "C" {
+#include <libavformat/avformat.h>
+#include <libavcodec/avcodec.h>
+#include <libswresample/swresample.h>
+#include <libavutil/channel_layout.h>
+}
+
+// Decode any audio file to float32 interleaved via FFmpeg.
+// Returns false on failure; on success fills frames/sample_rate/channels/data (caller frees).
+static bool ffmpeg_decode_float(const char* path,
+    float** out_data, sf_count_t* out_frames,
+    unsigned int* out_rate, unsigned int* out_channels)
+{
+    AVFormatContext* fmt = nullptr;
+    if (avformat_open_input(&fmt, path, nullptr, nullptr) < 0) return false;
+    if (avformat_find_stream_info(fmt, nullptr) < 0) {
+        avformat_close_input(&fmt); return false;
+    }
+    int audio_idx = -1;
+    for (unsigned i = 0; i < fmt->nb_streams; ++i) {
+        if (fmt->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
+            audio_idx = (int)i; break;
+        }
+    }
+    if (audio_idx < 0) { avformat_close_input(&fmt); return false; }
+
+    auto* par = fmt->streams[audio_idx]->codecpar;
+    const AVCodec* codec = avcodec_find_decoder(par->codec_id);
+    if (!codec) { avformat_close_input(&fmt); return false; }
+    AVCodecContext* dec = avcodec_alloc_context3(codec);
+    avcodec_parameters_to_context(dec, par);
+    if (avcodec_open2(dec, codec, nullptr) < 0) {
+        avcodec_free_context(&dec); avformat_close_input(&fmt); return false;
+    }
+
+    SwrContext* swr = nullptr;
+    AVChannelLayout out_layout = AV_CHANNEL_LAYOUT_STEREO;
+    int out_ch = 2;
+    swr_alloc_set_opts2(&swr, &out_layout, AV_SAMPLE_FMT_FLT, dec->sample_rate,
+                        &dec->ch_layout, dec->sample_fmt, dec->sample_rate, 0, nullptr);
+    swr_init(swr);
+
+    std::vector<float> pcm;
+    AVPacket* pkt = av_packet_alloc();
+    AVFrame*  frm = av_frame_alloc();
+
+    auto drain = [&]() {
+        while (true) {
+            int r = avcodec_receive_frame(dec, frm);
+            if (r == AVERROR(EAGAIN) || r == AVERROR_EOF) break;
+            if (r < 0) break;
+            int64_t n = swr_get_out_samples(swr, frm->nb_samples);
+            std::vector<float> tmp(n * out_ch);
+            uint8_t* op = (uint8_t*)tmp.data();
+            int got = swr_convert(swr, &op, (int)n,
+                                  (const uint8_t**)frm->extended_data, frm->nb_samples);
+            if (got > 0) pcm.insert(pcm.end(), tmp.begin(), tmp.begin() + got * out_ch);
+            av_frame_unref(frm);
+        }
+    };
+
+    while (av_read_frame(fmt, pkt) >= 0) {
+        if (pkt->stream_index == audio_idx) {
+            avcodec_send_packet(dec, pkt);
+            drain();
+        }
+        av_packet_unref(pkt);
+    }
+    avcodec_send_packet(dec, nullptr);
+    drain();
+
+    av_packet_free(&pkt);
+    av_frame_free(&frm);
+    swr_free(&swr);
+
+    *out_rate    = (unsigned int)dec->sample_rate;
+    *out_channels = (unsigned int)out_ch;
+    *out_frames  = (sf_count_t)(pcm.size() / out_ch);
+    *out_data    = new float[pcm.size()];
+    std::copy(pcm.begin(), pcm.end(), *out_data);
+
+    avcodec_free_context(&dec);
+    avformat_close_input(&fmt);
+    return true;
+}
+
+static aaudio_data_callback_result_t android_audio_callback(
+    AAudioStream* /*stream*/, void* userData, void* audioData, int32_t numFrames)
+{
+    AudioEngine::port_audio_callback(nullptr, audioData,
+        static_cast<unsigned long>(numFrames), nullptr, 0, userData);
+    return AAUDIO_CALLBACK_RESULT_CONTINUE;
+}
+#endif // __ANDROID__
 
 static sf_count_t vf_get_filelen(void* user_data) {
     auto* vf = static_cast<VirtualFile*>(user_data);
@@ -248,6 +344,43 @@ bool AudioEngine::init_audio_device(const fs::path& sounds_path, const AudioConf
     this->master_volume = 1.0f;
     this->stream = nullptr;
     try {
+#ifdef __ANDROID__
+        AAudioStreamBuilder* builder = nullptr;
+        aaudio_result_t ares = AAudio_createStreamBuilder(&builder);
+        if (ares != AAUDIO_OK) {
+            spdlog::error("AAudio_createStreamBuilder failed: {}", AAudio_convertResultToText(ares));
+            return false;
+        }
+        AAudioStreamBuilder_setFormat(builder, AAUDIO_FORMAT_PCM_FLOAT);
+        AAudioStreamBuilder_setChannelCount(builder, 2);
+        AAudioStreamBuilder_setSampleRate(builder, static_cast<int32_t>(target_sample_rate));
+        AAudioStreamBuilder_setPerformanceMode(builder, AAUDIO_PERFORMANCE_MODE_LOW_LATENCY);
+        AAudioStreamBuilder_setDirection(builder, AAUDIO_DIRECTION_OUTPUT);
+        AAudioStreamBuilder_setDataCallback(builder, android_audio_callback, this);
+        AAudioStreamBuilder_setBufferCapacityInFrames(builder, static_cast<int32_t>(buffer_size) * 4);
+
+        AAudioStream* aastream = nullptr;
+        ares = AAudioStreamBuilder_openStream(builder, &aastream);
+        AAudioStreamBuilder_delete(builder);
+        if (ares != AAUDIO_OK) {
+            spdlog::error("AAudioStreamBuilder_openStream failed: {}", AAudio_convertResultToText(ares));
+            return false;
+        }
+        ares = AAudioStream_requestStart(aastream);
+        if (ares != AAUDIO_OK) {
+            spdlog::error("AAudioStream_requestStart failed: {}", AAudio_convertResultToText(ares));
+            AAudioStream_close(aastream);
+            return false;
+        }
+        android_stream_ptr = aastream;
+        is_ready = true;
+        spdlog::info("Audio Device initialized successfully");
+        spdlog::info("    > Backend:       AAudio");
+        spdlog::info("    > Channels:      {}", AAudioStream_getChannelCount(aastream));
+        spdlog::info("    > Sample rate:   {}", AAudioStream_getSampleRate(aastream));
+        spdlog::info("    > Buffer frames: {}", AAudioStream_getBufferSizeInFrames(aastream));
+#else
+        // --- Desktop: use PortAudio ---
         PaError err = Pa_Initialize();
         if (err != paNoError) {
             spdlog::error("Failed to initialize PortAudio: {}", Pa_GetErrorText(err));
@@ -308,6 +441,7 @@ bool AudioEngine::init_audio_device(const fs::path& sounds_path, const AudioConf
         spdlog::info("    > Sample rate:   {}", target_sample_rate);
         spdlog::info("    > Buffer size:   {} (requested)", buffer_size);
         spdlog::info("    > Latency:       {} ms", streamInfo->outputLatency * 1000.0);
+#endif // !__ANDROID__
 
         return is_ready;
     } catch (const std::exception& e) {
@@ -321,12 +455,21 @@ void AudioEngine::close_audio_device() {
         unload_all_sounds();
         unload_all_music();
 
+#ifdef __ANDROID__
+        if (android_stream_ptr != nullptr) {
+            AAudioStream* aastream = static_cast<AAudioStream*>(android_stream_ptr);
+            AAudioStream_requestStop(aastream);
+            AAudioStream_close(aastream);
+            android_stream_ptr = nullptr;
+        }
+#else
         if (stream != nullptr) {
             Pa_StopStream(stream);
             Pa_CloseStream(stream);
             stream = nullptr;
         }
         Pa_Terminate();
+#endif
         is_ready = false;
 
         spdlog::info("Audio device closed");
@@ -377,8 +520,55 @@ std::string AudioEngine::load_sound(const fs::path& file_path, const std::string
         }
 
         if (!file) {
+#ifdef __ANDROID__
+            float* ff_data = nullptr;
+            sf_count_t ff_frames = 0;
+            unsigned int ff_rate = 0, ff_ch = 0;
+            std::string path_str2 = path_to_string(file_path);
+            if (!ffmpeg_decode_float(path_str2.c_str(), &ff_data, &ff_frames, &ff_rate, &ff_ch)) {
+                spdlog::error("Failed to open sound file: {} - {} (ffmpeg fallback also failed)",
+                              file_path.string(), sf_strerror(NULL));
+                return "";
+            }
+            sound snd;
+            snd.data        = ff_data;
+            snd.frame_count = ff_frames;
+            snd.sample_rate = ff_rate;
+            snd.channels    = ff_ch;
+            snd.is_playing  = false;
+            snd.current_frame = 0;
+            snd.loop   = false;
+            snd.volume = 1.0f;
+            snd.pan    = 0.5f;
+            snd.pitch  = 1.0f;
+            if ((double)ff_rate != target_sample_rate) {
+                double ratio = target_sample_rate / (double)ff_rate;
+                long out_frames = (long)(ff_frames * ratio) + 1;
+                float* rs = new float[out_frames * ff_ch];
+                SRC_DATA sd;
+                sd.data_in = ff_data; sd.input_frames = ff_frames;
+                sd.data_out = rs; sd.output_frames = out_frames;
+                sd.src_ratio = ratio; sd.end_of_input = 1;
+                int err = src_simple(&sd, SRC_SINC_FASTEST, (int)ff_ch);
+                if (err) { delete[] ff_data; delete[] rs; return ""; }
+                delete[] ff_data;
+                snd.data = rs;
+                snd.frame_count = sd.output_frames_gen;
+                snd.sample_rate = (unsigned int)target_sample_rate;
+            }
+            snd.resampler = nullptr;
+            snd.resample_buffer = nullptr;
+            {
+                std::unique_lock<std::shared_mutex> guard(rw_lock);
+                sounds[name] = snd;
+            }
+            spdlog::debug("Loaded sound (ffmpeg): {} ({} frames, {} Hz, {} ch)",
+                          name, snd.frame_count, snd.sample_rate, snd.channels);
+            return name;
+#else
             spdlog::error("Failed to open sound file: {} - {}", file_path.string(), sf_strerror(NULL));
             return "";
+#endif
         }
 
         unsigned int total_frames = file_info.frames;

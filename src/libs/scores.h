@@ -69,7 +69,9 @@ public:
     void commit();
 };
 
-extern ScoresManager scores_manager;
+extern ScoresManager* _scores_manager_ptr;
+#define scores_manager (*_scores_manager_ptr)
+void init_scores_manager();
 
 inline ray::Color chara_default_color_1(int player_id) {
     return (player_id % 2 == 0) ? ray::Color{249, 71, 40, 255} : ray::Color{104, 191, 192, 255};

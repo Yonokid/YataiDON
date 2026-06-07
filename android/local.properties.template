@@ -1,0 +1,8 @@
+# Copy to local.properties and fill in your paths.
+# local.properties is gitignored — never commit it.
+
+sdk.dir=/home/YOUR_USER/Android/Sdk
+ndk.dir=/home/YOUR_USER/Android/Sdk/ndk/r27d
+# cmake.dir points to the bin/ parent (e.g. /usr for /usr/bin/cmake).
+# Required if system cmake >= 3.30; SDK only ships 3.22.1.
+cmake.dir=/usr

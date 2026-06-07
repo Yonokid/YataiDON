@@ -1,16 +1,12 @@
 # Sqlite3
-if(NOT WIN32)
+if(NOT WIN32 AND NOT ANDROID)
   find_package(PkgConfig QUIET)
   if(PkgConfig_FOUND)
     pkg_check_modules(SQLITE3 QUIET sqlite3)
   endif()
 endif()
 
-find_package(SDL3 QUIET CONFIG REQUIRED)
-if(SDL3_FOUND)
-  message(STATUS "Using system SDL3")
-else()
-  message(STATUS "Fetching SDL3 from source")
+if(ANDROID)
   set(SDL_SHARED OFF CACHE BOOL "" FORCE)
   set(SDL_STATIC ON CACHE BOOL "" FORCE)
   set(SDL_TEST   OFF CACHE BOOL "" FORCE)
@@ -19,9 +15,26 @@ else()
     GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
     GIT_TAG        release-3.4.4
     GIT_SHALLOW    TRUE
-    OVERRIDE_FIND_PACKAGE
   )
   FetchContent_MakeAvailable(SDL3)
+else()
+  find_package(SDL3 QUIET CONFIG REQUIRED)
+  if(SDL3_FOUND)
+    message(STATUS "Using system SDL3")
+  else()
+    message(STATUS "Fetching SDL3 from source")
+    set(SDL_SHARED OFF CACHE BOOL "" FORCE)
+    set(SDL_STATIC ON CACHE BOOL "" FORCE)
+    set(SDL_TEST   OFF CACHE BOOL "" FORCE)
+    FetchContent_Declare(
+      SDL3
+      GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
+      GIT_TAG        release-3.4.4
+      GIT_SHALLOW    TRUE
+      OVERRIDE_FIND_PACKAGE
+    )
+    FetchContent_MakeAvailable(SDL3)
+  endif()
 endif()
 
 if(SQLITE3_FOUND)
@@ -49,6 +62,9 @@ set(CUSTOMIZE_BUILD ON CACHE BOOL "" FORCE)
 set(SUPPORT_MODULE_RAUDIO OFF CACHE BOOL "" FORCE)
 set(SUPPORT_CUSTOM_FRAME_CONTROL ON CACHE BOOL "" FORCE)
 set(SUPPORT_FILEFORMAT_JPG ON CACHE BOOL "" FORCE)
+if(ANDROID)
+  set(OPENGL_VERSION "ES 3.0" CACHE STRING "" FORCE)
+endif()
 FetchContent_Declare(
   raylib
   GIT_REPOSITORY https://github.com/raysan5/raylib.git
@@ -103,21 +119,24 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/ThePhD/sol2.git
     GIT_TAG v3.5.0
     GIT_SHALLOW TRUE
+    PATCH_COMMAND git apply ${CMAKE_SOURCE_DIR}/cmake/patches/sol2-android-noexcept.patch || true
 )
 FetchContent_MakeAvailable(sol2)
 
-set(ZLIB_USE_STATIC_LIBS ON)
-if(WIN32)
-  set(CPPTRACE_GET_SYMBOLS_WITH_ADDR2LINE ON CACHE BOOL "" FORCE)
-  set(CPPTRACE_UNWIND_WITH_DBGHELP        ON CACHE BOOL "" FORCE)
+if(NOT ANDROID)
+  set(ZLIB_USE_STATIC_LIBS ON)
+  if(WIN32)
+    set(CPPTRACE_GET_SYMBOLS_WITH_ADDR2LINE ON CACHE BOOL "" FORCE)
+    set(CPPTRACE_UNWIND_WITH_DBGHELP        ON CACHE BOOL "" FORCE)
+  endif()
+  FetchContent_Declare(
+      cpptrace
+      GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
+      GIT_TAG        main
+      GIT_SHALLOW    TRUE
+  )
+  FetchContent_MakeAvailable(cpptrace)
 endif()
-FetchContent_Declare(
-    cpptrace
-    GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
-    GIT_TAG        main
-    GIT_SHALLOW    TRUE
-)
-FetchContent_MakeAvailable(cpptrace)
 
 # libsndfile
 if(WIN32)
@@ -134,6 +153,51 @@ if(WIN32)
           IMPORTED_LOCATION ${SNDFILE_LIBRARY}
           INTERFACE_INCLUDE_DIRECTORIES ${SNDFILE_INCLUDE_DIR}
       )
+elseif(ANDROID)
+  message(STATUS "Fetching libogg + libvorbis for Android (needed by libsndfile)")
+  FetchContent_Declare(
+      ogg
+      GIT_REPOSITORY https://github.com/xiph/ogg.git
+      GIT_TAG v1.3.5
+      GIT_SHALLOW TRUE
+      PATCH_COMMAND sed -i "s/cmake_minimum_required(VERSION 2\\.8\\.12)/cmake_minimum_required(VERSION 3.5)/" CMakeLists.txt || true
+  )
+  FetchContent_MakeAvailable(ogg)
+  # Set cache vars so libsndfile's FindOGG uses our FetchContent target.
+  # Using the target name directly (not a file path) works because CMake
+  # recognises it as a target when linking, and find_*() honours cached values.
+  set(OGG_INCLUDE_DIR "${ogg_SOURCE_DIR}/include" CACHE PATH "" FORCE)
+  set(OGG_LIBRARY "ogg" CACHE STRING "" FORCE)
+
+  FetchContent_Declare(
+      vorbis
+      GIT_REPOSITORY https://github.com/xiph/vorbis.git
+      GIT_TAG v1.3.7
+      GIT_SHALLOW TRUE
+      PATCH_COMMAND sed -i "s/cmake_minimum_required(VERSION 2\\.8\\.12)/cmake_minimum_required(VERSION 3.5)/" CMakeLists.txt || true
+  )
+  FetchContent_MakeAvailable(vorbis)
+  set(Vorbis_Vorbis_INCLUDE_DIR "${vorbis_SOURCE_DIR}/include" CACHE PATH "" FORCE)
+  set(Vorbis_Vorbis_LIBRARY "vorbis" CACHE STRING "" FORCE)
+  set(Vorbis_File_INCLUDE_DIR "${vorbis_SOURCE_DIR}/include" CACHE PATH "" FORCE)
+  set(Vorbis_File_LIBRARY "vorbisfile" CACHE STRING "" FORCE)
+  set(Vorbis_Enc_LIBRARY "vorbisenc" CACHE STRING "" FORCE)
+
+  message(STATUS "Fetching libsndfile from source (Android, OGG/FLAC/Opus only, no MP3)")
+  set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+  set(ENABLE_EXTERNAL_LIBS ON CACHE BOOL "" FORCE)
+  set(ENABLE_MPEG OFF CACHE BOOL "" FORCE)
+  set(ENABLE_OPUS OFF CACHE BOOL "" FORCE)
+  set(ENABLE_FLAC OFF CACHE BOOL "" FORCE)
+  set(ENABLE_VORBIS ON CACHE BOOL "" FORCE)
+  set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+  FetchContent_Declare(
+      libsndfile
+      GIT_REPOSITORY https://github.com/libsndfile/libsndfile.git
+      GIT_TAG master
+      GIT_SHALLOW TRUE
+    )
+  FetchContent_MakeAvailable(libsndfile)
 else()
   message(STATUS "Fetching libsndfile from source")
   set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
@@ -167,6 +231,19 @@ if(WIN32)
           IMPORTED_LOCATION ${SAMPLERATE_LIBRARY}
           INTERFACE_INCLUDE_DIRECTORIES ${SAMPLERATE_INCLUDE_DIR}
       )
+elseif(ANDROID)
+  message(STATUS "Fetching libsamplerate from source (Android)")
+  set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+  set(LIBSAMPLERATE_EXAMPLES OFF CACHE BOOL "" FORCE)
+  set(LIBSAMPLERATE_INSTALL OFF CACHE BOOL "" FORCE)
+  set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+  FetchContent_Declare(
+      libsamplerate
+      GIT_REPOSITORY https://github.com/libsndfile/libsamplerate.git
+      GIT_TAG master
+      GIT_SHALLOW TRUE
+  )
+  FetchContent_MakeAvailable(libsamplerate)
 else()
   find_package(PkgConfig QUIET)
   if(PkgConfig_FOUND)
@@ -222,6 +299,40 @@ if(WIN32)
             INTERFACE_INCLUDE_DIRECTORIES "${FFMPEG_INCLUDE_DIR}"
         )
   endforeach()
+elseif(ANDROID)
+  # FFmpeg must be cross-compiled for Android separately.
+  # Set ANDROID_FFMPEG_PREFIX to a directory containing:
+  #   <prefix>/include/  (libavformat/, libavcodec/, ...)
+  #   <prefix>/lib/      (libavformat.a, libavcodec.a, ...)
+  # Build with: https://github.com/arthenica/ffmpeg-kit or compile manually with NDK.
+  if(NOT DEFINED ANDROID_FFMPEG_PREFIX)
+    if(DEFINED ENV{ANDROID_FFMPEG_PREFIX})
+      set(ANDROID_FFMPEG_PREFIX "$ENV{ANDROID_FFMPEG_PREFIX}")
+    else()
+      message(FATAL_ERROR
+        "ANDROID_FFMPEG_PREFIX must point to a prebuilt FFmpeg directory for Android arm64-v8a.\n"
+        "Expected layout:\n"
+        "  <prefix>/include/  (libavformat, libavcodec, libavutil, libswscale, libswresample headers)\n"
+        "  <prefix>/lib/      (libavformat.a, libavcodec.a, libavutil.a, libswscale.a, libswresample.a)\n"
+        "Pass it as: cmake -DANDROID_FFMPEG_PREFIX=/path/to/ffmpeg ...")
+    endif()
+  endif()
+
+  set(_ffmpeg_inc "${ANDROID_FFMPEG_PREFIX}/include")
+  set(_ffmpeg_lib "${ANDROID_FFMPEG_PREFIX}/lib")
+  message(STATUS "Using Android FFmpeg from ${ANDROID_FFMPEG_PREFIX}")
+
+  foreach(_lib avformat avcodec avutil swscale swresample)
+    set(_libfile "${_ffmpeg_lib}/lib${_lib}.a")
+    if(NOT EXISTS "${_libfile}")
+      message(FATAL_ERROR "FFmpeg lib not found: ${_libfile}")
+    endif()
+    add_library(FFmpeg::${_lib} STATIC IMPORTED)
+    set_target_properties(FFmpeg::${_lib} PROPERTIES
+      IMPORTED_LOCATION             "${_libfile}"
+      INTERFACE_INCLUDE_DIRECTORIES "${_ffmpeg_inc}"
+    )
+  endforeach()
 else()
   find_package(PkgConfig REQUIRED)
   pkg_check_modules(AVFORMAT REQUIRED libavformat)
@@ -246,24 +357,43 @@ else()
   message(STATUS "  libswresample ${SWRESAMPLE_VERSION}")
 endif()
 
-# PortAudio (local prebuilt library)
-if(WIN32)
-  set(PORTAUDIO_LIB_NAME "libportaudio-win.a")
-elseif(APPLE)
-  set(PORTAUDIO_LIB_NAME "libportaudio-macos.a")
-elseif(UNIX)
-  set(PORTAUDIO_LIB_NAME "libportaudio-linux.a")
+# PortAudio
+if(ANDROID)
+  message(STATUS "Fetching PortAudio from source (Android, AAudio + OpenSL ES)")
+  set(PA_USE_AAUDIO ON CACHE BOOL "" FORCE)
+  set(PA_USE_OPENSLES ON CACHE BOOL "" FORCE)
+  set(PA_USE_JACK OFF CACHE BOOL "" FORCE)
+  set(PA_USE_OSS OFF CACHE BOOL "" FORCE)
+  set(PA_DISABLE_INSTALL ON CACHE BOOL "" FORCE)
+  set(PA_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+  set(PA_BUILD_STATIC ON CACHE BOOL "" FORCE)
+  FetchContent_Declare(
+    portaudio_android
+    GIT_REPOSITORY https://github.com/PortAudio/portaudio.git
+    GIT_TAG master
+    GIT_SHALLOW TRUE
+  )
+  FetchContent_MakeAvailable(portaudio_android)
+  set(PORTAUDIO_INCLUDE_DIR "${portaudio_android_SOURCE_DIR}/include")
+else()
+  if(WIN32)
+    set(PORTAUDIO_LIB_NAME "libportaudio-win.a")
+  elseif(APPLE)
+    set(PORTAUDIO_LIB_NAME "libportaudio-macos.a")
+  elseif(UNIX)
+    set(PORTAUDIO_LIB_NAME "libportaudio-linux.a")
+  endif()
+
+  set(PORTAUDIO_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/src/libs/audio")
+  set(PORTAUDIO_LIBRARY "${CMAKE_SOURCE_DIR}/src/libs/audio/${PORTAUDIO_LIB_NAME}")
+
+  if(NOT EXISTS ${PORTAUDIO_LIBRARY})
+    message(FATAL_ERROR "PortAudio library not found: ${PORTAUDIO_LIBRARY}")
+  endif()
+
+  add_library(portaudio STATIC IMPORTED)
+  set_target_properties(portaudio PROPERTIES
+      IMPORTED_LOCATION ${PORTAUDIO_LIBRARY}
+      INTERFACE_INCLUDE_DIRECTORIES ${PORTAUDIO_INCLUDE_DIR}
+  )
 endif()
-
-set(PORTAUDIO_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/src/libs/audio")
-set(PORTAUDIO_LIBRARY "${CMAKE_SOURCE_DIR}/src/libs/audio/${PORTAUDIO_LIB_NAME}")
-
-if(NOT EXISTS ${PORTAUDIO_LIBRARY})
-  message(FATAL_ERROR "PortAudio library not found: ${PORTAUDIO_LIBRARY}")
-endif()
-
-add_library(portaudio STATIC IMPORTED)
-set_target_properties(portaudio PROPERTIES
-    IMPORTED_LOCATION ${PORTAUDIO_LIBRARY}
-    INTERFACE_INCLUDE_DIRECTORIES ${PORTAUDIO_INCLUDE_DIR}
-)
