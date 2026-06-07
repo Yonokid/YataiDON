@@ -68,8 +68,8 @@ endif()
 FetchContent_Declare(
   raylib
   GIT_REPOSITORY https://github.com/raysan5/raylib.git
-  GIT_TAG        master
-  GIT_SHALLOW    TRUE
+  GIT_TAG        f5ea52a8a9e81f2aee9e98b94e72c3028c01ce84
+  GIT_SHALLOW    FALSE
 )
 FetchContent_GetProperties(raylib)
 FetchContent_MakeAvailable(raylib)
