@@ -110,6 +110,7 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/marovira/lua.git
     GIT_TAG 5.4.8
     GIT_SHALLOW TRUE
+    PATCH_COMMAND sed -i "s/cmake_minimum_required(VERSION 3\\.30)/cmake_minimum_required(VERSION 3.5)/" CMakeLists.txt || true
 )
 FetchContent_MakeAvailable(lua)
 
@@ -120,6 +121,7 @@ FetchContent_Declare(
     GIT_TAG v3.5.0
     GIT_SHALLOW TRUE
     PATCH_COMMAND git apply ${CMAKE_SOURCE_DIR}/cmake/patches/sol2-android-noexcept.patch || true
+        COMMAND sed -i "s/cmake_minimum_required(VERSION 3\\.26\\.0)/cmake_minimum_required(VERSION 3.5)/" CMakeLists.txt || true
 )
 FetchContent_MakeAvailable(sol2)
 
