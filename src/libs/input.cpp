@@ -1,4 +1,5 @@
 #include "input.h"
+#include "texture.h"
 #include <array>
 #include <unordered_set>
 
@@ -253,18 +254,20 @@ bool is_key_down_native(int raylib_key) {
 }
 #endif
 
-// Drum is a circle centered at bottom-center of the 1280x720 overlay image.
-// Center ≈ (640, 720), radius ≈ 340px → radius_frac = 340/1280 ≈ 0.266 of screen width.
+// Drum is a circle centered at bottom-center of the virtual overlay (tex.screen_width x tex.screen_height).
+// Virtual center ≈ (screen_w/2, screen_h), radius ≈ 340px in virtual space.
+// Scale to actual screen using render_scale = min(sw/screen_w, sh/screen_h) — same as rendering.
 static int touch_quadrant_vkey(ray::Vector2 pos, int sw, int sh) {
     bool left = pos.x < sw / 2.0f;
     bool top  = pos.y < sh / 2.0f;
     if (top) return left ? TOUCH_L_KAT : TOUCH_R_KAT;
 
-    float cx = sw * 0.500f;
-    float cy = (float)sh;
+    float render_scale = std::min((float)sw / tex.screen_width, (float)sh / tex.screen_height);
+    float cx = sw * 0.5f;
+    float cy = (float)sh * 0.5f + tex.screen_height * render_scale * 0.5f;
 
-    float rx = sw * 0.262f;
-    float ry = sw * 0.242f;
+    float rx = tex.screen_width * 0.262f * render_scale;
+    float ry = tex.screen_width * 0.242f * render_scale;
 
     float dx = pos.x - cx;
     float dy = pos.y - cy;
