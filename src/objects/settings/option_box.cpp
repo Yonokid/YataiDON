@@ -212,7 +212,11 @@ void StrOptionBox::update(double current_time) {
         if (ray::IsKeyPressed(ray::KEY_BACKSPACE) && !input_string.empty()) {
             input_string.pop_back();
             rebuild_text();
-        } else if (ray::IsKeyPressed(ray::KEY_ENTER)) {
+        } else if (ray::IsKeyPressed(ray::KEY_ENTER)
+#ifdef PLATFORM_ANDROID
+                   || is_l_don_pressed() || is_r_don_pressed()
+#endif
+        ) {
             value = input_string;
             confirm();
             is_highlighted = false;
