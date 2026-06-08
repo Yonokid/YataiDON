@@ -88,6 +88,9 @@ struct music {
     std::string file_path;          // Path to the audio file
     std::shared_ptr<std::vector<uint8_t>> memory_buffer;
     VirtualFile                           vio_cursor;
+
+    float*     pcm_data        = nullptr; // Android FFmpeg fallback: fully decoded PCM
+    sf_count_t pcm_total_frames = 0;
 };
 
 class AudioEngine {

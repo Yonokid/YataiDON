@@ -283,6 +283,28 @@ int AudioEngine::port_audio_callback(const void *inputBuffer, void *outputBuffer
                     }
 
                     mus.buffer_position = 0;
+                } else if (mus.pcm_data) {
+                    unsigned long long frame_pos = aref_frame.load(std::memory_order_relaxed);
+                    sf_count_t frames_left = (mus.pcm_total_frames > (sf_count_t)frame_pos)
+                                             ? mus.pcm_total_frames - (sf_count_t)frame_pos : 0;
+                    sf_count_t to_fill = std::min((sf_count_t)mus.buffer_size, frames_left);
+
+                    if (to_fill == 0) {
+                        if (mus.loop) {
+                            aref_frame.store(0ULL, std::memory_order_relaxed);
+                            frame_pos = 0;
+                            to_fill = std::min((sf_count_t)mus.buffer_size, mus.pcm_total_frames);
+                        } else {
+                            aref_playing.store(false, std::memory_order_release);
+                            break;
+                        }
+                    }
+
+                    unsigned int ch = (unsigned int)mus.file_info.channels;
+                    std::memcpy(mus.stream_buffer, mus.pcm_data + frame_pos * ch,
+                                (size_t)to_fill * ch * sizeof(float));
+                    mus.frames_in_buffer = (unsigned int)to_fill;
+                    mus.buffer_position  = 0;
                 } else {
                     aref_playing.store(false, std::memory_order_release);
                     break;
@@ -832,8 +854,63 @@ std::string AudioEngine::load_music_stream(const fs::path& file_path, const std:
         }
 
         if (!file) {
+#ifdef __ANDROID__
+            float* ff_data = nullptr;
+            sf_count_t ff_frames = 0;
+            unsigned int ff_rate = 0, ff_ch = 0;
+            std::string path_str2 = path_to_string(file_path);
+            if (!ffmpeg_decode_float(path_str2.c_str(), &ff_data, &ff_frames, &ff_rate, &ff_ch)) {
+                spdlog::error("Failed to open music file: {} - {} (ffmpeg fallback also failed)",
+                              file_path.string(), sf_strerror(NULL));
+                return "";
+            }
+
+            if ((double)ff_rate != target_sample_rate) {
+                double ratio = target_sample_rate / (double)ff_rate;
+                long out_frames = (long)(ff_frames * ratio) + 1;
+                float* rs = new float[out_frames * ff_ch];
+                SRC_DATA sd{};
+                sd.data_in = ff_data; sd.input_frames = ff_frames;
+                sd.data_out = rs; sd.output_frames = out_frames;
+                sd.src_ratio = ratio; sd.end_of_input = 1;
+                int err = src_simple(&sd, SRC_SINC_FASTEST, (int)ff_ch);
+                if (err) { delete[] ff_data; delete[] rs; return ""; }
+                delete[] ff_data;
+                ff_data = rs;
+                ff_frames = sd.output_frames_gen;
+                ff_rate = (unsigned int)target_sample_rate;
+            }
+
+            music mus{};
+            mus.file_handle = nullptr;
+            mus.file_info.channels = (int)ff_ch;
+            mus.file_info.samplerate = (int)ff_rate;
+            mus.file_path = file_path.string();
+            mus.pcm_data = ff_data;
+            mus.pcm_total_frames = ff_frames;
+            mus.buffer_size = 4096;
+            mus.stream_buffer = new float[mus.buffer_size * ff_ch];
+            mus.buffer_position = 0;
+            mus.frames_in_buffer = 0;
+            mus.is_playing = false;
+            mus.current_frame = 0;
+            mus.loop = false;
+            mus.volume = 1.0f;
+            mus.pan = 0.5f;
+            mus.pitch = 1.0f;
+            mus.resampler = nullptr;
+            mus.resample_buffer = nullptr;
+            {
+                std::unique_lock<std::shared_mutex> guard(rw_lock);
+                music_streams[name] = mus;
+            }
+            spdlog::debug("Loaded music stream (ffmpeg): {} ({} frames, {} Hz, {} ch)",
+                          name, ff_frames, ff_rate, ff_ch);
+            return name;
+#else
             spdlog::error("Failed to open music file: {} - {}", file_path.string(), sf_strerror(NULL));
             return "";
+#endif
         }
 
         music mus;
@@ -1004,6 +1081,8 @@ float AudioEngine::get_music_time_length(const std::string& name) const {
     std::shared_lock<std::shared_mutex> guard(rw_lock);
     auto it = music_streams.find(name);
     if (it != music_streams.end()) {
+        if (it->second.pcm_data)
+            return static_cast<float>(it->second.pcm_total_frames) / static_cast<float>(target_sample_rate);
         return static_cast<float>(it->second.file_info.frames) / static_cast<float>(target_sample_rate);
     }
     spdlog::warn("Music stream {} not found", name);
@@ -1080,6 +1159,11 @@ void AudioEngine::unload_music_stream(const std::string& name) {
             mus.file_handle = nullptr;
         }
 
+        if (mus.pcm_data) {
+            delete[] mus.pcm_data;
+            mus.pcm_data = nullptr;
+        }
+
         if (mus.stream_buffer) {
             delete[] mus.stream_buffer;
             mus.stream_buffer = nullptr;
@@ -1134,6 +1218,14 @@ void AudioEngine::seek_music_stream(const std::string& name, float position) {
             mus.buffer_position  = 0;
             mus.frames_in_buffer = 0;
             mus.current_frame    = frame_position;
+        } else if (mus.pcm_data) {
+            unsigned long long frame_pos = static_cast<unsigned long long>(
+                std::max(position, 0.0f) * static_cast<float>(target_sample_rate));
+            if (frame_pos > static_cast<unsigned long long>(mus.pcm_total_frames))
+                frame_pos = static_cast<unsigned long long>(mus.pcm_total_frames);
+            std::atomic_ref<unsigned long long>(mus.current_frame).store(frame_pos, std::memory_order_relaxed);
+            mus.buffer_position  = 0;
+            mus.frames_in_buffer = 0;
         }
     } else {
         spdlog::warn("Music stream {} not found", name);
