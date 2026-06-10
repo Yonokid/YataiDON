@@ -128,6 +128,7 @@ void SongSelect2PScreen::draw_overlays() {
 }
 
 void SongSelect2PScreen::draw() {
+    navigator.draw_background();
     player->draw_background_diffs(state);
     player_2->draw_background_diffs(state);
     if (screen_init) navigator.draw();
