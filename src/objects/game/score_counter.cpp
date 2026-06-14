@@ -19,7 +19,7 @@ void ScoreCounter::update(double current_ms) {
 }
 
 void ScoreCounter::draw(float y) {
-    float p2_offset = is_2p ? 130 * tex.screen_scale : 0;
+    float p2_offset = is_2p ? tex.skin_config[SC::SCORE_COUNTER_2P_Y_OFFSET].y : 0;
     if (is_2p) {
         tex.draw_texture(LANE::LANE_SCORE_COVER, {.mirror="vertical", .y=y + p2_offset});
     } else {
@@ -28,8 +28,8 @@ void ScoreCounter::draw(float y) {
 
     std::string counter = std::to_string(score);
 
-    float x = 150 * tex.screen_scale;
-    float y_pos = y + (185 * tex.screen_scale) + p2_offset;
+    float x = tex.skin_config[SC::SCORE_COUNTER_POS].x;
+    float y_pos = y + tex.skin_config[SC::SCORE_COUNTER_POS].y + p2_offset;
     float margin = tex.skin_config[SC::SCORE_COUNTER_MARGIN].x;
     float total_width = counter.length() * margin;
     float start_x = x - total_width;

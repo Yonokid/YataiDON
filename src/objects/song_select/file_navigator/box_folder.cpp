@@ -194,8 +194,8 @@ void FolderBox::draw_open_fg(float fade) {
     if (box_texture.has_value()) {
         float scaled_width = box_texture->width * tex.screen_scale;
         float scaled_height = box_texture->height * tex.screen_scale;
-        float max_width = 344 * tex.screen_scale;
-        float max_height = 424 * tex.screen_scale;
+        float max_width = tex.skin_config[SC::BOX_FOLDER_MAX_SIZE].width;
+        float max_height = tex.skin_config[SC::BOX_FOLDER_MAX_SIZE].height;
         if (scaled_width > max_width || scaled_height > max_height) {
             float width_scale = max_width / scaled_width;
             float height_scale = max_height / scaled_height;

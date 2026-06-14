@@ -126,7 +126,7 @@ void NeiroSelector::draw() {
     total_width = counter.size() * margin;
     for (int i = 0; i < (int)counter.size(); i++) {
         int digit = counter[i] - '0';
-        tex.draw_texture(NEIRO::COUNTER, {.frame=digit, .x=x - (total_width / 2) + (i * margin) + (60 * tex.screen_scale), .y=y});
+        tex.draw_texture(NEIRO::COUNTER, {.frame=digit, .x=x - (total_width / 2) + (i * margin) + tex.skin_config[SC::NEIRO_COUNTER_X_OFFSET].x, .y=y});
     }
 
     text->draw({

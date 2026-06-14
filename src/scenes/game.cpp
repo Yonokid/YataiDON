@@ -8,8 +8,8 @@ void GameScreen::on_screen_start() {
     start_ms = 0;
     start_delay = 1000.0f;
     last_resync_ms = 0;
-    JudgePos::X = 414 * tex.screen_scale;
-    JudgePos::Y = 256 * tex.screen_scale;
+    JudgePos::X = tex.skin_config[SC::JUDGE_POS].x;
+    JudgePos::Y = tex.skin_config[SC::JUDGE_POS].y;
     song_started = false;
     paused = false;
     score_saved = false;

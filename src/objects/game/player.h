@@ -27,8 +27,8 @@
 #include "score_counter_animation.h"
 
 namespace JudgePos {
-    inline float X = 414 * tex.screen_scale;
-    inline float Y = 256 * tex.screen_scale;
+    inline float X = 0.0f;
+    inline float Y = 0.0f;
 }
 
 namespace Timing {

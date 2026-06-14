@@ -250,7 +250,7 @@ void DiffSortSelect::draw_level_select() {
     tex.draw_texture(DIFF_SORT::DIFF, {.frame=selected_box, .fade=diff_fade_in->attribute});
     tex.draw_texture(DIFF_SORT::STAR_NUM, {.frame=selected_level, .fade=diff_fade_in->attribute});
     for (size_t i = 0; i < selected_level; i++) {
-        tex.draw_texture(DIFF_SORT::STAR, {.x=(float)(i*(40.5 * tex.screen_scale)), .fade=diff_fade_in->attribute});
+        tex.draw_texture(DIFF_SORT::STAR, {.x=(float)(i * tex.skin_config[SC::DIFF_SORT_STAR_SPACING].x), .fade=diff_fade_in->attribute});
     }
 
     if (confirmation) {

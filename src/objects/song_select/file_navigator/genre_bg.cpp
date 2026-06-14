@@ -34,8 +34,10 @@ void GenreBG::exit(float left_position, float right_position, FolderBox* center_
     float left_start  = (left_position  < 0.f || left_position  > tex.screen_width) ? 0.f              : left_position;
     float right_start = (right_position < 0.f || right_position > tex.screen_width) ? tex.screen_width : right_position;
 
-    int left_distance  = (int)(442.f - left_start) * tex.screen_scale;
-    int right_distance = (int)(835.f - right_start) * tex.screen_scale;
+    float boundary_left_exit  = tex.skin_config[SC::GENRE_BG_SELECT_BOUNDARY].x;
+    float boundary_right_exit = tex.skin_config[SC::GENRE_BG_SELECT_BOUNDARY].width;
+    int left_distance  = (int)(boundary_left_exit  - left_start)  * tex.screen_scale;
+    int right_distance = (int)(boundary_right_exit - right_start) * tex.screen_scale;
 
     move_left  = new MoveAnimation(200, left_distance,  false, false, (int)left_start,  166);
     move_right = new MoveAnimation(200, right_distance, false, false, (int)right_start, 166);
@@ -190,7 +192,7 @@ void GenreBG::draw_exit_anim(float start_position, float end_position, FolderBox
 
     float edge_width_top = tex.textures[BOX::FOLDER_BACKGROUND_FOLDER_EDGE]->width;
     float dest_width = std::min(tex.skin_config[SC::GENRE_BG_TITLE].width, name->width);
-    float center = 638.5f * tex.screen_scale;
+    float center = tex.skin_config[SC::GENRE_BG_CENTER_X].x;
 
     tex.draw_texture(BOX::FOLDER_BACKGROUND_FOLDER_EDGE, {
         .frame=(int)texture_index, .mirror="horizontal",
@@ -231,15 +233,17 @@ void GenreBG::draw(float start_position, float end_position, FolderBox* folder) 
 
     float edge_width_top = tex.textures[BOX::FOLDER_BACKGROUND_FOLDER_EDGE]->width;
     float dest_width = std::min(tex.skin_config[SC::GENRE_BG_TITLE].width, name->width);
-    float center = 638.5f * tex.screen_scale;
+    float center = tex.skin_config[SC::GENRE_BG_CENTER_X].x;
 
     float bg_start_pos = start_position;
     float bg_end_pos = end_position;
-    if ((442 * tex.screen_scale) < start_position && start_position < center) {
-        bg_start_pos = 442 * tex.screen_scale;
+    float boundary_left = tex.skin_config[SC::GENRE_BG_SELECT_BOUNDARY].x;
+    float boundary_right = tex.skin_config[SC::GENRE_BG_SELECT_BOUNDARY].width;
+    if (boundary_left < start_position && start_position < center) {
+        bg_start_pos = boundary_left;
     }
-    if (center < end_position && end_position < (835 * tex.screen_scale)) {
-        bg_end_pos = (835 * tex.screen_scale);
+    if (center < end_position && end_position < boundary_right) {
+        bg_end_pos = boundary_right;
     }
 
     if (shader_loaded) ray::BeginShaderMode(shader);

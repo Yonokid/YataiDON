@@ -66,7 +66,7 @@ void ClearAnimation::draw() {
         for (int i = 4; i >= 0; i--) {
             tex.draw_texture(ENDING_ANIM::CLEAR_SEPARATED, {
                 .frame = i,
-                .x = (float)(i * 60 * tex.screen_scale),
+                .x = (float)(i * tex.skin_config[SC::CLEAR_ANIMATION_X_SPACING].x),
                 .y = (float)(-clear_separate_stretch[i]->attribute),
                 .y2 = (float)(clear_separate_stretch[i]->attribute),
                 .fade = (float)(clear_separate_fade_in[i]->attribute),

@@ -23,7 +23,8 @@ void AttractCamera::draw() {
     tex.draw_texture(CAMERA::BACKGROUND);
     if (camera.is_ready()) {
         ray::Rectangle src = {0, 0, (float)camera.width(), (float)camera.height()};
-        ray::Rectangle dst = {332, 119, 630 * tex.screen_scale, 470 * tex.screen_scale};
+        SkinInfo cam = tex.skin_config[SC::ATTRACT_CAMERA_VIEWPORT];
+        ray::Rectangle dst = {cam.x, cam.y, cam.width, cam.height};
         ray::DrawTexturePro(camera.get_texture(), src, dst, ray::Vector2(0, 0), 0, ray::WHITE);
     }
     tex.draw_texture(CAMERA::LIVE_ICON, {.frame=(int)live_icon_texture_change->attribute});

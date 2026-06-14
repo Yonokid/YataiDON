@@ -22,8 +22,8 @@ void SearchBox::draw() {
     TextureObject* background = tex.textures[DIFF_SORT::BACKGROUND].get();
     float fade = diff_fade_in->attribute;
 
-    float text_box_width = 400 * tex.screen_scale;
-    float text_box_height = 60 * tex.screen_scale;
+    float text_box_width = tex.skin_config[SC::SEARCH_BOX].width;
+    float text_box_height = tex.skin_config[SC::SEARCH_BOX].height;
     float x = (float)background->width / 2 + background->x[0] - text_box_width / 2;
     float y = (float)background->height / 2 + background->y[0] - text_box_height / 2;
 

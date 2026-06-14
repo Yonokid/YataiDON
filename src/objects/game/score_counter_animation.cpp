@@ -63,10 +63,10 @@ void ScoreCounterAnimation::draw(float y) {
         } else if (move_animation_2->is_finished) {
             y_pos = move_animation_3->attribute;
         } else {
-            y_pos = 148 * tex.screen_scale;
+            y_pos = tex.skin_config[SC::SCORE_COUNTER_ANIMATION_START_Y].y;
         }
 
-        float y_offset = (y_pos * direction) + y + (510 * tex.screen_scale * (direction == -1));
+        float y_offset = (y_pos * direction) + y + (tex.skin_config[SC::SCORE_COUNTER_ANIMATION_P2_OFFSET].y * (direction == -1));
 
         tex.draw_texture(LANE::SCORE_NUMBER, {
             .color = color,

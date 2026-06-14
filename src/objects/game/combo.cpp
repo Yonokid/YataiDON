@@ -78,9 +78,9 @@ void Combo::draw(float y) {
             tex.draw_texture(COMBO::COUNTER_100, {.frame=digit - '0', .x=-(total_width / 2) + (i * margin), .y=y + (float)-stretch->attribute, .y2=(float)stretch->attribute});
         }
         std::vector<std::pair<float, float>> glimmer_positions = {
-            {225 * tex.screen_scale, 210 * tex.screen_scale},
-            {200 * tex.screen_scale, 230 * tex.screen_scale},
-            {250 * tex.screen_scale, 230 * tex.screen_scale}
+            {tex.skin_config[SC::COMBO_GLIMMER_1].x, tex.skin_config[SC::COMBO_GLIMMER_1].y},
+            {tex.skin_config[SC::COMBO_GLIMMER_2].x, tex.skin_config[SC::COMBO_GLIMMER_2].y},
+            {tex.skin_config[SC::COMBO_GLIMMER_3].x, tex.skin_config[SC::COMBO_GLIMMER_3].y}
         };
         for (size_t j = 0; j < glimmer_positions.size(); j++) {
             auto [x, y_pos] = glimmer_positions[j];

@@ -54,5 +54,5 @@ void BranchIndicator::draw(float y) {
 
     tex.draw_texture(tex.get_enum("branch/" + (branch_diff_to_string(diff_2))), {.y = y + (float)(diff_down->attribute - diff_up->attribute) * direction, .fade = diff_fade->attribute});
 
-    tex.draw_texture(tex.get_enum("branch/" + (branch_diff_to_string(difficulty))), {.y = y + (float)(diff_up->attribute * (direction * -1)) - ((70 * tex.screen_scale) * direction * -1), .fade = 1 - diff_fade->attribute});
+    tex.draw_texture(tex.get_enum("branch/" + (branch_diff_to_string(difficulty))), {.y = y + (float)(diff_up->attribute * (direction * -1)) - (tex.skin_config[SC::BRANCH_INDICATOR_Y_OFFSET].y * direction * -1), .fade = 1 - diff_fade->attribute});
 }

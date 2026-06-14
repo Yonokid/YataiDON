@@ -15,8 +15,8 @@ void DanGameScreen::on_screen_start() {
     song_index    = 0;
     prev_good = prev_ok = prev_bad = prev_drumroll = 0;
 
-    JudgePos::X = 414 * tex.screen_scale;
-    JudgePos::Y = 256 * tex.screen_scale;
+    JudgePos::X = tex.skin_config[SC::JUDGE_POS].x;
+    JudgePos::Y = tex.skin_config[SC::JUDGE_POS].y;
 
     if (global_data.config->general.nijiiro_notes) {
         tex.load_folder("game", "notes_nijiiro");

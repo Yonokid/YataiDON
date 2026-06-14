@@ -10,15 +10,15 @@ NoteArc::NoteArc(NoteType note_type, double current_ms, PlayerNum player_num, bo
     arc_duration = 22;
     current_progress = 0;
 
-    float curve_height = 425 * tex.screen_scale;
-    this->start_x = start_x + (350 * tex.screen_scale);
-    this->start_y = start_y + (8 * tex.screen_scale);
-    end_x = 1158 * tex.screen_scale;
-    end_y = -83 * tex.screen_scale;
+    float curve_height = tex.skin_config[SC::NOTE_ARC_CURVE_HEIGHT].height;
+    this->start_x = start_x + tex.skin_config[SC::NOTE_ARC_START_X_OFFSET].x;
+    this->start_y = start_y + tex.skin_config[SC::NOTES].y;
+    end_x = tex.skin_config[SC::GAUGE_HIT_EFFECT_NOTE].x;
+    end_y = tex.skin_config[SC::GAUGE_HIT_EFFECT_NOTE].y;
 
     if (player_num == PlayerNum::P2) {
-        this->start_y += (176 * tex.screen_scale);
-        end_y += (176 * tex.screen_scale);
+        this->start_y += tex.skin_config[SC::OFFSET_2P].y;
+        end_y += tex.skin_config[SC::OFFSET_2P].y;
     }
 
     if (player_num == PlayerNum::P1) {
@@ -101,7 +101,7 @@ void NoteArc::draw(float y, ray::Shader mask_shader) {
                 float y_pos;
                 if (player_num == PlayerNum::P2) {
                     mirror = "vertical";
-                    y_pos = (435 * tex.screen_scale);
+                    y_pos = tex.skin_config[SC::NOTE_ARC_BALLOON_P2_Y].y;
                 } else {
                     mirror = "";
                     y_pos = 0;

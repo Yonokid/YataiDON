@@ -391,7 +391,7 @@ void SongSelectPlayer::draw_background_diffs(SongSelectState state) {
     if (!selected_song || state != SongSelectState::SONG_SELECTED || selected_difficulty < Difficulty::EASY)
         return;
 
-    float x_offset = ((int)player_num == 2) ? 1025.0f * tex.screen_scale : 0.0f;
+    float x_offset = ((int)player_num == 2) ? tex.skin_config[SC::SONG_SELECT_BG_DIFF_P2_OFFSET].x : 0.0f;
     float bounce_y  = -selected_diff_bounce->attribute;
     float bounce_y2 =  selected_diff_bounce->attribute;
     int diff_frame     = (int)selected_difficulty;
