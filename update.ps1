@@ -46,11 +46,6 @@ try {
     $LocalReleaseId  = if (Test-Path $VersionFile) { (Get-Content $VersionFile -Raw).Trim() } else { "" }
     Log "Local release id: $LocalReleaseId | Latest: $LatestReleaseId ($($Release.tag_name))"
 
-    if ($LocalReleaseId -eq $LatestReleaseId) {
-        Log "Already up to date."
-        exit 0
-    }
-
     $AssetMap = @{}
     foreach ($asset in $Release.assets) { $AssetMap[$asset.name] = $asset.browser_download_url }
 
@@ -96,7 +91,7 @@ try {
             try {
                 Invoke-WebRequest -Uri $checksumsUrl -OutFile $skinChecksumsPath -TimeoutSec 30
             } catch {
-                Log "Warning: could not fetch checksums for $($skinDir.Name) — skipping"
+                Log "Warning: could not fetch checksums for $($skinDir.Name) -- skipping"
                 continue
             }
 
@@ -106,6 +101,7 @@ try {
                 if ($cparts.Count -lt 2) { continue }
                 $expectedHash = $cparts[0].ToUpper()
                 $relPath      = $cparts[1]
+                if ((Split-Path -Leaf $relPath) -eq "checksums.sha256") { continue }
                 $localFile    = Join-Path $skinDir.FullName ($relPath.Replace('/', '\'))
 
                 if (Test-Path $localFile) {
@@ -127,7 +123,7 @@ try {
         exit 0
     }
 
-    Log "Updates needed — package: $([int]$NeedPackage) | skins: $($SkinUpdates.Count)"
+    Log "Updates needed -- package: $([int]$NeedPackage) | skins: $($SkinUpdates.Count)"
 
     # --- Wait for game process if requested ---
     if ($WaitPid -ne "") {
@@ -162,6 +158,7 @@ try {
             if ($cparts.Count -lt 2) { continue }
             $expectedHash = $cparts[0].ToUpper()
             $relPath      = $cparts[1]
+            if ((Split-Path -Leaf $relPath) -eq "checksums.sha256") { continue }
             $localFile    = Join-Path $skinDirPath ($relPath.Replace('/', '\'))
 
             if (Test-Path $localFile) {
