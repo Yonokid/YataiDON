@@ -407,6 +407,8 @@ void ScriptManager::register_lua_bindings() {
 
         auto it = tex_id_map.find(subset + "/" + texture_name);
         if (it != tex_id_map.end()) return static_cast<uint32_t>(it->second);
+        it = tex_id_map.find(subset + "/" + texture_name + "_" + global_data.config->general.language);
+        if (it != tex_id_map.end()) return static_cast<uint32_t>(it->second);
         return sol::nullopt;
     });
 

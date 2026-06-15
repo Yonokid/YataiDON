@@ -21,36 +21,19 @@ EntryPlayer::EntryPlayer(PlayerNum player_num, int side, BoxManager* box_manager
         chara->set_don_colors(chara_default_color_1(player_id), chara_default_color_2(player_id), {249, 240, 225, 255});
     }
 
-    drum_move_1 = (MoveAnimation*)tex.get_animation(2);
-    drum_move_2 = (MoveAnimation*)tex.get_animation(3);
-    drum_move_3 = (MoveAnimation*)tex.get_animation(4);
-    cloud_resize = (TextureResizeAnimation*)tex.get_animation(5);
-    cloud_resize_loop = (TextureResizeAnimation*)tex.get_animation(6);
-    cloud_texture_change = (TextureChangeAnimation*)tex.get_animation(7);
-    cloud_fade = (FadeAnimation*)tex.get_animation(8);
-    nameplate_fadein = (FadeAnimation*)tex.get_animation(12);
+    if (!load("EntryPlayer", "player", side)) return;
+    fn_start_animations   = lua_object["start_animations"];
+    fn_update             = lua_object["update"];
+    fn_draw_drum_back     = lua_object["draw_drum_back"];
+    fn_draw_drum_front    = lua_object["draw_drum_front"];
+    fn_is_cloud_finished  = lua_object["is_cloud_finished"];
+    fn_get_nameplate_fade = lua_object["get_nameplate_fade"];
 }
 
-void EntryPlayer::start_animations() {
-    drum_move_1->start();
-    drum_move_2->start();
-    drum_move_3->start();
-    cloud_resize->start();
-    cloud_resize_loop->start();
-    cloud_texture_change->start();
-    cloud_fade->start();
-    nameplate_fadein->start();
-}
+void EntryPlayer::start_animations() { call(fn_start_animations, "EntryPlayer:start_animations"); }
 
 void EntryPlayer::update(double current_time) {
-    drum_move_1->update(current_time);
-    drum_move_2->update(current_time);
-    drum_move_3->update(current_time);
-    cloud_resize->update(current_time);
-    cloud_texture_change->update(current_time);
-    cloud_fade->update(current_time);
-    cloud_resize_loop->update(current_time);
-    nameplate_fadein->update(current_time);
+    call(fn_update, "EntryPlayer:update", current_time);
     nameplate->update(current_time);
     indicator->update(current_time);
     chara->update(current_time);
@@ -62,41 +45,12 @@ void EntryPlayer::open_costume_menu() {
 }
 
 void EntryPlayer::draw_drum() {
-    float move_x = drum_move_3->attribute;
-    float move_y = drum_move_1->attribute + drum_move_2->attribute;
-
-    float offset;
-    float chara_x;
-    bool chara_mirror;
-
-    if (side == 0) {
-        offset = tex.skin_config[SC::ENTRY_DRUM_OFFSET].x;
-        tex.draw_texture(SIDE_SELECT::RED_DRUM, {.x=move_x, .y=move_y});
-        chara_x = move_x + offset + tex.skin_config[SC::ENTRY_CHARA_OFFSET_L].x;
-        chara_mirror = false;
-    } else {
-        move_x *= -1;
-        offset = tex.skin_config[SC::ENTRY_DRUM_OFFSET].y;
-        tex.draw_texture(SIDE_SELECT::BLUE_DRUM, {.x=move_x, .y=move_y});
-        chara_x = move_x + offset + tex.skin_config[SC::ENTRY_CHARA_OFFSET_R].x;
-        chara_mirror = true;
+    auto pos_opt = call_r<sol::table>(fn_draw_drum_back, "EntryPlayer:draw_drum_back");
+    if (pos_opt) {
+        sol::table& pos = pos_opt.value();
+        chara->draw(pos.get<float>(1), pos.get<float>(2));
     }
-
-    float chara_y = tex.skin_config[SC::ENTRY_CHARA_OFFSET_R].y + move_y;
-    chara->draw(chara_x, chara_y);
-
-    float scale = cloud_resize->attribute;
-    if (cloud_resize->is_finished) {
-        scale = std::max(1.0f, (float)cloud_resize_loop->attribute);
-    }
-    tex.draw_texture(SIDE_SELECT::CLOUD, {
-        .frame=(int)cloud_texture_change->attribute,
-        .scale=scale,
-        .center=true,
-        .x=move_x + offset,
-        .y=move_y,
-        .fade=cloud_fade->attribute,
-    });
+    call(fn_draw_drum_front, "EntryPlayer:draw_drum_front");
 }
 
 void EntryPlayer::draw_costume_menu() {
@@ -117,7 +71,11 @@ void EntryPlayer::draw_nameplate_and_indicator(float fade) {
 }
 
 bool EntryPlayer::is_cloud_animation_finished() {
-    return cloud_texture_change->is_finished;
+    return call_r<bool>(fn_is_cloud_finished, "EntryPlayer:is_cloud_finished").value_or(false);
+}
+
+float EntryPlayer::get_nameplate_fadein() {
+    return call_r<float>(fn_get_nameplate_fade, "EntryPlayer:get_nameplate_fade").value_or(1.0f);
 }
 
 void EntryPlayer::handle_input() {

@@ -1,6 +1,6 @@
 #include "box.h"
 
-Box::Box(std::unique_ptr<OutlinedText> text, Screens location) : text(std::move(text)), location(location) {
+Box::Box(const std::string& text_str, int font_size, Screens location) : location(location) {
     x = tex.textures[MODE_SELECT::BOX]->x[0];
     y = tex.textures[MODE_SELECT::BOX]->y[0];
     width = tex.textures[MODE_SELECT::BOX]->width;
@@ -9,6 +9,8 @@ Box::Box(std::unique_ptr<OutlinedText> text, Screens location) : text(std::move(
     is_selected = false;
     moving_left = false;
     moving_right = false;
+    if (!load("EntryBox", "box", text_str, font_size)) return;
+    fn_draw = lua_object["draw"];
 }
 
 void Box::set_positions(float x) {
@@ -57,26 +59,6 @@ void Box::move_right() {
     moving_right = true;
 }
 
-void Box::draw_highlighted(float fade) {
-    tex.draw_texture(MODE_SELECT::BOX_HIGHLIGHT_CENTER, {.x=left_x + tex.textures[MODE_SELECT::BOX_HIGHLIGHT_LEFT]->width, .y=y, .x2=right_x - left_x + tex.skin_config[SC::ENTRY_BOX_HIGHLIGHT_OFFSET].x, .fade=fade});
-    tex.draw_texture(MODE_SELECT::BOX_HIGHLIGHT_LEFT, {.x=left_x, .y=y, .fade=fade});
-    tex.draw_texture(MODE_SELECT::BOX_HIGHLIGHT_RIGHT, {.x=right_x, .y=y, .fade=fade});
-}
-
-void Box::draw_text(float fade) {
-    float text_x = x + ((float)tex.textures[MODE_SELECT::BOX]->width / 2) - (text->width / 2);
-    if (is_selected) {
-        text_x += open->attribute;
-    }
-    float text_y = y + tex.skin_config[SC::ENTRY_BOX_TEXT_OFFSET].y;
-    text->draw({.x=text_x, .y=text_y, .fade=fade});
-}
-
 void Box::draw(float fade) {
-    if (is_selected && move->is_finished) {
-        draw_highlighted(fade);
-    } else {
-        tex.draw_texture(MODE_SELECT::BOX, {.x=x, .fade=fade});
-    }
-    draw_text(fade);
+    call(fn_draw, "EntryBox:draw", x, left_x, right_x, is_selected, move->is_finished, (float)open->attribute, fade);
 }

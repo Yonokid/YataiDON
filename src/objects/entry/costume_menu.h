@@ -1,11 +1,11 @@
 #pragma once
 
-#include "../../libs/text.h"
+#include "../../libs/script.h"
 #include "../../libs/global_data.h"
 #include <memory>
 #include <vector>
 
-class CostumeMenu {
+class CostumeMenu : public LuaScript {
 public:
     PlayerNum player_num;
     bool is_2p = false;
@@ -24,9 +24,9 @@ public:
     std::string get_costume_name() const;
 
 private:
-    std::unique_ptr<OutlinedText> title_text;
-    FadeAnimation* blue_arrow_fade;
-    MoveAnimation* blue_arrow_move;
+    sol::protected_function fn_update;
+    sol::protected_function fn_draw_bg;
+    sol::protected_function fn_draw_fg;
 
     std::vector<ray::Texture2D> costume_icons;
     std::vector<int> costume_ids;

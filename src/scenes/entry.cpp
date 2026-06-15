@@ -215,7 +215,7 @@ void EntryScreen::draw() {
 
     for (auto& player : players) {
         if (player) {
-            player->draw_nameplate_and_indicator(player->nameplate_fadein->attribute);
+            player->draw_nameplate_and_indicator(player->get_nameplate_fadein());
         }
     }
 

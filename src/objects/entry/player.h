@@ -5,8 +5,9 @@
 #include "../global/nameplate.h"
 #include "../global/indicator.h"
 #include "../global/chara_3d.h"
+#include "../../libs/script.h"
 
-class EntryPlayer {
+class EntryPlayer : public LuaScript {
 private:
     int side;
     BoxManager* box_manager;
@@ -16,17 +17,15 @@ private:
     std::unique_ptr<Chara3D> chara;
     int chara_index = 0;
 
-    MoveAnimation* drum_move_1;
-    MoveAnimation* drum_move_2;
-    MoveAnimation* drum_move_3;
-    TextureResizeAnimation* cloud_resize;
-    TextureResizeAnimation* cloud_resize_loop;
-    TextureChangeAnimation* cloud_texture_change;
-    FadeAnimation* cloud_fade;
+    sol::protected_function fn_start_animations;
+    sol::protected_function fn_update;
+    sol::protected_function fn_draw_drum_back;
+    sol::protected_function fn_draw_drum_front;
+    sol::protected_function fn_is_cloud_finished;
+    sol::protected_function fn_get_nameplate_fade;
 
 public:
     PlayerNum player_num;
-    FadeAnimation* nameplate_fadein;
     std::optional<CostumeMenu> costume_menu;
 
     EntryPlayer(PlayerNum player_num, int side, BoxManager* box_manager);
@@ -37,5 +36,6 @@ public:
     void draw_costume_menu();
     void draw_nameplate_and_indicator(float fade = 1.0f);
     bool is_cloud_animation_finished();
+    float get_nameplate_fadein();
     void handle_input();
 };

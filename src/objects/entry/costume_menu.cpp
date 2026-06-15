@@ -6,14 +6,14 @@
 CostumeMenu::CostumeMenu(PlayerNum player_num) : player_num(player_num), is_2p(player_num == PlayerNum::P2) {
     auto& info = tex.skin_config[SC::ENTRY_COSTUME_TEXT];
     std::string lang = global_data.config->general.language;
-    title_text = std::make_unique<OutlinedText>(
-        info.text[lang], static_cast<int>(info.font_size),
-        ray::WHITE, ray::BLACK, false);
+    std::string text_str = info.text[lang];
+    float title_x = info.x;
+    float title_y = info.y;
 
-    blue_arrow_fade = (FadeAnimation*)tex.get_animation(13, true);
-    blue_arrow_move = (MoveAnimation*)tex.get_animation(14, true);
-    blue_arrow_fade->start();
-    blue_arrow_move->start();
+    if (!load("CostumeMenu", "costume_menu", is_2p, text_str, title_x, title_y)) return;
+    fn_update  = lua_object["update"];
+    fn_draw_bg = lua_object["draw_bg"];
+    fn_draw_fg = lua_object["draw_fg"];
 }
 
 CostumeMenu::~CostumeMenu() {
@@ -43,8 +43,7 @@ void CostumeMenu::load_costume_icons() {
 }
 
 void CostumeMenu::update(double current_time_ms) {
-    blue_arrow_fade->update(current_time_ms);
-    blue_arrow_move->update(current_time_ms);
+    call(fn_update, "CostumeMenu:update", current_time_ms);
 }
 
 std::optional<int> CostumeMenu::get_index() {
@@ -93,41 +92,13 @@ void CostumeMenu::handle_input() {
 }
 
 void CostumeMenu::draw(float x, float y) {
-    if (is_2p) {
-        tex.draw_texture(COSTUME_SELECT::BOX_TOP_LEFT_2P,    {.x = x, .y = y});
-        tex.draw_texture(COSTUME_SELECT::BOX_TOP_RIGHT_2P,   {.x = x, .y = y});
-        tex.draw_texture(COSTUME_SELECT::BOX_BOTTOM_LEFT_2P, {.x = x, .y = y});
-        tex.draw_texture(COSTUME_SELECT::BOX_BOTTOM_RIGHT_2P,{.x = x, .y = y});
-        tex.draw_texture(COSTUME_SELECT::BOX_TOP_2P,         {.x = x, .y = y});
-        tex.draw_texture(COSTUME_SELECT::BOX_BOTTOM_2P,      {.x = x, .y = y});
-        tex.draw_texture(COSTUME_SELECT::BOX_LEFT_2P,        {.x = x, .y = y});
-        tex.draw_texture(COSTUME_SELECT::BOX_RIGHT_2P,       {.x = x, .y = y});
-        tex.draw_texture(COSTUME_SELECT::BOX_CENTER_2P,      {.x = x, .y = y});
-    } else {
-        tex.draw_texture(COSTUME_SELECT::BOX_TOP_LEFT_1P,    {.x = x, .y = y});
-        tex.draw_texture(COSTUME_SELECT::BOX_TOP_RIGHT_1P,   {.x = x, .y = y});
-        tex.draw_texture(COSTUME_SELECT::BOX_BOTTOM_LEFT_1P, {.x = x, .y = y});
-        tex.draw_texture(COSTUME_SELECT::BOX_BOTTOM_RIGHT_1P,{.x = x, .y = y});
-        tex.draw_texture(COSTUME_SELECT::BOX_TOP_1P,         {.x = x, .y = y});
-        tex.draw_texture(COSTUME_SELECT::BOX_BOTTOM_1P,      {.x = x, .y = y});
-        tex.draw_texture(COSTUME_SELECT::BOX_LEFT_1P,        {.x = x, .y = y});
-        tex.draw_texture(COSTUME_SELECT::BOX_RIGHT_1P,       {.x = x, .y = y});
-        tex.draw_texture(COSTUME_SELECT::BOX_CENTER_1P,      {.x = x, .y = y});
-    }
-
-    auto item_box = is_2p ? COSTUME_SELECT::ITEM_BOX_2P : COSTUME_SELECT::ITEM_BOX_1P;
-    constexpr float ITEM_W = 80.0f;
-    tex.draw_texture(item_box,                             {.x = x + ITEM_W * 0, .y = y});
-    tex.draw_texture(item_box,                             {.x = x + ITEM_W * 1, .y = y});
-    tex.draw_texture(COSTUME_SELECT::ITEM_BOX_HIGHLIGHTED, {.x = x + ITEM_W * 2, .y = y});
-    tex.draw_texture(item_box,                             {.x = x + ITEM_W * 3, .y = y});
-    tex.draw_texture(item_box,                             {.x = x + ITEM_W * 4, .y = y});
-
-    auto& ib    = tex.textures[COSTUME_SELECT::ITEM_BOX_1P];
-    float base_x = ib->x[0] + x;
-    float base_y = ib->y[0] + y;
+    call(fn_draw_bg, "CostumeMenu:draw_bg", x, y, selected_index, costume_select_mode);
 
     if (costume_select_mode && !costume_icons.empty()) {
+        auto& ib    = tex.textures[COSTUME_SELECT::ITEM_BOX_1P];
+        float base_x = ib->x[0] + x;
+        float base_y = ib->y[0] + y;
+        constexpr float ITEM_W = 80.0f;
         int n = (int)costume_icons.size();
         for (int i = 0; i < 5; i++) {
             int idx = ((costume_icon_index - 2 + i) % n + n) % n;
@@ -141,36 +112,7 @@ void CostumeMenu::draw(float x, float y) {
                 {0, 0, (float)icon.width, (float)icon.height},
                 {ix + offset, iy + offset, dw, dh}, {0, 0}, 0, ray::WHITE);
         }
-    } else {
-        for (int i = 0; i < 5; i++) {
-            int idx = ((selected_index - 2 + i) % NUM_ITEMS + NUM_ITEMS) % NUM_ITEMS;
-            auto it = tex.textures.find(ITEMS[idx]);
-            if (it == tex.textures.end()) continue;
-            auto* item = it->second.get();
-            float item_x = base_x + i * ITEM_W + (ITEM_W - item->width)  / 2.0f;
-            float item_y = base_y +              (ITEM_W - item->height) / 2.0f;
-            tex.draw_texture(ITEMS[idx], {.x = item_x, .y = item_y});
-        }
     }
 
-    auto& hl  = tex.textures[COSTUME_SELECT::ITEM_BOX_HIGHLIGHTED];
-    auto& arr = tex.textures[COSTUME_SELECT::BLUE_ARROW];
-    float hl_left  = hl->x[0] + x + ITEM_W * 2;
-    float hl_right = hl_left + hl->width;
-    float arr_y    = hl->y[0] + y + (hl->height - arr->height) / 2.0f;
-    float move_val = (float)blue_arrow_move->attribute;
-    float fade_val = blue_arrow_fade->attribute;
-    tex.draw_texture(COSTUME_SELECT::BLUE_ARROW, {.mirror = "horizontal", .x = hl_right + move_val,                   .y = arr_y, .fade = fade_val});
-    tex.draw_texture(COSTUME_SELECT::BLUE_ARROW, {.x = hl_left - (float)arr->width - move_val, .y = arr_y, .fade = fade_val});
-
-    auto th_id = is_2p ? COSTUME_SELECT::TEXT_HIGHLIGHT_2P : COSTUME_SELECT::TEXT_HIGHLIGHT_1P;
-    auto th_it = tex.textures.find(th_id);
-    if (th_it != tex.textures.end()) {
-        auto* th = th_it->second.get();
-        tex.draw_texture(th_id, {.x = x - th->width / 2.0f, .y = y - th->height / 2.0f});
-    }
-
-    auto& box = tex.textures[is_2p ? COSTUME_SELECT::BOX_CENTER_2P : COSTUME_SELECT::BOX_CENTER_1P];
-    float cx = box->x[0] + x + box->x2[0] / 2.0f - title_text->width / 2.0f;
-    title_text->draw({.x = cx + tex.skin_config[SC::ENTRY_COSTUME_TEXT].x, .y = y + tex.skin_config[SC::ENTRY_COSTUME_TEXT].y});
+    call(fn_draw_fg, "CostumeMenu:draw_fg", x, y);
 }

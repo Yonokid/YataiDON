@@ -1,11 +1,10 @@
 #pragma once
 
-#include "../../libs/text.h"
+#include "../../libs/script.h"
 #include "../../libs/screen.h"
 
-class Box {
+class Box : public LuaScript {
 private:
-    std::unique_ptr<OutlinedText> text;
     float x;
     float y;
     float static_x;
@@ -18,15 +17,13 @@ private:
     bool moving_left;
     bool moving_right;
 
-    void draw_highlighted(float fade);
-
-    void draw_text(float fade);
+    sol::protected_function fn_draw;
 
 public:
     float width;
     Screens location;
     MoveAnimation* move;
-    Box(std::unique_ptr<OutlinedText> text, Screens location);
+    Box(const std::string& text_str, int font_size, Screens location);
     void set_positions(float x);
     void update(double current_time_ms, bool is_selected);
     void move_left();
