@@ -1,9 +1,8 @@
 #pragma once
-#include <sol/sol.hpp>
+#include "../../libs/script.h"
 
-class EntryScript {
+class EntryScript : public LuaScript {
 private:
-    sol::table lua_object;
     sol::protected_function fn_update;
     sol::protected_function fn_start_side_select;
     sol::protected_function fn_restart_side_select;

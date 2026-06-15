@@ -90,6 +90,7 @@ class TextureWrapper {
 private:
     std::unordered_map<int, std::unique_ptr<BaseAnimation>> animations;
     std::vector<std::unique_ptr<BaseAnimation>> copied_animations;
+    std::unordered_map<std::string, std::unordered_map<int, std::unique_ptr<BaseAnimation>>> screen_animations;
     fs::path graphics_path;
     fs::path parent_graphics_path;
     std::unordered_set<std::string> loaded_subsets;
@@ -117,6 +118,7 @@ public:
     void unload_textures();
 
     BaseAnimation* get_animation(const int id, bool is_copy = false);
+    BaseAnimation* get_animation(const int id, const std::string& screen_name);
 
     void read_tex_obj_data(const Value& tex_mapping, TextureObject* tex_obj, float scale = 1.0f);
 

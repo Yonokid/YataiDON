@@ -1,9 +1,8 @@
 #pragma once
-#include <sol/sol.hpp>
+#include "../../libs/script.h"
 
-class SongSelectScript {
+class SongSelectScript : public LuaScript {
 private:
-    sol::table lua_object;
     sol::protected_function fn_update;
     sol::protected_function fn_restart_text_fade;
     sol::protected_function fn_draw_footer;

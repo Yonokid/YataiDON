@@ -83,6 +83,7 @@ void TextureWrapper::unload_textures() {
     loaded_subsets.clear();
     animations.clear();
     copied_animations.clear();
+    screen_animations.clear();
 }
 
 BaseAnimation* TextureWrapper::get_animation(const int id, bool is_copy) {
@@ -101,6 +102,54 @@ BaseAnimation* TextureWrapper::get_animation(const int id, bool is_copy) {
     }
 
     return animations[id].get();
+}
+
+BaseAnimation* TextureWrapper::get_animation(const int id, const std::string& screen_name) {
+    if (screen_animations.find(screen_name) == screen_animations.end()) {
+        fs::path screen_path        = graphics_path / screen_name;
+        fs::path parent_screen_path = parent_graphics_path / screen_name;
+        fs::path anim_file          = screen_path / "animation.json";
+        fs::path parent_anim_file   = parent_screen_path / "animation.json";
+
+        if (fs::exists(anim_file)) {
+            AnimationParser parser;
+            screen_animations[screen_name] = parser.parse_animations(read_json_file(anim_file));
+        } else if (parent_graphics_path != graphics_path && fs::exists(parent_anim_file)) {
+            auto anim_config = read_json_file(parent_anim_file);
+            if (anim_config.IsArray()) {
+                for (SizeType i = 0; i < anim_config.Size(); i++) {
+                    auto& anim = anim_config[i];
+                    if (anim.HasMember("total_distance") && !anim["total_distance"].IsObject()) {
+                        if (anim["total_distance"].IsInt())
+                            anim["total_distance"].SetInt(static_cast<int>(anim["total_distance"].GetInt() * screen_scale));
+                        else if (anim["total_distance"].IsDouble())
+                            anim["total_distance"].SetDouble(anim["total_distance"].GetDouble() * screen_scale);
+                    }
+                    if (anim.HasMember("start_position") && !anim["start_position"].IsObject()) {
+                        if (anim["start_position"].IsInt())
+                            anim["start_position"].SetInt(static_cast<int>(anim["start_position"].GetInt() * screen_scale));
+                        else if (anim["start_position"].IsDouble())
+                            anim["start_position"].SetDouble(anim["start_position"].GetDouble() * screen_scale);
+                    }
+                }
+            }
+            AnimationParser parser;
+            screen_animations[screen_name] = parser.parse_animations(anim_config);
+        } else {
+            spdlog::warn("No animation.json found for screen: {}", screen_name);
+        }
+    }
+
+    auto& anim_map = screen_animations.at(screen_name);
+    auto it = anim_map.find(id);
+    if (it == anim_map.end()) {
+        throw std::runtime_error("Unable to find animation " + std::to_string(id) + " in screen: " + screen_name);
+    }
+
+    auto new_anim = it->second->copy();
+    if (it->second->isStarted()) new_anim->start();
+    copied_animations.push_back(std::move(new_anim));
+    return copied_animations.back().get();
 }
 
 void TextureWrapper::read_tex_obj_data(const Value& tex_mapping, TextureObject* tex_obj, float scale) {

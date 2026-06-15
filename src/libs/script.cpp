@@ -66,6 +66,12 @@ void ScriptManager::init(fs::path script_path) {
             if (fs::exists(lua_file)) {
                 scripts[p.stem().string()] = lua_file.string();
             }
+            for (const auto& sub : fs::directory_iterator(p)) {
+                fs::path sub_p = sub.path();
+                if (!fs::is_directory(sub_p) && sub_p.extension() == ".lua" && sub_p.stem() != p.stem()) {
+                    scripts[sub_p.stem().string()] = sub_p.string();
+                }
+            }
         } else if (p.extension() == ".lua") {
             scripts[p.stem().string()] = p.string();
         }
@@ -288,9 +294,10 @@ void ScriptManager::register_lua_bindings() {
         script_manager.tex.load_animations(screen_name);
     });
 
-    tex.set_function("get_animation", [](int anim_id, sol::optional<bool> is_copy) -> BaseAnimation* {
-        bool copy = is_copy.value_or(false);
-        return script_manager.tex.get_animation(anim_id, copy);
+    tex.set_function("get_animation", [](int anim_id, sol::object second_arg) -> BaseAnimation* {
+        if (second_arg.get_type() == sol::type::string)
+            return script_manager.tex.get_animation(anim_id, second_arg.as<std::string>());
+        return script_manager.tex.get_animation(anim_id, false);
     });
 
     tex.set_function("load_folder", [](const std::string& screen_name, const std::string& subset) {
@@ -372,12 +379,6 @@ void ScriptManager::register_lua_bindings() {
         return info;
     });
 
-    tex.set_function("draw_texture", [](const std::string& subset, const std::string& texture_name, sol::optional<sol::table> params_table) {
-        auto it = tex_id_map.find(subset + "/" + texture_name);
-        if (it == tex_id_map.end()) return;
-        script_manager.tex.draw_texture(it->second, parse_draw_params(params_table));
-    });
-
     tex.set_function("get_id", [](const std::string& subset, const std::string& texture_name) -> sol::optional<uint32_t> {
         auto it = tex_id_map.find(subset + "/" + texture_name);
         if (it != tex_id_map.end()) return it->second;
@@ -386,8 +387,26 @@ void ScriptManager::register_lua_bindings() {
         return std::nullopt;
     });
 
-    tex.set_function("draw_id", [](uint32_t id, sol::optional<sol::table> params_table) {
+    tex.set_function("draw_texture", [](uint32_t id, sol::optional<sol::table> params_table) {
         script_manager.tex.draw_texture(id, parse_draw_params(params_table));
+    });
+
+    tex.set_function("load_texture", [](const std::string& path) -> sol::optional<uint32_t> {
+        // path format: "screen_name/subset/texture_name", e.g. "global/indicator/drum_face"
+        auto first_slash = path.find('/');
+        if (first_slash == std::string::npos) return sol::nullopt;
+        auto second_slash = path.find('/', first_slash + 1);
+        if (second_slash == std::string::npos) return sol::nullopt;
+
+        std::string screen_name  = path.substr(0, first_slash);
+        std::string subset       = path.substr(first_slash + 1, second_slash - first_slash - 1);
+        std::string texture_name = path.substr(second_slash + 1);
+
+        script_manager.tex.load_folder(screen_name, subset);
+
+        auto it = tex_id_map.find(subset + "/" + texture_name);
+        if (it != tex_id_map.end()) return static_cast<uint32_t>(it->second);
+        return sol::nullopt;
     });
 
     lua["tex"] = tex;
