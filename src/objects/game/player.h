@@ -2,6 +2,7 @@
 
 #include "../../libs/screen.h"
 #include "../../libs/song_parser.h"
+#include "../../libs/text.h"
 #include "../global/nameplate.h"
 #include "../global/chara_3d.h"
 #include "background.h"

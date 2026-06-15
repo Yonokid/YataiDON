@@ -1,10 +1,10 @@
 #pragma once
 
-#include "../../libs/text.h"
+#include "../../libs/script.h"
 
-class CoinOverlay {
-private:
-    std::unique_ptr<OutlinedText> free_play;
+class CoinOverlay : public LuaScript {
+    sol::protected_function fn_update;
+    sol::protected_function fn_draw;
 public:
     CoinOverlay();
     void update(double current_ms);

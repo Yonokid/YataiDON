@@ -1,8 +1,10 @@
 #pragma once
 
-class EntryOverlay {
-private:
-    bool online;
+#include "../../libs/script.h"
+
+class EntryOverlay : public LuaScript {
+    sol::protected_function fn_update;
+    sol::protected_function fn_draw;
 public:
     EntryOverlay();
     void update(double current_ms);

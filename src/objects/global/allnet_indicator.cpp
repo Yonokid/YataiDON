@@ -1,20 +1,11 @@
 #include "allnet_indicator.h"
 #include "../../libs/config.h"
-#include "../../libs/texture.h"
 
-AllNetIcon::AllNetIcon() : online(get_config().general.fake_online) {
+AllNetIcon::AllNetIcon() {
+    if (!load("AllNetIcon", "allnet_indicator", get_config().general.fake_online)) return;
+    fn_update = lua_object["update"];
+    fn_draw   = lua_object["draw"];
 }
 
-void AllNetIcon::update(double current_ms) {
-
-}
-
-void AllNetIcon::draw(float x, float y) {
-    int frame;
-    if (online) {
-        frame = 2;
-    } else {
-        frame = 0;
-    }
-    global_tex.draw_texture(OVERLAY::ALLNET_INDICATOR, {.frame=frame, .x=x, .y=y});
-}
+void AllNetIcon::update(double current_ms) { call(fn_update, "AllNetIcon:update", current_ms); }
+void AllNetIcon::draw(float x, float y)    { call(fn_draw,   "AllNetIcon:draw", x, y); }

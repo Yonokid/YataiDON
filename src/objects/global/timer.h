@@ -1,19 +1,11 @@
 #pragma once
 
-#include "../../libs/animation.h"
+#include "../../libs/script.h"
 #include <functional>
 
-class Timer {
-private:
-    int time;
-    double last_time;
-    std::string counter;
-    TextureResizeAnimation* num_resize;
-    TextureResizeAnimation* highlight_resize;
-    FadeAnimation* highlight_fade;
-    std::function<void()> confirm_func;
-    bool is_finished;
-    bool is_frozen;
+class Timer : public LuaScript {
+    sol::protected_function fn_update;
+    sol::protected_function fn_draw;
 public:
     Timer(int time, double current_time_ms, std::function<void()> confirm_func);
     void update(double current_ms);

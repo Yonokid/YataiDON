@@ -2,6 +2,7 @@
 
 #include "../libs/screen.h"
 #include "../libs/video.h"
+#include "../libs/text.h"
 #include "../objects/title/warning_screen.h"
 #include "../objects/title/attract_camera.h"
 #include "../objects/title/camera_cloud.h"

@@ -1,6 +1,7 @@
 #include "script.h"
 #include "global_data.h"
 #include "text.h"
+#include "audio.h"
 #include <spdlog/spdlog.h>
 
 static DrawTextureParams parse_draw_params(sol::optional<sol::table> params_table) {
@@ -487,7 +488,41 @@ void ScriptManager::register_lua_bindings() {
             return ptr;
     });
 
+    text.set_function("create_raw_text", [](const std::string& content, int font_size,
+        std::array<int, 4> color, std::array<int, 4> outline_color,
+        bool is_vertical, sol::optional<int> thickness, sol::optional<float> spacing)
+        -> std::unique_ptr<OutlinedText> {
+            ray::Color c  = { (uint8_t)color[0],         (uint8_t)color[1],         (uint8_t)color[2],         (uint8_t)color[3] };
+            ray::Color oc = { (uint8_t)outline_color[0], (uint8_t)outline_color[1], (uint8_t)outline_color[2], (uint8_t)outline_color[3] };
+            return std::make_unique<OutlinedText>(content, font_size, c, oc, is_vertical,
+                thickness.value_or(5), spacing.value_or(2.0f));
+    });
+
     lua["text"] = text;
+
+    tex.set_function("get_current_ms", []() -> double {
+        return get_current_ms();
+    });
+
+    sol::table audio_tbl = lua.create_table();
+
+    audio_tbl.set_function("play_sound", [](const std::string& name, sol::optional<std::string> preset_str) {
+        VolumePreset preset = VolumePreset::NONE;
+        if (preset_str) {
+            const std::string& p = preset_str.value();
+            if      (p == "sound")    preset = VolumePreset::SOUND;
+            else if (p == "music")    preset = VolumePreset::MUSIC;
+            else if (p == "voice")    preset = VolumePreset::VOICE;
+            else if (p == "hitsound") preset = VolumePreset::HITSOUND;
+        }
+        audio.play_sound(name, preset);
+    });
+
+    audio_tbl.set_function("is_sound_playing", [](const std::string& name) -> bool {
+        return audio.is_sound_playing(name);
+    });
+
+    lua["audio"] = audio_tbl;
 }
 
 ScriptManager script_manager;
