@@ -33,11 +33,11 @@ struct ResultCrownFixture : public SandboxScreen::Fixture {
 
     uint32_t anchor_texture_id() override { return CROWN::CROWN_CLEAR; }
 
-    void reset(double) override { active.emplace(false); }
-    void on_space(double) override { active.emplace(false); }
+    void reset(double) override { active.emplace((int)crown_types[type_idx], false); }
+    void on_space(double) override { active.emplace((int)crown_types[type_idx], false); }
 
     void update(double ms) override { if (active) active->update(ms); }
-    void draw() override { if (active) active->draw(crown_types[type_idx]); }
+    void draw() override { if (active) active->draw(); }
 
     std::vector<std::string> type_names() override { return {"CLEAR", "FC", "DFC"}; }
     int  get_type() override { return type_idx; }
@@ -85,7 +85,7 @@ struct BottomCharactersFixture : public SandboxScreen::Fixture {
         active->start();
     }
 
-    void update(double) override { if (active) active->update(states[type_idx]); }
+    void update(double ms) override { if (active) active->update(ms, (int)states[type_idx]); }
     void draw()         override { if (active) active->draw(); }
 
     std::vector<std::string> type_names() override { return {"FAIL", "CLEAR", "RAINBOW"}; }

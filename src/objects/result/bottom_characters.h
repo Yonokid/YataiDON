@@ -1,37 +1,13 @@
 #pragma once
 
-#include "../../libs/animation.h"
-#include "../enums.h"
+#include "../../libs/script.h"
 
-class BottomCharacters {
-private:
-
-    MoveAnimation* move_up;
-    MoveAnimation* move_down;
-    MoveAnimation* bounce_up;
-    MoveAnimation* bounce_down;
-    MoveAnimation* move_center;
-    MoveAnimation* c_bounce_up;
-    MoveAnimation* c_bounce_down;
-    MoveAnimation* flower_up;
-
-    std::optional<ResultState> state;
-    int flower_index = 0;
-    std::optional<double> flower_start;
-    int chara_0_index = 0;
-    int chara_1_index = 0;
-
-    void draw_flowers();
-
+class BottomCharacters : public LuaScript {
+    sol::protected_function fn_start, fn_update, fn_draw, fn_is_finished;
 public:
-
     BottomCharacters();
-
     void start();
-
-    void update(ResultState state);
-
-    void draw();
-
+    void update(double current_ms, int state);
     bool is_finished();
+    void draw();
 };

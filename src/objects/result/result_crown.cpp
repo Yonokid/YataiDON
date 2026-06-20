@@ -1,46 +1,20 @@
 #include "result_crown.h"
-#include "../../libs/texture.h"
-#include "../../libs/audio.h"
 
-ResultCrown::ResultCrown(bool is_2p) : is_2p(is_2p) {
-    resize = (TextureResizeAnimation*)tex.get_animation(2);
-    resize_fix = (TextureResizeAnimation*)tex.get_animation(3);
-    white_fadein = (FadeAnimation*)tex.get_animation(4);
-    gleam = (TextureChangeAnimation*)tex.get_animation(5);
-    fadein = (FadeAnimation*)tex.get_animation(6);
-    resize->start();
-    resize_fix->start();
-    white_fadein->start();
-    gleam->start();
-    fadein->start();
+ResultCrown::ResultCrown(int crown_type, bool is_2p) {
+    if (!load("ResultCrown", "result_crown", crown_type, is_2p)) return;
+    fn_update    = lua_object["update"];
+    fn_draw      = lua_object["draw"];
+    fn_is_settled = lua_object["is_settled"];
 }
 
 void ResultCrown::update(double current_ms) {
-    fadein->update(current_ms);
-    resize->update(current_ms);
-    resize_fix->update(current_ms);
-    white_fadein->update(current_ms);
-    gleam->update(current_ms);
-    if (resize_fix->is_finished && !sound_played) {
-        audio.play_sound("crown", VolumePreset::SOUND);
-        sound_played = true;
-    }
+    call(fn_update, "ResultCrown:update", current_ms);
 }
 
-void ResultCrown::draw(CrownType crown_type) {
-    std::string crown_name;
-    if (crown_type == CrownType::CROWN_CLEAR) {
-        crown_name = "crown_clear";
-    } else if (crown_type == CrownType::CROWN_FC) {
-        crown_name = "crown_fc";
-    } else if (crown_type == CrownType::CROWN_DFC) {
-        crown_name = "crown_dfc";
-    }
-    float scale = resize->attribute;
-    if (resize->is_finished) scale = resize_fix->attribute;
-    tex.draw_texture(tex.get_enum("crown/" + (crown_name)), {.scale=scale, .center=true, .index=is_2p});
-    tex.draw_texture(CROWN::CROWN_FADE, {.fade=white_fadein->attribute, .index=is_2p});
-    if (gleam->attribute >= 0) {
-        tex.draw_texture(CROWN::GLEAM, {.frame=(int)gleam->attribute, .index=is_2p});
-    }
+void ResultCrown::draw() {
+    call(fn_draw, "ResultCrown:draw");
+}
+
+bool ResultCrown::is_settled() {
+    return call_r<bool>(fn_is_settled, "ResultCrown:is_settled").value_or(false);
 }

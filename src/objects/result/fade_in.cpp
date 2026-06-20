@@ -1,40 +1,20 @@
 #include "fade_in.h"
-#include "../../libs/texture.h"
 
-FadeIn::FadeIn(PlayerNum player_num) : player_num(player_num) {
-    fade_in = (FadeAnimation*)tex.get_animation(15);
-    fade_in->start();
+FadeIn::FadeIn(PlayerNum player_num) {
+    if (!load("ResultFadeIn", "result_fade_in", (int)player_num)) return;
+    fn_update     = lua_object["update"];
+    fn_is_finished = lua_object["is_finished"];
+    fn_draw       = lua_object["draw"];
 }
 
 void FadeIn::update(double current_ms) {
-    fade_in->update(current_ms);
-}
-
-void FadeIn::draw() {
-    float x = 0;
-    float footer_height = tex.textures[BACKGROUND::FOOTER_1P]->height;
-    if (player_num == PlayerNum::TWO_PLAYER) {
-        while (x < tex.screen_width) {
-            tex.draw_texture(BACKGROUND::BACKGROUND_1P, {.x=x, .y=(float)-tex.screen_height/2, .fade=fade_in->attribute});
-            tex.draw_texture(BACKGROUND::BACKGROUND_2P, {.x=x, .y=(float)tex.screen_height/2, .fade=fade_in->attribute});
-            tex.draw_texture(BACKGROUND::FOOTER_1P, {.x=x, .y=-(footer_height/2), .fade=fade_in->attribute});
-            tex.draw_texture(BACKGROUND::FOOTER_2P, {.x=x, .y=(float)tex.screen_height-(footer_height/2), .fade=fade_in->attribute});
-            x += (float)tex.screen_width / 5;
-        }
-    } else {
-        while (x < tex.screen_width) {
-            std::string player_str = std::to_string(static_cast<int>(player_num)) + "p";
-            std::string footer_key = "background/footer_" + player_str;
-            float player_footer_height = tex.textures[tex.get_enum(footer_key)]->height;
-            tex.draw_texture(tex.get_enum("background/background_" + player_str), {.x=x, .y=(float)-tex.screen_height/2, .fade=fade_in->attribute});
-            tex.draw_texture(tex.get_enum("background/background_" + player_str), {.x=x, .y=(float)tex.screen_height/2, .fade=fade_in->attribute});
-            tex.draw_texture(tex.get_enum(footer_key), {.x=x, .y=-(player_footer_height/2), .fade=fade_in->attribute});
-            tex.draw_texture(tex.get_enum(footer_key), {.x=x, .y=(float)tex.screen_height-(player_footer_height/2), .fade=fade_in->attribute});
-            x += (float)tex.screen_width / 5;
-        }
-    }
+    call(fn_update, "ResultFadeIn:update", current_ms);
 }
 
 bool FadeIn::is_finished() {
-    return fade_in->is_finished;
+    return call_r<bool>(fn_is_finished, "ResultFadeIn:is_finished").value_or(false);
+}
+
+void FadeIn::draw() {
+    call(fn_draw, "ResultFadeIn:draw");
 }

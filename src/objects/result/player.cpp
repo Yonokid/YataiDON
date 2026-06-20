@@ -3,10 +3,11 @@
 #include "../../libs/scores.h"
 
 ResultPlayer::ResultPlayer(PlayerNum player_num, bool has_2p, bool is_2p)
-: player_num(player_num), has_2p(has_2p), is_2p(is_2p){
-    fade_in_bottom = (FadeAnimation*)tex.get_animation(1);
+    : player_num(player_num), has_2p(has_2p), is_2p(is_2p)
+{
     int player_id = get_player_id(player_num);
     auto pd = scores_manager.get_player_data(player_id);
+
     std::string costume_name = pd ? std::to_string(pd->chara_cos_index) : "0";
     chara = std::make_unique<Chara3D>(costume_name);
     if (pd) {
@@ -16,69 +17,95 @@ ResultPlayer::ResultPlayer(PlayerNum player_num, bool has_2p, bool is_2p)
         chara->set_don_colors(chara_default_color_1(player_id), chara_default_color_2(player_id), {249, 240, 225, 255});
     }
     chara->set_anim(AnimIndex::DON_NORMAL);
-    SessionData& session_data = global_data.session_data[(int)player_num];
-    score_animator = ScoreAnimator(session_data.result_data.score);
+
+    SessionData& sd = global_data.session_data[(int)player_num];
+    score_animator = ScoreAnimator(sd.result_data.score);
     nameplate = Nameplate(
         pd ? pd->username : "", pd ? pd->title : "",
         player_num,
         pd ? pd->dan : -1, pd ? pd->gold : false, pd ? pd->rainbow : false, pd ? pd->title_bg : 0);
     update_list = {
-        {"score", session_data.result_data.score},
-        {"good", session_data.result_data.good},
-        {"ok", session_data.result_data.ok},
-        {"bad", session_data.result_data.bad},
-        {"max_combo", session_data.result_data.max_combo},
-        {"total_drumroll", session_data.result_data.total_drumroll}
+        {"score",          sd.result_data.score},
+        {"good",           sd.result_data.good},
+        {"ok",             sd.result_data.ok},
+        {"bad",            sd.result_data.bad},
+        {"max_combo",      sd.result_data.max_combo},
+        {"total_drumroll", sd.result_data.total_drumroll}
     };
-    if (session_data.result_data.ok == 0 && session_data.result_data.bad == 0) {
+
+    CrownType crown_type;
+    if (sd.result_data.ok == 0 && sd.result_data.bad == 0)
         crown_type = CrownType::CROWN_DFC;
-    } else if (session_data.result_data.bad == 0) {
+    else if (sd.result_data.bad == 0)
         crown_type = CrownType::CROWN_FC;
-    } else {
+    else
         crown_type = CrownType::CROWN_CLEAR;
+
+    int score_diff = std::max(0, sd.result_data.score - sd.result_data.prev_score);
+
+    Modifiers mods = player_data_to_modifiers(pd.value_or(PlayerData{}));
+    bool is_shinuchi = global_data.config->general.score_method == ScoreMethod::SHINUCHI;
+
+    if (script_manager.lua) {
+        sol::state& lua = *script_manager.lua;
+        auto preload = [&](const char* cls, const char* script) {
+            if (lua[cls].valid()) return;
+            auto result = lua.script_file(script_manager.get_lua_script_path(script));
+            if (!result.valid()) {
+                sol::error err = result;
+                spdlog::error("Error loading {}.lua: {}", script, err.what());
+            }
+        };
+        preload("BottomCharacters",   "bottom_characters");
+        preload("ResultCrown",        "result_crown");
+        preload("ResultCrownMessage", "result_crown_message");
+        preload("HighScoreIndicator", "high_score_indicator");
     }
+
+    if (!load("ResultPlayer", "result_player",
+              (int)player_num, is_2p, has_2p,
+              sd.result_data.gauge_length, sd.selected_difficulty, sd.selected_difficulty,
+              (int)crown_type, score_diff, is_shinuchi,
+              mods.display, mods.inverse, mods.random, mods.speed))
+        return;
+
+    fn_update     = lua_object["update"];
+    fn_draw       = lua_object["draw"];
+    fn_draw_gauge = lua_object["draw_gauge"];
 }
+
 void ResultPlayer::update_score_animation(double current_ms, bool is_skipped) {
     if (is_skipped) {
-        if (update_index == update_list.size()) return;
-        while (update_index < update_list.size()) {
-            std::string field_name = std::get<0>(update_list[update_index]);
-            int value = std::get<1>(update_list[update_index]);
+        while (update_index < (int)update_list.size()) {
+            auto& [field_name, value] = update_list[update_index];
             std::string value_str = std::to_string(value);
-
-            if (field_name == "score") score = value_str;
-            else if (field_name == "good") good = value_str;
-            else if (field_name == "ok") ok = value_str;
-            else if (field_name == "bad") bad = value_str;
-            else if (field_name == "max_combo") max_combo = value_str;
+            if      (field_name == "score")          score          = value_str;
+            else if (field_name == "good")           good           = value_str;
+            else if (field_name == "ok")             ok             = value_str;
+            else if (field_name == "bad")            bad            = value_str;
+            else if (field_name == "max_combo")      max_combo      = value_str;
             else if (field_name == "total_drumroll") total_drumroll = value_str;
-
-            update_index += 1;
+            update_index++;
         }
-    } else if (score_delay.has_value() && update_index < update_list.size()) {
+    } else if (score_delay.has_value() && update_index < (int)update_list.size()) {
         if (current_ms > score_delay.value()) {
             if (score_animator.has_value() && !score_animator->is_finished) {
-                std::string field_name = std::get<0>(update_list[update_index]);
-                int curr_num = std::get<1>(update_list[update_index]);
+                auto& [field_name, curr_num] = update_list[update_index];
                 std::string next_score_str = score_animator->next_score();
                 int new_num = std::stoi(next_score_str);
-
-                if (field_name == "score") score = next_score_str;
-                else if (field_name == "good") good = next_score_str;
-                else if (field_name == "ok") ok = next_score_str;
-                else if (field_name == "bad") bad = next_score_str;
-                else if (field_name == "max_combo") max_combo = next_score_str;
+                if      (field_name == "score")          score          = next_score_str;
+                else if (field_name == "good")           good           = next_score_str;
+                else if (field_name == "ok")             ok             = next_score_str;
+                else if (field_name == "bad")            bad            = next_score_str;
+                else if (field_name == "max_combo")      max_combo      = next_score_str;
                 else if (field_name == "total_drumroll") total_drumroll = next_score_str;
-
                 if (new_num != curr_num) audio.play_sound("num_up", VolumePreset::SOUND);
                 if (score_animator->is_finished) {
                     audio.play_sound("don", VolumePreset::SOUND);
                     score_delay.value() += 750;
-                    if (update_index == update_list.size() - 1) {
-                        return;
-                    }
-                    update_index += 1;
-                    if (update_index < update_list.size()) {
+                    if (update_index == (int)update_list.size() - 1) return;
+                    update_index++;
+                    if (update_index < (int)update_list.size()) {
                         score_animator = ScoreAnimator(std::get<1>(update_list[update_index]));
                     }
                 }
@@ -86,163 +113,35 @@ void ResultPlayer::update_score_animation(double current_ms, bool is_skipped) {
             }
         }
     }
-    if (update_index > 0 && !high_score_indicator.has_value()) {
-        SessionData& session_data = global_data.session_data[(int)player_num];
-        if (session_data.result_data.score > session_data.result_data.prev_score) {
-            high_score_indicator = HighScoreIndicator(session_data.result_data.prev_score, session_data.result_data.score, is_2p);
+    if (update_index > 0 && !high_score_sound_played) {
+        SessionData& sd = global_data.session_data[(int)player_num];
+        if (sd.result_data.score > sd.result_data.prev_score) {
             audio.play_sound("high_score_voice_" + std::to_string((int)player_num) + "p", VolumePreset::VOICE);
+            high_score_sound_played = true;
         }
     }
 }
 
 void ResultPlayer::update(double current_ms, bool fade_in_finished, bool is_skipped) {
-    this->fade_in_finished = fade_in_finished;
-    if (this->fade_in_finished && !gauge.has_value()) {
-        gauge.emplace(ResultGauge(GaugeMode::NORMAL, player_num, global_data.session_data[(int)player_num].result_data.gauge_length, is_2p));
-        bottom_characters.start();
-    }
-    if (state.has_value()) {
-        bottom_characters.update(state.value());
+    if (!score_delay.has_value()) {
+        sol::optional<bool> lua_started = lua_object["fade_in_started"];
+        if (lua_started && lua_started.value()) {
+            score_delay = current_ms;
+        }
     }
     update_score_animation(current_ms, is_skipped);
-    if (bottom_characters.is_finished() && !crown.has_value()) {
-        if (gauge.has_value() && gauge->is_clear()) {
-            crown.emplace(ResultCrown(is_2p));
-            if (crown_type == CrownType::CROWN_FC || crown_type == CrownType::CROWN_DFC) {
-                audio.play_sound("full_combo_voice_" + std::to_string((int)player_num) + "p", VolumePreset::VOICE);
-            }
-        } else if (gauge.has_value() && !crown_message.has_value()) {
-            float gl = global_data.session_data[(int)player_num].result_data.gauge_length;
-            int frame = (gl < 87.0f / 2.0f) ? 0 : 1;
-            crown_message.emplace(frame, is_2p);
-            if (frame == 0) {
-                audio.play_sound("max_fail_voice_" + std::to_string((int)player_num) + "p", VolumePreset::VOICE);
-            } else {
-                audio.play_sound("fail_voice_" + std::to_string((int)player_num) + "p", VolumePreset::VOICE);
-            }
-        }
-    }
-    if (crown.has_value() && crown->is_settled() && !crown_message.has_value()) {
-        ResultState st = gauge.has_value() ? gauge->get_state() : ResultState::FAIL;
-        int frame = (st == ResultState::RAINBOW) ? 3 : 2;
-        crown_message.emplace(frame, is_2p);
-        if (frame == 2) {
-            audio.play_sound("clear_voice_" + std::to_string((int)player_num) + "p", VolumePreset::VOICE);
-        } else {
-            audio.play_sound("max_clear_voice_" + std::to_string((int)player_num) + "p", VolumePreset::VOICE);
-        }
-    }
-    if (high_score_indicator.has_value()) {
-        high_score_indicator->update(current_ms);
-    }
-    fade_in_bottom->update(current_ms);
+    call(fn_update, "ResultPlayer:update",
+         current_ms, fade_in_finished,
+         score, good, ok, bad, max_combo, total_drumroll);
     nameplate.update(current_ms);
-    if (gauge.has_value()) {
-        gauge->update(current_ms);
-        if (gauge->is_finished() && !score_delay.has_value()) {
-            score_delay = current_ms + 1883;
-        }
-    }
-    if (score_delay.has_value()) {
-        if (current_ms > score_delay.value() && !fade_in_bottom->is_started) {
-            fade_in_bottom->start();
-            if (gauge.has_value()) state = gauge->get_state();
-        }
-    }
-    if (crown.has_value()) crown->update(current_ms);
-    if (crown_message.has_value()) crown_message->update(current_ms);
     chara->update(current_ms);
 }
 
-void ResultPlayer::draw_score_info() {
-    std::vector<std::string> scores = {good, ok, bad, max_combo, total_drumroll};
-    for (int j = 0; j < scores.size(); j++) {
-        if (scores[j] == "") continue;
-        std::string score_str = std::to_string(std::stoi(scores[j]));
-        std::string reversed_score = score_str;
-        std::reverse(reversed_score.begin(), reversed_score.end());
-        for (int i = 0; i < reversed_score.size(); i++) {
-            int digit = reversed_score[i] - '0';
-            tex.draw_texture(SCORE::JUDGE_NUM, {.frame=digit, .x=-(i * tex.skin_config[SC::SCORE_INFO_COUNTER_MARGIN].x), .index=j + (is_2p * 5)});
-        }
-    }
-}
-
-void ResultPlayer::draw_total_score() {
-    if (!fade_in_finished) return;
-    if (global_data.config->general.score_method == ScoreMethod::SHINUCHI) {
-        tex.draw_texture(tex.get_enum("score/score_shinuchi_" + global_data.config->general.language), {.index=is_2p});
-    } else {
-        tex.draw_texture(tex.get_enum("score/score_" + global_data.config->general.language), {.index=is_2p});
-    }
-    if (score != "") {
-        std::string reversed_score = score;
-        std::reverse(reversed_score.begin(), reversed_score.end());
-        for (int i = 0; i < reversed_score.size(); i++) {
-            int digit = reversed_score[i] - '0';
-            tex.draw_texture(SCORE::SCORE_NUM, {.frame=digit, .x=-(i*tex.skin_config[SC::RESULT_SCORE_MARGIN].x), .index=is_2p});
-        }
-    }
-}
-
-void ResultPlayer::draw_modifiers() {
-    Modifiers mods = player_data_to_modifiers(scores_manager.get_player_data(get_player_id(player_num)).value_or(PlayerData{}));
-    if (mods.display) {
-        tex.draw_texture(SCORE::MOD_DORON, {.index=is_2p});
-    }
-    if (mods.inverse) {
-        tex.draw_texture(SCORE::MOD_ABEKOBE, {.index=is_2p});
-    }
-    if (mods.random == 1) {
-        tex.draw_texture(SCORE::MOD_KIMAGURE, {.index=is_2p});
-    } else if (mods.random == 2) {
-        tex.draw_texture(SCORE::MOD_DETARAME, {.index=is_2p});
-    }
-    if (mods.speed >= 40) {
-        tex.draw_texture(SCORE::MOD_YONBAI, {.index=is_2p});
-    } else if (mods.speed >= 30) {
-        tex.draw_texture(SCORE::MOD_SANBAI, {.index=is_2p});
-    } else if (mods.speed > 10) {
-        tex.draw_texture(SCORE::MOD_BAISAKU, {.index=is_2p});
-    }
-}
-
 void ResultPlayer::draw() {
-    if (is_2p) {
-        if (state.has_value() && state.value() == ResultState::FAIL) {
-            tex.draw_texture(BACKGROUND::GRADIENT_FAIL, {.fade=std::min(0.4, fade_in_bottom->attribute)});
-        } else if (state.has_value() && state.value() == ResultState::CLEAR) {
-            tex.draw_texture(BACKGROUND::GRADIENT_CLEAR, {.fade=std::min(0.4, fade_in_bottom->attribute)});
-        }
-    } else {
-        float y = tex.skin_config[SC::RESULT_2P_OFFSET].y ? has_2p : 0;
-        if (state.has_value() && state.value() == ResultState::FAIL) {
-            tex.draw_texture(BACKGROUND::GRADIENT_FAIL, {.y=y, .fade=std::min(0.4, fade_in_bottom->attribute)});
-        } else if (state.has_value() && state.value() >= ResultState::CLEAR) {
-            tex.draw_texture(BACKGROUND::GRADIENT_CLEAR, {.y=y, .fade=std::min(0.4, fade_in_bottom->attribute)});
-        }
-    }
-    tex.draw_texture(SCORE::OVERLAY, {.color=ray::Fade(ray::WHITE, 0.75), .index=is_2p});
-    tex.draw_texture(SCORE::DIFFICULTY, {.frame=global_data.session_data[(int)player_num].selected_difficulty, .index=is_2p});
-    if (!has_2p) bottom_characters.draw();
-
-    tex.draw_texture(SCORE::JUDGE_GOOD, {.index=is_2p});
-    tex.draw_texture(SCORE::JUDGE_OK, {.index=is_2p});
-    tex.draw_texture(SCORE::JUDGE_BAD, {.index=is_2p});
-    tex.draw_texture(tex.get_enum("score/max_combo_" + global_data.config->general.language), {.index=is_2p});
-    tex.draw_texture(tex.get_enum("score/drumroll_" + global_data.config->general.language), {.index=is_2p});
-
-    draw_score_info();
-    draw_total_score();
-
-    if (crown.has_value()) crown->draw(crown_type);
-    if (crown_message.has_value()) crown_message->draw();
-
-    draw_modifiers();
-
-    if (high_score_indicator.has_value()) high_score_indicator->draw();
-
-    chara->draw(tex.skin_config[SC::RESULT_CHARA].x, tex.skin_config[SC::RESULT_CHARA].y+((int)is_2p*tex.screen_height/2));
-    if (gauge.has_value()) gauge->draw();
-    nameplate.draw(tex.skin_config[SC::RESULT_NAMEPLATE].x, tex.skin_config[SC::RESULT_NAMEPLATE].y+(is_2p*tex.skin_config[SC::RESULT_NAMEPLATE].height));
+    call(fn_draw, "ResultPlayer:draw");
+    chara->draw(tex.skin_config[SC::RESULT_CHARA].x,
+                tex.skin_config[SC::RESULT_CHARA].y + ((int)is_2p * tex.screen_height / 2));
+    call(fn_draw_gauge, "ResultPlayer:draw_gauge");
+    nameplate.draw(tex.skin_config[SC::RESULT_NAMEPLATE].x,
+                   tex.skin_config[SC::RESULT_NAMEPLATE].y + (is_2p * tex.skin_config[SC::RESULT_NAMEPLATE].height));
 }

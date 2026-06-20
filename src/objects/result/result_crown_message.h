@@ -1,20 +1,12 @@
 #pragma once
 
-#include "../../libs/animation.h"
+#include "../../libs/script.h"
 
-class ResultCrownMessage {
-private:
-    int frame_index;
-    bool is_2p;
-
-    TextureResizeAnimation* scale_in;
-    TextureResizeAnimation* scale_fix;
-    FadeAnimation* fade_in_anim;
-    FadeAnimation* fade_out_anim;
-
+class ResultCrownMessage : public LuaScript {
+    sol::protected_function fn_update, fn_draw;
 public:
-    ResultCrownMessage(int frame_index, bool is_2p);
-
+    ResultCrownMessage() = default;
+    ResultCrownMessage(int frame, bool is_2p);
     void update(double current_ms);
     void draw();
 };

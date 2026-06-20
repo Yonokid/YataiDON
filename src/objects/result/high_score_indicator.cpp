@@ -1,28 +1,16 @@
 #include "high_score_indicator.h"
-#include "../../libs/texture.h"
-#include "../../libs/global_data.h"
 
-HighScoreIndicator::HighScoreIndicator(int old_score, int new_score, bool is_2p)
-: is_2p(is_2p) {
-    score_diff = new_score - old_score;
-    move = (MoveAnimation*)tex.get_animation(18);
-    fade = (FadeAnimation*)tex.get_animation(19);
-    move->start();
-    fade->start();
+HighScoreIndicator::HighScoreIndicator(int old_score, int new_score, bool is_2p) {
+    int score_diff = new_score - old_score;
+    if (!load("HighScoreIndicator", "high_score_indicator", score_diff, is_2p)) return;
+    fn_update = lua_object["update"];
+    fn_draw   = lua_object["draw"];
 }
 
 void HighScoreIndicator::update(double current_ms) {
-    move->update(current_ms);
-    fade->update(current_ms);
+    call(fn_update, "HighScoreIndicator:update", current_ms);
 }
 
 void HighScoreIndicator::draw() {
-    tex.draw_texture(tex.get_enum("score/high_score_" + global_data.config->general.language), {.y=(float)move->attribute, .fade=fade->attribute, .index=is_2p});
-    std::string score_str = std::to_string(score_diff);
-    std::string reversed_score = score_str;
-    std::reverse(reversed_score.begin(), reversed_score.end());
-    for (int i = 0; i < reversed_score.length(); ++i) {
-        int digit = reversed_score[i] - '0';
-        tex.draw_texture(SCORE::HIGH_SCORE_NUM, {.frame=digit, .x=-(i*tex.skin_config[SC::HIGH_SCORE_INDICATOR_MARGIN].x), .y=(float)move->attribute, .fade=fade->attribute, .index=is_2p});
-    }
+    call(fn_draw, "HighScoreIndicator:draw");
 }

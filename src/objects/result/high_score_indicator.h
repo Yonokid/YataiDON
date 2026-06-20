@@ -1,17 +1,12 @@
 #pragma once
 
-#include "../../libs/animation.h"
+#include "../../libs/script.h"
 
-class HighScoreIndicator {
-private:
-    bool is_2p;
-    int score_diff;
-    MoveAnimation* move;
-    FadeAnimation* fade;
+class HighScoreIndicator : public LuaScript {
+    sol::protected_function fn_update, fn_draw;
 public:
+    HighScoreIndicator() = default;
     HighScoreIndicator(int old_score, int new_score, bool is_2p);
-
     void update(double current_ms);
-
     void draw();
 };
