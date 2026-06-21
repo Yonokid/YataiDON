@@ -18,15 +18,32 @@ BoxManager::BoxManager() : selected_box_index(0), is_2p(false), costume_menu_ope
 
     fade_out = (FadeAnimation*)tex.get_animation(9);
 
-    float spacing = skin[SC::ENTRY_BOX_SPACING].x;
-    float box_width = boxes[0]->width;
-    float total_width = num_boxes * box_width + (num_boxes - 1) * spacing;
-    float start_x = tex.screen_width / 2.0f - total_width / 2.0f;
+    float spacing_x = skin[SC::ENTRY_BOX_SPACING].x;
+    float spacing_y = skin[SC::ENTRY_BOX_SPACING].y;
+    is_vertical = spacing_y > 0;
 
-    for (int i = 0; i < num_boxes; i++) {
-        boxes[i]->set_positions(start_x + i * (box_width + spacing));
-        if (i > 0) {
-            boxes[i]->move_right();
+    if (is_vertical) {
+        float step = spacing_y;
+        float total_height = (num_boxes - 1) * step;
+        float start_y = tex.screen_height / 2.0f - total_height / 2.0f;
+        float center_x = tex.screen_width / 2.0f - tex.textures[MODE_SELECT::BOX_HIGHLIGHT_CENTER]->width / 2.0f;
+
+        for (int i = 0; i < num_boxes; i++) {
+            boxes[i]->set_positions(center_x, start_y + i * step);
+            if (i > 0) {
+                boxes[i]->move_down();
+            }
+        }
+    } else {
+        float box_width = boxes[0]->width;
+        float total_width = num_boxes * box_width + (num_boxes - 1) * spacing_x;
+        float start_x = tex.screen_width / 2.0f - total_width / 2.0f;
+
+        for (int i = 0; i < num_boxes; i++) {
+            boxes[i]->set_positions(start_x + i * (box_width + spacing_x));
+            if (i > 0) {
+                boxes[i]->move_right();
+            }
         }
     }
 }
@@ -63,10 +80,15 @@ void BoxManager::move_left() {
     }
     selected_box_index = std::max(0, selected_box_index - 1);
     if (prev_selection == selected_box_index) return;
-    if (selected_box_index != selected_box_index - 1) {
-        boxes[selected_box_index + 1]->move_right();
+    if (is_vertical) {
+        boxes[selected_box_index + 1]->move_down();
+        boxes[selected_box_index]->move_down();
+    } else {
+        if (selected_box_index != selected_box_index - 1) {
+            boxes[selected_box_index + 1]->move_right();
+        }
+        boxes[selected_box_index]->move_right();
     }
-    boxes[selected_box_index]->move_right();
 }
 
 void BoxManager::move_right() {
@@ -76,10 +98,15 @@ void BoxManager::move_right() {
     }
     selected_box_index = std::min(num_boxes - 1, selected_box_index + 1);
     if (prev_selection == selected_box_index) return;
-    if (selected_box_index != 0) {
-        boxes[selected_box_index - 1]->move_left();
+    if (is_vertical) {
+        boxes[selected_box_index - 1]->move_up();
+        boxes[selected_box_index]->move_up();
+    } else {
+        if (selected_box_index != 0) {
+            boxes[selected_box_index - 1]->move_left();
+        }
+        boxes[selected_box_index]->move_left();
     }
-    boxes[selected_box_index]->move_left();
 }
 
 void BoxManager::update(double current_time_ms, bool is_2p) {

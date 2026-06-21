@@ -10,6 +10,7 @@ private:
     int selected_box_index;
     FadeAnimation* fade_out;
     bool is_2p;
+    bool is_vertical;
 
 public:
     bool costume_menu_open;

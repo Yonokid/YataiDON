@@ -9,17 +9,23 @@ Box::Box(const std::string& text_str, int font_size, Screens location) : locatio
     is_selected = false;
     moving_left = false;
     moving_right = false;
+    moving_up = false;
+    moving_down = false;
+    y_pos = 0;
+    static_y = 0;
     if (!load("EntryBox", "box", text_str, font_size)) return;
     fn_draw = lua_object["draw"];
 }
 
-void Box::set_positions(float x) {
+void Box::set_positions(float x, float y) {
     this->x = x;
     static_x = this->x;
     left_x = this->x;
     static_left = left_x;
     right_x = left_x + tex.textures[MODE_SELECT::BOX]->width - tex.textures[MODE_SELECT::BOX_HIGHLIGHT_RIGHT]->width;
     static_right = right_x;
+    this->y_pos = y;
+    this->static_y = y;
 }
 
 void Box::update(double current_ms, bool is_selected) {
@@ -28,11 +34,18 @@ void Box::update(double current_ms, bool is_selected) {
         x = static_x - move->attribute;
     } else if (moving_right) {
         x = static_x + move->attribute;
+    } else if (moving_up) {
+        y_pos = static_y - move->attribute;
+    } else if (moving_down) {
+        y_pos = static_y + move->attribute;
     }
     if (move->is_finished) {
         moving_left = false;
         moving_right = false;
+        moving_up = false;
+        moving_down = false;
         static_x = x;
+        static_y = y_pos;
     }
     if (is_selected && !this->is_selected) {
         open->start();
@@ -59,6 +72,20 @@ void Box::move_right() {
     moving_right = true;
 }
 
+void Box::move_up() {
+    if (!move->is_started) {
+        move->start();
+    }
+    moving_up = true;
+}
+
+void Box::move_down() {
+    if (!move->is_started) {
+        move->start();
+    }
+    moving_down = true;
+}
+
 void Box::draw(float fade) {
-    call(fn_draw, "EntryBox:draw", x, left_x, right_x, is_selected, move->is_finished, (float)open->attribute, fade);
+    call(fn_draw, "EntryBox:draw", x, left_x, right_x, is_selected, move->is_finished, (float)open->attribute, fade, y_pos);
 }

@@ -12,44 +12,18 @@ void TextureWrapper::init(const fs::path& skin_path) {
     parent_graphics_path = graphics_path;
     auto skin_config_file = read_json_file(graphics_path / "skin_config.json");
 
-    for (auto& m : skin_config_file.GetObject()) {
-        SC key = skin_config_map.at(m.name.GetString());
-        const Value& v = m.value;
-
-        float x = v.HasMember("x") ? v["x"].GetFloat() : 0;
-        float y = v.HasMember("y") ? v["y"].GetFloat() : 0;
-        int font_size = v.HasMember("font_size") ? v["font_size"].GetInt() : 0;
-        float width = v.HasMember("width") ? v["width"].GetFloat() : 0;
-        float height = v.HasMember("height") ? v["height"].GetFloat() : 0;
-
-        std::map<std::string, std::string> text_map;
-        if (v.HasMember("text") && v["text"].IsObject()) {
-            for (auto& t : v["text"].GetObject()) {
-                text_map[t.name.GetString()] = t.value.GetString();
-            }
-        }
-
-        skin_config[key] = SkinInfo(x, y, font_size, width, height, text_map);
+    // Derive screen dimensions from child config first so screen_scale is known.
+    {
+        float w = skin_config_file.HasMember("screen") && skin_config_file["screen"].HasMember("width")
+                      ? skin_config_file["screen"]["width"].GetFloat() : 1280.0f;
+        float h = skin_config_file.HasMember("screen") && skin_config_file["screen"].HasMember("height")
+                      ? skin_config_file["screen"]["height"].GetFloat() : 720.0f;
+        screen_width  = static_cast<int>(w);
+        screen_height = static_cast<int>(h);
+        screen_scale  = w / 1280.0f;
     }
 
-    screen_width = static_cast<int>(skin_config[SC::SCREEN].width);
-    screen_height = static_cast<int>(skin_config[SC::SCREEN].height);
-    screen_scale = screen_width / 1280.0f;
-
-    if (skin_config_file.HasMember("screen") && skin_config_file["screen"].HasMember("options")) {
-        const Value& opts = skin_config_file["screen"]["options"];
-        if (opts.IsObject()) {
-            for (auto& opt : opts.GetObject()) {
-                if (opt.value.IsBool()) {
-                    auto it = screen_options_map.find(opt.name.GetString());
-                    if (it != screen_options_map.end()) {
-                        options[it->second] = opt.value.GetBool();
-                    }
-                }
-            }
-        }
-    }
-
+    // Load parent skin_config first so child values override.
     if (skin_config_file.HasMember("screen") && skin_config_file["screen"].HasMember("parent")) {
         std::string parent = skin_config_file["screen"]["parent"].GetString();
         parent_graphics_path = fs::path("Skins") / parent / "Graphics";
@@ -74,6 +48,41 @@ void TextureWrapper::init(const fs::path& skin_path) {
             }
 
             skin_config[key] = SkinInfo(x, y, font_size, width, height, text_map);
+        }
+    }
+
+    // Load child skin_config — overrides parent defaults.
+    for (auto& m : skin_config_file.GetObject()) {
+        SC key = skin_config_map.at(m.name.GetString());
+        const Value& v = m.value;
+
+        float x = v.HasMember("x") ? v["x"].GetFloat() : 0;
+        float y = v.HasMember("y") ? v["y"].GetFloat() : 0;
+        int font_size = v.HasMember("font_size") ? v["font_size"].GetInt() : 0;
+        float width = v.HasMember("width") ? v["width"].GetFloat() : 0;
+        float height = v.HasMember("height") ? v["height"].GetFloat() : 0;
+
+        std::map<std::string, std::string> text_map;
+        if (v.HasMember("text") && v["text"].IsObject()) {
+            for (auto& t : v["text"].GetObject()) {
+                text_map[t.name.GetString()] = t.value.GetString();
+            }
+        }
+
+        skin_config[key] = SkinInfo(x, y, font_size, width, height, text_map);
+    }
+
+    if (skin_config_file.HasMember("screen") && skin_config_file["screen"].HasMember("options")) {
+        const Value& opts = skin_config_file["screen"]["options"];
+        if (opts.IsObject()) {
+            for (auto& opt : opts.GetObject()) {
+                if (opt.value.IsBool()) {
+                    auto it = screen_options_map.find(opt.name.GetString());
+                    if (it != screen_options_map.end()) {
+                        options[it->second] = opt.value.GetBool();
+                    }
+                }
+            }
         }
     }
 }
