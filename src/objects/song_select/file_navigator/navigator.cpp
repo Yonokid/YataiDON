@@ -124,6 +124,7 @@ void Navigator::init(std::vector<fs::path> songs_paths) {
             if (!items.empty()) get_current_item()->expand_box();
         }
     }
+    vertical_gallery = tex.options.count(SCO::VERTICAL_GALLERY) && tex.options.at(SCO::VERTICAL_GALLERY);
     background_move = (MoveAnimation*)tex.get_animation(0);
     background_fade_change = (FadeAnimation*)tex.get_animation(5);
     bg_genre_index = items.empty() ? GenreIndex::TUTORIAL : items[open_index]->genre_index;
@@ -899,23 +900,39 @@ void Navigator::set_positions(bool init, float duration) {
             offset += num_boxes;
         }
 
-        float base_spacing = 100 * tex.screen_scale;
-        float center_offset = 150 * tex.screen_scale;
-        float side_offset_l = 0 * tex.screen_scale;
-        float side_offset_r = 300 * tex.screen_scale;
+        float position;
+        if (vertical_gallery) {
+            float base_spacing = 120 * tex.screen_scale;
+            float center_y     = 300 * tex.screen_scale;
+            float fixed_x      = 594 * tex.screen_scale;
+            position = center_y + offset * base_spacing;
+            items[i]->vertical   = true;
+            items[i]->cross_pos  = fixed_x;
+            if (init || std::abs(position - items[i]->position) >= tex.screen_height) {
+                items[i]->set_position(position);
+            } else {
+                items[i]->move_box(position, duration);
+            }
+        } else {
+            float base_spacing = 100 * tex.screen_scale;
+            float center_offset = 150 * tex.screen_scale;
+            float side_offset_l = 0 * tex.screen_scale;
+            float side_offset_r = 300 * tex.screen_scale;
 
-        float position = ((594 * tex.screen_scale) - center_offset) + (offset * base_spacing);
-        if (position == (594 * tex.screen_scale) - center_offset) {
-            position += center_offset;
-        } else if (position > (594 * tex.screen_scale) - center_offset) {
-            position += side_offset_r;
-        } else {
-            position -= side_offset_l;
-        }
-        if (init || std::abs(position - items[i]->position) >= tex.screen_width) {
-            items[i]->set_position(position);
-        } else {
-            items[i]->move_box(position, duration);
+            position = ((594 * tex.screen_scale) - center_offset) + (offset * base_spacing);
+            if (position == (594 * tex.screen_scale) - center_offset) {
+                position += center_offset;
+            } else if (position > (594 * tex.screen_scale) - center_offset) {
+                position += side_offset_r;
+            } else {
+                position -= side_offset_l;
+            }
+            items[i]->vertical = false;
+            if (init || std::abs(position - items[i]->position) >= tex.screen_width) {
+                items[i]->set_position(position);
+            } else {
+                items[i]->move_box(position, duration);
+            }
         }
     }
 }
@@ -940,16 +957,29 @@ void Navigator::enter_diff_select() {
     items[open_index]->enter_box();
     for (int i = 0; i < items.size(); i++) {
         std::unique_ptr<BaseBox>& box = items[i];
-        bool on_screen = box->position > -100 && box->position < tex.screen_width + 100;
-        if (on_screen and i != open_index) {
-            float duration = 800;
-            float distance = (150 * tex.screen_scale);
-            if (box->position < (594 * tex.screen_scale)) {
-                box->move_box(-distance, duration);
-            } else {
-                box->move_box(tex.screen_width + distance, duration);
+        float duration = 800;
+        float distance = (150 * tex.screen_scale);
+        if (vertical_gallery) {
+            float center_y = 300 * tex.screen_scale;
+            bool on_screen = box->position > -100 && box->position < tex.screen_height + 100;
+            if (on_screen && i != open_index) {
+                if (box->position < center_y) {
+                    box->move_box(-distance, duration);
+                } else {
+                    box->move_box(tex.screen_height + distance, duration);
+                }
+                box->fade_out();
             }
-            box->fade_out();
+        } else {
+            bool on_screen = box->position > -100 && box->position < tex.screen_width + 100;
+            if (on_screen && i != open_index) {
+                if (box->position < (594 * tex.screen_scale)) {
+                    box->move_box(-distance, duration);
+                } else {
+                    box->move_box(tex.screen_width + distance, duration);
+                }
+                box->fade_out();
+            }
         }
     }
     if (genre_bg.has_value()) {
@@ -1025,7 +1055,9 @@ void Navigator::update(double current_ms) {
     }
 
     for (auto& box : items) {
-        bool on_screen = box->position > -100 && box->position < tex.screen_width + 100;
+        bool on_screen = vertical_gallery
+            ? (box->position > -100 && box->position < tex.screen_height + 100)
+            : (box->position > -100 && box->position < tex.screen_width  + 100);
         if (on_screen && !box->text_loaded)
             box->load_text();
         box->update(current_ms);
@@ -1048,7 +1080,7 @@ void Navigator::draw_background() {
 }
 
 void Navigator::draw() {
-    if (genre_bg.has_value()) {
+    if (!vertical_gallery && genre_bg.has_value()) {
         float start_pos;
         float end_pos;
 
@@ -1065,7 +1097,10 @@ void Navigator::draw() {
         genre_bg->draw(start_pos, end_pos, folder);
     }
     for (auto& box : items) {
-        if (box->position > -100 && box->position < tex.screen_width + 100) {
+        bool on_screen = vertical_gallery
+            ? (box->position > -100 && box->position < tex.screen_height + 100)
+            : (box->position > -100 && box->position < tex.screen_width  + 100);
+        if (on_screen) {
             box->draw();
         }
     }

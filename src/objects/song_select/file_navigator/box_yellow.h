@@ -34,7 +34,7 @@ public:
     void create_anim();
     void create_anim_2();
     void update(double current_ms);
-    void draw(float fade = 1.0);
+    void draw(float fade = 1.0, float y_offset = 0.0f);
 
 private:
 };

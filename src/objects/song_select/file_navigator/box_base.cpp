@@ -129,31 +129,34 @@ void BaseBox::update(double current_time) {
 }
 
 void BaseBox::draw_closed() {
-    tex.draw_texture(YELLOW_BOX::SHADOW_BOTTOM_LEFT, {.x=position, .fade=fade->attribute, .index=0});
-    tex.draw_texture(YELLOW_BOX::SHADOW_BOTTOM, {.x=position, .fade=fade->attribute, .index=0});
-    tex.draw_texture(YELLOW_BOX::SHADOW_BOTTOM_RIGHT, {.x=position, .fade=fade->attribute, .index=0});
-    tex.draw_texture(YELLOW_BOX::SHADOW_RIGHT, {.x=position, .fade=fade->attribute, .index=0});
-    tex.draw_texture(YELLOW_BOX::SHADOW_TOP_RIGHT, {.x=position, .fade=fade->attribute, .index=0});
+    float bx = box_x();
+    float by = box_y();
+
+    tex.draw_texture(YELLOW_BOX::SHADOW_BOTTOM_LEFT,  {.x=bx, .y=by, .fade=fade->attribute, .index=0});
+    tex.draw_texture(YELLOW_BOX::SHADOW_BOTTOM,       {.x=bx, .y=by, .fade=fade->attribute, .index=0});
+    tex.draw_texture(YELLOW_BOX::SHADOW_BOTTOM_RIGHT, {.x=bx, .y=by, .fade=fade->attribute, .index=0});
+    tex.draw_texture(YELLOW_BOX::SHADOW_RIGHT,        {.x=bx, .y=by, .fade=fade->attribute, .index=0});
+    tex.draw_texture(YELLOW_BOX::SHADOW_TOP_RIGHT,    {.x=bx, .y=by, .fade=fade->attribute, .index=0});
 
     if (shader_loaded && texture_index == TextureIndex::NONE)
         ray::BeginShaderMode(shader);
 
-    tex.draw_texture(BOX::FOLDER_TEXTURE_LEFT,  {.frame=(int)texture_index, .x=position, .fade=fade->attribute});
-    tex.draw_texture(BOX::FOLDER_TEXTURE,       {.frame=(int)texture_index, .x=position, .x2=tex.skin_config[SC::SONG_BOX_BG].width, .fade=fade->attribute});
-    tex.draw_texture(BOX::FOLDER_TEXTURE_RIGHT, {.frame=(int)texture_index, .x=position, .fade=fade->attribute});
+    tex.draw_texture(BOX::FOLDER_TEXTURE_LEFT,  {.frame=(int)texture_index, .x=bx, .y=by, .fade=fade->attribute});
+    tex.draw_texture(BOX::FOLDER_TEXTURE,       {.frame=(int)texture_index, .x=bx, .y=by, .x2=tex.skin_config[SC::SONG_BOX_BG].width, .fade=fade->attribute});
+    tex.draw_texture(BOX::FOLDER_TEXTURE_RIGHT, {.frame=(int)texture_index, .x=bx, .y=by, .fade=fade->attribute});
 
     if (shader_loaded && texture_index == TextureIndex::NONE)
         ray::EndShaderMode();
 
     if (texture_index == TextureIndex::DEFAULT)
-        tex.draw_texture(BOX::GENRE_OVERLAY, {.x=position, .fade=fade->attribute});
+        tex.draw_texture(BOX::GENRE_OVERLAY, {.x=bx, .y=by, .fade=fade->attribute});
     if (genre_index == GenreIndex::DIFFICULTY)
-        tex.draw_texture(BOX::DIFF_OVERLAY,  {.x=position, .fade=fade->attribute});
+        tex.draw_texture(BOX::DIFF_OVERLAY,  {.x=bx, .y=by, .fade=fade->attribute});
 }
 
 void BaseBox::draw_open() {
     if (yellow_box.has_value()) {
-        yellow_box->draw();
+        yellow_box->draw(1.0f, box_y());
     }
 }
 

@@ -132,20 +132,22 @@ void SongBox::draw_closed() {
     BaseBox::draw_closed();
 
     if (!text_loaded) return;
-    float name_x = position + tex.skin_config[SC::SONG_BOX_NAME].x - (int)(this->name->width / 2);
-    float name_y = tex.skin_config[SC::SONG_BOX_NAME].y;
+    float bx = box_x();
+    float by = box_y();
+    float name_x = bx + tex.skin_config[SC::SONG_BOX_NAME].x - (int)(this->name->width / 2);
+    float name_y = tex.skin_config[SC::SONG_BOX_NAME].y + by;
     float name_h = std::min((float)this->name->height, tex.skin_config[SC::SONG_BOX_NAME].height);
     this->name->draw({.x = name_x, .y = name_y, .y2 = name_h - this->name->height, .fade=fade->attribute});
 
     if (preimage.has_value()) {
-        tex.draw_texture(YELLOW_BOX::PREIMAGE_BG, {.x=position, .fade=fade->attribute});
+        tex.draw_texture(YELLOW_BOX::PREIMAGE_BG, {.x=bx, .y=by, .fade=fade->attribute});
         ray::Rectangle src = {0, 0, (float)preimage->width, (float)preimage->height};
-        ray::Rectangle dest = {position + tex.skin_config[SC::PREIMAGE].x, tex.skin_config[SC::PREIMAGE].y, tex.skin_config[SC::PREIMAGE].width, tex.skin_config[SC::PREIMAGE].height};
+        ray::Rectangle dest = {bx + tex.skin_config[SC::PREIMAGE].x, tex.skin_config[SC::PREIMAGE].y + by, tex.skin_config[SC::PREIMAGE].width, tex.skin_config[SC::PREIMAGE].height};
         ray::DrawTexturePro(preimage.value(), src, dest, {0,0}, 0, ray::Fade(ray::WHITE, fade->attribute));
     } else if (parser.ex_data.limited_time)
-        tex.draw_texture(tex.get_enum("yellow_box/ex_data_limited_time_balloon_" + global_data.config->general.language), {.x=position, .fade=fade->attribute});
+        tex.draw_texture(tex.get_enum("yellow_box/ex_data_limited_time_balloon_" + global_data.config->general.language), {.x=bx, .y=by, .fade=fade->attribute});
     else if (is_new)
-        tex.draw_texture(tex.get_enum("yellow_box/ex_data_new_song_balloon_" + global_data.config->general.language), {.x=position, .fade=fade->attribute});
+        tex.draw_texture(tex.get_enum("yellow_box/ex_data_new_song_balloon_" + global_data.config->general.language), {.x=bx, .y=by, .fade=fade->attribute});
 
     int highest_key = -1;
     for (int i = 0; i < (int)scores.size(); ++i) {
@@ -154,9 +156,9 @@ void SongBox::draw_closed() {
     if (highest_key >= 0) {
         Score score = scores[highest_key].value();
         int frame = std::min((int)Difficulty::URA, highest_key);
-        if      (score.crown == Crown::DFC)   tex.draw_texture(YELLOW_BOX::CROWN_DFC,   {.frame=frame, .x=position, .fade=fade->attribute});
-        else if (score.crown == Crown::FC)    tex.draw_texture(YELLOW_BOX::CROWN_FC,    {.frame=frame, .x=position, .fade=fade->attribute});
-        else if (score.crown >= Crown::CLEAR) tex.draw_texture(YELLOW_BOX::CROWN_CLEAR, {.frame=frame, .x=position, .fade=fade->attribute});
+        if      (score.crown == Crown::DFC)   tex.draw_texture(YELLOW_BOX::CROWN_DFC,   {.frame=frame, .x=bx, .y=by, .fade=fade->attribute});
+        else if (score.crown == Crown::FC)    tex.draw_texture(YELLOW_BOX::CROWN_FC,    {.frame=frame, .x=bx, .y=by, .fade=fade->attribute});
+        else if (score.crown >= Crown::CLEAR) tex.draw_texture(YELLOW_BOX::CROWN_CLEAR, {.frame=frame, .x=bx, .y=by, .fade=fade->attribute});
     }
 }
 

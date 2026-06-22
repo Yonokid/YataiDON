@@ -64,6 +64,8 @@ private:
     std::optional<std::pair<int,int>> diff_sort_filter;
     std::optional<std::pair<int,int>> last_diff_sort_result;
 
+    bool vertical_gallery = false;
+
     void navigate(int delta, bool snap);
     void set_positions(bool init, float duration);
     bool is_song_file(const fs::path& path);

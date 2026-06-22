@@ -35,8 +35,13 @@ public:
     FadeAnimation* fade;
 
     float position;
+    float cross_pos = 0.0f;
+    bool vertical = false;
     float left_bound;
     float right_bound;
+
+    float box_x() const { return vertical ? cross_pos : position; }
+    float box_y() const { return vertical ? position  : 0.0f; }
 
     fs::path path;
 

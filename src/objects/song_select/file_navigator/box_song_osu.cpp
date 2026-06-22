@@ -20,8 +20,10 @@ void SongBoxOsu::draw_closed() {
     BaseBox::draw_closed();
 
     if (!text_loaded) return;
-    float name_x = position + tex.skin_config[SC::SONG_BOX_NAME].x - (int)(this->name->width / 2);
-    float name_y = tex.skin_config[SC::SONG_BOX_NAME].y;
+    float bx = box_x();
+    float by = box_y();
+    float name_x = bx + tex.skin_config[SC::SONG_BOX_NAME].x - (int)(this->name->width / 2);
+    float name_y = tex.skin_config[SC::SONG_BOX_NAME].y + by;
     float name_h = std::min((float)this->name->height, tex.skin_config[SC::SONG_BOX_NAME].height);
     this->name->draw({.x = name_x, .y = name_y, .y2 = name_h - this->name->height, .fade=fade->attribute});
 
@@ -32,20 +34,22 @@ void SongBoxOsu::draw_closed() {
     if (highest_key >= 0) {
         Score score = scores[highest_key].value();
         int frame = std::min((int)Difficulty::URA, highest_key);
-        if      (score.crown == Crown::DFC)   tex.draw_texture(YELLOW_BOX::CROWN_DFC,   {.frame=frame, .x=position, .fade=fade->attribute});
-        else if (score.crown == Crown::FC)    tex.draw_texture(YELLOW_BOX::CROWN_FC,    {.frame=frame, .x=position, .fade=fade->attribute});
-        else if (score.crown >= Crown::CLEAR) tex.draw_texture(YELLOW_BOX::CROWN_CLEAR, {.frame=frame, .x=position, .fade=fade->attribute});
+        if      (score.crown == Crown::DFC)   tex.draw_texture(YELLOW_BOX::CROWN_DFC,   {.frame=frame, .x=bx, .y=by, .fade=fade->attribute});
+        else if (score.crown == Crown::FC)    tex.draw_texture(YELLOW_BOX::CROWN_FC,    {.frame=frame, .x=bx, .y=by, .fade=fade->attribute});
+        else if (score.crown >= Crown::CLEAR) tex.draw_texture(YELLOW_BOX::CROWN_CLEAR, {.frame=frame, .x=bx, .y=by, .fade=fade->attribute});
     }
 }
 
 void SongBoxOsu::draw_open() {
-    tex.draw_texture(YELLOW_BOX::SHADOW_BOTTOM_LEFT,  {.x=position, .fade=open_fade->attribute, .index=1});
-    tex.draw_texture(YELLOW_BOX::SHADOW_BOTTOM,       {.x=position, .fade=open_fade->attribute, .index=1});
-    tex.draw_texture(YELLOW_BOX::SHADOW_BOTTOM_RIGHT, {.x=position, .fade=open_fade->attribute, .index=1});
-    tex.draw_texture(YELLOW_BOX::SHADOW_RIGHT,        {.x=position, .fade=open_fade->attribute, .index=1});
-    tex.draw_texture(YELLOW_BOX::SHADOW_TOP_RIGHT,    {.x=position, .fade=open_fade->attribute, .index=1});
+    float bx = box_x();
+    float by = box_y();
+    tex.draw_texture(YELLOW_BOX::SHADOW_BOTTOM_LEFT,  {.x=bx, .y=by, .fade=open_fade->attribute, .index=1});
+    tex.draw_texture(YELLOW_BOX::SHADOW_BOTTOM,       {.x=bx, .y=by, .fade=open_fade->attribute, .index=1});
+    tex.draw_texture(YELLOW_BOX::SHADOW_BOTTOM_RIGHT, {.x=bx, .y=by, .fade=open_fade->attribute, .index=1});
+    tex.draw_texture(YELLOW_BOX::SHADOW_RIGHT,        {.x=bx, .y=by, .fade=open_fade->attribute, .index=1});
+    tex.draw_texture(YELLOW_BOX::SHADOW_TOP_RIGHT,    {.x=bx, .y=by, .fade=open_fade->attribute, .index=1});
     if (yellow_box.has_value())
-        yellow_box->draw();
+        yellow_box->draw(1.0f, by);
 
     float offset = tex.skin_config[SC::YB_DIFF_OFFSET].x;
 
