@@ -24,7 +24,8 @@ public:
     std::string get_song_hash();
     std::string get_diff_hash(int difficulty);
 
-private:
     std::variant<TJAParser, OsuParser, FumenParser> impl;
+
+private:
     void sync();
 };

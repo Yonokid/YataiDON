@@ -124,7 +124,7 @@ void Navigator::init(std::vector<fs::path> songs_paths) {
             if (!items.empty()) get_current_item()->expand_box();
         }
     }
-    vertical_gallery = tex.options.count(SCO::VERTICAL_GALLERY) && tex.options.at(SCO::VERTICAL_GALLERY);
+    vertical_gallery = tex.options.count(SCO::HORIZONTAL_SONG_SELECT) && tex.options.at(SCO::HORIZONTAL_SONG_SELECT);
     background_move = (MoveAnimation*)tex.get_animation(0);
     background_fade_change = (FadeAnimation*)tex.get_animation(5);
     bg_genre_index = items.empty() ? GenreIndex::TUTORIAL : items[open_index]->genre_index;

@@ -238,6 +238,7 @@ public:
     std::filesystem::path file_path;
     TJAMetadata metadata;
     TJAEXData ex_data;
+    bool scroll_disabled = false;
 
     void get_metadata();
     std::string get_difficulty_name() { return ""; }

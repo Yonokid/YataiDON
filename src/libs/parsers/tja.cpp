@@ -1,16 +1,25 @@
 #include "tja.h"
+#include <mutex>
 #include <random>
 
 std::string md5_hexdigest(const std::vector<unsigned char>& data) {
     static const char hex_chars[] = "0123456789abcdef";
+    static std::mutex md5_mutex;
+
     const unsigned char zero = 0;
     const unsigned char* ptr = data.empty() ? &zero : data.data();
-    unsigned int* hash = ray::ComputeMD5(ptr, static_cast<int>(data.size()));
+
+    unsigned int hash_copy[4];
+    {
+        std::lock_guard<std::mutex> lock(md5_mutex);
+        unsigned int* hash = ray::ComputeMD5(ptr, static_cast<int>(data.size()));
+        memcpy(hash_copy, hash, sizeof(hash_copy));
+    }
 
     std::string result(32, '0');
     for (int word = 0; word < 4; word++) {
         for (int byte = 0; byte < 4; byte++) {
-            unsigned char b = (hash[word] >> (8 * byte)) & 0xFF;
+            unsigned char b = (hash_copy[word] >> (8 * byte)) & 0xFF;
             result[(word * 4 + byte) * 2]     = hex_chars[b >> 4];
             result[(word * 4 + byte) * 2 + 1] = hex_chars[b & 0xF];
         }
@@ -828,6 +837,7 @@ double safe_stof(const std::string& str) {
 
 void TJAParser::handle_SCROLL(const std::string& value, ParserState& state) {
     if (state.scroll_type == ScrollType::BMSCROLL) return;
+    if (scroll_disabled) return;
 
     if (value.empty()) {
         spdlog::warn("Empty #SCROLL value in {}", file_path.string());

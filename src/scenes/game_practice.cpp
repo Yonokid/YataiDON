@@ -44,6 +44,7 @@ void PracticeGameScreen::init_tja_practice(const fs::path& song) {
     // Extract bars and note list for scrobbling from the already-parsed TJA
     int difficulty = global_data.session_data[(int)global_data.player_num].selected_difficulty;
     auto [notes, bm, be, bn] = parser->notes_to_position(difficulty);
+    std::get<TJAParser>(parser->impl).scroll_disabled = true;
     apply_modifiers(notes, get_player_modifiers(global_data.player_num));
 
     bars.clear();
