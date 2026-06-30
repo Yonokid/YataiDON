@@ -18,6 +18,8 @@ void set_working_directory_to_executable() {
     std::filesystem::create_directories(exe_dir, ec);
     std::filesystem::current_path(exe_dir);
     spdlog::info("Working directory set to: {}", exe_dir.string());
+#elif __EMSCRIPTEN__
+    spdlog::info("Emscripten: using virtual FS root as working directory");
 #elif _WIN32
     wchar_t buffer[MAX_PATH];
     GetModuleFileNameW(NULL, buffer, MAX_PATH);

@@ -15,6 +15,8 @@
 #include <vector>
 #include <cstdint>
 
+#ifndef __EMSCRIPTEN__
+
 extern "C" {
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
@@ -584,3 +586,22 @@ private:
 };
 
 } // namespace av
+
+#else // __EMSCRIPTEN__ — minimal stubs so headers compile without FFmpeg
+
+namespace av {
+    struct AVDecodedFrame {};
+    struct AVFrameDecoder {};
+    struct AVVideoStream  {};
+    struct AVContainer    { void close() {} };
+    struct AVAudioStream {
+        static std::unique_ptr<AVAudioStream> make_silent(double) {
+            return std::unique_ptr<AVAudioStream>(new AVAudioStream());
+        }
+        std::vector<uint8_t> encoded_bytes() const { return {}; }
+        bool is_silent() const { return true; }
+        int  index()     const { return -1; }
+    };
+}
+
+#endif // __EMSCRIPTEN__

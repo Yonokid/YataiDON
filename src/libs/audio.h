@@ -121,7 +121,9 @@ public:
     void  seek_sound(const std::string& name, float position);
 
     std::string load_music_stream(const fs::path& file_path, const std::string& name);
+#ifndef __EMSCRIPTEN__
     std::string load_music_stream_memory(const av::AVAudioStream& audio_stream, const std::string& name);
+#endif
     void  play_music_stream(const std::string& name, VolumePreset volume_preset = VolumePreset::NONE);
     float get_music_time_length(const std::string& name) const;
     float get_music_time_played(const std::string& name) const;

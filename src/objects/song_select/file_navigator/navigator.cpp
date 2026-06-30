@@ -48,6 +48,7 @@ void Navigator::preload(std::vector<fs::path> songs_paths) {
     root_paths = songs_paths;
     open_index = 0;
 
+#ifndef __EMSCRIPTEN__
     song_files_thread = std::thread([this, songs_paths]() {
         for (const fs::path& root_path : songs_paths) {
             try {
@@ -71,6 +72,7 @@ void Navigator::preload(std::vector<fs::path> songs_paths) {
             }
         }
     });
+#endif // !__EMSCRIPTEN__
 
     for (const fs::path& root_path : songs_paths) {
         for (const auto& entry : fs::directory_iterator(root_path)) {
@@ -837,7 +839,11 @@ void Navigator::load_current_directory(const fs::path path) {
     loading_complete = false;
 
     join_loader();
+#ifndef __EMSCRIPTEN__
     loader_thread = std::thread(&Navigator::load_current_directory_async, this, path);
+#else
+    load_current_directory_async(path);
+#endif
 }
 
 void Navigator::setup_back_box(const fs::path& path, bool has_children) {
@@ -1021,8 +1027,12 @@ void Navigator::update(double current_ms) {
             join_loader();
             loading_complete = false;
             is_inline = true;
+#ifndef __EMSCRIPTEN__
             loader_thread = std::thread(&Navigator::load_songs_inline_async, this,
                                         *pending_inline_path, pending_inline_box_def);
+#else
+            load_songs_inline_async(*pending_inline_path, pending_inline_box_def);
+#endif
             inline_state->songs_count = 0; // will be updated as boxes arrive
             pending_inline_path.reset();
             is_processing = false; // flush_pending_boxes will finalise

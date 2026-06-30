@@ -16,7 +16,11 @@ void LoadingScreen::on_screen_start() {
     allnet_indicator = AllNetIcon();
 
     songs = get_song_files(global_data.config->paths.tja_path);
+#ifdef __EMSCRIPTEN__
+    load_song_hashes();
+#else
     loading_thread = std::thread(&LoadingScreen::load_song_hashes, this);
+#endif
 }
 
 void LoadingScreen::load_song_hashes() {
@@ -68,6 +72,9 @@ void LoadingScreen::load_song_hashes() {
     };
 
     scores_manager.begin_transaction();
+#ifdef __EMSCRIPTEN__
+    worker(0, songs.size());
+#else
     int chunk = songs.size() / thread_count;
     for (int i = 0; i < thread_count; i++) {
         int start = i * chunk;
@@ -75,6 +82,7 @@ void LoadingScreen::load_song_hashes() {
         threads.emplace_back(worker, start, end);
     }
     for (auto& t : threads) t.join();
+#endif
     scores_manager.commit();
 
     if (fs::exists(fs::path("scores_pytaiko.db"))) {
@@ -106,7 +114,11 @@ std::optional<Screens> LoadingScreen::update() {
 
     fade_in->update(get_current_ms());
     if (fade_in->is_finished) {
+#ifdef __EMSCRIPTEN__
+        return on_screen_end(Screens::ENTRY);
+#else
         return on_screen_end(Screens::TITLE);
+#endif
     }
 
     return std::nullopt;

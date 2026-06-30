@@ -145,6 +145,7 @@ AudioEngine::~AudioEngine() {
     }
 }
 
+#ifndef __EMSCRIPTEN__
 int AudioEngine::port_audio_callback(const void *inputBuffer, void *outputBuffer,
                         unsigned long framesPerBuffer,
                         const PaStreamCallbackTimeInfo* timeInfo,
@@ -343,6 +344,7 @@ int AudioEngine::port_audio_callback(const void *inputBuffer, void *outputBuffer
 
     return paContinue;
 }
+#endif // !__EMSCRIPTEN__
 
 bool AudioEngine::init_audio_device(const fs::path& sounds_path, const AudioConfig& audio_config, const VolumeConfig& volume_presets) {
     this->sounds_path = sounds_path;
@@ -389,7 +391,7 @@ bool AudioEngine::init_audio_device(const fs::path& sounds_path, const AudioConf
         spdlog::info("    > Channels:      {}", AAudioStream_getChannelCount(aastream));
         spdlog::info("    > Sample rate:   {}", AAudioStream_getSampleRate(aastream));
         spdlog::info("    > Buffer frames: {}", AAudioStream_getBufferSizeInFrames(aastream));
-#else
+#elif !defined(__EMSCRIPTEN__)
         // --- Desktop: use PortAudio ---
         PaError err = Pa_Initialize();
         if (err != paNoError) {
@@ -451,7 +453,9 @@ bool AudioEngine::init_audio_device(const fs::path& sounds_path, const AudioConf
         spdlog::info("    > Sample rate:   {}", target_sample_rate);
         spdlog::info("    > Buffer size:   {} (requested)", buffer_size);
         spdlog::info("    > Latency:       {} ms", streamInfo->outputLatency * 1000.0);
-#endif // !__ANDROID__
+#else
+        spdlog::warn("Audio device not initialized: PortAudio unavailable on this platform");
+#endif // !__ANDROID__ && !__EMSCRIPTEN__
 
         return is_ready;
     } catch (const std::exception& e) {
@@ -472,7 +476,7 @@ void AudioEngine::close_audio_device() {
             AAudioStream_close(aastream);
             android_stream_ptr = nullptr;
         }
-#else
+#elif !defined(__EMSCRIPTEN__)
         if (stream != nullptr) {
             Pa_StopStream(stream);
             Pa_CloseStream(stream);
@@ -965,6 +969,7 @@ std::string AudioEngine::load_music_stream(const fs::path& file_path, const std:
     }
 }
 
+#ifndef __EMSCRIPTEN__
 std::string AudioEngine::load_music_stream_memory(
     const av::AVAudioStream& audio_stream,
     const std::string&       name)
@@ -1051,6 +1056,7 @@ std::string AudioEngine::load_music_stream_memory(
         return "";
     }
 }
+#endif // __EMSCRIPTEN__
 
 void AudioEngine::play_music_stream(const std::string& name, VolumePreset volume_preset) {
     std::shared_lock<std::shared_mutex> guard(rw_lock);

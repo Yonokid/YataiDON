@@ -71,6 +71,28 @@ elseif(ANDROID)
   endif()
   target_compile_definitions(${PROJECT_NAME} PRIVATE PLATFORM_ANDROID)
   target_link_options(${PROJECT_NAME} PRIVATE -Wl,-z,max-page-size=16384)
+elseif(EMSCRIPTEN)
+  set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX ".html")
+  target_compile_definitions(${PROJECT_NAME} PRIVATE PLATFORM_WEB)
+  if(TARGET SDL3::SDL3-static)
+    target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3-static)
+  elseif(TARGET SDL3::SDL3)
+    target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3)
+  endif()
+  target_link_options(${PROJECT_NAME} PRIVATE
+    -sUSE_SDL=3
+    -sMAX_WEBGL_VERSION=2
+    -sALLOW_MEMORY_GROWTH=1
+    -sINITIAL_MEMORY=134217728
+    -sASSERTIONS=1
+    -sNO_DISABLE_EXCEPTION_CATCHING
+    "SHELL:--preload-file ${CMAKE_SOURCE_DIR}/config.toml@/dev-config.toml"
+    "SHELL:--preload-file ${CMAKE_SOURCE_DIR}/config.toml@/config.toml"
+    "SHELL:--preload-file ${CMAKE_SOURCE_DIR}/shader@/shader"
+    "SHELL:--preload-file ${CMAKE_SOURCE_DIR}/Songs@/Songs"
+    "SHELL:--preload-file ${CMAKE_SOURCE_DIR}/Skins/PyTaikoGreen@/Skins/PyTaikoGreen"
+    "SHELL:--exclude-file */Videos/*"
+  )
 elseif(UNIX)
   target_link_libraries(${PROJECT_NAME} PRIVATE
         GL
@@ -107,7 +129,7 @@ elseif(UNIX)
 endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-  if(ANDROID)
+  if(ANDROID OR EMSCRIPTEN)
     target_compile_options(${PROJECT_NAME} PRIVATE
             -O0
             -g
@@ -161,6 +183,11 @@ else()
           -flto=auto
       )
   elseif(ANDROID)
+    target_compile_options(${PROJECT_NAME} PRIVATE
+          -O2
+          -DNDEBUG
+      )
+  elseif(EMSCRIPTEN)
     target_compile_options(${PROJECT_NAME} PRIVATE
           -O2
           -DNDEBUG

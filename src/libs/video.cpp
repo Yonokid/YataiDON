@@ -16,6 +16,7 @@ VideoPlayer::VideoPlayer(fs::path path)
         return;
     }
 
+#ifndef __EMSCRIPTEN__
     container    = av::AVContainer::open(path);
     if (!container) {
         spdlog::error("Failed to open video: {}", path.string());
@@ -43,6 +44,7 @@ VideoPlayer::VideoPlayer(fs::path path)
 
     frame_index    = 0;
     frame_duration = (fps > 0.f) ? 1000.0 / fps : 0.0;
+#endif
 }
 
 VideoPlayer::~VideoPlayer() {
@@ -62,8 +64,10 @@ void VideoPlayer::audio_manager() {
 }
 
 void VideoPlayer::init_frame_generator() {
+#ifndef __EMSCRIPTEN__
     container->seek(0);
     frame_generator = container->decode_video(0);
+#endif
 }
 
 bool VideoPlayer::get_next_frame_bytes(
@@ -71,6 +75,7 @@ bool VideoPlayer::get_next_frame_bytes(
     int& out_width,
     int& out_height)
 {
+#ifndef __EMSCRIPTEN__
     if (!frame_generator) {
         init_frame_generator();
     }
@@ -89,6 +94,9 @@ bool VideoPlayer::get_next_frame_bytes(
     out_bytes.assign(data, data + size);
 
     return true;
+#else
+    return false;
+#endif
 }
 
 bool VideoPlayer::load_frame(int index) {

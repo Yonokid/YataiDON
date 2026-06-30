@@ -74,7 +74,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     miniz
 )
 
-if(NOT ANDROID)
+if(NOT ANDROID AND NOT EMSCRIPTEN)
   target_link_libraries(${PROJECT_NAME} PRIVATE cpptrace::cpptrace)
 endif()
 

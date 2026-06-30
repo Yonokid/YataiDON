@@ -217,6 +217,13 @@ OutlinedText::OutlinedText(std::string text, int font_size,
         height = line_advance * (float)(lines.size() - 1) + line_h + pad * 2;
     }
 
+#ifdef __EMSCRIPTEN__
+    {
+        auto data = is_vertical ? build_vertical_text(color, outline_color, spacing)
+                                : build_horizontal_text(color, outline_color, spacing);
+        pending_image = std::move(data.img);
+    }
+#else
     if (is_vertical) {
         build_future = std::async(std::launch::async,
             [this, color, outline_color, spacing]() {
@@ -232,6 +239,7 @@ OutlinedText::OutlinedText(std::string text, int font_size,
                 pending_image = std::move(data.img);
             });
     }
+#endif
 }
 
 OutlinedText::~OutlinedText() {

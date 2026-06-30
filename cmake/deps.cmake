@@ -1,12 +1,12 @@
 # Sqlite3
-if(NOT WIN32 AND NOT ANDROID)
+if(NOT WIN32 AND NOT ANDROID AND NOT EMSCRIPTEN)
   find_package(PkgConfig QUIET)
   if(PkgConfig_FOUND)
     pkg_check_modules(SQLITE3 QUIET sqlite3)
   endif()
 endif()
 
-if(ANDROID)
+if(ANDROID OR EMSCRIPTEN)
   set(SDL_SHARED OFF CACHE BOOL "" FORCE)
   set(SDL_STATIC ON CACHE BOOL "" FORCE)
   set(SDL_TEST   OFF CACHE BOOL "" FORCE)
@@ -62,7 +62,7 @@ set(CUSTOMIZE_BUILD ON CACHE BOOL "" FORCE)
 set(SUPPORT_MODULE_RAUDIO OFF CACHE BOOL "" FORCE)
 set(SUPPORT_CUSTOM_FRAME_CONTROL ON CACHE BOOL "" FORCE)
 set(SUPPORT_FILEFORMAT_JPG ON CACHE BOOL "" FORCE)
-if(ANDROID)
+if(ANDROID OR EMSCRIPTEN)
   set(OPENGL_VERSION "ES 3.0" CACHE STRING "" FORCE)
 endif()
 FetchContent_Declare(
@@ -125,7 +125,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(sol2)
 
-if(NOT ANDROID)
+if(NOT ANDROID AND NOT EMSCRIPTEN)
   set(ZLIB_USE_STATIC_LIBS ON)
   if(WIN32)
     set(CPPTRACE_GET_SYMBOLS_WITH_ADDR2LINE ON CACHE BOOL "" FORCE)
@@ -155,8 +155,8 @@ if(WIN32)
           IMPORTED_LOCATION ${SNDFILE_LIBRARY}
           INTERFACE_INCLUDE_DIRECTORIES ${SNDFILE_INCLUDE_DIR}
       )
-elseif(ANDROID)
-  message(STATUS "Fetching libogg + libvorbis for Android (needed by libsndfile)")
+elseif(ANDROID OR EMSCRIPTEN)
+  message(STATUS "Fetching libogg + libvorbis for ${CMAKE_SYSTEM_NAME} (needed by libsndfile)")
   FetchContent_Declare(
       ogg
       GIT_REPOSITORY https://github.com/xiph/ogg.git
@@ -233,8 +233,8 @@ if(WIN32)
           IMPORTED_LOCATION ${SAMPLERATE_LIBRARY}
           INTERFACE_INCLUDE_DIRECTORIES ${SAMPLERATE_INCLUDE_DIR}
       )
-elseif(ANDROID)
-  message(STATUS "Fetching libsamplerate from source (Android)")
+elseif(ANDROID OR EMSCRIPTEN)
+  message(STATUS "Fetching libsamplerate from source (${CMAKE_SYSTEM_NAME})")
   set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
   set(LIBSAMPLERATE_EXAMPLES OFF CACHE BOOL "" FORCE)
   set(LIBSAMPLERATE_INSTALL OFF CACHE BOOL "" FORCE)
@@ -301,6 +301,13 @@ if(WIN32)
             INTERFACE_INCLUDE_DIRECTORIES "${FFMPEG_INCLUDE_DIR}"
         )
   endforeach()
+elseif(EMSCRIPTEN)
+  message(STATUS "FFmpeg disabled on Emscripten -- video/av features unavailable until ported")
+  foreach(_lib avformat avcodec avutil swscale swresample)
+    add_library(FFmpeg::${_lib} INTERFACE IMPORTED)
+    set_target_properties(FFmpeg::${_lib} PROPERTIES
+      INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/src/libs")
+  endforeach()
 elseif(ANDROID)
   # FFmpeg must be cross-compiled for Android separately.
   # Set ANDROID_FFMPEG_PREFIX to a directory containing:
@@ -360,7 +367,11 @@ else()
 endif()
 
 # PortAudio
-if(ANDROID)
+if(EMSCRIPTEN)
+  message(STATUS "PortAudio disabled on Emscripten -- audio backend unavailable until ported")
+  add_library(portaudio INTERFACE IMPORTED)
+  set(PORTAUDIO_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/src/libs/audio")
+elseif(ANDROID)
   message(STATUS "Fetching PortAudio from source (Android, AAudio + OpenSL ES)")
   set(PA_USE_AAUDIO ON CACHE BOOL "" FORCE)
   set(PA_USE_OPENSLES ON CACHE BOOL "" FORCE)

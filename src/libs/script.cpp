@@ -366,8 +366,8 @@ void ScriptManager::register_lua_bindings() {
 
         sol::table info = script_manager.lua->create_table();
         info["name"] = tex_obj->name;
-        info["x"] = tex_obj->x;
-        info["y"] = tex_obj->y;
+        info["x"] = sol::as_table(tex_obj->x);
+        info["y"] = sol::as_table(tex_obj->y);
         info["width"] = tex_obj->width;
         info["height"] = tex_obj->height;
 

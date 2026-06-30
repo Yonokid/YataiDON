@@ -42,6 +42,10 @@
     #include <windows.h>
 #endif
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
 namespace fs = std::filesystem;
 
 
@@ -163,6 +167,9 @@ static void run_frame() {
     g_frame_ms = get_current_ms();
 
     ray::PollInputEvents();
+#ifdef __EMSCRIPTEN__
+    poll_keyboard_once();
+#endif
     if (global_data.config->general.touch_input)
         poll_touch_once();
 
@@ -230,6 +237,7 @@ static void run_frame() {
         ray::SwapScreenBuffer();
     }
 
+#ifndef __EMSCRIPTEN__
     if (L.target_duration.count() > 0) {
         L.next_frame_time += L.target_duration;
         auto now = std::chrono::steady_clock::now();
@@ -242,6 +250,7 @@ static void run_frame() {
         }
         while (std::chrono::steady_clock::now() < L.next_frame_time) { }
     }
+#endif
 }
 
 int main(int argc, char* argv[]) {
@@ -320,6 +329,7 @@ int main(int argc, char* argv[]) {
 
     L.camera = compute_camera2d(L.screen_width, L.screen_height);
 
+#ifndef __EMSCRIPTEN__
     if (global_data.config->video.borderless) {
         ray::ToggleBorderlessWindowed();
         spdlog::info("Borderless window enabled");
@@ -328,18 +338,22 @@ int main(int argc, char* argv[]) {
         ray::ToggleFullscreen();
         spdlog::info("Fullscreen enabled");
     }
+#endif
 
     rlSetBlendFactorsSeparate(RL_SRC_ALPHA, RL_ONE_MINUS_SRC_ALPHA, RL_ONE, RL_ONE_MINUS_SRC_ALPHA, RL_FUNC_ADD, RL_FUNC_ADD);
-#ifdef PLATFORM_ANDROID
+#if defined(PLATFORM_ANDROID) || defined(__EMSCRIPTEN__)
     ray::SetExitKey(ray::KEY_NULL);
 #else
     ray::SetExitKey(global_data.config->keys.exit_key);
 #endif
     ray::HideCursor();
 
+    L.next_frame_time = std::chrono::steady_clock::now();
+#ifdef __EMSCRIPTEN__
+    emscripten_set_main_loop(run_frame, 0, 1);
+#else
     input_thread = std::thread(input_polling_thread);
 
-    L.next_frame_time = std::chrono::steady_clock::now();
     while (!ray::WindowShouldClose()) {
         run_frame();
     }
@@ -356,4 +370,5 @@ int main(int argc, char* argv[]) {
     ray::CloseWindow();
     audio.close_audio_device();
     spdlog::info("Game closed");
+#endif
 }

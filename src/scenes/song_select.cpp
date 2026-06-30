@@ -19,9 +19,11 @@ void SongSelectScreen::on_screen_start() {
     dan_transition.reset();
 
     navigator.init(global_data.config->paths.tja_path);
+#ifndef __EMSCRIPTEN__
     stats_future = std::async(std::launch::async, [this]() {
         return navigator.get_statistics(global_data.config->paths.tja_path[0]);
     });
+#endif
     navigator.refresh_scores();
 
     player = std::make_unique<SongSelectPlayer>(global_data.player_num);
