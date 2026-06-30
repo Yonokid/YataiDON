@@ -2,7 +2,9 @@
 
 #include "config.h"
 #include "av.h"
-#include "audio/portaudio.h"
+#if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
+#include <RtAudio.h>
+#endif
 #include <sndfile.h>
 #include <samplerate.h>
 #include <memory>
@@ -136,7 +138,6 @@ public:
     void  seek_music_stream(const std::string& name, float position);
 
 private:
-    int host_api_index;
     double target_sample_rate;
     unsigned long buffer_size;
     VolumeConfig volume_presets;
@@ -144,8 +145,9 @@ private:
     mutable std::shared_mutex rw_lock;
     std::atomic<float> master_volume;
 
-    PaStream* stream;
-    PaStreamParameters output_parameters;
+#if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
+    RtAudio* rt_audio = nullptr;
+#endif
 #ifdef __ANDROID__
     void* android_stream_ptr = nullptr; // AAudioStream*, type-erased to avoid platform header in .h
 #endif
@@ -157,11 +159,9 @@ private:
 
 public:
     // Public so the Android AAudio C-callback (file-scope static) can call it.
-    static int port_audio_callback(const void *inputBuffer, void *outputBuffer,
-                                unsigned long framesPerBuffer,
-                                const PaStreamCallbackTimeInfo* timeInfo,
-                                PaStreamCallbackFlags statusFlags,
-                                void *userData);
+    static int audio_callback(void* outputBuffer, void* inputBuffer,
+                              unsigned int framesPerBuffer, double streamTime,
+                              unsigned int status, void* userData);
 };
 
 extern AudioEngine audio;

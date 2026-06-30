@@ -90,8 +90,8 @@ static bool ffmpeg_decode_float(const char* path,
 static aaudio_data_callback_result_t android_audio_callback(
     AAudioStream* /*stream*/, void* userData, void* audioData, int32_t numFrames)
 {
-    AudioEngine::port_audio_callback(nullptr, audioData,
-        static_cast<unsigned long>(numFrames), nullptr, 0, userData);
+    AudioEngine::audio_callback(audioData, nullptr,
+        static_cast<unsigned int>(numFrames), 0.0, 0, userData);
     return AAUDIO_CALLBACK_RESULT_CONTINUE;
 }
 #endif // __ANDROID__
@@ -146,11 +146,9 @@ AudioEngine::~AudioEngine() {
 }
 
 #ifndef __EMSCRIPTEN__
-int AudioEngine::port_audio_callback(const void *inputBuffer, void *outputBuffer,
-                        unsigned long framesPerBuffer,
-                        const PaStreamCallbackTimeInfo* timeInfo,
-                        PaStreamCallbackFlags statusFlags,
-                        void *userData) {
+int AudioEngine::audio_callback(void* outputBuffer, void* inputBuffer,
+                                unsigned int framesPerBuffer, double streamTime,
+                                unsigned int status, void* userData) {
 
     float* out = static_cast<float*>(outputBuffer);
 
@@ -159,7 +157,7 @@ int AudioEngine::port_audio_callback(const void *inputBuffer, void *outputBuffer
     const unsigned long buffer_size = framesPerBuffer * 2;
     std::memset(out, 0, buffer_size * sizeof(float));
 
-    if (!engine) return paContinue;
+    if (!engine) return 0;
 
     std::shared_lock<std::shared_mutex> guard(engine->rw_lock);
 
@@ -342,19 +340,17 @@ int AudioEngine::port_audio_callback(const void *inputBuffer, void *outputBuffer
         out[i] = (sample > 1.0f) ? 1.0f : ((sample < -1.0f) ? -1.0f : sample);
     }
 
-    return paContinue;
+    return 0;
 }
 #endif // !__EMSCRIPTEN__
 
 bool AudioEngine::init_audio_device(const fs::path& sounds_path, const AudioConfig& audio_config, const VolumeConfig& volume_presets) {
     this->sounds_path = sounds_path;
-    this->host_api_index = std::max(audio_config.device_type, 0);
     this->target_sample_rate = audio_config.sample_rate < 0 ? 44100.0f : audio_config.sample_rate;
     this->buffer_size = audio_config.buffer_size;
     this->volume_presets = volume_presets;
     this->is_ready = false;
     this->master_volume = 1.0f;
-    this->stream = nullptr;
     try {
 #ifdef __ANDROID__
         AAudioStreamBuilder* builder = nullptr;
@@ -392,69 +388,56 @@ bool AudioEngine::init_audio_device(const fs::path& sounds_path, const AudioConf
         spdlog::info("    > Sample rate:   {}", AAudioStream_getSampleRate(aastream));
         spdlog::info("    > Buffer frames: {}", AAudioStream_getBufferSizeInFrames(aastream));
 #elif !defined(__EMSCRIPTEN__)
-        // --- Desktop: use PortAudio ---
-        PaError err = Pa_Initialize();
-        if (err != paNoError) {
-            spdlog::error("Failed to initialize PortAudio: {}", Pa_GetErrorText(err));
+        // --- Desktop: use RtAudio ---
+        rt_audio = new RtAudio();
+
+        if (rt_audio->getDeviceCount() == 0) {
+            spdlog::error("No audio devices found");
+            delete rt_audio;
+            rt_audio = nullptr;
             return false;
         }
 
-        const PaHostApiInfo *host_api_info = Pa_GetHostApiInfo(host_api_index);
-        if (!host_api_info) {
-            spdlog::error("Failed to get host API info for index {}", host_api_index);
-            Pa_Terminate();
+        RtAudio::StreamParameters params;
+        params.deviceId     = rt_audio->getDefaultOutputDevice();
+        params.nChannels    = 2;
+        params.firstChannel = 0;
+
+        unsigned int bufferFrames = static_cast<unsigned int>(buffer_size);
+
+        RtAudio::StreamOptions options;
+        options.flags = RTAUDIO_MINIMIZE_LATENCY;
+
+        RtAudioErrorType err = rt_audio->openStream(&params, nullptr, RTAUDIO_FLOAT32,
+            static_cast<unsigned int>(target_sample_rate), &bufferFrames,
+            &AudioEngine::audio_callback, this, &options);
+        if (err != RTAUDIO_NO_ERROR) {
+            spdlog::error("Failed to open audio stream: {}", rt_audio->getErrorText());
+            delete rt_audio;
+            rt_audio = nullptr;
             return false;
         }
 
-        PaDeviceIndex device_index = host_api_info->defaultOutputDevice;
-        if (device_index == paNoDevice) {
-            spdlog::error("No default output device found for host API {}", host_api_info->name);
-            Pa_Terminate();
-            return false;
-        }
-
-        const PaDeviceInfo *device_info = Pa_GetDeviceInfo(device_index);
-        if (!device_info) {
-            spdlog::error("Failed to get device info for device {}", device_index);
-            Pa_Terminate();
-            return false;
-        }
-
-        output_parameters.device = device_index;
-        output_parameters.channelCount = std::min(2, device_info->maxOutputChannels);
-        output_parameters.sampleFormat = paFloat32;
-        output_parameters.suggestedLatency = device_info->defaultLowOutputLatency;
-        output_parameters.hostApiSpecificStreamInfo = NULL;
-
-        err = Pa_OpenStream(&stream, NULL, &output_parameters, target_sample_rate, buffer_size, paNoFlag, port_audio_callback, this);
-        if (err != paNoError) {
-            spdlog::error("Failed to open audio stream: {}", Pa_GetErrorText(err));
-            Pa_Terminate();
-            return false;
-        }
-
-        err = Pa_StartStream(stream);
-        if (err != paNoError) {
-            spdlog::error("Failed to start audio stream: {}", Pa_GetErrorText(err));
-            Pa_CloseStream(stream);
-            Pa_Terminate();
-            stream = nullptr;
+        err = rt_audio->startStream();
+        if (err != RTAUDIO_NO_ERROR) {
+            spdlog::error("Failed to start audio stream: {}", rt_audio->getErrorText());
+            rt_audio->closeStream();
+            delete rt_audio;
+            rt_audio = nullptr;
             return false;
         }
 
         is_ready = true;
 
         spdlog::info("Audio Device initialized successfully");
-        spdlog::info("    > Backend:       PortAudio | {}", host_api_info->name);
-        spdlog::info("    > Device:        {}", device_info->name);
+        spdlog::info("    > Backend:       RtAudio | {}", RtAudio::getApiDisplayName(rt_audio->getCurrentApi()));
         spdlog::info("    > Format:        {}", "Float32");
-        const PaStreamInfo *streamInfo = Pa_GetStreamInfo(stream);
-        spdlog::info("    > Channels:      {}", output_parameters.channelCount);
+        spdlog::info("    > Channels:      {}", 2);
         spdlog::info("    > Sample rate:   {}", target_sample_rate);
-        spdlog::info("    > Buffer size:   {} (requested)", buffer_size);
-        spdlog::info("    > Latency:       {} ms", streamInfo->outputLatency * 1000.0);
+        spdlog::info("    > Buffer size:   {} (actual)", bufferFrames);
+        spdlog::info("    > Latency:       {:.2f} ms", (rt_audio->getStreamLatency() / target_sample_rate) * 1000.0);
 #else
-        spdlog::warn("Audio device not initialized: PortAudio unavailable on this platform");
+        spdlog::warn("Audio device not initialized: audio backend unavailable on this platform");
 #endif // !__ANDROID__ && !__EMSCRIPTEN__
 
         return is_ready;
@@ -477,12 +460,12 @@ void AudioEngine::close_audio_device() {
             android_stream_ptr = nullptr;
         }
 #elif !defined(__EMSCRIPTEN__)
-        if (stream != nullptr) {
-            Pa_StopStream(stream);
-            Pa_CloseStream(stream);
-            stream = nullptr;
+        if (rt_audio != nullptr) {
+            if (rt_audio->isStreamRunning()) rt_audio->stopStream();
+            if (rt_audio->isStreamOpen()) rt_audio->closeStream();
+            delete rt_audio;
+            rt_audio = nullptr;
         }
-        Pa_Terminate();
 #endif
         is_ready = false;
 

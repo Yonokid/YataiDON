@@ -86,8 +86,8 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     FFmpeg::swresample
 )
 
-target_link_libraries(${PROJECT_NAME} PRIVATE sndfile samplerate portaudio)
-message(STATUS "Audio backend: PortAudio (custom)")
+target_link_libraries(${PROJECT_NAME} PRIVATE sndfile samplerate rtaudio)
+message(STATUS "Audio backend: RtAudio")
 
 include(cmake/platform.cmake)
 
@@ -109,7 +109,7 @@ message(STATUS "Project: ${PROJECT_NAME}")
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "C++ Standard: ${CMAKE_CXX_STANDARD}")
 message(STATUS "Platform: ${CMAKE_SYSTEM_NAME}")
-message(STATUS "PortAudio Library: ${PORTAUDIO_LIBRARY}")
+message(STATUS "Audio backend: RtAudio (FetchContent)")
 message(STATUS "SDL3: ${SDL3_VERSION}")
 if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT WIN32 AND NOT ANDROID)
   message(STATUS "Sanitizers: AddressSanitizer, LeakSanitizer, UndefinedBehaviorSanitizer")

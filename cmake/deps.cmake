@@ -366,47 +366,22 @@ else()
   message(STATUS "  libswresample ${SWRESAMPLE_VERSION}")
 endif()
 
-# PortAudio
+# RtAudio
 if(EMSCRIPTEN)
-  message(STATUS "PortAudio disabled on Emscripten -- audio backend unavailable until ported")
-  add_library(portaudio INTERFACE IMPORTED)
-  set(PORTAUDIO_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/src/libs/audio")
+  message(STATUS "RtAudio disabled on Emscripten -- audio backend unavailable until ported")
+  add_library(rtaudio INTERFACE IMPORTED)
 elseif(ANDROID)
-  message(STATUS "Fetching PortAudio from source (Android, AAudio + OpenSL ES)")
-  set(PA_USE_AAUDIO ON CACHE BOOL "" FORCE)
-  set(PA_USE_OPENSLES ON CACHE BOOL "" FORCE)
-  set(PA_USE_JACK OFF CACHE BOOL "" FORCE)
-  set(PA_USE_OSS OFF CACHE BOOL "" FORCE)
-  set(PA_DISABLE_INSTALL ON CACHE BOOL "" FORCE)
-  set(PA_BUILD_SHARED OFF CACHE BOOL "" FORCE)
-  set(PA_BUILD_STATIC ON CACHE BOOL "" FORCE)
+  # Android uses AAudio directly -- RtAudio not needed
+  add_library(rtaudio INTERFACE IMPORTED)
+else()
+  set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+  set(RTAUDIO_BUILD_TESTING OFF CACHE BOOL "" FORCE)
+  set(RTAUDIO_TARGETNAME_UNINSTALL "rtaudio_uninstall" CACHE STRING "" FORCE)
   FetchContent_Declare(
-    portaudio_android
-    GIT_REPOSITORY https://github.com/PortAudio/portaudio.git
-    GIT_TAG master
+    rtaudio
+    GIT_REPOSITORY https://github.com/thestk/rtaudio.git
+    GIT_TAG 6.0.1
     GIT_SHALLOW TRUE
   )
-  FetchContent_MakeAvailable(portaudio_android)
-  set(PORTAUDIO_INCLUDE_DIR "${portaudio_android_SOURCE_DIR}/include")
-else()
-  if(WIN32)
-    set(PORTAUDIO_LIB_NAME "libportaudio-win.a")
-  elseif(APPLE)
-    set(PORTAUDIO_LIB_NAME "libportaudio-macos.a")
-  elseif(UNIX)
-    set(PORTAUDIO_LIB_NAME "libportaudio-linux.a")
-  endif()
-
-  set(PORTAUDIO_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/src/libs/audio")
-  set(PORTAUDIO_LIBRARY "${CMAKE_SOURCE_DIR}/src/libs/audio/${PORTAUDIO_LIB_NAME}")
-
-  if(NOT EXISTS ${PORTAUDIO_LIBRARY})
-    message(FATAL_ERROR "PortAudio library not found: ${PORTAUDIO_LIBRARY}")
-  endif()
-
-  add_library(portaudio STATIC IMPORTED)
-  set_target_properties(portaudio PROPERTIES
-      IMPORTED_LOCATION ${PORTAUDIO_LIBRARY}
-      INTERFACE_INCLUDE_DIRECTORIES ${PORTAUDIO_INCLUDE_DIR}
-  )
+  FetchContent_MakeAvailable(rtaudio)
 endif()
