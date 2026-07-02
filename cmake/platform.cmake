@@ -5,6 +5,7 @@ if(WIN32)
         winmm
         setupapi
         ole32
+        avrt
         vorbisenc
         vorbis
         FLAC

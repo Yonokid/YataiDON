@@ -226,10 +226,10 @@ elseif(ANDROID OR EMSCRIPTEN)
   set(OPUS_INCLUDE_DIR "${OPUS_INCLUDE_SHIM_DIR}" CACHE PATH "" FORCE)
   set(OPUS_LIBRARY "opus" CACHE STRING "" FORCE)
 
-  message(STATUS "Fetching libsndfile from source (${CMAKE_SYSTEM_NAME}, OGG/Vorbis/FLAC/Opus, no MP3)")
+  message(STATUS "Fetching libsndfile from source (${CMAKE_SYSTEM_NAME}, OGG/Vorbis/FLAC/Opus/MP3)")
   set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
   set(ENABLE_EXTERNAL_LIBS ON CACHE BOOL "" FORCE)
-  set(ENABLE_MPEG OFF CACHE BOOL "" FORCE)
+  set(ENABLE_MPEG ON CACHE BOOL "" FORCE)
   set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
   FetchContent_Declare(
       libsndfile

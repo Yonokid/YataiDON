@@ -2,15 +2,19 @@
 
 #include "config.h"
 #include "av.h"
-#include "miniaudio.h"
+#include <SDL3/SDL_audio.h>
+#include <SDL3/SDL_hints.h>
+#include <SDL3/SDL_init.h>
 #ifdef _WIN32
 #include <RtAudio.h>
+#include "audio/wasapi_exclusive.h"
 #endif
 #include <sndfile.h>
 #include <samplerate.h>
 #include <memory>
 #include <atomic>
 #include <shared_mutex>
+#include <vector>
 
 #ifdef __ANDROID__
 // NDK r27d libc++ omits std::atomic_ref; polyfill with __atomic builtins
@@ -146,10 +150,9 @@ private:
     mutable std::shared_mutex rw_lock;
     std::atomic<float> master_volume;
 
-    ma_context ma_ctx{};
-    ma_device  ma_dev{};
-    bool       ma_ctx_initialized = false;
-    bool       ma_dev_initialized = false;
+    SDL_AudioStream*   sdl_stream = nullptr;
+    bool               sdl_audio_subsystem_initialized = false;
+    std::vector<float> sdl_scratch_buffer;
 
 #ifdef _WIN32
     RtAudio* rt_audio = nullptr;  // ASIO (device_type == 6) only
@@ -161,7 +164,7 @@ private:
     std::string path_to_string(const fs::path& path) const;
 
     static void mix(float* out, unsigned int framesPerBuffer, AudioEngine* engine);
-    static void ma_audio_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount);
+    static void sdl_audio_callback(void* userdata, SDL_AudioStream* stream, int additional_amount, int total_amount);
 #ifdef _WIN32
     static int  rt_audio_callback(void* outputBuffer, void* inputBuffer,
                                    unsigned int framesPerBuffer, double streamTime,

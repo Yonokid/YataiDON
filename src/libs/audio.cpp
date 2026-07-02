@@ -87,34 +87,6 @@ static bool ffmpeg_decode_float(const char* path,
 }
 #endif // __ANDROID__
 
-#ifdef __EMSCRIPTEN__
-// Decode any audio file miniaudio understands (wav/flac/mp3) to float32 interleaved.
-// Used as a fallback for formats libsndfile can't open on this platform (mp3, flac; ogg/vorbis
-// already goes through libsndfile directly). Returns false on failure.
-static bool miniaudio_decode_float(const char* path,
-    float** out_data, sf_count_t* out_frames,
-    unsigned int* out_rate, unsigned int* out_channels)
-{
-    ma_decoder_config config = ma_decoder_config_init(ma_format_f32, 0, 0);
-    ma_uint64 frame_count = 0;
-    void* pcm = nullptr;
-
-    ma_result result = ma_decode_file(path, &config, &frame_count, &pcm);
-    if (result != MA_SUCCESS || pcm == nullptr) return false;
-
-    size_t sample_count = (size_t)frame_count * config.channels;
-    float* data = new float[sample_count];
-    std::memcpy(data, pcm, sample_count * sizeof(float));
-    ma_free(pcm, nullptr);
-
-    *out_data     = data;
-    *out_frames   = (sf_count_t)frame_count;
-    *out_rate     = config.sampleRate;
-    *out_channels = config.channels;
-    return true;
-}
-#endif // __EMSCRIPTEN__
-
 static sf_count_t vf_get_filelen(void* user_data) {
     auto* vf = static_cast<VirtualFile*>(user_data);
     return static_cast<sf_count_t>(vf->data->size());
@@ -354,9 +326,23 @@ void AudioEngine::mix(float* out, unsigned int framesPerBuffer, AudioEngine* eng
 
 }
 
-void AudioEngine::ma_audio_callback(ma_device* pDevice, void* pOutput, const void* /*pInput*/, ma_uint32 frameCount) {
-    AudioEngine* engine = static_cast<AudioEngine*>(pDevice->pUserData);
-    mix(static_cast<float*>(pOutput), frameCount, engine);
+void AudioEngine::sdl_audio_callback(void* userdata, SDL_AudioStream* stream, int additional_amount, int /*total_amount*/) {
+    AudioEngine* engine = static_cast<AudioEngine*>(userdata);
+    if (!engine || additional_amount <= 0) return;
+
+    const int bytes_per_frame = static_cast<int>(sizeof(float)) * 2; // f32 stereo, matches the spec we opened with
+    unsigned int frames = static_cast<unsigned int>(additional_amount) / bytes_per_frame;
+    if (frames == 0) return;
+
+    size_t needed_floats = static_cast<size_t>(frames) * 2;
+    if (engine->sdl_scratch_buffer.size() < needed_floats) {
+        engine->sdl_scratch_buffer.resize(needed_floats);
+    }
+
+    mix(engine->sdl_scratch_buffer.data(), frames, engine);
+
+    SDL_PutAudioStreamData(stream, engine->sdl_scratch_buffer.data(),
+                            static_cast<int>(needed_floats * sizeof(float)));
 }
 
 #ifdef _WIN32
@@ -368,6 +354,18 @@ int AudioEngine::rt_audio_callback(void* outputBuffer, void* /*inputBuffer*/,
     return 0;
 }
 #endif
+
+static const char* sdl_driver_name_for(int device_type) {
+    switch (device_type) {
+        case 1: return "alsa";
+        case 2: return "pulseaudio";
+        case 3: return "jack";
+        case 4: return "coreaudio";
+        case 5: return "wasapi";
+        case 7: return "directsound";
+        default: return nullptr; // 0 = auto
+    }
+}
 
 bool AudioEngine::init_audio_device(const fs::path& sounds_path, const AudioConfig& audio_config, const VolumeConfig& volume_presets) {
     this->sounds_path = sounds_path;
@@ -434,89 +432,69 @@ bool AudioEngine::init_audio_device(const fs::path& sounds_path, const AudioConf
             spdlog::info("    > Channels:      2");
             spdlog::info("    > Sample rate:   {} Hz", rt_audio->getStreamSampleRate());
             spdlog::info("    > Buffer size:   {} frames (actual)", bufferFrames);
+        } else if (audio_config.exclusive_mode &&
+                   wasapi_exclusive::init(static_cast<unsigned int>(target_sample_rate),
+                                           static_cast<unsigned int>(buffer_size),
+                                           &AudioEngine::mix, this)) {
+            is_ready = true;
+            spdlog::info("Audio Device initialized successfully");
+            spdlog::info("    > Backend:       WASAPI (raw, exclusive mode)");
+            spdlog::info("    > Format:        Float32, 2ch, {} Hz", (int)target_sample_rate);
+            spdlog::info("    > Buffer size:   {} frames (requested)", buffer_size);
         } else
 #endif
         {
-            // miniaudio: all platforms (WASAPI, DS, CoreAudio, ALSA, PulseAudio, JACK, AAudio, WebAudio)
-            static const ma_backend ma_backend_map[] = {
-                ma_backend_wasapi,      // 0 placeholder (auto handled below)
-                ma_backend_alsa,        // 1
-                ma_backend_pulseaudio,  // 2
-                ma_backend_jack,        // 3
-                ma_backend_coreaudio,   // 4
-                ma_backend_wasapi,      // 5
-                ma_backend_wasapi,      // 6 ASIO handled above (Windows only)
-                ma_backend_dsound,      // 7
-            };
-
-            ma_context_config ctx_config = ma_context_config_init();
-            ma_result result;
-
-            int device_type = audio_config.device_type;
-            if (device_type > 0 && device_type < 8 && device_type != 6) {
-                ma_backend chosen = ma_backend_map[device_type];
-                result = ma_context_init(&chosen, 1, &ctx_config, &ma_ctx);
-            } else {
-                result = ma_context_init(nullptr, 0, &ctx_config, &ma_ctx);
-            }
-
-            if (result != MA_SUCCESS) {
-                spdlog::error("Failed to initialize miniaudio context: {}", ma_result_description(result));
-                return false;
-            }
-            ma_ctx_initialized = true;
-
-            ma_device_config config = ma_device_config_init(ma_device_type_playback);
-            config.playback.format    = ma_format_f32;
-            config.playback.channels  = 2;
-            config.sampleRate         = static_cast<ma_uint32>(target_sample_rate);
-            config.dataCallback       = AudioEngine::ma_audio_callback;
-            config.pUserData          = this;
-            config.periodSizeInFrames = static_cast<ma_uint32>(buffer_size);
             if (audio_config.exclusive_mode) {
-                config.playback.shareMode = ma_share_mode_exclusive;
-                config.wasapi.usage = ma_wasapi_usage_pro_audio;
+                spdlog::warn("Exclusive mode unavailable; falling back to SDL3 shared mode");
             }
 
-            result = ma_device_init(&ma_ctx, &config, &ma_dev);
-            if (result == MA_SHARE_MODE_NOT_SUPPORTED && audio_config.exclusive_mode) {
-                spdlog::warn("Exclusive mode not supported by device, falling back to shared mode");
-                config.playback.shareMode = ma_share_mode_shared;
-                result = ma_device_init(&ma_ctx, &config, &ma_dev);
+            const char* driver = sdl_driver_name_for(audio_config.device_type);
+            if (driver) SDL_SetHint(SDL_HINT_AUDIO_DRIVER, driver);
+            else        SDL_ResetHint(SDL_HINT_AUDIO_DRIVER);
+
+            char frames_str[16];
+            std::snprintf(frames_str, sizeof(frames_str), "%lu", buffer_size);
+            SDL_SetHint(SDL_HINT_AUDIO_DEVICE_SAMPLE_FRAMES, frames_str);
+
+            if (!sdl_audio_subsystem_initialized) {
+                if (!SDL_InitSubSystem(SDL_INIT_AUDIO)) {
+                    spdlog::error("Failed to init SDL audio subsystem: {}", SDL_GetError());
+                    return false;
+                }
+                sdl_audio_subsystem_initialized = true;
             }
-            if (result != MA_SUCCESS) {
-                spdlog::error("Failed to initialize miniaudio device: {}", ma_result_description(result));
-                ma_context_uninit(&ma_ctx);
-                ma_ctx_initialized = false;
+
+            SDL_AudioSpec spec{};
+            spec.format   = SDL_AUDIO_F32;
+            spec.channels = 2;
+            spec.freq     = static_cast<int>(target_sample_rate);
+
+            sdl_stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec,
+                                                    AudioEngine::sdl_audio_callback, this);
+            if (!sdl_stream) {
+                spdlog::error("Failed to open SDL audio device stream: {}", SDL_GetError());
                 return false;
             }
-            ma_dev_initialized = true;
 
-            result = ma_device_start(&ma_dev);
-            if (result != MA_SUCCESS) {
-                spdlog::error("Failed to start miniaudio device: {}", ma_result_description(result));
-                ma_device_uninit(&ma_dev);
-                ma_dev_initialized = false;
-                ma_context_uninit(&ma_ctx);
-                ma_ctx_initialized = false;
+            if (!SDL_ResumeAudioStreamDevice(sdl_stream)) {
+                spdlog::error("Failed to start SDL audio stream: {}", SDL_GetError());
+                SDL_DestroyAudioStream(sdl_stream);
+                sdl_stream = nullptr;
                 return false;
             }
 
             is_ready = true;
 
-            bool got_exclusive = audio_config.exclusive_mode &&
-                                 (config.playback.shareMode == ma_share_mode_exclusive);
+            SDL_AudioSpec actual_spec{};
+            int actual_frames = 0;
+            SDL_GetAudioDeviceFormat(SDL_GetAudioStreamDevice(sdl_stream), &actual_spec, &actual_frames);
+
             spdlog::info("Audio Device initialized successfully");
-            spdlog::info("    > Backend:       miniaudio | {}", ma_get_backend_name(ma_ctx.backend));
-            spdlog::info("    > Device:        {}", ma_dev.playback.name);
-            spdlog::info("    > Share mode:    {} (requested: {})",
-                         got_exclusive ? "exclusive" : "shared",
-                         audio_config.exclusive_mode ? "exclusive" : "shared");
+            spdlog::info("    > Backend:       SDL3 | {}", SDL_GetCurrentAudioDriver());
             spdlog::info("    > Format:        Float32");
-            spdlog::info("    > Channels:      {}", ma_dev.playback.internalChannels);
-            spdlog::info("    > Sample rate:   {} Hz (requested {} Hz)",
-                         ma_dev.playback.internalSampleRate, (int)target_sample_rate);
-            spdlog::info("    > Buffer size:   {} frames (actual)", ma_dev.playback.internalPeriodSizeInFrames);
+            spdlog::info("    > Channels:      {} (requested 2)", actual_spec.channels);
+            spdlog::info("    > Sample rate:   {} Hz (requested {} Hz)", actual_spec.freq, (int)target_sample_rate);
+            spdlog::info("    > Buffer size:   {} frames (device-reported)", actual_frames);
         }
 
         return is_ready;
@@ -531,13 +509,16 @@ void AudioEngine::close_audio_device() {
         unload_all_sounds();
         unload_all_music();
 
-        if (ma_dev_initialized) {
-            ma_device_uninit(&ma_dev);
-            ma_dev_initialized = false;
+        if (sdl_stream) {
+            SDL_DestroyAudioStream(sdl_stream); // also closes the underlying device
+            sdl_stream = nullptr;
         }
-        if (ma_ctx_initialized) {
-            ma_context_uninit(&ma_ctx);
-            ma_ctx_initialized = false;
+#ifdef _WIN32
+        wasapi_exclusive::shutdown(); // idempotent no-op if not running
+#endif
+        if (sdl_audio_subsystem_initialized) {
+            SDL_QuitSubSystem(SDL_INIT_AUDIO);
+            sdl_audio_subsystem_initialized = false;
         }
 #ifdef _WIN32
         if (rt_audio != nullptr) {
@@ -640,51 +621,6 @@ std::string AudioEngine::load_sound(const fs::path& file_path, const std::string
                 sounds[name] = snd;
             }
             spdlog::debug("Loaded sound (ffmpeg): {} ({} frames, {} Hz, {} ch)",
-                          name, snd.frame_count, snd.sample_rate, snd.channels);
-            return name;
-#elif defined(__EMSCRIPTEN__)
-            float* ma_data = nullptr;
-            sf_count_t ma_frames = 0;
-            unsigned int ma_rate = 0, ma_ch = 0;
-            std::string path_str2 = path_to_string(file_path);
-            if (!miniaudio_decode_float(path_str2.c_str(), &ma_data, &ma_frames, &ma_rate, &ma_ch)) {
-                spdlog::error("Failed to open sound file: {} - {} (miniaudio fallback also failed)",
-                              file_path.string(), sf_strerror(NULL));
-                return "";
-            }
-            sound snd;
-            snd.data        = ma_data;
-            snd.frame_count = ma_frames;
-            snd.sample_rate = ma_rate;
-            snd.channels    = ma_ch;
-            snd.is_playing  = false;
-            snd.current_frame = 0;
-            snd.loop   = false;
-            snd.volume = 1.0f;
-            snd.pan    = 0.5f;
-            snd.pitch  = 1.0f;
-            if ((double)ma_rate != target_sample_rate) {
-                double ratio = target_sample_rate / (double)ma_rate;
-                long out_frames = (long)(ma_frames * ratio) + 1;
-                float* rs = new float[out_frames * ma_ch];
-                SRC_DATA sd{};
-                sd.data_in = ma_data; sd.input_frames = ma_frames;
-                sd.data_out = rs; sd.output_frames = out_frames;
-                sd.src_ratio = ratio; sd.end_of_input = 1;
-                int err = src_simple(&sd, SRC_SINC_FASTEST, (int)ma_ch);
-                if (err) { delete[] ma_data; delete[] rs; return ""; }
-                delete[] ma_data;
-                snd.data = rs;
-                snd.frame_count = sd.output_frames_gen;
-                snd.sample_rate = (unsigned int)target_sample_rate;
-            }
-            snd.resampler = nullptr;
-            snd.resample_buffer = nullptr;
-            {
-                std::unique_lock<std::shared_mutex> guard(rw_lock);
-                sounds[name] = snd;
-            }
-            spdlog::debug("Loaded sound (miniaudio): {} ({} frames, {} Hz, {} ch)",
                           name, snd.frame_count, snd.sample_rate, snd.channels);
             return name;
 #else
@@ -1016,59 +952,6 @@ std::string AudioEngine::load_music_stream(const fs::path& file_path, const std:
             }
             spdlog::debug("Loaded music stream (ffmpeg): {} ({} frames, {} Hz, {} ch)",
                           name, ff_frames, ff_rate, ff_ch);
-            return name;
-#elif defined(__EMSCRIPTEN__)
-            float* ma_data = nullptr;
-            sf_count_t ma_frames = 0;
-            unsigned int ma_rate = 0, ma_ch = 0;
-            std::string path_str2 = path_to_string(file_path);
-            if (!miniaudio_decode_float(path_str2.c_str(), &ma_data, &ma_frames, &ma_rate, &ma_ch)) {
-                spdlog::error("Failed to open music file: {} - {} (miniaudio fallback also failed)",
-                              file_path.string(), sf_strerror(NULL));
-                return "";
-            }
-
-            if ((double)ma_rate != target_sample_rate) {
-                double ratio = target_sample_rate / (double)ma_rate;
-                long out_frames = (long)(ma_frames * ratio) + 1;
-                float* rs = new float[out_frames * ma_ch];
-                SRC_DATA sd{};
-                sd.data_in = ma_data; sd.input_frames = ma_frames;
-                sd.data_out = rs; sd.output_frames = out_frames;
-                sd.src_ratio = ratio; sd.end_of_input = 1;
-                int err = src_simple(&sd, SRC_SINC_FASTEST, (int)ma_ch);
-                if (err) { delete[] ma_data; delete[] rs; return ""; }
-                delete[] ma_data;
-                ma_data = rs;
-                ma_frames = sd.output_frames_gen;
-                ma_rate = (unsigned int)target_sample_rate;
-            }
-
-            music mus{};
-            mus.file_handle = nullptr;
-            mus.file_info.channels = (int)ma_ch;
-            mus.file_info.samplerate = (int)ma_rate;
-            mus.file_path = file_path.string();
-            mus.pcm_data = ma_data;
-            mus.pcm_total_frames = ma_frames;
-            mus.buffer_size = 4096;
-            mus.stream_buffer = new float[mus.buffer_size * ma_ch];
-            mus.buffer_position = 0;
-            mus.frames_in_buffer = 0;
-            mus.is_playing = false;
-            mus.current_frame = 0;
-            mus.loop = false;
-            mus.volume = 1.0f;
-            mus.pan = 0.5f;
-            mus.pitch = 1.0f;
-            mus.resampler = nullptr;
-            mus.resample_buffer = nullptr;
-            {
-                std::unique_lock<std::shared_mutex> guard(rw_lock);
-                music_streams[name] = mus;
-            }
-            spdlog::debug("Loaded music stream (miniaudio): {} ({} frames, {} Hz, {} ch)",
-                          name, ma_frames, ma_rate, ma_ch);
             return name;
 #else
             spdlog::error("Failed to open music file: {} - {}", file_path.string(), sf_strerror(NULL));
