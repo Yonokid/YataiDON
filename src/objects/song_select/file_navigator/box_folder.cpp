@@ -146,7 +146,7 @@ void FolderBox::draw_open_bg(float fade) {
 
     if (open_anim->attribute >= (100.0f * tex.screen_scale)) {
         if (use_shader) ray::BeginShaderMode(shader);
-        tex.draw_texture(BOX::FOLDER_TOP_EDGE, {.frame=frame, .mirror="horizontal", .y=by-(float)open_anim->attribute, .fade=fade});
+        tex.draw_texture(BOX::FOLDER_TOP_EDGE, {.frame=frame, .mirror=Mirror::HORIZONTAL, .y=by-(float)open_anim->attribute, .fade=fade});
         tex.draw_texture(BOX::FOLDER_TOP,      {.frame=frame, .y=by-(float)open_anim->attribute, .fade=fade});
         tex.draw_texture(BOX::FOLDER_TOP_EDGE, {.frame=frame, .x=tex.skin_config[SC::SONG_FOLDER_TOP].x, .y=by-(float)open_anim->attribute, .fade=fade});
         if (use_shader) ray::EndShaderMode();

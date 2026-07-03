@@ -203,7 +203,7 @@ void SettingsBox::draw() {
                  .index=0});
             if (option_index != (int)options.size() - 1) {
                 tex.draw_texture(BACKGROUND::BLUE_ARROW,
-                    {.mirror="horizontal",
+                    {.mirror=Mirror::HORIZONTAL,
                      .x=(float)blue_arrow_move->attribute,
                      .fade=blue_arrow_fade->attribute,
                      .index=1});

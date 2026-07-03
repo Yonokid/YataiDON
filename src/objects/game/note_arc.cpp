@@ -97,13 +97,13 @@ void NoteArc::draw(float y, ray::Shader mask_shader) {
 
             if (crop_width > 0) {
                 ray::Rectangle src = {crop_start_x, 0, crop_width, rainbow_height};
-                std::string mirror;
+                Mirror mirror;
                 float y_pos;
                 if (player_num == PlayerNum::P2) {
-                    mirror = "vertical";
+                    mirror = Mirror::VERTICAL;
                     y_pos = tex.skin_config[SC::NOTE_ARC_BALLOON_P2_Y].y;
                 } else {
-                    mirror = "";
+                    mirror = Mirror::NONE;
                     y_pos = 0;
                 }
                 ray::BeginShaderMode(mask_shader);

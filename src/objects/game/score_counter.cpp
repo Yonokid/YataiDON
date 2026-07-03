@@ -21,7 +21,7 @@ void ScoreCounter::update(double current_ms) {
 void ScoreCounter::draw(float y) {
     float p2_offset = is_2p ? tex.skin_config[SC::SCORE_COUNTER_2P_Y_OFFSET].y : 0;
     if (is_2p) {
-        tex.draw_texture(LANE::LANE_SCORE_COVER, {.mirror="vertical", .y=y + p2_offset});
+        tex.draw_texture(LANE::LANE_SCORE_COVER, {.mirror=Mirror::VERTICAL, .y=y + p2_offset});
     } else {
         tex.draw_texture(LANE::LANE_SCORE_COVER, {.y=y});
     }

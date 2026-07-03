@@ -2,6 +2,7 @@
 
 #include "../../libs/texture.h"
 #include "../../libs/ray.h"
+#include <limits>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -106,6 +107,12 @@ private:
     ray::RenderTexture2D scene_target = {};
     int scene_target_w = 0;
     int scene_target_h = 0;
+
+    // Cached-render invalidation: RT passes rerun only when pose/face/texture
+    // or draw position changes
+    bool render_dirty = true;
+    float last_draw_x = std::numeric_limits<float>::lowest();
+    float last_draw_y = std::numeric_limits<float>::lowest();
 
     ray::Shader null_shader;
     ray::Shader face_shader;

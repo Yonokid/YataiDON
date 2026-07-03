@@ -207,6 +207,7 @@ void Chara3D::set_texture(fs::path& texture_path, int material_index) {
     ray::SetTextureFilter(tex, ray::TEXTURE_FILTER_BILINEAR);
     int map_type = ray::MATERIAL_MAP_DIFFUSE;
     ray::SetMaterialTexture(&cos_model.materials[material_index], map_type, tex);
+    render_dirty = true;
 }
 
 void Chara3D::set_body_texture(fs::path& texture_path) {
@@ -255,6 +256,7 @@ void Chara3D::apply_face(int face_index) {
     cos_model.materials[face_material_index].maps[ray::MATERIAL_MAP_DIFFUSE].texture =
         face_textures[face_index];
     current_face_index = face_index;
+    render_dirty = true;
 }
 
 static ray::Texture2D recolor_texture(ray::Image& source,
@@ -302,6 +304,7 @@ static void apply_don_colors(ray::Model& model, int mat_idx,
 void Chara3D::set_don_colors(ray::Color body, ray::Color face, ray::Color rim) {
     for (int idx : recolor_indices)
         apply_don_colors(cos_model, idx, body, face, rim);
+    render_dirty = true;
 }
 
 static constexpr int FACE_ANIM_IDS[] = {
@@ -323,6 +326,7 @@ void Chara3D::set_anim(AnimIndex idx) {
         anim_index = idx;
         anim_frame = 0;
         last_frame_ms = 0;
+        render_dirty = true;
     }
 
     if (i >= 0 && i < (int)(sizeof(FACE_ANIM_IDS) / sizeof(FACE_ANIM_IDS[0]))) {
@@ -369,23 +373,10 @@ void Chara3D::update(double current_ms) {
                 }
             } else {
                 anim_frame = (anim_frame + 1) % loop_frames;
+                // UpdateModelAnimation CPU-skins and uploads position/normal
+                // buffers to the GPU itself; no manual UpdateMeshBuffer needed
                 ray::UpdateModelAnimation(cos_model, anims[ai], anim_frame);
-                for (int m = 0; m < cos_model.meshCount; m++) {
-                    auto& mesh = cos_model.meshes[m];
-                    if (mesh.vertexCount <= 0) continue;
-                    if (mesh.animVertices != nullptr)
-                        ray::UpdateMeshBuffer(mesh, 0, mesh.animVertices, mesh.vertexCount * 3 * sizeof(float), 0);
-                    else if (mesh.vertices != nullptr)
-                        ray::UpdateMeshBuffer(mesh, 0, mesh.vertices, mesh.vertexCount * 3 * sizeof(float), 0);
-                    if (mesh.animNormals != nullptr)
-                        ray::UpdateMeshBuffer(mesh, 2, mesh.animNormals, mesh.vertexCount * 3 * sizeof(float), 0);
-                    else if (mesh.normals != nullptr)
-                        ray::UpdateMeshBuffer(mesh, 2, mesh.normals, mesh.vertexCount * 3 * sizeof(float), 0);
-                    if (mesh.texcoords != nullptr)
-                        ray::UpdateMeshBuffer(mesh, 1, mesh.texcoords, mesh.vertexCount * 2 * sizeof(float), 0);
-                    if (mesh.texcoords2 != nullptr)
-                        ray::UpdateMeshBuffer(mesh, 5, mesh.texcoords2, mesh.vertexCount * 2 * sizeof(float), 0);
-                }
+                render_dirty = true;
 
                 if (!is_looping && anim_frame == loop_frames - 1) {
                     set_anim(prev_anim_idx);
@@ -449,6 +440,7 @@ void Chara3D::draw(float x, float y) {
         scene_target_h = rh;
         float ts[2] = {(float)rw, (float)rh};
         ray::SetShaderValue(outline_pass_shader, outline_pass_size_loc, ts, ray::SHADER_UNIFORM_VEC2);
+        render_dirty = true;
     }
 
     if (!use_render_textures) {
@@ -471,32 +463,46 @@ void Chara3D::draw(float x, float y) {
         fxaa_target_h = rh;
         float ts[2] = {(float)rw, (float)rh};
         ray::SetShaderValue(fxaa_shader, fxaa_size_loc, ts, ray::SHADER_UNIFORM_VEC2);
+        render_dirty = true;
+    }
+
+    if (x != last_draw_x || y != last_draw_y) {
+        last_draw_x = x;
+        last_draw_y = y;
+        render_dirty = true;
     }
 
     ray::Camera2D cam2d = compute_camera2d(tex.screen_width, tex.screen_height);
-    ray::Camera3D cam3d = camera2d_to_3d(cam2d);
 
     ray::EndMode2D();
     ray::EndBlendMode();
 
-    ray::BeginTextureMode(scene_target);
-    ray::ClearBackground(ray::BLANK);
-    ray::BeginBlendMode(ray::BLEND_ALPHA);
-    ray::BeginMode3D(cam3d);
-    draw_outline(x, y);
-    draw_3d(x, y);
-    ray::EndMode3D();
-    ray::EndBlendMode();
-    ray::EndTextureMode();
+    // Model pose/textures/position only change on animation ticks (well below
+    // display refresh), so the outline + composite passes are cached in
+    // fxaa_target and re-rendered only when something actually changed
+    if (render_dirty) {
+        render_dirty = false;
+        ray::Camera3D cam3d = camera2d_to_3d(cam2d);
 
-    ray::BeginTextureMode(fxaa_target);
-    ray::ClearBackground(ray::BLANK);
-    ray::BeginShaderMode(outline_pass_shader);
-    ray::DrawTextureRec(scene_target.texture,
-        {0, 0, (float)rw, -(float)rh},
-        {0, 0}, ray::WHITE);
-    ray::EndShaderMode();
-    ray::EndTextureMode();
+        ray::BeginTextureMode(scene_target);
+        ray::ClearBackground(ray::BLANK);
+        ray::BeginBlendMode(ray::BLEND_ALPHA);
+        ray::BeginMode3D(cam3d);
+        draw_outline(x, y);
+        draw_3d(x, y);
+        ray::EndMode3D();
+        ray::EndBlendMode();
+        ray::EndTextureMode();
+
+        ray::BeginTextureMode(fxaa_target);
+        ray::ClearBackground(ray::BLANK);
+        ray::BeginShaderMode(outline_pass_shader);
+        ray::DrawTextureRec(scene_target.texture,
+            {0, 0, (float)rw, -(float)rh},
+            {0, 0}, ray::WHITE);
+        ray::EndShaderMode();
+        ray::EndTextureMode();
+    }
 
     ray::BeginShaderMode(fxaa_shader);
     ray::DrawTextureRec(fxaa_target.texture,

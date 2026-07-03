@@ -283,5 +283,5 @@ void BanaAdvertisement::draw(float x, float y) {
     ray::EndScissorMode();
 
     tex.draw_texture(CAMERA::BANA_ADVERT_OUTLINE, {.x=x, .y=y, .index=0});
-    tex.draw_texture(CAMERA::BANA_ADVERT_OUTLINE, {.mirror="horizontal", .x=x, .y=y, .index=1});
+    tex.draw_texture(CAMERA::BANA_ADVERT_OUTLINE, {.mirror=Mirror::HORIZONTAL, .x=x, .y=y, .index=1});
 }

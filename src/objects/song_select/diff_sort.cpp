@@ -274,7 +274,7 @@ void DiffSortSelect::draw_level_select() {
             tex.draw_texture(DIFF_SORT::ARROW, {.x=(float)-blue_arrow_move->attribute, .fade=blue_arrow_fade->attribute, .index=0});
         }
         if (selected_level != limits[selected_box]) {
-            tex.draw_texture(DIFF_SORT::ARROW, {.mirror="horizontal", .x=(float)blue_arrow_move->attribute, .fade=blue_arrow_fade->attribute, .index=1});
+            tex.draw_texture(DIFF_SORT::ARROW, {.mirror=Mirror::HORIZONTAL, .x=(float)blue_arrow_move->attribute, .fade=blue_arrow_fade->attribute, .index=1});
         }
     }
     draw_statistics();

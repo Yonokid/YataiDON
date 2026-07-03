@@ -152,7 +152,7 @@ void Gauge::update(double current_ms) {
 void Gauge::draw(float y) {
     if (mode == GaugeMode::NORMAL) {
         bool mirrored = y > tex.screen_height / 2.0f;
-        std::string mirror = mirrored ? "vertical" : "";
+        Mirror mirror = mirrored ? Mirror::VERTICAL : Mirror::NONE;
 
         tex.draw_texture(tex.get_enum("gauge/border" + string_diff), {.mirror = mirror, .y = y});
 

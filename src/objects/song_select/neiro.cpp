@@ -112,7 +112,7 @@ void NeiroSelector::draw() {
     tex.draw_texture(NEIRO::MUSIC_NOTE, {.x=x + ((float)move_sideways->attribute * direction), .y=y, .fade=fade_sideways->attribute});
     tex.draw_texture(NEIRO::MUSIC_NOTE, {.x=x + (direction * -tex.skin_config[SC::OPTION_TEXT_IN].x) + ((float)move_sideways->attribute * direction), .y=y, .fade=1.0f - fade_sideways->attribute});
     tex.draw_texture(NEIRO::BLUE_ARROW, {.x=x - (float)blue_arrow_move->attribute, .y=y, .fade=blue_arrow_fade->attribute});
-    tex.draw_texture(NEIRO::BLUE_ARROW, {.mirror="horizontal", .x=x + (tex.skin_config[SC::OPTION_TEXT_IN].x * 2) + (float)blue_arrow_move->attribute, .y=y, .fade=blue_arrow_fade->attribute});
+    tex.draw_texture(NEIRO::BLUE_ARROW, {.mirror=Mirror::HORIZONTAL, .x=x + (tex.skin_config[SC::OPTION_TEXT_IN].x * 2) + (float)blue_arrow_move->attribute, .y=y, .fade=blue_arrow_fade->attribute});
 
     std::string counter = std::to_string(selected_sound + 1);
     float margin = tex.skin_config[SC::NEIRO_COUNTER_MARGIN].x;

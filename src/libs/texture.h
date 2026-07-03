@@ -5,16 +5,25 @@
 #include "skin_config_generated.h"
 #include "texture_ids_generated.h" // IWYU pragma: keep
 #include <filesystem>
+#include <stdexcept>
 #include <unordered_set>
 
 namespace fs = std::filesystem;
+
+enum class Mirror : uint8_t { NONE, HORIZONTAL, VERTICAL };
+
+inline Mirror mirror_from_string(const std::string& s) {
+    if (s == "horizontal") return Mirror::HORIZONTAL;
+    if (s == "vertical") return Mirror::VERTICAL;
+    return Mirror::NONE;
+}
 
 struct DrawTextureParams {
     ray::Color color = ray::WHITE;
     int frame = 0;
     float scale = 1.0f;
     bool center = false;
-    std::string mirror = "";
+    Mirror mirror = Mirror::NONE;
     float x = 0, y = 0, x2 = 0, y2 = 0;
     ray::Vector2 origin = {0, 0};
     float rotation = 0;
@@ -49,6 +58,11 @@ struct TextureObject {
     TextureObject(const std::string& name, int width, int height)
         : name(name), width(width), height(height), x{0}, y{0}, x2{width}, y2{height} {}
     virtual ~TextureObject() = default;
+
+    // GPU texture for the given animation frame; nullptr if this object has
+    // no drawable texture. Virtual dispatch here keeps draw_texture free of
+    // per-call dynamic_casts.
+    virtual const ray::Texture2D* frame_texture(int frame) const { return nullptr; }
 };
 
 struct SingleTexture : public TextureObject {
@@ -64,6 +78,8 @@ struct SingleTexture : public TextureObject {
     ~SingleTexture() override {
         UnloadTexture(texture);
     }
+
+    const ray::Texture2D* frame_texture(int) const override { return &texture; }
 };
 
 struct FramedTexture : public TextureObject {
@@ -83,6 +99,14 @@ struct FramedTexture : public TextureObject {
         for (auto& tex : textures) {
             UnloadTexture(tex);
         }
+    }
+
+    const ray::Texture2D* frame_texture(int frame) const override {
+        if (frame >= static_cast<int>(textures.size())) {
+            throw std::runtime_error("Frame " + std::to_string(frame) +
+                " not available in framed texture " + name);
+        }
+        return &textures[frame];
     }
 };
 

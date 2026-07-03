@@ -36,7 +36,7 @@ void BalloonCounter::draw(float y) {
     }
     if (balloon_count > 0) {
         float y_offset = is_2p ? 230 : 0;
-        tex.draw_texture(BALLOON::BUBBLE, {.mirror = is_2p ? "vertical" : "", .y=y + y_offset, .fade=fade->attribute});
+        tex.draw_texture(BALLOON::BUBBLE, {.mirror = is_2p ? Mirror::VERTICAL : Mirror::NONE, .y=y + y_offset, .fade=fade->attribute});
         std::string counter = std::to_string(std::max(0, balloon_total - balloon_count));
         int total_width = counter.length() * tex.skin_config[SC::DRUMROLL_COUNTER_MARGIN].x;
         for (int i = 0; i < counter.size(); i++) {

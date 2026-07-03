@@ -1204,21 +1204,21 @@ void Player::handle_input(double ms_from_start, double current_ms, std::optional
         bool (*check_func)(PlayerNum);
         DrumType drum_type;
         Side side;
-        std::string sound;
+        const std::string* sound;
     };
 
-    std::vector<InputCheck> input_checks = {
-        InputCheck{is_l_don_pressed, DrumType::DON, Side::LEFT, don_hitsound},
-        InputCheck{is_r_don_pressed, DrumType::DON, Side::RIGHT, don_hitsound},
-        InputCheck{is_l_kat_pressed, DrumType::KAT, Side::LEFT, kat_hitsound},
-        InputCheck{is_r_kat_pressed, DrumType::KAT, Side::RIGHT, kat_hitsound}
+    const InputCheck input_checks[] = {
+        InputCheck{is_l_don_pressed, DrumType::DON, Side::LEFT, &don_hitsound},
+        InputCheck{is_r_don_pressed, DrumType::DON, Side::RIGHT, &don_hitsound},
+        InputCheck{is_l_kat_pressed, DrumType::KAT, Side::LEFT, &kat_hitsound},
+        InputCheck{is_r_kat_pressed, DrumType::KAT, Side::RIGHT, &kat_hitsound}
     };
 
     for (const auto& input : input_checks) {
 
         while (input.check_func(player_num)) {
             spawn_hit_effects(input.drum_type, input.side);
-            audio.play_sound(input.sound, VolumePreset::HITSOUND);
+            audio.play_sound(*input.sound, VolumePreset::HITSOUND);
             check_note(ms_from_start, input.drum_type, current_ms, background);
         }
     }
@@ -1237,7 +1237,7 @@ void Player::draw_bar(double current_ms, float y, const Note& bar) {
     tex.draw_texture(NOTES::_0, {.frame=bar.is_branch_start, .x=x_position+tex.skin_config[SC::MOJI_DRUMROLL].x - (tex.textures[NOTES::_9]->width/2.0f), .y=y_position+tex.skin_config[SC::MOJI_DRUMROLL].y, .rotation=angle});
 }
 
-void Player::draw_drumroll(double current_ms, float y, const Note& head, int current_eighth) {
+void Player::draw_drumroll(double current_ms, float y, const Note& head, int current_eighth, bool moji_pass) {
     if (head.sudden_appear_ms.has_value() && head.sudden_moving_ms.has_value()) {
         double appear_ms = head.hit_ms - head.sudden_appear_ms.value();
         double moving_start_ms = head.hit_ms - head.sudden_moving_ms.value();
@@ -1260,6 +1260,13 @@ void Player::draw_drumroll(double current_ms, float y, const Note& head, int cur
     start_position += judge_x;
     end_position += judge_x;
     float moji_y = y + tex.skin_config[SC::MOJI].y;
+    if (moji_pass) {
+        tex.draw_texture(NOTES::MOJI_DRUMROLL_MID, {.x=start_position, .y=moji_y+judge_y, .x2=length});
+        tex.draw_texture(NOTES::MOJI, {.frame=head.moji, .x=start_position - (tex.textures[NOTES::MOJI]->width/2.0f), .y=moji_y+judge_y});
+        tex.draw_texture(NOTES::MOJI, {.frame=tail.moji, .x=end_position - (tex.textures[NOTES::MOJI]->width/2.0f), .y=moji_y+judge_y});
+        return;
+    }
+
     if (head.display) {
         tex.draw_texture(NOTES::_8, {.color=color, .frame=is_big, .x=start_position, .y=y_pos, .x2=length+tex.skin_config[SC::DRUMROLL_WIDTH_OFFSET].width});
         if (is_big) {
@@ -1269,13 +1276,9 @@ void Player::draw_drumroll(double current_ms, float y, const Note& head, int cur
         }
         tex.draw_texture(note_tex_ids[(int)head.type], {.color=color, .frame=current_eighth % 2, .x=start_position - tex.textures[NOTES::_9]->width/2.0f, .y=y_pos+judge_y});
     }
-
-    tex.draw_texture(NOTES::MOJI_DRUMROLL_MID, {.x=start_position, .y=moji_y+judge_y, .x2=length});
-    tex.draw_texture(NOTES::MOJI, {.frame=head.moji, .x=start_position - (tex.textures[NOTES::MOJI]->width/2.0f), .y=moji_y+judge_y});
-    tex.draw_texture(NOTES::MOJI, {.frame=tail.moji, .x=end_position - (tex.textures[NOTES::MOJI]->width/2.0f), .y=moji_y+judge_y});
 }
 
-void Player::draw_balloon(double current_ms, float y, const Note& head, int current_eighth) {
+void Player::draw_balloon(double current_ms, float y, const Note& head, int current_eighth, bool moji_pass) {
     float offset = tex.skin_config[SC::BALLOON_OFFSET].x;
     if (head.sudden_appear_ms.has_value() && head.sudden_moving_ms.has_value()) {
         double appear_ms = head.hit_ms - head.sudden_appear_ms.value();
@@ -1305,11 +1308,14 @@ void Player::draw_balloon(double current_ms, float y, const Note& head, int curr
     } else {
         position = start_position;
     }
+    if (moji_pass) {
+        tex.draw_texture(NOTES::MOJI, {.frame=head.moji, .x=position - (tex.textures[NOTES::MOJI]->width/2.0f), .y=moji_y});
+        return;
+    }
     if (head.display) {
         tex.draw_texture(note_tex_ids[(int)head.type], {.frame=current_eighth % 2, .x=position-offset - tex.textures[NOTES::_9]->width/2.0f, .y=y_pos});
         tex.draw_texture(NOTES::_10, {.frame=current_eighth % 2, .x=position-offset+tex.textures[NOTES::_10]->width - tex.textures[NOTES::_9]->width/2.0f, .y=y_pos});
     }
-    tex.draw_texture(NOTES::MOJI, {.frame=head.moji, .x=position - (tex.textures[NOTES::MOJI]->width/2.0f), .y=moji_y});
 }
 
 void Player::draw_notes(double current_ms, float y) {
@@ -1321,54 +1327,72 @@ void Player::draw_notes(double current_ms, float y) {
 
     double eighth_in_ms = (bpm == 0) ? 0 : (60000.0 * 4.0 / bpm) / 8.0;
     int current_eighth = 0;
+    if (combo >= 50 && eighth_in_ms != 0) {
+        current_eighth = static_cast<int>(current_ms / eighth_in_ms);
+    }
 
-    for (auto it = draw_note_buffer.rbegin(); it != draw_note_buffer.rend(); ++it) {
-        auto& note = *it;
-
+    auto skip_note = [&](const Note& note) {
         if (balloon_counter.has_value() && note.type == NoteType::BALLOON_HEAD && !other_notes.empty() && note.index == other_notes[0].index) {
-            continue;
+            return true;
         }
-
         if (kusudama_counter.has_value() && note.type == NoteType::KUSUDAMA && !other_notes.empty() && note.index == other_notes[0].index) {
-            continue;
+            return true;
         }
+        return note.type == NoteType::TAIL;
+    };
 
-        if (note.type == NoteType::TAIL) {
-            continue;
-        }
-
-        if (combo >= 50 && eighth_in_ms != 0) {
-            current_eighth = static_cast<int>(current_ms / eighth_in_ms);
-        }
-
+    // nullopt = note not visible yet (sudden command); otherwise screen position
+    auto note_position = [&](const Note& note) -> std::optional<std::pair<float, float>> {
         float x_position, y_position;
         if (note.sudden_appear_ms.has_value() && note.sudden_moving_ms.has_value()) {
             double appear_ms = note.hit_ms - note.sudden_appear_ms.value();
             double moving_start_ms = note.hit_ms - note.sudden_moving_ms.value();
 
             if (current_ms < appear_ms) {
-                continue;
+                return std::nullopt;
             }
 
             double effective_ms = (current_ms < moving_start_ms) ? moving_start_ms : current_ms;
 
             x_position = get_position_x(note, effective_ms);
             y_position = get_position_y(note, current_ms);
-            } else {
+        } else {
             x_position = get_position_x(note, current_ms);
             y_position = get_position_y(note, current_ms);
         }
+        return std::make_pair(x_position + judge_x, y_position + judge_y + y);
+    };
 
-        x_position += judge_x;
-        y_position += judge_y + y;
+    // Two passes: all note bodies, then all moji. Alternating between note
+    // and moji textures per note flushes the sprite batch on every switch;
+    // grouped by texture the whole lane draws in a few batches
+    for (auto it = draw_note_buffer.rbegin(); it != draw_note_buffer.rend(); ++it) {
+        auto& note = *it;
+        if (skip_note(note)) continue;
+        auto pos = note_position(note);
+        if (!pos) continue;
 
         if (note.color.has_value()) {
-            draw_drumroll(current_ms, y, note, current_eighth);
+            draw_drumroll(current_ms, y, note, current_eighth, false);
         } else if (note.type == NoteType::BALLOON_HEAD) {
-            draw_balloon(current_ms, y, note, current_eighth);
+            draw_balloon(current_ms, y, note, current_eighth, false);
+        } else if (note.display) {
+            tex.draw_texture(note_tex_ids[(int)note.type], {.frame=current_eighth % 2, .center=true, .x=pos->first - (tex.textures[NOTES::_9]->width/2.0f), .y=pos->second+tex.skin_config[SC::NOTES].y});
+        }
+    }
+
+    for (auto it = draw_note_buffer.rbegin(); it != draw_note_buffer.rend(); ++it) {
+        auto& note = *it;
+        if (skip_note(note)) continue;
+        auto pos = note_position(note);
+        if (!pos) continue;
+
+        if (note.color.has_value()) {
+            draw_drumroll(current_ms, y, note, current_eighth, true);
+        } else if (note.type == NoteType::BALLOON_HEAD) {
+            draw_balloon(current_ms, y, note, current_eighth, true);
         } else {
-            if (note.display) tex.draw_texture(note_tex_ids[(int)note.type], {.frame=current_eighth % 2, .center=true, .x=x_position - (tex.textures[NOTES::_9]->width/2.0f), .y=y_position+tex.skin_config[SC::NOTES].y});
-            tex.draw_texture(NOTES::MOJI, {.frame=note.moji, .x=x_position - (tex.textures[NOTES::MOJI]->width/2.0f), .y=tex.skin_config[SC::MOJI].y + y_position});
+            tex.draw_texture(NOTES::MOJI, {.frame=note.moji, .x=pos->first - (tex.textures[NOTES::MOJI]->width/2.0f), .y=tex.skin_config[SC::MOJI].y + pos->second});
         }
     }
 }

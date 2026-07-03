@@ -29,7 +29,7 @@ static DrawTextureParams parse_draw_params(sol::optional<sol::table> params_tabl
     params.index    = t["index"].get_or(params.index);
 
     sol::optional<std::string> mirror = t["mirror"];
-    if (mirror) params.mirror = mirror.value();
+    if (mirror) params.mirror = mirror_from_string(mirror.value());
 
     sol::optional<sol::table> origin = t["origin"];
     if (origin) {
@@ -443,7 +443,7 @@ void ScriptManager::register_lua_bindings() {
                 params.index    = t["index"].get_or(params.index);
                 sol::optional<std::string> mirror = t["mirror"];
                 if (mirror) {
-                    params.mirror = mirror.value();
+                    params.mirror = mirror_from_string(mirror.value());
                 }
                 sol::optional<sol::table> origin = t["origin"];
                 if (origin) {

@@ -37,10 +37,6 @@ VideoPlayer::VideoPlayer(fs::path path)
     height = static_cast<float>(video_stream->height());
 
     frame_count = (fps > 0.f) ? static_cast<int>(duration * fps) + 1 : 0;
-    frame_timestamps.reserve(frame_count);
-    for (int i = 0; i < frame_count; ++i) {
-        frame_timestamps.push_back((i * 1000.0) / fps);
-    }
 
     frame_index    = 0;
     frame_duration = (fps > 0.f) ? 1000.0 / fps : 0.0;
@@ -63,61 +59,72 @@ void VideoPlayer::audio_manager() {
         audio.get_music_time_played(audio_s) >= audio.get_music_time_length(audio_s);
 }
 
-void VideoPlayer::init_frame_generator() {
+void VideoPlayer::decode_loop() {
 #ifndef __EMSCRIPTEN__
-    container->seek(0);
-    frame_generator = container->decode_video(0);
+    try {
+        container->seek(0);
+        frame_generator = container->decode_video(0);
+
+        int produced = 0;
+        while (!decode_stop.load(std::memory_order_relaxed)) {
+            if (!frame_generator->next(current_decoded_frame)) break; // EOF
+            current_decoded_frame->reformat("rgb24");
+
+            DecodedFrame frame;
+            {
+                std::lock_guard<std::mutex> lock(queue_mutex);
+                if (!spare_buffers.empty()) {
+                    frame.bytes = std::move(spare_buffers.back());
+                    spare_buffers.pop_back();
+                }
+            }
+            av::AVPlane plane = current_decoded_frame->plane(0);
+            frame.bytes.assign(plane.data(), plane.data() + plane.size());
+            frame.width  = current_decoded_frame->width();
+            frame.height = current_decoded_frame->height();
+            frame.index  = produced++;
+            current_decoded_frame.reset();
+
+            std::unique_lock<std::mutex> lock(queue_mutex);
+            queue_cv.wait(lock, [&] {
+                return decode_stop.load(std::memory_order_relaxed) ||
+                       frame_queue.size() < MAX_QUEUED_FRAMES;
+            });
+            if (decode_stop.load(std::memory_order_relaxed)) break;
+            frame_queue.push_back(std::move(frame));
+        }
+    } catch (const std::exception& e) {
+        spdlog::error("Video decode thread error: {}", e.what());
+    }
+    std::lock_guard<std::mutex> lock(queue_mutex);
+    decode_eof = true;
 #endif
 }
 
-bool VideoPlayer::get_next_frame_bytes(
-    std::vector<uint8_t>& out_bytes,
-    int& out_width,
-    int& out_height)
-{
-#ifndef __EMSCRIPTEN__
-    if (!frame_generator) {
-        init_frame_generator();
+void VideoPlayer::stop_decode_thread() {
+    decode_stop.store(true);
+    queue_cv.notify_all();
+    if (decode_thread.joinable()) {
+        decode_thread.join();
     }
-
-    if (!frame_generator->next(current_decoded_frame)) {
-        return false;
-    }
-
-    current_decoded_frame->reformat("rgb24");
-
-    out_width  = current_decoded_frame->width();
-    out_height = current_decoded_frame->height();
-
-    const uint8_t* data = current_decoded_frame->plane(0).data();
-    std::size_t    size = current_decoded_frame->plane(0).size();
-    out_bytes.assign(data, data + size);
-
-    return true;
-#else
-    return false;
-#endif
+    // Reset the decoder before the container is closed so AVFrameDecoder's
+    // fmt_ctx_ pointer is never left dangling
+    frame_generator.reset();
+    current_decoded_frame.reset();
+    std::lock_guard<std::mutex> lock(queue_mutex);
+    frame_queue.clear();
+    spare_buffers.clear();
+    decode_eof = false;
 }
 
-bool VideoPlayer::load_frame(int index) {
-    if (index < 0 || index >= static_cast<int>(frame_timestamps.size())) {
-        return false;
-    }
-
-    std::vector<uint8_t> frame_bytes;
-    int frame_w = 0, frame_h = 0;
-
-    if (!get_next_frame_bytes(frame_bytes, frame_w, frame_h)) {
-        return false;
-    }
-
-    const void* pixels_ptr = static_cast<const void*>(frame_bytes.data());
+void VideoPlayer::upload_frame(const DecodedFrame& frame) {
+    const void* pixels_ptr = static_cast<const void*>(frame.bytes.data());
 
     if (!texture.has_value()) {
         ray::Image image{};
         image.data    = const_cast<void*>(pixels_ptr);   // raylib copies on load
-        image.width   = frame_w;
-        image.height  = frame_h;
+        image.width   = frame.width;
+        image.height  = frame.height;
         image.mipmaps = 1;
         image.format  = ray::PIXELFORMAT_UNCOMPRESSED_R8G8B8;
 
@@ -127,9 +134,6 @@ bool VideoPlayer::load_frame(int index) {
     } else {
         ray::UpdateTexture(texture.value(), pixels_ptr);
     }
-
-    current_frame_data = std::move(frame_bytes);
-    return true;
 }
 
 bool VideoPlayer::is_started() const {
@@ -139,9 +143,11 @@ bool VideoPlayer::is_started() const {
 void VideoPlayer::start(double current_ms) {
     if (is_static || !container) return;
 
+    stop_decode_thread(); // no-op on first start; resets state on restart
+    decode_stop.store(false);
+    frame_index = 0;
     start_ms = current_ms;
-    init_frame_generator();
-    load_frame(0);
+    decode_thread = std::thread(&VideoPlayer::decode_loop, this);
 }
 
 bool VideoPlayer::is_finished() const {
@@ -158,7 +164,7 @@ void VideoPlayer::update(double current_ms) {
 
     audio_manager();
 
-    if (frame_index >= static_cast<int>(frame_timestamps.size())) {
+    if (frame_index >= frame_count) {
         is_finished_arr[0] = true;
         return;
     }
@@ -166,21 +172,34 @@ void VideoPlayer::update(double current_ms) {
     if (!is_started()) return;
 
     double elapsed_ms = current_ms - start_ms.value();
+    int target_frame = (frame_duration > 0.0)
+        ? static_cast<int>(elapsed_ms / frame_duration)
+        : 0;
 
-    int target_frame = 0;
-    for (int i = 0; i < static_cast<int>(frame_timestamps.size()); ++i) {
-        if (elapsed_ms >= frame_timestamps[i]) {
-            target_frame = i;
-        } else {
-            break;
-        }
-    }
-
-    while (frame_index <= target_frame &&
-           frame_index < static_cast<int>(frame_timestamps.size()))
+    // Drain all due frames from the decode queue but upload only the newest;
+    // intermediate catch-up frames skip the GPU entirely
+    std::optional<DecodedFrame> latest;
+    bool drained_at_eof;
     {
-        load_frame(frame_index);
-        ++frame_index;
+        std::lock_guard<std::mutex> lock(queue_mutex);
+        while (!frame_queue.empty() && frame_queue.front().index <= target_frame) {
+            if (latest.has_value()) {
+                spare_buffers.push_back(std::move(latest->bytes));
+            }
+            latest = std::move(frame_queue.front());
+            frame_queue.pop_front();
+        }
+        drained_at_eof = decode_eof && frame_queue.empty();
+    }
+    queue_cv.notify_one();
+
+    if (latest.has_value()) {
+        upload_frame(latest.value());
+        frame_index = latest->index + 1;
+        std::lock_guard<std::mutex> lock(queue_mutex);
+        spare_buffers.push_back(std::move(latest->bytes));
+    } else if (drained_at_eof) {
+        is_finished_arr[0] = true;
     }
 }
 
@@ -220,10 +239,7 @@ void VideoPlayer::draw() {
 }
 
 void VideoPlayer::stop() {
-    // Reset the decoder before closing the container so AVFrameDecoder's
-    // fmt_ctx_ pointer is never left dangling.
-    frame_generator.reset();
-    current_decoded_frame.reset();
+    stop_decode_thread();
     start_ms.reset();
 
     if (is_static) {

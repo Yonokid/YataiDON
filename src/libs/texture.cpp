@@ -468,8 +468,8 @@ void TextureWrapper::draw_texture(uint32_t id, const DrawTextureParams& params) 
 
     TextureObject* tex_obj = it->second.get();
 
-    const float mirror_x = (params.mirror == "horizontal") ? -1.0f : 1.0f;
-    const float mirror_y = (params.mirror == "vertical") ? -1.0f : 1.0f;
+    const float mirror_x = (params.mirror == Mirror::HORIZONTAL) ? -1.0f : 1.0f;
+    const float mirror_y = (params.mirror == Mirror::VERTICAL) ? -1.0f : 1.0f;
 
     const ray::Color final_color = (params.fade != 1.1f) ? Fade(params.color, params.fade) : params.color;
 
@@ -519,20 +519,10 @@ void TextureWrapper::draw_texture(uint32_t id, const DrawTextureParams& params) 
         };
     }
 
-    auto* framed = dynamic_cast<FramedTexture*>(tex_obj);
-    if (framed) {
-        if (params.frame >= static_cast<int>(framed->textures.size())) {
-            throw std::runtime_error("Frame " + std::to_string(params.frame) +
-                " not available in framed texture " + tex_obj->name);
-        }
-        DrawTexturePro(framed->textures[params.frame], source_rect, dest_rect,
+    const ray::Texture2D* frame_tex = tex_obj->frame_texture(params.frame);
+    if (frame_tex) {
+        DrawTexturePro(*frame_tex, source_rect, dest_rect,
                       params.origin, params.rotation, final_color);
-    } else {
-        auto* single = dynamic_cast<SingleTexture*>(tex_obj);
-        if (single) {
-            DrawTexturePro(single->texture, source_rect, dest_rect,
-                         params.origin, params.rotation, final_color);
-        }
     }
 }
 

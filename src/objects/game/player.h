@@ -230,9 +230,9 @@ private:
 
     void draw_bar(double current_ms, float y, const Note& bar);
 
-    void draw_drumroll(double current_ms, float y, const Note& head, int current_eighth);
+    void draw_drumroll(double current_ms, float y, const Note& head, int current_eighth, bool moji_pass);
 
-    void draw_balloon(double current_ms, float y, const Note& head, int current_eighth);
+    void draw_balloon(double current_ms, float y, const Note& head, int current_eighth, bool moji_pass);
 
     void draw_notes(double current_ms, float y);
 

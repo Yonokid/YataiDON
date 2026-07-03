@@ -228,7 +228,7 @@ void ModifierSelector::draw() {
 
         if (is_current) {
             tex.draw_texture(MODIFIER::BLUE_ARROW, {.x=x - (float)blue_arrow_move->attribute, .y=row_y, .fade=blue_arrow_fade->attribute});
-            tex.draw_texture(MODIFIER::BLUE_ARROW, {.mirror="horizontal", .x=x + tex.skin_config[SC::MODIFIER_OFFSET_2].y + (float)blue_arrow_move->attribute, .y=row_y, .fade=blue_arrow_fade->attribute});
+            tex.draw_texture(MODIFIER::BLUE_ARROW, {.mirror=Mirror::HORIZONTAL, .x=x + tex.skin_config[SC::MODIFIER_OFFSET_2].y + (float)blue_arrow_move->attribute, .y=row_y, .fade=blue_arrow_fade->attribute});
         }
     }
 }
