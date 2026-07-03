@@ -130,63 +130,6 @@ AudioEngine::AudioEngine()
 {
 }
 
-// Mixes one sound's next `framesPerBuffer` frames into `out` (f32 stereo, additive).
-// Shared by the main mix and the dedicated hitsound mix.
-static void mix_one_sound(sound& snd, float* out, unsigned int framesPerBuffer) {
-    std::atomic_ref<bool>         aref_playing(snd.is_playing);
-    std::atomic_ref<unsigned int> aref_frame(snd.current_frame);
-
-    if (!aref_playing.load(std::memory_order_acquire)) return;
-
-    const float volume = std::atomic_ref<float>(snd.volume).load(std::memory_order_relaxed);
-    const float pan    = std::atomic_ref<float>(snd.pan).load(std::memory_order_relaxed);
-    unsigned int frame = aref_frame.load(std::memory_order_relaxed);
-
-    const float pitch    = std::atomic_ref<float>(snd.pitch).load(std::memory_order_relaxed);
-    const float* data_ptr = snd.data;
-    const unsigned int channels = snd.channels;
-
-    unsigned long frames_to_process = framesPerBuffer;
-    unsigned long output_index = 0;
-    bool still_playing = true;
-    float frame_f = (float)frame;
-
-    while (frames_to_process > 0 && still_playing) {
-        unsigned long src_frame = (unsigned long)frame_f;
-        if (src_frame >= snd.frame_count) {
-            if (snd.loop) { frame_f = 0.0f; continue; }
-            else { still_playing = false; break; }
-        }
-
-        unsigned long src_index = src_frame * channels;
-        unsigned long dst_index = output_index * 2;
-        float left, right;
-
-        if (channels == 1) {
-            float sample = data_ptr[src_index];
-            left  = sample * (1.0f - pan);
-            right = sample * pan;
-        } else {
-            left  = data_ptr[src_index];
-            right = data_ptr[src_index + 1];
-            if (pan < 0.5f)      right *= (pan * 2.0f);
-            else if (pan > 0.5f) left  *= ((1.0f - pan) * 2.0f);
-        }
-
-        out[dst_index]     += left * volume;
-        out[dst_index + 1] += right * volume;
-
-        frame_f += pitch;
-        output_index++;
-        frames_to_process--;
-    }
-    frame = (unsigned int)frame_f;
-
-    aref_frame.store(frame, std::memory_order_relaxed);
-    if (!still_playing)
-        aref_playing.store(false, std::memory_order_release);
-}
-
 AudioEngine::~AudioEngine() {
     if (is_ready) {
         close_audio_device();
@@ -203,8 +146,58 @@ void AudioEngine::mix(float* out, unsigned int framesPerBuffer, AudioEngine* eng
     std::shared_lock<std::shared_mutex> guard(engine->rw_lock);
 
     for (auto& [name, snd] : engine->sounds) {
-        if (std::atomic_ref<bool>(snd.is_hitsound).load(std::memory_order_relaxed)) continue; // handled by the dedicated hitsound stream
-        mix_one_sound(snd, out, framesPerBuffer);
+        std::atomic_ref<bool>         aref_playing(snd.is_playing);
+        std::atomic_ref<unsigned int> aref_frame(snd.current_frame);
+
+        if (!aref_playing.load(std::memory_order_acquire)) continue;
+
+        const float volume = std::atomic_ref<float>(snd.volume).load(std::memory_order_relaxed);
+        const float pan    = std::atomic_ref<float>(snd.pan).load(std::memory_order_relaxed);
+        unsigned int frame = aref_frame.load(std::memory_order_relaxed);
+
+        const float pitch    = std::atomic_ref<float>(snd.pitch).load(std::memory_order_relaxed);
+        const float* data_ptr = snd.data;
+        const unsigned int channels = snd.channels;
+
+        unsigned long frames_to_process = framesPerBuffer;
+        unsigned long output_index = 0;
+        bool still_playing = true;
+        float frame_f = (float)frame;
+
+        while (frames_to_process > 0 && still_playing) {
+            unsigned long src_frame = (unsigned long)frame_f;
+            if (src_frame >= snd.frame_count) {
+                if (snd.loop) { frame_f = 0.0f; continue; }
+                else { still_playing = false; break; }
+            }
+
+            unsigned long src_index = src_frame * channels;
+            unsigned long dst_index = output_index * 2;
+            float left, right;
+
+            if (channels == 1) {
+                float sample = data_ptr[src_index];
+                left  = sample * (1.0f - pan);
+                right = sample * pan;
+            } else {
+                left  = data_ptr[src_index];
+                right = data_ptr[src_index + 1];
+                if (pan < 0.5f)      right *= (pan * 2.0f);
+                else if (pan > 0.5f) left  *= ((1.0f - pan) * 2.0f);
+            }
+
+            out[dst_index]     += left * volume;
+            out[dst_index + 1] += right * volume;
+
+            frame_f += pitch;
+            output_index++;
+            frames_to_process--;
+        }
+        frame = (unsigned int)frame_f;
+
+        aref_frame.store(frame, std::memory_order_relaxed);
+        if (!still_playing)
+            aref_playing.store(false, std::memory_order_release);
     }
 
     for (auto& [name, mus] : engine->music_streams) {
@@ -333,31 +326,6 @@ void AudioEngine::mix(float* out, unsigned int framesPerBuffer, AudioEngine* eng
 
 }
 
-// Mixes only sounds played with VolumePreset::HITSOUND, on their own SDL audio stream
-// so gameplay hit timing isn't sharing a callback with music decode/resample work.
-void AudioEngine::mix_hitsounds(float* out, unsigned int framesPerBuffer, AudioEngine* engine) {
-
-    const unsigned long buffer_size = framesPerBuffer * 2;
-    std::memset(out, 0, buffer_size * sizeof(float));
-
-    if (!engine) return;
-
-    std::shared_lock<std::shared_mutex> guard(engine->rw_lock);
-
-    for (auto& [name, snd] : engine->sounds) {
-        if (!std::atomic_ref<bool>(snd.is_hitsound).load(std::memory_order_relaxed)) continue;
-        mix_one_sound(snd, out, framesPerBuffer);
-    }
-
-    guard.unlock();
-
-    const float master_vol = engine->master_volume.load(std::memory_order_relaxed);
-    for (unsigned long i = 0; i < buffer_size; i++) {
-        float sample = out[i] * master_vol;
-        out[i] = (sample > 1.0f) ? 1.0f : ((sample < -1.0f) ? -1.0f : sample);
-    }
-}
-
 void AudioEngine::sdl_audio_callback(void* userdata, SDL_AudioStream* stream, int additional_amount, int /*total_amount*/) {
     AudioEngine* engine = static_cast<AudioEngine*>(userdata);
     if (!engine || additional_amount <= 0) return;
@@ -374,25 +342,6 @@ void AudioEngine::sdl_audio_callback(void* userdata, SDL_AudioStream* stream, in
     mix(engine->sdl_scratch_buffer.data(), frames, engine);
 
     SDL_PutAudioStreamData(stream, engine->sdl_scratch_buffer.data(),
-                            static_cast<int>(needed_floats * sizeof(float)));
-}
-
-void AudioEngine::sdl_hitsound_audio_callback(void* userdata, SDL_AudioStream* stream, int additional_amount, int /*total_amount*/) {
-    AudioEngine* engine = static_cast<AudioEngine*>(userdata);
-    if (!engine || additional_amount <= 0) return;
-
-    const int bytes_per_frame = static_cast<int>(sizeof(float)) * 2; // f32 stereo, matches the spec we opened with
-    unsigned int frames = static_cast<unsigned int>(additional_amount) / bytes_per_frame;
-    if (frames == 0) return;
-
-    size_t needed_floats = static_cast<size_t>(frames) * 2;
-    if (engine->sdl_hitsound_scratch_buffer.size() < needed_floats) {
-        engine->sdl_hitsound_scratch_buffer.resize(needed_floats);
-    }
-
-    mix_hitsounds(engine->sdl_hitsound_scratch_buffer.data(), frames, engine);
-
-    SDL_PutAudioStreamData(stream, engine->sdl_hitsound_scratch_buffer.data(),
                             static_cast<int>(needed_floats * sizeof(float)));
 }
 
@@ -483,6 +432,15 @@ bool AudioEngine::init_audio_device(const fs::path& sounds_path, const AudioConf
             spdlog::info("    > Channels:      2");
             spdlog::info("    > Sample rate:   {} Hz", rt_audio->getStreamSampleRate());
             spdlog::info("    > Buffer size:   {} frames (actual)", bufferFrames);
+        } else if (audio_config.exclusive_mode &&
+                   wdmks_exclusive::init(static_cast<unsigned int>(target_sample_rate),
+                                          static_cast<unsigned int>(buffer_size),
+                                          &AudioEngine::mix, this)) {
+            is_ready = true;
+            spdlog::info("Audio Device initialized successfully");
+            spdlog::info("    > Backend:       WDM-KS (raw, kernel streaming)");
+            spdlog::info("    > Format:        Float32, 2ch, {} Hz", (int)target_sample_rate);
+            spdlog::info("    > Buffer size:   {} frames (requested)", buffer_size);
         } else
 #endif
         {
@@ -539,36 +497,6 @@ bool AudioEngine::init_audio_device(const fs::path& sounds_path, const AudioConf
             spdlog::info("    > Buffer size:   {} frames (device-reported)", actual_frames);
         }
 
-        // Hitsounds always get their own SDL stream, independent of whichever backend
-        // (SDL device or Windows ASIO) is handling music/other sounds above, so gameplay
-        // hit timing never waits behind music decode/resample work in the main callback.
-        if (is_ready) {
-            if (!sdl_audio_subsystem_initialized) {
-                if (!SDL_InitSubSystem(SDL_INIT_AUDIO)) {
-                    spdlog::error("Failed to init SDL audio subsystem for hitsound stream: {}", SDL_GetError());
-                    return is_ready;
-                }
-                sdl_audio_subsystem_initialized = true;
-            }
-
-            SDL_AudioSpec hitsound_spec{};
-            hitsound_spec.format   = SDL_AUDIO_F32;
-            hitsound_spec.channels = 2;
-            hitsound_spec.freq     = static_cast<int>(target_sample_rate);
-
-            sdl_hitsound_stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &hitsound_spec,
-                                                             AudioEngine::sdl_hitsound_audio_callback, this);
-            if (!sdl_hitsound_stream || !SDL_ResumeAudioStreamDevice(sdl_hitsound_stream)) {
-                spdlog::error("Failed to open hitsound audio stream: {}", SDL_GetError());
-                if (sdl_hitsound_stream) {
-                    SDL_DestroyAudioStream(sdl_hitsound_stream);
-                    sdl_hitsound_stream = nullptr;
-                }
-            } else {
-                spdlog::info("    > Hitsound stream: separate SDL3 stream, {} Hz", (int)target_sample_rate);
-            }
-        }
-
         return is_ready;
     } catch (const std::exception& e) {
         spdlog::error("Failed to initialize audio device: {}", e.what());
@@ -585,10 +513,9 @@ void AudioEngine::close_audio_device() {
             SDL_DestroyAudioStream(sdl_stream); // also closes the underlying device
             sdl_stream = nullptr;
         }
-        if (sdl_hitsound_stream) {
-            SDL_DestroyAudioStream(sdl_hitsound_stream);
-            sdl_hitsound_stream = nullptr;
-        }
+#ifdef _WIN32
+        wdmks_exclusive::shutdown(); // idempotent no-op if not running
+#endif
         if (sdl_audio_subsystem_initialized) {
             SDL_QuitSubSystem(SDL_INIT_AUDIO);
             sdl_audio_subsystem_initialized = false;
@@ -875,7 +802,6 @@ void AudioEngine::play_sound(const std::string& name, VolumePreset volume_preset
             std::atomic_ref<float>(snd.volume).store(volume, std::memory_order_relaxed);
         }
 
-        std::atomic_ref<bool>(snd.is_hitsound).store(volume_preset == VolumePreset::HITSOUND, std::memory_order_relaxed);
         std::atomic_ref<unsigned int>(snd.current_frame).store(0, std::memory_order_relaxed);
         std::atomic_ref<bool>(snd.is_playing).store(true, std::memory_order_release);
     } else {

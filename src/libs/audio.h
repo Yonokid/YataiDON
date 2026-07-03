@@ -7,6 +7,7 @@
 #include <SDL3/SDL_init.h>
 #ifdef _WIN32
 #include <RtAudio.h>
+#include "audio/wdmks_exclusive.h"
 #endif
 #include <sndfile.h>
 #include <samplerate.h>
@@ -66,8 +67,6 @@ struct sound {
     float volume;                   // Volume multiplier (0.0 to 1.0+)
     float pan;                      // Stereo pan (0.0 = left, 0.5 = center, 1.0 = right)
     float pitch;                    // Pitch/speed multiplier (1.0 = normal)
-
-    bool is_hitsound = false;       // Routed to the dedicated hitsound stream instead of the main mix
 
     SRC_STATE* resampler;           // libsamplerate state (if needed)
     float* resample_buffer;         // Buffer for resampled audio
@@ -155,9 +154,6 @@ private:
     bool               sdl_audio_subsystem_initialized = false;
     std::vector<float> sdl_scratch_buffer;
 
-    SDL_AudioStream*   sdl_hitsound_stream = nullptr;
-    std::vector<float> sdl_hitsound_scratch_buffer;
-
 #ifdef _WIN32
     RtAudio* rt_audio = nullptr;  // ASIO (device_type == 6) only
 #endif
@@ -168,9 +164,7 @@ private:
     std::string path_to_string(const fs::path& path) const;
 
     static void mix(float* out, unsigned int framesPerBuffer, AudioEngine* engine);
-    static void mix_hitsounds(float* out, unsigned int framesPerBuffer, AudioEngine* engine);
     static void sdl_audio_callback(void* userdata, SDL_AudioStream* stream, int additional_amount, int total_amount);
-    static void sdl_hitsound_audio_callback(void* userdata, SDL_AudioStream* stream, int additional_amount, int total_amount);
 #ifdef _WIN32
     static int  rt_audio_callback(void* outputBuffer, void* inputBuffer,
                                    unsigned int framesPerBuffer, double streamTime,
