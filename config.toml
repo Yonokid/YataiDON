@@ -1,8 +1,7 @@
 [audio]
 buffer_size = 128
-device_type = 1
-exclusive_mode = true
-sample_rate = 48000
+device_type = 0
+sample_rate = 44100
 
 [gamepad_1p]
 left_don = [ 16 ]
@@ -22,7 +21,7 @@ fake_online = false
 fps_counter = false
 judge_counter = false
 language = 'en'
-log_level = "\u0002"
+log_level = "info"
 nijiiro_notes = false
 player_1_id = 1
 player_2_id = 2
