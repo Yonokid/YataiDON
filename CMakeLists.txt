@@ -53,6 +53,22 @@ if(WIN32)
       message(WARNING "FFmpeg DLL not found for ${_lib}")
     endif()
   endforeach()
+
+  # MinGW runtime + libsamplerate are not fully statically linked (MSYS2 ships
+  # libsamplerate as a shared-only package), so copy their DLLs next to the
+  # executable or the game fails to launch with a missing-DLL error.
+  get_filename_component(_mingw_bin_dir ${CMAKE_CXX_COMPILER} DIRECTORY)
+  foreach(_rtdll libstdc++-6.dll libwinpthread-1.dll libgcc_s_seh-1.dll libsamplerate-0.dll)
+    if(EXISTS "${_mingw_bin_dir}/${_rtdll}")
+      add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    "${_mingw_bin_dir}/${_rtdll}"
+                    "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
+            )
+    else()
+      message(WARNING "Runtime DLL not found: ${_rtdll}")
+    endif()
+  endforeach()
 endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE
