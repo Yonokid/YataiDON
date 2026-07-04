@@ -11,7 +11,7 @@
 #endif
 #include <csignal>
 #include <exception>
-#if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
+#if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__) && !defined(PLATFORM_VITA)
 #include <cpptrace/cpptrace.hpp>
 #endif
 
@@ -74,7 +74,7 @@ static LONG WINAPI crash_exception_filter(EXCEPTION_POINTERS* ep) {
 #endif
 
 static void log_stacktrace() {
-#if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
+#if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__) && !defined(PLATFORM_VITA)
     try {
         std::ostringstream oss;
         cpptrace::generate_trace().print(oss, false);

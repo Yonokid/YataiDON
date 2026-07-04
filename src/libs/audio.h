@@ -5,7 +5,7 @@
 #include <SDL3/SDL_audio.h>
 #include <SDL3/SDL_hints.h>
 #include <SDL3/SDL_init.h>
-#if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
+#if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__) && !defined(PLATFORM_VITA)
 #include <RtAudio.h>
 #endif
 #ifdef _WIN32
@@ -156,7 +156,7 @@ private:
     bool               sdl_audio_subsystem_initialized = false;
     std::vector<float> sdl_scratch_buffer;
 
-#if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
+#if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__) && !defined(PLATFORM_VITA)
     RtAudio* rt_audio = nullptr;  // ALSA/JACK/PulseAudio/OSS/CoreAudio/DirectSound/ASIO/WASAPI
 #endif
 #ifdef _WIN32
@@ -168,7 +168,7 @@ private:
 
     std::string path_to_string(const fs::path& path) const;
 
-#if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
+#if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__) && !defined(PLATFORM_VITA)
     bool init_rtaudio_device(RtAudio::Api api, const char* label);
 #endif
 #ifdef _WIN32
@@ -178,7 +178,7 @@ private:
 
     static void mix(float* out, unsigned int framesPerBuffer, AudioEngine* engine);
     static void sdl_audio_callback(void* userdata, SDL_AudioStream* stream, int additional_amount, int total_amount);
-#if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
+#if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__) && !defined(PLATFORM_VITA)
     static int  rt_audio_callback(void* outputBuffer, void* inputBuffer,
                                    unsigned int framesPerBuffer, double streamTime,
                                    unsigned int status, void* userData);

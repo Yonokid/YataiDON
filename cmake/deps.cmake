@@ -1,20 +1,110 @@
+if(VITA)
+  # vitasdk's newlib gates POSIX/BSD declarations (fileno, fwrite_unlocked, ...)
+  # behind explicit _POSIX_C_SOURCE/_DEFAULT_SOURCE feature-test macros --
+  # unlike glibc/bionic it does not expose them by default. Set directory-wide
+  # so every FetchContent'd target (SDL3, spdlog, raylib, ...) picks it up too.
+  add_compile_definitions(_POSIX_C_SOURCE=200809L _DEFAULT_SOURCE)
+endif()
+
 # Sqlite3
-if(NOT WIN32 AND NOT ANDROID AND NOT EMSCRIPTEN)
+if(NOT WIN32 AND NOT ANDROID AND NOT EMSCRIPTEN AND NOT VITA)
   find_package(PkgConfig QUIET)
   if(PkgConfig_FOUND)
     pkg_check_modules(SQLITE3 QUIET sqlite3)
   endif()
 endif()
 
-if(ANDROID OR EMSCRIPTEN)
+if(VITA)
+  # VIDEO_VITA_PVR + PVR_PSP2 instead of VIDEO_VITA_PIB + Piglet: Piglet/PIB
+  # is archived (superseded by PVR_PSP2 per its own README) and needs Sony's
+  # libshacccg.suprx extracted from a registered Vita, while PVR_PSP2 is
+  # actively maintained and self-contained. PVR_PSP2 doesn't ship a vitasdk
+  # package, so vendor its headers (from the source repo) and prebuilt stub
+  # libs (from its GitHub release) the same way everything else here is
+  # FetchContent'd, instead of hand-installing into the vitasdk tree.
+  FetchContent_Declare(
+    pvr_psp2_headers
+    GIT_REPOSITORY https://github.com/GrapheneCt/PVR_PSP2.git
+    GIT_TAG        v3.9
+    GIT_SHALLOW    TRUE
+  )
+  FetchContent_MakeAvailable(pvr_psp2_headers)
+
+  FetchContent_Declare(
+    pvr_psp2_stubs
+    URL https://github.com/GrapheneCt/PVR_PSP2/releases/download/v3.9/vitasdk_stubs.zip
+  )
+  FetchContent_MakeAvailable(pvr_psp2_stubs)
+
+  # The actual runtime .suprx modules (as opposed to the stub .a libs linked
+  # above). These are NOT a taiHEN kernel plugin like Piglet was -- Vita3K's
+  # log showed it looking for them at app0:module/<name>.suprx, i.e. bundled
+  # inside our own vpk and loaded as regular user modules. Bundled into the
+  # vpk in CMakeLists.txt's vita_create_vpk call.
+  FetchContent_Declare(
+    pvr_psp2_runtime
+    URL https://github.com/GrapheneCt/PVR_PSP2/releases/download/v3.9/PSVita_Release.zip
+  )
+  FetchContent_MakeAvailable(pvr_psp2_runtime)
+
+  # SDL's own CMakeLists.txt gates the PVR driver on
+  # check_include_file(gpu_es4/psp2_pvr_hint.h HAVE_PVR_H), which is a
+  # separate configure-time probe from our app's own target_include_directories
+  # and only looks at CMAKE_REQUIRED_INCLUDES -- has to be set before SDL3 is
+  # fetched/configured, not after.
+  list(APPEND CMAKE_REQUIRED_INCLUDES "${pvr_psp2_headers_SOURCE_DIR}/include")
+  include_directories("${pvr_psp2_headers_SOURCE_DIR}/include")
+
+  foreach(_pvr_stub_dir
+      libgpu_es4_ext_stub_vitasdk.a
+      libIMGEGL_stub_vitasdk.a
+      libGLESv2_stub_vitasdk.a
+      libGLESv1_CM_stub_vitasdk.a)
+    list(APPEND CMAKE_LIBRARY_PATH "${pvr_psp2_stubs_SOURCE_DIR}/${_pvr_stub_dir}")
+  endforeach()
+  link_directories(
+    "${pvr_psp2_stubs_SOURCE_DIR}/libgpu_es4_ext_stub_vitasdk.a"
+    "${pvr_psp2_stubs_SOURCE_DIR}/libIMGEGL_stub_vitasdk.a"
+    "${pvr_psp2_stubs_SOURCE_DIR}/libGLESv2_stub_vitasdk.a"
+    "${pvr_psp2_stubs_SOURCE_DIR}/libGLESv1_CM_stub_vitasdk.a"
+  )
+endif()
+
+if(ANDROID OR EMSCRIPTEN OR VITA)
   set(SDL_SHARED OFF CACHE BOOL "" FORCE)
   set(SDL_STATIC ON CACHE BOOL "" FORCE)
   set(SDL_TEST   OFF CACHE BOOL "" FORCE)
+  if(VITA)
+    set(VIDEO_VITA_PVR ON CACHE BOOL "" FORCE)
+    set(VIDEO_VITA_PIB OFF CACHE BOOL "" FORCE)
+  endif()
+  set(_sdl3_patch_command "")
+  if(VITA)
+    # SDL's PVR loader (SDL_vitagles_pvr.c) explicitly loads libfios2.suprx
+    # and libc.suprx from vs0:sys/external/ before our bundled
+    # libgpu_es4_ext.suprx, but never loads os0:us/libgpu_es4.suprx -- the
+    # actual kernel-side PowerVR driver libgpu_es4_ext links against
+    # (SceGpuEs4User: PVRSRVConnect/PVRSRVDisconnect/PVRSRVAllocUserModeMem).
+    # Confirmed present in an imported Vita3K firmware dump at that exact
+    # path but never loaded, which is why libgpu_es4_ext's module_start fails
+    # on those 3 NIDs. Untested hypothesis, not a documented/confirmed SDL
+    # bug -- inserting the missing load call ourselves to try it. Using a
+    # real patch file (like the sol2-android-noexcept patch below) instead
+    # of an inline sed script -- CMake's PATCH_COMMAND list-argument parsing
+    # has repeatedly mangled complex sed scripts (it splits on unescaped
+    # ';', '<'/'>', and even embedded '"' as if they were its own list/shell
+    # syntax), so a patch file sidesteps that entirely.
+    set(_sdl3_patch_command
+      git apply ${CMAKE_SOURCE_DIR}/cmake/patches/sdl3-vita-load-gpu-es4.patch || true
+    )
+  endif()
+
   FetchContent_Declare(
     SDL3
     GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
     GIT_TAG        release-3.4.4
     GIT_SHALLOW    TRUE
+    PATCH_COMMAND  ${_sdl3_patch_command}
   )
   FetchContent_MakeAvailable(SDL3)
 else()
@@ -47,11 +137,38 @@ else()
   FetchContent_Declare(
       sqlite3
       URL https://www.sqlite.org/2024/sqlite-amalgamation-3460100.zip
+      # sys/ioctl.h is pulled in unconditionally by os_unix.c's "standard
+      # includes" block, but nothing in the amalgamation actually calls
+      # ioctl() (only reachable behind SQLITE_ENABLE_LOCKING_STYLE, which
+      # defaults off outside Apple) -- vitasdk's newlib has no ioctl.h at all.
+      # HAVE_READLINK is #define'd unconditionally (no #ifndef guard) right
+      # after this for every non-VxWorks target, assuming any POSIX-ish
+      # system has a real readlink() -- vitasdk's newlib declares the
+      # prototype (now that _POSIX_C_SOURCE is set) but never implements it.
+      # Delete the line rather than redefine to 0: the aSyscall table below
+      # gates on "#if defined(HAVE_READLINK)", which is still true for a
+      # macro defined as 0.
+      # (Two -e expressions, not one semicolon-joined script: CMake treats
+      # an unescaped ';' as its own list separator and silently drops
+      # whatever comes after it, so the combined script silently ran as
+      # just the first expression.)
+      PATCH_COMMAND sed -i -e "/ioctl\\.h/d" -e "/define HAVE_READLINK 1/d" sqlite3.c || true
   )
   FetchContent_MakeAvailable(sqlite3)
 
   add_library(SQLite3_lib STATIC ${sqlite3_SOURCE_DIR}/sqlite3.c)
   target_include_directories(SQLite3_lib PUBLIC ${sqlite3_SOURCE_DIR})
+  if(VITA)
+    # vitasdk's newlib also has no sys/mman.h; mmap()/munmap() are genuinely
+    # used by the WAL + mmap-I/O path, so (unlike ioctl.h) that one can't just
+    # be patched out -- disable it via SQLite's own compile-time knobs instead.
+    # SQLITE_WASI is SQLite's own official knob for "reduced-POSIX target
+    # missing fchown/mmap/mremap" -- exactly our situation, despite Vita not
+    # actually being WASM/WASI. SQLITE_OMIT_LOAD_EXTENSION drops dlopen/dlsym
+    # usage entirely (no dynamic loading on Vita homebrew anyway).
+    target_compile_definitions(SQLite3_lib PRIVATE
+      SQLITE_OMIT_WAL SQLITE_MAX_MMAP_SIZE=0 SQLITE_WASI SQLITE_OMIT_LOAD_EXTENSION)
+  endif()
 endif()
 
 # raylib
@@ -62,7 +179,9 @@ set(CUSTOMIZE_BUILD ON CACHE BOOL "" FORCE)
 set(SUPPORT_MODULE_RAUDIO OFF CACHE BOOL "" FORCE)
 set(SUPPORT_CUSTOM_FRAME_CONTROL ON CACHE BOOL "" FORCE)
 set(SUPPORT_FILEFORMAT_JPG ON CACHE BOOL "" FORCE)
-if(ANDROID OR EMSCRIPTEN)
+if(VITA)
+  set(OPENGL_VERSION "ES 2.0" CACHE STRING "" FORCE)
+elseif(ANDROID OR EMSCRIPTEN)
   set(OPENGL_VERSION "ES 3.0" CACHE STRING "" FORCE)
 endif()
 FetchContent_Declare(
@@ -125,7 +244,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(sol2)
 
-if(NOT ANDROID AND NOT EMSCRIPTEN)
+if(NOT ANDROID AND NOT EMSCRIPTEN AND NOT VITA)
   set(ZLIB_USE_STATIC_LIBS ON)
   if(WIN32)
     set(CPPTRACE_GET_SYMBOLS_WITH_ADDR2LINE ON CACHE BOOL "" FORCE)
@@ -141,7 +260,7 @@ if(NOT ANDROID AND NOT EMSCRIPTEN)
 endif()
 
 # libsndfile
-if(ANDROID OR EMSCRIPTEN OR WIN32)
+if(ANDROID OR EMSCRIPTEN OR WIN32 OR VITA)
   message(STATUS "Fetching libogg + libvorbis for ${CMAKE_SYSTEM_NAME} (needed by libsndfile)")
   FetchContent_Declare(
       ogg
@@ -243,7 +362,7 @@ else()
 endif()
 
 # libsamplerate
-if(ANDROID OR EMSCRIPTEN)
+if(ANDROID OR EMSCRIPTEN OR VITA)
   message(STATUS "Fetching libsamplerate from source (${CMAKE_SYSTEM_NAME})")
   set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
   set(LIBSAMPLERATE_EXAMPLES OFF CACHE BOOL "" FORCE)
@@ -318,6 +437,13 @@ elseif(EMSCRIPTEN)
     set_target_properties(FFmpeg::${_lib} PROPERTIES
       INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/src/libs")
   endforeach()
+elseif(VITA)
+  message(STATUS "FFmpeg disabled on Vita -- video/av features unavailable until ported")
+  foreach(_lib avformat avcodec avutil swscale swresample)
+    add_library(FFmpeg::${_lib} INTERFACE IMPORTED)
+    set_target_properties(FFmpeg::${_lib} PROPERTIES
+      INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/src/libs")
+  endforeach()
 elseif(ANDROID)
   # FFmpeg must be cross-compiled for Android separately.
   # Set ANDROID_FFMPEG_PREFIX to a directory containing:
@@ -382,6 +508,9 @@ if(EMSCRIPTEN)
   add_library(rtaudio INTERFACE IMPORTED)
 elseif(ANDROID)
   # Android uses AAudio directly -- RtAudio not needed
+  add_library(rtaudio INTERFACE IMPORTED)
+elseif(VITA)
+  # Vita has no RtAudio backend -- audio goes through SDL3's audio subsystem instead
   add_library(rtaudio INTERFACE IMPORTED)
 else()
   set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)

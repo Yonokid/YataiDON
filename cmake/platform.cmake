@@ -73,6 +73,57 @@ elseif(ANDROID)
   endif()
   target_compile_definitions(${PROJECT_NAME} PRIVATE PLATFORM_ANDROID)
   target_link_options(${PROJECT_NAME} PRIVATE -Wl,-z,max-page-size=16384)
+elseif(VITA)
+  # SDL3-static and the Sce/PVR stub libs reference symbols in each other
+  # (SDL3 needs SceGxm_stub/SceAppMgr_stub; the PVR video driver needs
+  # gpu_es4_ext/IMGEGL), so a single left-to-right link order can never
+  # satisfy everyone -- whichever consumer is listed first still won't see
+  # symbols provided by something listed after it. --start-group/--end-group
+  # makes ld keep re-scanning the whole set until nothing new resolves,
+  # instead of depending on getting the order right by hand.
+  set(_vita_sdl3_target "")
+  if(TARGET SDL3::SDL3-static)
+    set(_vita_sdl3_target SDL3::SDL3-static)
+  elseif(TARGET SDL3::SDL3)
+    set(_vita_sdl3_target SDL3::SDL3)
+  endif()
+
+  target_link_libraries(${PROJECT_NAME} PRIVATE
+        -Wl,--start-group
+        ${_vita_sdl3_target}
+        # Stub libs SDL3-static links PRIVATE (see SDL's CMakeLists.txt
+        # sdl_link_dependency(base ...)); static-lib PRIVATE deps don't
+        # propagate, so relist them here -- same reason the ANDROID branch
+        # above relists log/android/EGL/GLESv3 by hand.
+        SceGxm_stub
+        SceDisplay_stub
+        SceCtrl_stub
+        SceAppMgr_stub
+        SceAppUtil_stub
+        SceAudio_stub
+        SceAudioIn_stub
+        SceSysmodule_stub
+        SceIofilemgr_stub
+        SceCommonDialog_stub
+        SceTouch_stub
+        SceHid_stub
+        SceMotion_stub
+        ScePower_stub
+        SceProcessmgr_stub
+        SceCamera_stub
+        SceIme_stub
+        # VIDEO_VITA_PVR path (deps.cmake) -- PVR_PSP2 (github.com/GrapheneCt/
+        # PVR_PSP2), vendored via FetchContent since it has no vitasdk
+        # package; its actual runtime .suprx modules still need installing
+        # to ur0:data/external (or wherever) on the target device/emulator,
+        # same as any other Vita GPU driver homebrew depends on.
+        libgpu_es4_ext_stub_weak
+        libIMGEGL_stub_weak
+        libGLESv2_stub_weak
+        libGLESv1_CM_stub_weak
+        -Wl,--end-group
+    )
+  target_compile_definitions(${PROJECT_NAME} PRIVATE PLATFORM_VITA)
 elseif(EMSCRIPTEN)
   set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX ".html")
   target_compile_definitions(${PROJECT_NAME} PRIVATE PLATFORM_WEB)
@@ -127,7 +178,7 @@ elseif(UNIX)
 endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-  if(ANDROID OR EMSCRIPTEN)
+  if(ANDROID OR EMSCRIPTEN OR VITA)
     target_compile_options(${PROJECT_NAME} PRIVATE
             -O0
             -g
@@ -186,6 +237,11 @@ else()
           -DNDEBUG
       )
   elseif(EMSCRIPTEN)
+    target_compile_options(${PROJECT_NAME} PRIVATE
+          -O2
+          -DNDEBUG
+      )
+  elseif(VITA)
     target_compile_options(${PROJECT_NAME} PRIVATE
           -O2
           -DNDEBUG

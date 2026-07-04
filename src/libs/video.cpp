@@ -16,7 +16,7 @@ VideoPlayer::VideoPlayer(fs::path path)
         return;
     }
 
-#ifndef __EMSCRIPTEN__
+#if !defined(__EMSCRIPTEN__) && !defined(PLATFORM_VITA)
     container    = av::AVContainer::open(path);
     if (!container) {
         spdlog::error("Failed to open video: {}", path.string());
@@ -60,7 +60,7 @@ void VideoPlayer::audio_manager() {
 }
 
 void VideoPlayer::decode_loop() {
-#ifndef __EMSCRIPTEN__
+#if !defined(__EMSCRIPTEN__) && !defined(PLATFORM_VITA)
     try {
         container->seek(0);
         frame_generator = container->decode_video(0);

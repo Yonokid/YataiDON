@@ -15,7 +15,7 @@
 #include <vector>
 #include <cstdint>
 
-#ifndef __EMSCRIPTEN__
+#if !defined(__EMSCRIPTEN__) && !defined(PLATFORM_VITA)
 
 extern "C" {
 #include <libavformat/avformat.h>
@@ -587,7 +587,7 @@ private:
 
 } // namespace av
 
-#else // __EMSCRIPTEN__ — minimal stubs so headers compile without FFmpeg
+#else // __EMSCRIPTEN__ / PLATFORM_VITA — minimal stubs so headers compile without FFmpeg
 
 namespace av {
     struct AVDecodedFrame {};

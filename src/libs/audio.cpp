@@ -345,7 +345,7 @@ void AudioEngine::sdl_audio_callback(void* userdata, SDL_AudioStream* stream, in
                             static_cast<int>(needed_floats * sizeof(float)));
 }
 
-#if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
+#if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__) && !defined(PLATFORM_VITA)
 int AudioEngine::rt_audio_callback(void* outputBuffer, void* /*inputBuffer*/,
                                     unsigned int framesPerBuffer, double /*streamTime*/,
                                     unsigned int /*status*/, void* userData) {
@@ -366,7 +366,7 @@ int AudioEngine::pa_stream_callback(const void* /*inputBuffer*/, void* outputBuf
 }
 #endif
 
-#if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
+#if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__) && !defined(PLATFORM_VITA)
 bool AudioEngine::init_rtaudio_device(RtAudio::Api api, const char* label) {
     rt_audio = new RtAudio(api, [](RtAudioErrorType type, const std::string& errorText) {
         if (type == RTAUDIO_WARNING)
@@ -544,7 +544,7 @@ bool AudioEngine::init_audio_device(const fs::path& sounds_path, const AudioConf
     this->is_ready = false;
     this->master_volume = 1.0f;
     try {
-#if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
+#if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__) && !defined(PLATFORM_VITA)
         switch (audio_config.device_type) {
             case 1: return init_rtaudio_device(RtAudio::LINUX_ALSA,     "ALSA");
             case 2: return init_rtaudio_device(RtAudio::LINUX_PULSE,    "PulseAudio");
@@ -584,7 +584,7 @@ void AudioEngine::close_audio_device() {
             SDL_QuitSubSystem(SDL_INIT_AUDIO);
             sdl_audio_subsystem_initialized = false;
         }
-#if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
+#if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__) && !defined(PLATFORM_VITA)
         if (rt_audio != nullptr) {
             if (rt_audio->isStreamRunning()) rt_audio->stopStream();
             if (rt_audio->isStreamOpen()) rt_audio->closeStream();

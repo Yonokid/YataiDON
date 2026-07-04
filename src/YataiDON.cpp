@@ -1,8 +1,18 @@
 #include <iostream>
 #include <rlgl.h>
-#ifdef PLATFORM_ANDROID
+#if defined(PLATFORM_ANDROID) || defined(PLATFORM_VITA)
 #include <SDL3/SDL_main.h>
 #include <SDL3/SDL.h>
+#endif
+
+#ifdef PLATFORM_VITA
+// vitasdk crt0 reads these globals at startup to size the two Vita heaps.
+// Piglet specifically requires sceLibcHeapSize >= 2MB or it fails to
+// initialize; the vitasdk default is well under that.
+extern "C" {
+unsigned int sceLibcHeapSize = 32 * 1024 * 1024;
+unsigned int _newlib_heap_size_user = 128 * 1024 * 1024;
+}
 #endif
 
 #include "libs/animation.h"
@@ -329,7 +339,7 @@ int main(int argc, char* argv[]) {
 
     L.camera = compute_camera2d(L.screen_width, L.screen_height);
 
-#ifndef __EMSCRIPTEN__
+#if !defined(__EMSCRIPTEN__) && !defined(PLATFORM_VITA)
     if (global_data.config->video.borderless) {
         ray::ToggleBorderlessWindowed();
         spdlog::info("Borderless window enabled");
@@ -341,7 +351,7 @@ int main(int argc, char* argv[]) {
 #endif
 
     rlSetBlendFactorsSeparate(RL_SRC_ALPHA, RL_ONE_MINUS_SRC_ALPHA, RL_ONE, RL_ONE_MINUS_SRC_ALPHA, RL_FUNC_ADD, RL_FUNC_ADD);
-#if defined(PLATFORM_ANDROID) || defined(__EMSCRIPTEN__)
+#if defined(PLATFORM_ANDROID) || defined(__EMSCRIPTEN__) || defined(PLATFORM_VITA)
     ray::SetExitKey(ray::KEY_NULL);
 #else
     ray::SetExitKey(global_data.config->keys.exit_key);

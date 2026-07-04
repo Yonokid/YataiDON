@@ -123,6 +123,18 @@
         "ANDROID_STL": "c++_shared",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       }
+    },
+    {
+      "name": "vita-arm",
+      "displayName": "PS Vita",
+      "description": "PS Vita homebrew via vitasdk (arm-vita-eabi). Requires VITASDK env var. FFmpeg is stubbed out (no video/av); audio and rendering go through SDL3 only. Requires the Piglet SDK component (https://github.com/TheOfficialFloW/PIB) installed into vitasdk for VIDEO_VITA_PIB to actually work.",
+      "binaryDir": "${sourceDir}/build-vita",
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_TOOLCHAIN_FILE": "$env{VITASDK}/share/vita.toolchain.cmake",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
     }
   ],
   "buildPresets": [

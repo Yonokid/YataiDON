@@ -1,0 +1,10 @@
+--- a/src/video/vita/SDL_vitagles_pvr.c
++++ b/src/video/vita/SDL_vitagles_pvr.c
+@@ -45,6 +45,7 @@ bool VITA_GLES_LoadLibrary(SDL_VideoDevice *_this, const char *path)
+
+         sceKernelLoadStartModule("vs0:sys/external/libfios2.suprx", 0, NULL, 0, NULL, NULL);
+         sceKernelLoadStartModule("vs0:sys/external/libc.suprx", 0, NULL, 0, NULL, NULL);
++        sceKernelLoadStartModule("os0:us/libgpu_es4.suprx", 0, NULL, 0, NULL, NULL);
+
+         SDL_snprintf(target_path, MAX_PATH, "%s/%s", default_path, "libgpu_es4_ext.suprx");
+         sceKernelLoadStartModule(target_path, 0, NULL, 0, NULL, NULL);

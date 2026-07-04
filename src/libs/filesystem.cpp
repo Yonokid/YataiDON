@@ -11,6 +11,19 @@
     #include <mach-o/dyld.h>
 #endif
 
+#ifdef PLATFORM_VITA
+#include <cstdio>
+extern "C" {
+// vitasdk's stdio.h declares these (visible once _POSIX_C_SOURCE is set,
+// see deps.cmake) but never implements them -- fmt's file_print_buffer
+// detects the declaration at compile time and calls them expecting real
+// per-FILE* locking. No-ops here since nothing in this app writes to the
+// same FILE* from multiple threads.
+void flockfile(FILE*) {}
+void funlockfile(FILE*) {}
+}
+#endif
+
 void set_working_directory_to_executable() {
 #ifdef __ANDROID__
     std::filesystem::path exe_dir("/sdcard/YataiDON");
@@ -18,6 +31,29 @@ void set_working_directory_to_executable() {
     std::filesystem::create_directories(exe_dir, ec);
     std::filesystem::current_path(exe_dir);
     spdlog::info("Working directory set to: {}", exe_dir.string());
+#elif defined(PLATFORM_VITA)
+    std::filesystem::path exe_dir("ux0:data/YataiDON");
+    std::error_code ec;
+    std::filesystem::create_directories(exe_dir, ec);
+    std::filesystem::current_path(exe_dir);
+    spdlog::info("Working directory set to: {}", exe_dir.string());
+
+    // config.toml and the default skin are bundled read-only inside the vpk
+    // (app0:), but everything in this codebase reads them via a cwd-relative
+    // path, and cwd is ux0:data/YataiDON (writable, for scores.db/Songs) --
+    // a different filesystem root from app0:. Seed them into place on first
+    // run only, so a user's own edits to config.toml/the skin survive an
+    // app update instead of being overwritten every launch.
+    if (!std::filesystem::exists("config.toml", ec)) {
+        std::filesystem::copy_file("app0:config.toml", "config.toml", ec);
+        if (ec) spdlog::error("Failed to seed config.toml from app0:: {}", ec.message());
+    }
+    if (!std::filesystem::exists("Skins/PyTaikoGreen", ec)) {
+        std::filesystem::create_directories("Skins", ec);
+        std::filesystem::copy("app0:Skins/PyTaikoGreen", "Skins/PyTaikoGreen",
+            std::filesystem::copy_options::recursive, ec);
+        if (ec) spdlog::error("Failed to seed default skin from app0:: {}", ec.message());
+    }
 #elif __EMSCRIPTEN__
     spdlog::info("Emscripten: using virtual FS root as working directory");
 #elif _WIN32
