@@ -1,0 +1,199 @@
+diff --git a/cmake/LibraryConfigurations.cmake b/cmake/LibraryConfigurations.cmake
+index 262150b..60a1589 100644
+--- a/cmake/LibraryConfigurations.cmake
++++ b/cmake/LibraryConfigurations.cmake
+@@ -259,6 +259,14 @@ if (NOT GRAPHICS)
+     set(GRAPHICS "GRAPHICS_API_OPENGL_33")
+ endif ()
+ 
++# rlvk.h calls vkCreateInstance/vkCreateSwapchainKHR/... directly (link-time symbols, not
++# resolved through vkGetInstanceProcAddr), so the Vulkan loader must be linked explicitly -
++# nothing else in this file pulls it in for either the GLFW or SDL desktop backend.
++if ("${GRAPHICS}" MATCHES "GRAPHICS_API_VULKAN")
++    find_package(Vulkan REQUIRED)
++    set(LIBS_PRIVATE ${LIBS_PRIVATE} Vulkan::Vulkan)
++endif ()
++
+ set(LIBS_PRIVATE ${LIBS_PRIVATE} ${OPENAL_LIBRARY})
+ 
+ if (SUPPORT_MODULE_RAUDIO AND UNIX AND NOT APPLE)
+diff --git a/src/platforms/rcore_desktop_sdl.c b/src/platforms/rcore_desktop_sdl.c
+index 8fd67b6..ed1dcda 100644
+--- a/src/platforms/rcore_desktop_sdl.c
++++ b/src/platforms/rcore_desktop_sdl.c
+@@ -61,7 +61,11 @@
+     #include "SDL.h"
+ #endif
+ 
+-#if !defined(GRAPHICS_API_OPENGL_SOFTWARE)
++// NOTE: The Vulkan backend (rlvk.h) never touches SDL's GL bindings, and on Windows
++// SDL_opengl.h drags in unprotected windows.h, which collides with raylib names
++// (Rectangle, CloseWindow, ShowCursor) and rlvk.h's minimal LoadLibraryA/GetProcAddress
++// stubs. Skip it entirely when building for Vulkan.
++#if !defined(GRAPHICS_API_OPENGL_SOFTWARE) && !defined(GRAPHICS_API_VULKAN_14)
+   #if defined(GRAPHICS_API_OPENGL_ES2)
+       // It seems it does not need to be included to work
+       //#include "SDL_opengles2.h"
+@@ -77,6 +81,19 @@
+   #endif
+ #endif
+ 
++#if defined(GRAPHICS_API_VULKAN_14)
++    // VkSurfaceKHR creation for the SDL-managed window (SDL_vulkan.h only needs
++    // SDL_Window/SDL_video.h + <vulkan/vulkan.h>, already included via rlvk.h - it does
++    // not touch windows.h)
++    #ifdef USING_SDL3_PROJECT
++        #include "SDL3/SDL_vulkan.h"
++    #elif defined(USING_SDL2_PROJECT)
++        #include "SDL2/SDL_vulkan.h"
++    #else
++        #include "SDL_vulkan.h"
++    #endif
++#endif
++
+ //----------------------------------------------------------------------------------
+ // Defines and Macros
+ //----------------------------------------------------------------------------------
+@@ -1315,10 +1332,28 @@ void DisableCursor(void)
+     CORE.Input.Mouse.cursorLocked = true;
+ }
+ 
++#if defined(GRAPHICS_API_VULKAN_14)
++// Create the Vulkan window surface + swapchain. Called from InitWindow right after rlglInit (which
++// creates the instance), so the swapchain exists before the first frame is rendered/captured.
++void InitVulkanSurface(void)
++{
++    VkSurfaceKHR surface = VK_NULL_HANDLE;
++#ifdef USING_SDL3_PROJECT
++    bool ok = SDL_Vulkan_CreateSurface(platform.window, rlvkGetInstance(), NULL, &surface);
++#else
++    bool ok = (SDL_Vulkan_CreateSurface(platform.window, rlvkGetInstance(), &surface) == SDL_TRUE);
++#endif
++    if (ok) rlvkAttachSurface(surface);
++    else TRACELOG(LOG_WARNING, "VKRL: SDL_Vulkan_CreateSurface failed: %s", SDL_GetError());
++}
++#endif
++
+ // Swap back buffer with front buffer (screen drawing)
+ void SwapScreenBuffer(void)
+ {
+-#if defined(GRAPHICS_API_OPENGL_SOFTWARE)
++#if defined(GRAPHICS_API_VULKAN_14)
++    rlvkPresent();
++#elif defined(GRAPHICS_API_OPENGL_SOFTWARE)
+     // NOTE: Using a preprocessor condition here because rlCopyFramebuffer() is only declared for software rendering
+     SDL_Surface *surface = SDL_GetWindowSurface(platform.window);
+     rlCopyFramebuffer(0, 0, CORE.Window.render.width, CORE.Window.render.height, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8, surface->pixels);
+@@ -2049,6 +2084,12 @@ int InitPlatform(void)
+ 
+     // NOTE: Some OpenGL context attributes must be set before window creation
+ 
++#if defined(GRAPHICS_API_VULKAN_14)
++    // No OpenGL context: the window just needs to be Vulkan-surface-capable.
++    // rlGetVersion() reports RL_OPENGL_43 as a compatibility shim under Vulkan, so it
++    // can't be used here to decide between GL/Vulkan/software the way it is below.
++    flags |= SDL_WINDOW_VULKAN;
++#else
+     if (rlGetVersion() != RL_OPENGL_SOFTWARE)
+     {
+         // Add the flag telling the window to use an OpenGL context
+@@ -2094,6 +2135,7 @@ int InitPlatform(void)
+             SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4);
+         }
+     }
++#endif  // !GRAPHICS_API_VULKAN_14
+ 
+     // Init window
+ #if defined(USING_VERSION_SDL3)
+@@ -2111,13 +2153,19 @@ int InitPlatform(void)
+     platform.window = SDL_CreateWindow(CORE.Window.title, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, CORE.Window.screen.width, CORE.Window.screen.height, flags);
+ #endif
+ 
++#if !defined(GRAPHICS_API_VULKAN_14)
+     // Init OpenGL context
+     if (rlGetVersion() != RL_OPENGL_SOFTWARE)
+     {
+         platform.glContext = SDL_GL_CreateContext(platform.window);
+     }
++#endif
+ 
++#if defined(GRAPHICS_API_VULKAN_14)
++    if (platform.window != NULL)
++#else
+     if ((platform.window != NULL) && ((rlGetVersion() == RL_OPENGL_SOFTWARE) || (platform.glContext != NULL)))
++#endif
+     {
+         CORE.Window.ready = true;
+ 
+diff --git a/src/rlvk.h b/src/rlvk.h
+index 0000000..0000000 100644
+--- a/src/rlvk.h
++++ b/src/rlvk.h
+@@ -182,6 +182,7 @@
+ RLVKAPI VkInstance rlvkGetInstance(void);           // Get the VkInstance (the platform needs it to create a surface)
+ RLVKAPI void rlvkAttachSurface(VkSurfaceKHR surface); // Attach the platform-created surface, builds the swapchain
+ RLVKAPI void rlvkSetMsaaSamples(int samples);       // Set MSAA sample count, call BEFORE rlvkAttachSurface (FLAG_MSAA_4X_HINT)
++RLVKAPI void rlvkSetVsync(bool enabled);            // Set vsync-locked (FIFO) vs uncapped presentation, call BEFORE rlvkAttachSurface (FLAG_VSYNC_HINT)
+ RLVKAPI void rlvkPresent(void);                     // Present the current frame, called from SwapScreenBuffer()
+ 
+ #if defined(__cplusplus)
+@@ -646,6 +647,7 @@
+     bool                    frameActive;        // a swapchain image is acquired and the render scope is open
+     bool                    frameConsumed;      // rlReadScreenPixels already ended+presented this frame
+     bool                    acquireWaited;      // this frame's acquire semaphore was consumed by an earlier submit (mid-frame flush)
++    bool                    vsyncEnabled;       // requested via rlvkSetVsync (FLAG_VSYNC_HINT), defaults to true (FIFO) if never called
+ 
+     // 8B-aligned smaller arrays
+     rlvkBatchBackingBuffer  batchBacking[RLVK_FRAME_INDEX_COUNT];
+@@ -5972,6 +5974,14 @@
+     if (RLVK.msaaSamples > 1) TRACELOG(RL_LOG_INFO, "RLVK: MSAA x%d enabled (matches GL FLAG_MSAA_4X_HINT)", RLVK.msaaSamples);
+ }
+ 
++// Set whether presentation is vsync-locked (FIFO) or uncapped, must be called before rlvkAttachSurface()
++void rlvkSetVsync(bool enabled)
++{
++    if (RLVK.swapchain) { TRACELOG(RL_LOG_WARNING, "RLVK: rlvkSetVsync must be called before the swapchain exists"); return; }
++    RLVK.vsyncEnabled = enabled;
++    if (!enabled) TRACELOG(RL_LOG_INFO, "RLVK: VSync disabled, requesting uncapped present mode (matches GL FLAG_VSYNC_HINT)");
++}
++
+ // Attach the platform-created surface and build the swapchain around it
+ void rlvkAttachSurface(VkSurfaceKHR surface)
+ {
+@@ -6018,8 +6028,15 @@
+     // FIFO is always supported and is vsync-locked (caps the frame rate to the display refresh).
+     VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;
+ #if defined(PERFORMANCE_CAPTURE)
+-    // Benchmarking wants uncapped presentation: prefer IMMEDIATE (no sync), then MAILBOX.
++    // Benchmarking always wants uncapped presentation, regardless of FLAG_VSYNC_HINT/rlvkSetVsync.
++    bool wantUncappedPresent = true;
++#else
++    // rlvkSetVsync(false) (FLAG_VSYNC_HINT off) -> uncapped presentation.
++    bool wantUncappedPresent = !RLVK.vsyncEnabled;
++#endif
++    if (wantUncappedPresent)
+     {
++        // Uncapped presentation: prefer IMMEDIATE (no sync), then MAILBOX.
+         uint32_t pmCount = 0;
+         vkGetPhysicalDeviceSurfacePresentModesKHR(RLVK.physicalDevice, surface, &pmCount, NULL);
+         VkPresentModeKHR pms[16];
+@@ -6034,7 +6051,6 @@
+         if (hasImmediate) presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
+         else if (hasMailbox) presentMode = VK_PRESENT_MODE_MAILBOX_KHR;
+     }
+-#endif
+ 
+     RLVK_CHECK(vkCreateSwapchainKHR(RLVK.device,
+         &(VkSwapchainCreateInfoKHR){
+diff --git a/src/rcore.c b/src/rcore.c
+index 0000000..0000000 100644
+--- a/src/rcore.c
++++ b/src/rcore.c
+@@ -709,6 +709,7 @@
+     // Vulkan: create the window surface + swapchain now that the instance exists (rlglInit created it),
+     // so the swapchain is ready before the first frame is rendered/captured
+     if ((CORE.Window.flags & FLAG_MSAA_4X_HINT) > 0) rlvkSetMsaaSamples(4);
++    rlvkSetVsync((CORE.Window.flags & FLAG_VSYNC_HINT) > 0);
+     InitVulkanSurface();
+ #endif
+ 

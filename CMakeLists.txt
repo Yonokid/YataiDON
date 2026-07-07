@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.22.1) # required by the shaderc/glslang/SPIRV-Tools dependency chain
 project(YataiDON VERSION 1.0.0 LANGUAGES C CXX)
 
 cmake_policy(SET CMP0002 NEW)  # Logical target names must be globally unique
@@ -39,6 +39,17 @@ else()
   add_executable(${PROJECT_NAME} ${CppFiles} ${HeaderFiles})
 endif()
 add_dependencies(${PROJECT_NAME} skin_config_gen texture_ids_gen)
+
+if(NOT ANDROID AND NOT EMSCRIPTEN)
+  # rlvk.h loads this at runtime via LoadLibraryA; it must sit next to the executable or every
+  # custom shader silently falls back to the default shader (no load error is user-visible).
+  add_dependencies(${PROJECT_NAME} shaderc_shared)
+  add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                $<TARGET_FILE:shaderc_shared>
+                "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
+        )
+endif()
 
 if(WIN32)
   foreach(_lib avformat avcodec avutil swscale swresample)

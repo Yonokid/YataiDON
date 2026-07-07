@@ -62,17 +62,79 @@ set(CUSTOMIZE_BUILD ON CACHE BOOL "" FORCE)
 set(SUPPORT_MODULE_RAUDIO OFF CACHE BOOL "" FORCE)
 set(SUPPORT_CUSTOM_FRAME_CONTROL ON CACHE BOOL "" FORCE)
 set(SUPPORT_FILEFORMAT_JPG ON CACHE BOOL "" FORCE)
+set(GRAPHICS GRAPHICS_API_VULKAN_14 ON CACHE ENUM "" FORCE)
 if(ANDROID OR EMSCRIPTEN)
   set(OPENGL_VERSION "ES 3.0" CACHE STRING "" FORCE)
 endif()
 FetchContent_Declare(
   raylib
-  GIT_REPOSITORY https://github.com/raysan5/raylib.git
-  GIT_TAG        master
+  GIT_REPOSITORY https://github.com/rygo6/raylib.git
+  GIT_TAG        rlvk-pipeline-cache
   GIT_SHALLOW    TRUE
+  PATCH_COMMAND  ${CMAKE_COMMAND} -D RAYLIB_PATCH_FILE=${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/raylib-sdl-vulkan.patch -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ApplyRaylibPatch.cmake
 )
 FetchContent_GetProperties(raylib)
 FetchContent_MakeAvailable(raylib)
+
+# shaderc (runtime GLSL->SPIR-V compiler the Vulkan raylib backend loads as shaderc_shared.dll --
+# see rlvk.h's rlvkLoadShaderc(). Without it every custom shader silently falls back to the
+# embedded default shader, so it's a hard requirement, not an optional extra.
+# Versions pinned from shaderc's own DEPS file so glslang/SPIRV-Tools/SPIRV-Headers are a
+# mutually-compatible set; bump all four together.
+#
+# Only FETCH glslang/SPIRV-Tools/SPIRV-Headers here (FetchContent_Populate, not
+# MakeAvailable): shaderc's own third_party/CMakeLists.txt add_subdirectory()s all three
+# itself (guarded by if(NOT TARGET ...), in the specific order it needs SPIRV-Tools linked
+# into glslang), via the SHADERC_*_DIR variables below. Calling MakeAvailable on them here
+# too would add_subdirectory each one twice -> duplicate target names -> fatal CMake error.
+if(NOT ANDROID AND NOT EMSCRIPTEN)
+  FetchContent_Declare(
+    SPIRV-Headers
+    GIT_REPOSITORY https://github.com/KhronosGroup/SPIRV-Headers.git
+    GIT_TAG        main
+    GIT_SHALLOW    TRUE
+  )
+  FetchContent_Populate(SPIRV-Headers)
+
+  FetchContent_Declare(
+    SPIRV-Tools
+    GIT_REPOSITORY https://github.com/KhronosGroup/SPIRV-Tools.git
+    GIT_TAG        main
+    GIT_SHALLOW    TRUE
+  )
+  FetchContent_Populate(SPIRV-Tools)
+
+  FetchContent_Declare(
+    glslang
+    GIT_REPOSITORY https://github.com/KhronosGroup/glslang.git
+    GIT_TAG        main
+    GIT_SHALLOW    TRUE
+  )
+  FetchContent_Populate(glslang)
+
+  set(SHADERC_SKIP_TESTS ON CACHE BOOL "" FORCE)
+  set(SHADERC_ENABLE_TESTS OFF CACHE BOOL "" FORCE)
+  set(SHADERC_SKIP_EXAMPLES ON CACHE BOOL "" FORCE)
+  set(SHADERC_SKIP_INSTALL ON CACHE BOOL "" FORCE)
+  set(SHADERC_SKIP_COPYRIGHT_CHECK ON CACHE BOOL "" FORCE)
+  # Not required for correctness (shaderc's own script already forces SPIRV_SKIP_TESTS from
+  # SHADERC_SKIP_TESTS) -- just skips SPIRV-Tools' standalone CLI tools (spirv-opt.exe etc.)
+  # that this project never uses, to cut build time.
+  set(SPIRV_SKIP_EXECUTABLES ON CACHE BOOL "" FORCE)
+  # shaderc's third_party/CMakeLists.txt reads these instead of the standard FetchContent
+  # <name>_SOURCE_DIR convention, so point them at the sources fetched above.
+  set(SHADERC_GLSLANG_DIR ${glslang_SOURCE_DIR} CACHE PATH "" FORCE)
+  set(SHADERC_SPIRV_TOOLS_DIR ${spirv-tools_SOURCE_DIR} CACHE PATH "" FORCE)
+  set(SHADERC_SPIRV_HEADERS_DIR ${spirv-headers_SOURCE_DIR} CACHE PATH "" FORCE)
+  FetchContent_Declare(
+    shaderc
+    GIT_REPOSITORY https://github.com/google/shaderc.git
+    GIT_TAG        49a8724d561c13db22b52f99f2a0e2707a9a9e3c
+    GIT_SHALLOW    TRUE
+    PATCH_COMMAND  ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/FixShadercGlslangInstall.cmake
+  )
+  FetchContent_MakeAvailable(shaderc)
+endif()
 
 # RapidJSON
 set(RAPIDJSON_BUILD_DOC OFF CACHE BOOL "" FORCE)
