@@ -1,8 +1,8 @@
 diff --git a/cmake/LibraryConfigurations.cmake b/cmake/LibraryConfigurations.cmake
-index 262150b..60a1589 100644
+index 262150b..a3ae0ac 100644
 --- a/cmake/LibraryConfigurations.cmake
 +++ b/cmake/LibraryConfigurations.cmake
-@@ -259,6 +259,14 @@ if (NOT GRAPHICS)
+@@ -259,6 +259,19 @@ if (NOT GRAPHICS)
      set(GRAPHICS "GRAPHICS_API_OPENGL_33")
  endif ()
  
@@ -12,6 +12,11 @@ index 262150b..60a1589 100644
 +if ("${GRAPHICS}" MATCHES "GRAPHICS_API_VULKAN")
 +    find_package(Vulkan REQUIRED)
 +    set(LIBS_PRIVATE ${LIBS_PRIVATE} Vulkan::Vulkan)
++    # rlvk.h dlopen()s libshaderc_shared at runtime (rlvkLoadShaderc) instead of linking it,
++    # so custom-shader compilation works even when no libshaderc dev package is installed.
++    if (UNIX AND NOT APPLE)
++        set(LIBS_PRIVATE ${LIBS_PRIVATE} ${CMAKE_DL_LIBS})
++    endif ()
 +endif ()
 +
  set(LIBS_PRIVATE ${LIBS_PRIVATE} ${OPENAL_LIBRARY})
@@ -125,11 +130,23 @@ index 8fd67b6..ed1dcda 100644
      {
          CORE.Window.ready = true;
  
+diff --git a/src/rcore.c b/src/rcore.c
+index e1a246f..1fba7b1 100644
+--- a/src/rcore.c
++++ b/src/rcore.c
+@@ -709,6 +709,7 @@ void InitWindow(int width, int height, const char *title)
+     // Vulkan: create the window surface + swapchain now that the instance exists (rlglInit created it),
+     // so the swapchain is ready before the first frame is rendered/captured
+     if ((CORE.Window.flags & FLAG_MSAA_4X_HINT) > 0) rlvkSetMsaaSamples(4);
++    rlvkSetVsync((CORE.Window.flags & FLAG_VSYNC_HINT) > 0);
+     InitVulkanSurface();
+ #endif
+ 
 diff --git a/src/rlvk.h b/src/rlvk.h
-index 0000000..0000000 100644
+index 7ab2f8b..664df4a 100644
 --- a/src/rlvk.h
 +++ b/src/rlvk.h
-@@ -182,6 +182,7 @@
+@@ -185,6 +185,7 @@ extern "C" {            // Prevents name mangling of functions
  RLVKAPI VkInstance rlvkGetInstance(void);           // Get the VkInstance (the platform needs it to create a surface)
  RLVKAPI void rlvkAttachSurface(VkSurfaceKHR surface); // Attach the platform-created surface, builds the swapchain
  RLVKAPI void rlvkSetMsaaSamples(int samples);       // Set MSAA sample count, call BEFORE rlvkAttachSurface (FLAG_MSAA_4X_HINT)
@@ -137,7 +154,22 @@ index 0000000..0000000 100644
  RLVKAPI void rlvkPresent(void);                     // Present the current frame, called from SwapScreenBuffer()
  
  #if defined(__cplusplus)
-@@ -646,6 +647,7 @@
+@@ -210,6 +211,14 @@ RLVKAPI void rlvkPresent(void);                     // Present the current frame
+ #include <stdint.h>
+ #include <ctype.h>
+ 
++#if !defined(_WIN32)
++    #include <dlfcn.h>
++    #include <unistd.h>
++#endif
++#if defined(__APPLE__)
++    #include <mach-o/dyld.h>
++#endif
++
+ #include "rlvk_shaders.h"       // Embedded SPIR-V for the default shader (fallback when shaderc is absent)
+ #include <shaderc/shaderc.h>     // Types/enums only - functions are loaded from shaderc_shared.dll at runtime
+ 
+@@ -653,6 +662,7 @@ typedef struct rlvkData {
      bool                    frameActive;        // a swapchain image is acquired and the render scope is open
      bool                    frameConsumed;      // rlReadScreenPixels already ended+presented this frame
      bool                    acquireWaited;      // this frame's acquire semaphore was consumed by an earlier submit (mid-frame flush)
@@ -145,7 +177,62 @@ index 0000000..0000000 100644
  
      // 8B-aligned smaller arrays
      rlvkBatchBackingBuffer  batchBacking[RLVK_FRAME_INDEX_COUNT];
-@@ -5972,6 +5974,14 @@
+@@ -886,7 +896,39 @@ static bool rlvkLoadShaderc(void)
+     RLVK.shadercCompiler = p_shaderc_compiler_initialize();
+     return RLVK.shadercCompiler != NULL;
+ #else
+-    return false;   // TODO(vk): dlopen("libshaderc_shared.so") on Linux/macOS
++    // dlopen the runtime GLSL->SPIR-V compiler. Try the system search path first (covers a
++    // system libshaderc package, found via the loader/ldconfig cache), then fall back to a
++    // copy sitting next to the running executable (covers the no-system-package case; the
++    // project build copies shaderc_shared there for exactly this reason).
++    #if defined(__APPLE__)
++        static const char *libName = "libshaderc_shared.dylib";
++    #else
++        static const char *libName = "libshaderc_shared.so.1";
++    #endif
++    void *lib = dlopen(libName, RTLD_NOW | RTLD_LOCAL);
++    if (!lib)
++    {
++        char exePath[4096] = {0};
++        #if defined(__APPLE__)
++            uint32_t size = sizeof(exePath);
++            if (_NSGetExecutablePath(exePath, &size) != 0) exePath[0] = '\0';
++        #else
++            ssize_t n = readlink("/proc/self/exe", exePath, sizeof(exePath) - 1);
++            exePath[(n > 0) ? n : 0] = '\0';
++        #endif
++        char *slash = strrchr(exePath, '/');
++        if (slash)
++        {
++            strncpy(slash + 1, libName, (size_t)(&exePath[sizeof(exePath)] - (slash + 1)) - 1);
++            lib = dlopen(exePath, RTLD_NOW | RTLD_LOCAL);
++        }
++    }
++    if (!lib) return false;
++#define RLVK_SC_FUNC(_func) p_##_func = (__typeof__(_func) *)dlsym(lib, #_func); if (!p_##_func) return false;
++    RLVK_SHADERC_FUNCS
++#undef RLVK_SC_FUNC
++    RLVK.shadercCompiler = p_shaderc_compiler_initialize();
++    return RLVK.shadercCompiler != NULL;
+ #endif
+ }
+ 
+@@ -4604,7 +4646,13 @@ static bool rlvkInitInstance(void)
+ #elif defined(__APPLE__)
+         "VK_EXT_metal_surface",
+ #else
++        // SDL3 picks its surface backend at runtime (X11 via vkCreateXlibSurfaceKHR, or
++        // native Wayland via vkCreateWaylandSurfaceKHR) depending on the session/driver, so
++        // enable all three Linux surface extensions here; enabling one that ends up unused
++        // is harmless.
+         "VK_KHR_xcb_surface",
++        "VK_KHR_xlib_surface",
++        "VK_KHR_wayland_surface",
+ #endif
+     };
+ 
+@@ -5987,6 +6035,14 @@ void rlvkSetMsaaSamples(int samples)
      if (RLVK.msaaSamples > 1) TRACELOG(RL_LOG_INFO, "RLVK: MSAA x%d enabled (matches GL FLAG_MSAA_4X_HINT)", RLVK.msaaSamples);
  }
  
@@ -160,7 +247,7 @@ index 0000000..0000000 100644
  // Attach the platform-created surface and build the swapchain around it
  void rlvkAttachSurface(VkSurfaceKHR surface)
  {
-@@ -6018,8 +6028,15 @@
+@@ -6033,8 +6089,15 @@ void rlvkAttachSurface(VkSurfaceKHR surface)
      // FIFO is always supported and is vsync-locked (caps the frame rate to the display refresh).
      VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;
  #if defined(PERFORMANCE_CAPTURE)
@@ -177,7 +264,7 @@ index 0000000..0000000 100644
          uint32_t pmCount = 0;
          vkGetPhysicalDeviceSurfacePresentModesKHR(RLVK.physicalDevice, surface, &pmCount, NULL);
          VkPresentModeKHR pms[16];
-@@ -6034,7 +6051,6 @@
+@@ -6049,7 +6112,6 @@ void rlvkAttachSurface(VkSurfaceKHR surface)
          if (hasImmediate) presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
          else if (hasMailbox) presentMode = VK_PRESENT_MODE_MAILBOX_KHR;
      }
@@ -185,15 +272,3 @@ index 0000000..0000000 100644
  
      RLVK_CHECK(vkCreateSwapchainKHR(RLVK.device,
          &(VkSwapchainCreateInfoKHR){
-diff --git a/src/rcore.c b/src/rcore.c
-index 0000000..0000000 100644
---- a/src/rcore.c
-+++ b/src/rcore.c
-@@ -709,6 +709,7 @@
-     // Vulkan: create the window surface + swapchain now that the instance exists (rlglInit created it),
-     // so the swapchain is ready before the first frame is rendered/captured
-     if ((CORE.Window.flags & FLAG_MSAA_4X_HINT) > 0) rlvkSetMsaaSamples(4);
-+    rlvkSetVsync((CORE.Window.flags & FLAG_VSYNC_HINT) > 0);
-     InitVulkanSurface();
- #endif
- 

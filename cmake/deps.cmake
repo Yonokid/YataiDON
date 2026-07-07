@@ -69,8 +69,12 @@ endif()
 FetchContent_Declare(
   raylib
   GIT_REPOSITORY https://github.com/rygo6/raylib.git
-  GIT_TAG        rlvk-pipeline-cache
-  GIT_SHALLOW    TRUE
+  # Pinned to a commit, not the floating branch name: rlvk-pipeline-cache moves upstream, and
+  # a floating tag makes FetchContent's update step re-fetch + re-apply the patch below against
+  # whatever the branch tip currently is on any reconfigure, which silently breaks the patch's
+  # hand-written hunks the moment upstream shifts a line out from under them. Bump deliberately.
+  GIT_TAG        efe43b4
+  GIT_SHALLOW    FALSE
   PATCH_COMMAND  ${CMAKE_COMMAND} -D RAYLIB_PATCH_FILE=${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/raylib-sdl-vulkan.patch -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ApplyRaylibPatch.cmake
 )
 FetchContent_GetProperties(raylib)
@@ -134,6 +138,11 @@ if(NOT ANDROID AND NOT EMSCRIPTEN)
     PATCH_COMMAND  ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/FixShadercGlslangInstall.cmake
   )
   FetchContent_MakeAvailable(shaderc)
+
+  # rlvk.h includes shaderc/shaderc.h for types/enums (functions loaded at runtime via
+  # rlvkLoadShaderc()); raylib is fetched before shaderc exists, so it needs this added
+  # explicitly rather than picking it up through shaderc_shared's own usage requirements.
+  target_include_directories(raylib PRIVATE ${shaderc_SOURCE_DIR}/libshaderc/include)
 endif()
 
 # RapidJSON
