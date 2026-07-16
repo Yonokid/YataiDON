@@ -209,6 +209,7 @@ Screens DanGameScreen::on_screen_end(Screens next_screen) {
 std::optional<Screens> DanGameScreen::update() {
     Screen::update();
     double current_ms = get_current_ms();
+    allnet_indicator.update(current_ms);
 
     transition->update(current_ms);
     ms_from_start = current_ms - start_ms;

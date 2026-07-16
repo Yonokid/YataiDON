@@ -260,6 +260,7 @@ void DanSelectScreen::handle_input_selected() {
 std::optional<Screens> DanSelectScreen::update() {
     Screen::update();
     double current_ms = get_current_ms();
+    allnet_indicator.update(current_ms);
     dan_navigator.update(current_ms);
     indicator->update(current_ms);
     confirm_fade->update(current_ms);

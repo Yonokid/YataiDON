@@ -24,6 +24,7 @@ Screens GameOverScreen::on_screen_end(Screens next_screen) {
 std::optional<Screens> GameOverScreen::update() {
     Screen::update();
     double current_ms = get_current_ms();
+    allnet_indicator.update(current_ms);
     if (!audio.is_sound_playing("bana_ad") && !ad_played) {
         ad_played = true;
         audio.play_sound("curtain", VolumePreset::SOUND);

@@ -103,6 +103,7 @@ std::optional<Screens> SongSelectScreen::update() {
     Screen::update();
     SongSelectState prev_state = state;
     double current_time = get_current_ms();
+    allnet_indicator.update(current_time);
     diff_fade_out->update(current_time);
     script->update(current_time);
     select_timer->update(current_time);

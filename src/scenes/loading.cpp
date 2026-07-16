@@ -107,6 +107,7 @@ Screens LoadingScreen::on_screen_end(Screens next_screen) {
 
 std::optional<Screens> LoadingScreen::update() {
     Screen::update();
+    allnet_indicator.update(get_current_ms());
 
     if (loading_complete && !fade_in->isStarted()) {
         fade_in->start();

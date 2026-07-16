@@ -17,6 +17,27 @@ endif()
 include(FetchContent)
 set(FETCHCONTENT_BASE_DIR "${CMAKE_SOURCE_DIR}/.cmake-deps" CACHE PATH "" FORCE)
 
+set(_env_NETWORK_URL "")
+set(_env_NETWORK_AUTH_KEY "")
+if(EXISTS "${CMAKE_SOURCE_DIR}/.env")
+  file(STRINGS "${CMAKE_SOURCE_DIR}/.env" _env_lines)
+  foreach(_env_line ${_env_lines})
+    if(_env_line MATCHES "^[ \t]*([A-Za-z_][A-Za-z0-9_]*)[ \t]*=[ \t]*(.*)$")
+      set(_env_key "${CMAKE_MATCH_1}")
+      string(REGEX REPLACE "^[\"']|[\"']$" "" _env_value "${CMAKE_MATCH_2}")
+      set(_env_${_env_key} "${_env_value}")
+    endif()
+  endforeach()
+endif()
+
+set(NETWORK_URL "${_env_NETWORK_URL}" CACHE STRING "Base URL of the server backend")
+set(NETWORK_AUTH_KEY "${_env_NETWORK_AUTH_KEY}" CACHE STRING "Auth key for the server backend")
+if(NETWORK_URL AND NETWORK_AUTH_KEY)
+  set(NETWORK_ENABLED ON)
+else()
+  set(NETWORK_ENABLED OFF)
+endif()
+
 include(cmake/deps.cmake)
 include(cmake/codegen.cmake)
 
@@ -88,6 +109,14 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     SQLite3_lib
     miniz
 )
+
+if(NETWORK_ENABLED)
+  target_link_libraries(${PROJECT_NAME} PRIVATE cpr::cpr)
+  target_compile_definitions(${PROJECT_NAME} PRIVATE
+    NETWORK_URL="${NETWORK_URL}"
+    NETWORK_AUTH_KEY="${NETWORK_AUTH_KEY}"
+  )
+endif()
 
 if(NOT ANDROID AND NOT EMSCRIPTEN)
   target_link_libraries(${PROJECT_NAME} PRIVATE cpptrace::cpptrace)

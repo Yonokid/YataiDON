@@ -114,6 +114,8 @@ std::optional<Screens> TitleScreen::update() {
 
     text_overlay_fade->update(current_ms);
     fade_out->update(current_ms);
+    allnet_indicator.update(current_ms);
+    entry_overlay.update(current_ms);
 
     if (fade_out->is_finished) {
         return on_screen_end(Screens::ENTRY);

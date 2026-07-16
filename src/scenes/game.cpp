@@ -1,6 +1,8 @@
 #include "game.h"
 #include "../libs/scores.h"
 #include "../libs/input.h"
+#include "../libs/network.h"
+
 
 void GameScreen::on_screen_start() {
     Screen::on_screen_start();
@@ -238,6 +240,7 @@ void GameScreen::save_score(int player_id, PlayerNum player_num) {
         score.rank = Rank::_WHITE;
     }
     scores_manager.save_score(hash, session_data.selected_difficulty, player_id, score);
+    network.submit_score(hash, session_data.selected_difficulty, global_data.config->general.access_code, score);
     global_data.songs_played += 1;
 }
 
@@ -286,6 +289,7 @@ std::optional<Screens> GameScreen::update() {
     Screen::update();
 
     double current_ms = get_frame_ms();
+    allnet_indicator.update(current_ms);
     if (!paused)
         ms_from_start = current_ms - start_ms;
 

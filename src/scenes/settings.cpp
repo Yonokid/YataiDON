@@ -68,6 +68,7 @@ std::optional<Screens> SettingsScreen::handle_input() {
 std::optional<Screens> SettingsScreen::update() {
     Screen::update();
     double current_time = get_current_ms();
+    allnet_indicator.update(current_time);
     indicator.update(current_time);
     box_manager->update(current_time);
     if (auto screen = box_manager->pending_screen_change())

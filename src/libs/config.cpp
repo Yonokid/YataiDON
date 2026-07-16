@@ -200,6 +200,7 @@ Config get_config() {
 
     // Parse general config
     if (auto general = config_file["general"].as_table()) {
+        config.general.access_code = (*general)["access_code"].value_or("");
         config.general.fps_counter = (*general)["fps_counter"].value_or(false);
         config.general.audio_offset = (*general)["audio_offset"].value_or(0);
         config.general.visual_offset = (*general)["visual_offset"].value_or(0);
@@ -209,7 +210,6 @@ Config get_config() {
         config.general.judge_counter = (*general)["judge_counter"].value_or(false);
         config.general.nijiiro_notes = (*general)["nijiiro_notes"].value_or(false);
         config.general.log_level = (*general)["log_level"].value_or(2);
-        config.general.fake_online = (*general)["fake_online"].value_or(false);
         config.general.practice_mode_bar_delay = (*general)["practice_mode_bar_delay"].value_or(0);
         config.general.score_method = (*general)["score_method"].value_or("standard");
         config.general.display_bpm = (*general)["display_bpm"].value_or(false);
@@ -333,6 +333,7 @@ void save_config(const Config& config) {
 
     // General
     config_table.insert("general", toml::table{
+        {"access_code", config.general.access_code},
         {"fps_counter", config.general.fps_counter},
         {"audio_offset", config.general.audio_offset},
         {"visual_offset", config.general.visual_offset},
@@ -342,7 +343,6 @@ void save_config(const Config& config) {
         {"judge_counter", config.general.judge_counter},
         {"nijiiro_notes", config.general.nijiiro_notes},
         {"log_level", config.general.log_level},
-        {"fake_online", config.general.fake_online},
         {"practice_mode_bar_delay", config.general.practice_mode_bar_delay},
         {"score_method", config.general.score_method},
         {"song_limit", config.general.song_limit},

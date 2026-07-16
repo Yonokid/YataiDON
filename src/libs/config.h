@@ -7,6 +7,7 @@
 namespace fs = std::filesystem;
 
 struct GeneralConfig {
+    std::string access_code;
     bool fps_counter;
     int audio_offset;
     int visual_offset;
@@ -16,7 +17,6 @@ struct GeneralConfig {
     bool judge_counter;
     bool nijiiro_notes;
     std::string log_level;
-    bool fake_online;
     int practice_mode_bar_delay;
     std::string score_method;
     bool display_bpm;

@@ -1,4 +1,5 @@
 cache
+.env
 dev-config.toml
 latest.log
 scores.db

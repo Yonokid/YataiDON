@@ -42,6 +42,7 @@ void ResultScreen::handle_input() {
 std::optional<Screens> ResultScreen::update() {
     Screen::update();
     double current_time = get_current_ms();
+    allnet_indicator.update(current_time);
     if (fade_in.has_value()) fade_in->update(current_time);
     if (player_1.has_value()) player_1->update(current_time, fade_in.has_value() && fade_in->is_finished(), skipped_time > 0);
 

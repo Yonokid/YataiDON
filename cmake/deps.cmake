@@ -376,9 +376,18 @@ else()
   message(STATUS "  libswresample ${SWRESAMPLE_VERSION}")
 endif()
 
+if(NETWORK_ENABLED)
+  FetchContent_Declare(
+      cpr
+      GIT_REPOSITORY https://github.com/libcpr/cpr.git
+      GIT_TAG        1.11.2
+      GIT_SHALLOW    TRUE
+  )
+  FetchContent_MakeAvailable(cpr)
+endif()
+
 # RtAudio
 if(EMSCRIPTEN)
-  message(STATUS "RtAudio disabled on Emscripten -- audio backend unavailable until ported")
   add_library(rtaudio INTERFACE IMPORTED)
 elseif(ANDROID)
   # Android uses AAudio directly -- RtAudio not needed

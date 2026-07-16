@@ -16,8 +16,8 @@ right_don = []
 right_kat = []
 
 [general]
+access_code = ''
 audio_offset = 0
-fake_online = false
 fps_counter = false
 judge_counter = false
 language = 'en'

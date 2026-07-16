@@ -130,6 +130,8 @@ std::optional<Screens> EntryScreen::handle_input() {
 std::optional<Screens> EntryScreen::update() {
     Screen::update();
     double current_time = get_current_ms();
+    allnet_indicator.update(current_time);
+    entry_overlay.update(current_time);
     lua_entry->update(current_time);
     box_manager->update(current_time, is_2p);
     timer->update(current_time);

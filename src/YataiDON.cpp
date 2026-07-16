@@ -12,6 +12,7 @@
 #include "libs/input.h"
 #include "libs/logging.h"
 #include "libs/camera_utils.h"
+#include "libs/network.h"
 #include "libs/screen.h"
 #include "libs/script.h"
 #include "libs/song_parser.h"
@@ -197,6 +198,7 @@ static void run_frame() {
 
     Screen* screen = L.screens[L.current_screen].get();
 
+    network.update(get_current_ms());
     std::optional<Screens> next_screen = screen->update();
 
     if (screen->screen_init) {
@@ -289,6 +291,14 @@ int main(int argc, char* argv[]) {
         scores_manager.player_1_data = *pd;
     if (auto pd = scores_manager.get_player_data(scores_manager.player_2))
         scores_manager.player_2_data = *pd;
+
+    if (global_data.config->general.access_code.empty()) {
+        std::string access_code = network.register_user(scores_manager.player_1_data.username);
+        if (!access_code.empty()) {
+            global_data.config->general.access_code = access_code;
+            save_config(*global_data.config);
+        }
+    }
 
     Screens initial_screen = check_args(argc, argv);
 

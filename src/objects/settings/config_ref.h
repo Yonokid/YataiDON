@@ -43,7 +43,6 @@ inline ConfigRef get_config_ref(const std::string& path) {
     if (path == "general/song_timer")               return &c->general.song_timer;
     if (path == "general/judge_counter")            return &c->general.judge_counter;
     if (path == "general/nijiiro_notes")            return &c->general.nijiiro_notes;
-    if (path == "general/fake_online")              return &c->general.fake_online;
     if (path == "general/practice_mode_bar_delay")  return &c->general.practice_mode_bar_delay;
     if (path == "general/log_level")                return &c->general.log_level;
     if (path == "general/score_method")             return &c->general.score_method;

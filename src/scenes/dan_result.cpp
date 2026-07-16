@@ -43,6 +43,7 @@ void DanResultScreen::handle_input() {
 std::optional<Screens> DanResultScreen::update() {
     Screen::update();
     double current_ms = get_current_ms();
+    allnet_indicator.update(current_ms);
 
     handle_input();
     page2_fade->update(current_ms);
