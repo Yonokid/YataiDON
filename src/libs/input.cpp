@@ -257,8 +257,33 @@ static int touch_quadrant_vkey(ray::Vector2 pos, int sw, int sh) {
 
 static bool touch_watch_registered = false;
 
+static int char_to_raylib_key(unsigned char c) {
+    if (c >= 'a' && c <= 'z') return c - 32;
+    if (c >= 32 && c <= 96) return c;
+    return 0;
+}
+
 static bool SDLCALL touch_event_watch(void* /*userdata*/, SDL_Event* event) {
     if (global_data.input_locked) return 1;
+
+#if defined(__linux__) && !defined(PLATFORM_ANDROID)
+    if (event->type == SDL_EVENT_TEXT_INPUT && event->text.text) {
+        const bool* key_state = SDL_GetKeyboardState(nullptr);
+        for (const char* p = event->text.text; *p; p++) {
+            unsigned char c = (unsigned char)*p;
+            int key = char_to_raylib_key(c);
+            if (!key) continue;
+            SDL_Keycode keycode = (c >= 'A' && c <= 'Z') ? (c + 32) : c;
+            SDL_Keymod mod = SDL_KMOD_NONE;
+            SDL_Scancode sc = SDL_GetScancodeFromKey(keycode, &mod);
+            if (sc != SDL_SCANCODE_UNKNOWN && key_state[sc]) continue;
+            std::lock_guard<std::mutex> lock(input_mutex);
+            pressed_keys.insert(key);
+            released_keys.insert(key);
+        }
+        return 1;
+    }
+#endif
 
     if (event->type == SDL_EVENT_KEY_DOWN &&
         event->key.scancode == SDL_SCANCODE_AC_BACK) {
@@ -274,6 +299,7 @@ static bool SDLCALL touch_event_watch(void* /*userdata*/, SDL_Event* event) {
     }
 
     if (event->type == SDL_EVENT_FINGER_DOWN) {
+        if (!global_data.config->general.touch_input) return 1;
         SDL_FingerID id = event->tfinger.fingerID;
         if (!touch_id_to_vkey.count(id)) {
             int sw = ray::GetScreenWidth();

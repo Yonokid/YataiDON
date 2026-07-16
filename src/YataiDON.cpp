@@ -198,7 +198,7 @@ static void run_frame() {
 
     Screen* screen = L.screens[L.current_screen].get();
 
-    network.update(get_current_ms());
+    network.update(g_frame_ms);
     std::optional<Screens> next_screen = screen->update();
 
     if (screen->screen_init) {
