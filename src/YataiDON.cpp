@@ -171,8 +171,7 @@ static void run_frame() {
 #ifdef __EMSCRIPTEN__
     poll_keyboard_once();
 #endif
-    if (global_data.config->general.touch_input)
-        poll_touch_once();
+    poll_touch_once();
 
     auto frame_start = std::chrono::steady_clock::now();
 
@@ -364,7 +363,11 @@ int main(int argc, char* argv[]) {
 #else
     input_thread = std::thread(input_polling_thread);
 
+#ifdef PLATFORM_ANDROID
     while (!ray::WindowShouldClose()) {
+#else
+    while (!ray::WindowShouldClose() && !check_key_pressed(global_data.config->keys.exit_key)) {
+#endif
         run_frame();
     }
 
