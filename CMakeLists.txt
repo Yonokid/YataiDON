@@ -63,6 +63,10 @@ else()
 endif()
 add_dependencies(${PROJECT_NAME} skin_config_gen texture_ids_gen)
 
+if(MINGW)
+  target_link_options(${PROJECT_NAME} PRIVATE -static-libgcc -static-libstdc++ -static)
+endif()
+
 if(WIN32)
   foreach(_lib avformat avcodec avutil swscale swresample)
     file(GLOB _dll "${FFMPEG_LIB_DIR}/../bin/${_lib}*.dll")
