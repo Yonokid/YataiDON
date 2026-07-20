@@ -223,7 +223,7 @@ jobs:
             mpg123 \
             speex \
             libsndfile \
-            idn2
+            libidn2
 
       - name: Configure CMake
         run: |
