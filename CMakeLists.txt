@@ -17,6 +17,8 @@ endif()
 include(FetchContent)
 set(FETCHCONTENT_BASE_DIR "${CMAKE_SOURCE_DIR}/.cmake-deps" CACHE PATH "" FORCE)
 
+set(CMAKE_SKIP_INSTALL_RULES ON)
+
 set(_env_NETWORK_URL "")
 set(_env_NETWORK_AUTH_KEY "")
 if(EXISTS "${CMAKE_SOURCE_DIR}/.env")

@@ -222,7 +222,8 @@ jobs:
             lame \
             mpg123 \
             speex \
-            libsndfile
+            libsndfile \
+            idn2
 
       - name: Configure CMake
         run: |
