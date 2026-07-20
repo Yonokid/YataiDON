@@ -1,5 +1,4 @@
 #include "allnet_indicator.h"
-#include "../../libs/config.h"
 #include "../../libs/network.h"
 
 AllNetIcon::AllNetIcon() {

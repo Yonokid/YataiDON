@@ -4,7 +4,15 @@
 
 #if defined(NETWORK_URL) && defined(NETWORK_AUTH_KEY)
 #define NETWORK_ENABLED 1
+#ifdef _WIN32
+#define CloseWindow CloseWindow_WinAPI
+#define ShowCursor ShowCursor_WinAPI
+#endif
 #include <cpr/cpr.h>
+#ifdef _WIN32
+#undef CloseWindow
+#undef ShowCursor
+#endif
 #endif
 
 #include <string>

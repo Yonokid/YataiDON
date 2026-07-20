@@ -62,7 +62,7 @@ try {
         $parts = $line -split '\s+', 2
         if ($parts.Count -lt 2) { continue }
         $expectedHash = $parts[0].ToUpper()
-        $relPath      = $parts[1].Replace('/', '\')
+        $relPath      = $parts[1].TrimStart('*').Replace('/', '\')
         $localFile    = Join-Path $InstallDir $relPath
 
         if (Test-Path $localFile) {
@@ -100,7 +100,7 @@ try {
                 $cparts = $cline -split '\s+', 2
                 if ($cparts.Count -lt 2) { continue }
                 $expectedHash = $cparts[0].ToUpper()
-                $relPath      = $cparts[1]
+                $relPath      = $cparts[1].TrimStart('*')
                 if ((Split-Path -Leaf $relPath) -eq "checksums.sha256") { continue }
                 $localFile    = Join-Path $skinDir.FullName ($relPath.Replace('/', '\'))
 
@@ -157,7 +157,7 @@ try {
             $cparts = $cline -split '\s+', 2
             if ($cparts.Count -lt 2) { continue }
             $expectedHash = $cparts[0].ToUpper()
-            $relPath      = $cparts[1]
+            $relPath      = $cparts[1].TrimStart('*')
             if ((Split-Path -Leaf $relPath) -eq "checksums.sha256") { continue }
             $localFile    = Join-Path $skinDirPath ($relPath.Replace('/', '\'))
 

@@ -40,7 +40,11 @@
 #include "objects/global/fps_counter.h"
 
 #ifdef _WIN32
+    #define CloseWindow CloseWindow_WinAPI
+    #define ShowCursor ShowCursor_WinAPI
     #include <windows.h>
+    #undef CloseWindow
+    #undef ShowCursor
 #endif
 
 #ifdef __EMSCRIPTEN__

@@ -30,7 +30,7 @@ git submodule status | while IFS=' ' read -r commit path _; do
     skin_name=$(basename "$path")
     (
         cd "$path"
-        find . -type f -not -path './.git/*' | sort | xargs sha256sum | sed 's|^\./||'
+        find . -type f -not -path './.git/*' -not -name '.git' -not -name 'checksums.sha256' | sort | xargs sha256sum --binary
     ) > "$path/checksums.sha256"
     echo "  $path/checksums.sha256 written"
 done

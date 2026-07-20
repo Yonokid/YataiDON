@@ -19,6 +19,7 @@ if(WIN32)
         secur32
         ws2_32
         ucrtbase
+        msvcrt
         dbghelp
     )
   if(TARGET SDL3::SDL3-static)

@@ -4,7 +4,11 @@
 #include <unordered_set>
 
 #ifdef _WIN32
+#define CloseWindow CloseWindow_WinAPI
+#define ShowCursor ShowCursor_WinAPI
 #include <windows.h>
+#undef CloseWindow
+#undef ShowCursor
 #endif
 
 
