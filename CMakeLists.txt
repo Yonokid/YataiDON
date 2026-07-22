@@ -85,7 +85,13 @@ if(WIN32)
   # libsamplerate as a shared-only package), so copy their DLLs next to the
   # executable or the game fails to launch with a missing-DLL error.
   get_filename_component(_mingw_bin_dir ${CMAKE_CXX_COMPILER} DIRECTORY)
-  foreach(_rtdll libstdc++-6.dll libwinpthread-1.dll libgcc_s_seh-1.dll libsamplerate-0.dll)
+  set(_runtime_dlls libstdc++-6.dll libwinpthread-1.dll libgcc_s_seh-1.dll libsamplerate-0.dll)
+  if(NETWORK_ENABLED)
+    # cpr's bundled curl links against these MSYS2 shared-only packages
+    # (libidn2, nghttp2, libpsl, libssh2) for IDN/HTTP2/SSH support.
+    list(APPEND _runtime_dlls libidn2-0.dll libnghttp2-14.dll libpsl-5.dll libssh2-1.dll)
+  endif()
+  foreach(_rtdll ${_runtime_dlls})
     if(EXISTS "${_mingw_bin_dir}/${_rtdll}")
       add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
                 COMMAND ${CMAKE_COMMAND} -E copy_if_different
