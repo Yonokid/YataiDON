@@ -89,7 +89,7 @@ if(WIN32)
   if(NETWORK_ENABLED)
     # cpr's bundled curl links against these MSYS2 shared-only packages
     # (libidn2, nghttp2, libpsl, libssh2) for IDN/HTTP2/SSH support.
-    list(APPEND _runtime_dlls libidn2-0.dll libnghttp2-14.dll libpsl-5.dll libssh2-1.dll)
+    list(APPEND _runtime_dlls libidn2-0.dll libnghttp2-14.dll libpsl-5.dll libssh2-1.dll libiconv-2.dll libunistring-5.dll)
   endif()
   foreach(_rtdll ${_runtime_dlls})
     if(EXISTS "${_mingw_bin_dir}/${_rtdll}")
