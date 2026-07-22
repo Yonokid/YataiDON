@@ -379,6 +379,12 @@ else()
 endif()
 
 if(NETWORK_ENABLED)
+  if(WIN32)
+    set(USE_LIBIDN2 OFF CACHE BOOL "" FORCE)
+    set(USE_NGHTTP2 OFF CACHE BOOL "" FORCE)
+    set(CURL_USE_LIBPSL OFF CACHE BOOL "" FORCE)
+    set(CURL_USE_LIBSSH2 OFF CACHE BOOL "" FORCE)
+  endif()
   FetchContent_Declare(
       cpr
       GIT_REPOSITORY https://github.com/libcpr/cpr.git
