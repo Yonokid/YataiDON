@@ -34,7 +34,7 @@ endif()
 
 set(NETWORK_URL "${_env_NETWORK_URL}" CACHE STRING "Base URL of the server backend")
 set(NETWORK_AUTH_KEY "${_env_NETWORK_AUTH_KEY}" CACHE STRING "Auth key for the server backend")
-if(NETWORK_URL AND NETWORK_AUTH_KEY)
+if(NETWORK_URL AND NETWORK_AUTH_KEY AND NOT ANDROID)
   set(NETWORK_ENABLED ON)
 else()
   set(NETWORK_ENABLED OFF)
