@@ -70,7 +70,6 @@ FetchContent_Declare(
   GIT_REPOSITORY https://github.com/raysan5/raylib.git
   GIT_TAG        master
   GIT_SHALLOW    TRUE
-  PATCH_COMMAND sed -i "112a #include <ctype.h>                 // Required for: isalpha() [Used in IsPathFile()]" src/rcore.c || true
 )
 FetchContent_GetProperties(raylib)
 FetchContent_MakeAvailable(raylib)
