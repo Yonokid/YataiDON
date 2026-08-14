@@ -4,6 +4,8 @@
 #include "color_utils.h"
 #include "../song_select_script.h"
 #include "../../../libs/filesystem.h"
+#include "../../../libs/gen4.h"
+#include "../../../libs/green.h"
 #include <random>
 #include <cmath>
 
@@ -97,6 +99,47 @@ void Navigator::wait_for_song_files() {
         song_files_thread.join();
 }
 
+void Navigator::load_all_roots() {
+    join_loader();
+    // Everything on the wheel is going away, so the genre band and inline
+    // listing that pointed into it go too - draw would otherwise index boxes
+    // that no longer exist. Coming back out of a game's genre is exactly
+    // this: the band is still up when the rebuild starts.
+    is_inline = false;
+    inline_state.reset();
+    pending_inline_path.reset();
+    pending_inline_folder = nullptr;
+    genre_bg.reset();
+    genre_bg_end_pos.reset();
+    inline_streaming = false;
+    items.clear();
+    open_index = 0;
+    def_file_cache.clear();
+    box_def_cache.clear();
+    is_processing    = true;
+    loading_complete = false;
+    reloading_roots  = true;
+
+    auto walk_roots = [this] {
+        for (const fs::path& root : root_paths) {
+            if (abort_loading) break;
+            loading_complete = false;
+            load_current_directory_async(root);
+        }
+        reloading_roots  = false;
+        loading_complete = true;
+        // With every level of the wheel up, catch up on the folder scans the
+        // boxes put off - crowns and counts fill in as each one finishes.
+        FolderBox::run_deferred_scans(abort_loading);
+    };
+
+#ifndef __EMSCRIPTEN__
+    loader_thread = std::thread(walk_roots);
+#else
+    walk_roots();
+#endif
+}
+
 void Navigator::preload(std::vector<fs::path> songs_paths) {
     if (is_preloaded) return;
     root_paths = songs_paths;
@@ -104,31 +147,43 @@ void Navigator::preload(std::vector<fs::path> songs_paths) {
 
 #ifndef __EMSCRIPTEN__
     song_files_thread = std::thread([this, songs_paths]() {
-        for (const fs::path& root_path : songs_paths) {
-            try {
-                std::error_code ec;
-                auto it = fs::recursive_directory_iterator(root_path, fs::directory_options::skip_permission_denied, ec);
-                while (it != fs::end(it)) {
+        // The walk itself is quick now that game data roots are stepped over;
+        // the cost is opening and parsing every chart for its title. That is
+        // embarrassingly parallel, so a small pool splits the library.
+        std::vector<fs::path> files = get_song_files(songs_paths);
+        std::mutex map_mutex;
+        std::atomic<size_t> cursor{0};
+        unsigned pool_size = std::max(2u, std::thread::hardware_concurrency() / 2);
+        std::vector<std::thread> pool;
+        for (unsigned t = 0; t < pool_size; t++) {
+            pool.emplace_back([&]() {
+                for (;;) {
+                    size_t i = cursor.fetch_add(1);
+                    if (i >= files.size() || abort_loading) break;
+                    const fs::path& file = files[i];
+                    if (!is_song_file(file)) continue;
                     try {
-                        if (is_song_file(it->path())) {
-                            SongParser parsed_entry = SongParser(it->path());
-                            parsed_entry.get_metadata();
-                            bool playable = false;
-                            for (const auto& [course, data] : parsed_entry.metadata.course_data)
-                                if (course >= 0 && course <= 4) { playable = true; break; }
-                            if (playable)
-                                song_files[{parsed_entry.metadata.title["en"], parsed_entry.metadata.subtitle["en"]}] = it->path();
+                        SongParser parsed_entry = SongParser(file);
+                        parsed_entry.get_metadata();
+                        // Dan (course 6) and Tower (course 5) charts are played
+                        // from their own screens, never from a song box: they
+                        // have no normal difficulty to select and picking one
+                        // out of a collection breaks. Keep them out of the
+                        // index the collections draw from.
+                        bool playable = false;
+                        for (const auto& [course, data] : parsed_entry.metadata.course_data)
+                            if (course >= 0 && course <= 4) { playable = true; break; }
+                        if (playable) {
+                            std::lock_guard<std::mutex> lock(map_mutex);
+                            song_files[{parsed_entry.metadata.title["en"], parsed_entry.metadata.subtitle["en"]}] = file;
                         }
                     } catch (const std::exception& inner) {
                         spdlog::warn("Skipping song during scan: {}", inner.what());
                     }
-                    it.increment(ec);
-                    if (ec) { spdlog::warn("Skipping entry: {}", ec.message()); ec.clear(); }
                 }
-            } catch (const fs::filesystem_error& e) {
-                spdlog::error("Error scanning song directory: {}", e.what());
-            }
+            });
         }
+        for (std::thread& worker : pool) worker.join();
     });
 #endif // !__EMSCRIPTEN__
 
@@ -159,6 +214,8 @@ void Navigator::init(std::vector<fs::path> songs_paths) {
         genre_bg_end_pos.reset();
         awaiting_diff_sort = false;
         diff_sort_filter.reset();
+        reopen_folder_path.reset();
+        reopen_song_path.reset();
         items.clear();
         open_index = 0;
         is_init = false;
@@ -170,9 +227,7 @@ void Navigator::init(std::vector<fs::path> songs_paths) {
             preload(songs_paths);
         }
 
-        for (const fs::path& root_path : root_paths) {
-            load_current_directory(root_path);
-        }
+        load_all_roots();
         is_init = true;
     } else {
         if (global_data.config->general.song_limit > 0) {
@@ -184,9 +239,7 @@ void Navigator::init(std::vector<fs::path> songs_paths) {
             genre_bg.reset();
             awaiting_diff_sort = false;
             diff_sort_filter.reset();
-            for (const fs::path& root_path : root_paths) {
-                load_current_directory(root_path);
-            }
+            load_all_roots();
         } else {
             bool from_result = global_data.returned_from_result;
             global_data.returned_from_result = false;
@@ -263,13 +316,18 @@ void Navigator::join_loader() {
 }
 
 void Navigator::enqueue_box(std::unique_ptr<BaseBox> box) {
-    auto last_write = fs::last_write_time(box->path);
-    auto last_write_sys = ch::system_clock::now() +
-        std::chrono::duration_cast<ch::system_clock::duration>(
-            last_write - std::filesystem::file_time_type::clock::now());
-    auto two_weeks_ago = ch::system_clock::now() - ch::weeks(2);
-    if (last_write_sys < two_weeks_ago)
-        box->is_new = true;
+    // Not every box stands for something on disk: a gen 4 genre is a property
+    // of a song, not a folder, so it has no file time and simply is not new.
+    std::error_code ec;
+    auto last_write = fs::last_write_time(box->path, ec);
+    if (!ec) {
+        auto last_write_sys = ch::system_clock::now() +
+            std::chrono::duration_cast<ch::system_clock::duration>(
+                last_write - std::filesystem::file_time_type::clock::now());
+        auto two_weeks_ago = ch::system_clock::now() - ch::weeks(2);
+        if (last_write_sys < two_weeks_ago)
+            box->is_new = true;
+    }
 
     std::lock_guard<std::mutex> lock(pending_mutex);
     if (auto* song = dynamic_cast<SongBox*>(box.get())) {
@@ -389,6 +447,14 @@ void Navigator::flush_pending_boxes() {
             for (int j = 0; j < (int)sortable_indices.size(); j++)
                 items[sortable_indices[j]] = std::move(sortable[j]);
         }
+        // A rebuilt wheel starts the cursor at zero; put it back on the box
+        // it was on when the rebuild began.
+        if (restore_cursor_path && !inline_state.has_value()) {
+            for (int i = 0; i < (int)items.size(); i++)
+                if (items[i]->path == *restore_cursor_path) { open_index = i; break; }
+            restore_cursor_path.reset();
+        }
+
         if (inline_state.has_value() && reopen_song_path && reopen_folder_path) {
             const auto& folder = inline_state->saved_folder_box;
             if (folder && folder->path == *reopen_folder_path) {
@@ -452,11 +518,86 @@ void Navigator::parse_song_list(const fs::path& path, BoxDef box_def, bool inlin
 }
 
 void Navigator::load_current_directory_async(const fs::path path) {
-    wait_for_song_files();
+    // Not waiting for the song index here: the wheel's boxes need nothing
+    // from it, and waiting meant the whole wheel sat empty behind the
+    // library-wide metadata scan. The one thing below that does need it -
+    // a song_list.txt collection - waits for itself.
     BoxDef box_def = parse_box_def(path);
 
     setup_back_box(path, true);
 
+    // A song path pointing at a game, either at its data root or at the fumen
+    // folder inside it. While the roots are being walked this is a level of
+    // the wheel like any other, so it gets a box to open - unless the game is
+    // all there is, when its genres are the wheel itself. Opening that box
+    // comes back here with reloading_roots clear and lists the genres.
+    fs::path own_root = gen4::find_data_root(path);
+    bool own_root_is_green = false;
+    if (own_root.empty() || !gen4::library_for(own_root)) {
+        fs::path green_root = green::find_data_root(path);
+        if (!green_root.empty() && green::library_for(green_root)) {
+            own_root = green_root;
+            own_root_is_green = true;
+        }
+    }
+    bool is_a_root = std::find(root_paths.begin(), root_paths.end(), path) != root_paths.end();
+    if (!own_root.empty() && is_a_root &&
+        (own_root_is_green || gen4::library_for(own_root))) {
+        if (reloading_roots && !only_gen4_songs()) {
+            BoxDef gen4_def = box_def;
+            gen4_def.name        = own_root.filename().string();
+            gen4_def.genre_index = GenreIndex::DEFAULT;
+            enqueue_box(std::make_unique<FolderBox>(own_root, gen4_def, song_files));
+            loading_complete = true;
+            current_path = path;
+            return;
+        }
+        // setup_back_box gives a root level no way out, since a root has no
+        // folder above it. This one does: the rest of the library. The box
+        // points at another root, and opening a root rebuilds them all.
+        for (const fs::path& root : root_paths) {
+            if (!gen4::find_data_root(root).empty()) continue;
+            items.push_back(make_back_box(root));
+            break;
+        }
+        try {
+            if (own_root_is_green) load_green_genres(own_root);
+            else                   load_gen4_genres(own_root);
+        } catch (const std::exception& e) {
+            spdlog::error("Error listing arcade genres of {}: {}", own_root.string(), e.what());
+        }
+        loading_complete = true;
+        current_path = path;
+        return;
+    }
+
+    // A PS3 game nests its data as <game>/USRDIR/data; the back box the
+    // generic setup pointed at USRDIR would just show this same game again,
+    // so it leads out beside the game's folder instead.
+    if (is_green_root(path) && path.filename() == "data" &&
+        path.parent_path().filename() == "USRDIR" && !items.empty()) {
+        if (auto* back = dynamic_cast<BackBox*>(items.front().get()))
+            back->path = path.parent_path().parent_path().parent_path();
+    }
+
+    // A data root lists its own genres and nothing else, so the songs of this
+    // game replace the ones that were on the wheel until the back box is used.
+    if (is_gen4_root(path) || is_green_root(path)) {
+        try {
+            if (is_green_root(path)) load_green_genres(path);
+            else                     load_gen4_genres(path);
+        } catch (const std::exception& e) {
+            spdlog::error("Error listing gen4 genres of {}: {}", path.string(), e.what());
+        } catch (...) {
+            spdlog::error("Unknown error listing gen4 genres of {}", path.string());
+        }
+        loading_complete = true;
+        current_path = path;
+        return;
+    }
+
+    // Pre-parse the level's song files on a worker pool (see
+    // parse_songs_parallel) so the streaming loop below only assembles boxes.
     std::vector<fs::path> song_paths;
     try {
         for (const fs::directory_entry& entry : fs::directory_iterator(path)) {
@@ -474,12 +615,40 @@ void Navigator::load_current_directory_async(const fs::path path) {
             try {
                 if (!fs::is_directory(curr_path)) {
                     if (curr_path.filename() == "song_list.txt") {
+                        wait_for_song_files();
                         BoxDef entry_box_def = parse_box_def(curr_path);
                         parse_song_list(curr_path, entry_box_def, false);
                         continue;
                     }
                     if (is_song_file(curr_path))
                         enqueue_box(make_song_box(curr_path, box_def, take_parser(preparsed, curr_path)));
+                    continue;
+                }
+                fs::path groot = green_root_at(curr_path);
+                if (is_gen4_root(curr_path) || !groot.empty()) {
+                    if (only_gen4_songs()) {
+                        if (!groot.empty()) load_green_genres(groot);
+                        else                load_gen4_genres(curr_path);
+                        continue;
+                    }
+                    BoxDef gen4_def = box_def;
+                    gen4_def.name = curr_path.filename().string();
+                    // The game says what it is called; the folder is often
+                    // just a serial like SCEEXE009.
+                    if (!groot.empty())
+                        if (const green::Library* lib = green::library_for(groot))
+                            gen4_def.name = lib->game_name();
+                    gen4_def.genre_index = GenreIndex::DEFAULT;
+                    enqueue_box(std::make_unique<FolderBox>(groot.empty() ? curr_path : groot,
+                                                            gen4_def, song_files));
+                    continue;
+                }
+                if (is_green_song_folder(curr_path)) {
+                    enqueue_box(make_song_box(curr_path, box_def, SongParser(curr_path)));
+                    continue;
+                }
+                if (is_gen4_song_folder(curr_path)) {
+                    enqueue_box(make_song_box(curr_path, box_def, SongParser(curr_path)));
                     continue;
                 }
                 if (has_def_file(curr_path)) {
@@ -533,9 +702,16 @@ void Navigator::load_current_directory_async(const fs::path path) {
         }
     } catch (const fs::filesystem_error& e) {
         spdlog::error("Error loading directory: {}", e.what());
+    } catch (const std::exception& e) {
+        // This runs on the loader thread, where an escaping exception takes
+        // the process down instead of failing one directory.
+        spdlog::error("Error loading directory {}: {}", path.string(), e.what());
+    } catch (...) {
+        spdlog::error("Unknown error loading directory {}", path.string());
     }
     loading_complete = true;
     current_path = path;
+    if (!reloading_roots) FolderBox::run_deferred_scans(abort_loading);
 }
 
 void Navigator::load_collection_new(const fs::path& path, const BoxDef& box_def) {
@@ -769,6 +945,15 @@ void Navigator::load_collection_search(const fs::path& path, const BoxDef& box_d
 }
 
 void Navigator::load_songs_inline_async(const fs::path path, BoxDef box_def) {
+    if (load_gen4_genre_songs(path, box_def)) {
+        loading_complete = true;
+        return;
+    }
+    if (load_green_genre_songs(path, box_def)) {
+        loading_complete = true;
+        return;
+    }
+
     wait_for_song_files();
     int songs_added = 0;
     std::unordered_map<std::string, std::unique_ptr<SongParser>> preparsed;
@@ -958,7 +1143,11 @@ bool Navigator::has_def_file(const std::filesystem::path& path) {
     }
 
     for (const auto& entry : fs::directory_iterator(path, fs::directory_options::skip_permission_denied, ec)) {
-        if (entry.is_directory(ec) && has_def_file(entry.path())) {
+        if (!entry.is_directory(ec)) continue;
+        // Never descend into a game's data: there is no box.def inside, just
+        // an enormous tree of charts and tables.
+        if (is_gen4_root(entry.path()) || !green_root_at(entry.path()).empty()) continue;
+        if (has_def_file(entry.path())) {
             def_file_cache[key] = true;
             return true;
         }
@@ -1018,6 +1207,38 @@ void Navigator::begin_inline_load() {
 void Navigator::load_current_directory(const fs::path path) {
     BoxDef box_def = parse_box_def(path);
     bool has_children = has_child_folders(path);
+
+    // Coming back out to a root rebuilds every root together: the top of the
+    // wheel is all of them, and each load cancels the one before it, so
+    // reloading just this one would leave only its own songs on the wheel.
+    if (has_children && root_paths.size() > 1 && !reloading_roots &&
+        std::find(root_paths.begin(), root_paths.end(), path) != root_paths.end() &&
+        // A song path can point straight at a game, and then its box carries
+        // that same path. Opening it is going in, not coming back out, so it
+        // must not be read as a return to the top of the wheel.
+        gen4::find_data_root(path).empty() && green::find_data_root(path).empty()) {
+        // A folder was open on a wheel that is otherwise already showing the
+        // top level: fold the listing shut and leave every box standing,
+        // rather than rebuilding the whole wheel just to show what is
+        // already there.
+        if (inline_state.has_value()) {
+            collapse_inline_now();
+            return;
+        }
+
+        // The wheel really was replaced (a game's genres were up), so it has
+        // to be rebuilt; remember which box the cursor should come back to.
+        {
+            fs::path game = gen4::find_data_root(current_path);
+            if (game.empty()) game = green::find_data_root(current_path);
+            if (!game.empty())
+                restore_cursor_path = game;
+            else if (open_index >= 0 && open_index < (int)items.size())
+                restore_cursor_path = items[open_index]->path;
+        }
+        load_all_roots();
+        return;
+    }
 
     if (!has_children && !items.empty()) {
         if (inline_state.has_value()) {
@@ -1199,7 +1420,11 @@ bool Navigator::jump_to_song(const std::string& hash) {
 
 void Navigator::setup_back_box(const fs::path& path, bool has_children) {
     if (has_children) {
-        items.clear();
+        // While every root is being walked in turn, the wheel was already
+        // emptied once and each root adds to it.
+        if (!reloading_roots) items.clear();
+        // A root level has no folder to close: the box would point at the
+        // songs dir's parent and selecting it does nothing sensible.
         if (std::find(root_paths.begin(), root_paths.end(), path) != root_paths.end())
             return;
         items.push_back(make_back_box(path.parent_path()));
@@ -1212,20 +1437,294 @@ void Navigator::setup_back_box(const fs::path& path, bool has_children) {
 }
 
 bool Navigator::has_child_folders(const fs::path& path) {
-    for (const auto& entry : fs::directory_iterator(path))
+    // A data root opens into its genres, which replaces the wheel; a genre
+    // opens into songs, which expands in place like any other genre folder.
+    if (gen4::genre_of_path(path) >= 0) return false;
+    if (!green::genre_of_path(path).empty()) return false;
+    if (is_gen4_root(path) || is_green_root(path)) return true;
+
+    for (const auto& entry : fs::directory_iterator(path)) {
         if (fs::is_directory(entry.path()) && has_def_file(entry.path()) || is_osu_song_folder(entry.path()))
             return true;
+        // A folder holding a game data root is a level of its own too, or
+        // coming back out of that game tries to expand this folder as a song.
+        if (is_gen4_root(entry.path()) || !green_root_at(entry.path()).empty())
+            return true;
+    }
     return false;
 }
 
 bool Navigator::is_directory(BaseBox* item) {
-    return fs::is_directory(item->path);
+    // Not simply "the path is a folder": a gen 4 song is a folder of chart
+    // files, and treating one as a directory opens it instead of playing it,
+    // while a gen 4 genre is a folder whose path is not on disk at all.
+    if (dynamic_cast<FolderBox*>(item) != nullptr) return true;
+    return !is_song(item) && fs::is_directory(item->path);
 }
 
 bool Navigator::is_song_file(const fs::path& path) {
     if (!fs::is_regular_file(path)) return false;
     auto ext = path.extension();
     return ext == ".tja" || ext == ".osu";
+}
+
+// A gen 4 genre has no box.def of its own, so it borrows the one the library
+// already has for that genre: same colours, same folder art, same text
+// outline, rather than a second set that only nearly matches.
+const BoxDef* Navigator::box_def_for_genre(GenreIndex genre) {
+    if (!genre_box_defs_built) {
+        genre_box_defs_built = true;
+        for (const fs::path& root : root_paths) {
+            std::error_code ec;
+            // A game data root holds no box.def, only tens of thousands of
+            // chart files the recursive search below would crawl through.
+            if (!gen4::find_data_root(root).empty() ||
+                !green::find_data_root(root).empty()) continue;
+            if (!fs::is_directory(root, ec)) continue;
+            for (const auto& entry : fs::directory_iterator(root, ec)) {
+                if (abort_loading) return nullptr;
+                if (!fs::is_directory(entry.path(), ec)) continue;
+                if (is_gen4_root(entry.path()) || !green_root_at(entry.path()).empty()) continue;
+                if (!has_def_file(entry.path())) continue;
+                BoxDef def = parse_box_def(entry.path());
+                genre_box_defs.emplace(def.genre_index, def);
+            }
+        }
+    }
+    auto it = genre_box_defs.find(genre);
+    return it != genre_box_defs.end() ? &it->second : nullptr;
+}
+
+// The folder holding a game's datatable, fumen and sound. It stands in the
+// wheel as one box: opening it puts the wheel into that game's own genres, and
+// the back box leads out again.
+bool Navigator::is_gen4_root(const fs::path& path) {
+    std::error_code ec;
+    if (!fs::is_directory(path, ec)) return false;
+    return gen4::find_data_root(path) == path && gen4::library_for(path) != nullptr;
+}
+
+// True when the song paths hold nothing but game data. There is then nothing
+// to switch back to, so the genres of that game are the top of the wheel
+// rather than sitting inside a folder of their own.
+bool Navigator::only_gen4_songs() {
+    int games = 0;
+    std::error_code ec;
+    for (const fs::path& root : root_paths) {
+        if (!gen4::find_data_root(root).empty() ||
+            !green::find_data_root(root).empty()) { games++; continue; }
+        if (!fs::is_directory(root, ec)) continue;
+        for (const auto& entry : fs::directory_iterator(root, ec)) {
+            if (is_gen4_root(entry.path()) || !green_root_at(entry.path()).empty()) {
+                games++;
+                continue;
+            }
+            // Anything else at all - a genre folder, an osu folder, a loose
+            // chart - means the wheel has somewhere else to go.
+            return false;
+        }
+    }
+    // Several games have to stand as boxes; one on its own is the wheel.
+    return games == 1;
+}
+
+void Navigator::load_gen4_genres(const fs::path& data_root) {
+    const gen4::Library* library = gen4::library_for(data_root);
+    if (!library) return;
+
+    const std::string& lang = global_data.config->general.language;
+    for (int genre_no : gen4::genres_present(*library)) {
+        if (abort_loading) break;
+        GenreIndex genre = (GenreIndex)gen4::genre_index_for(genre_no);
+
+        BoxDef def;
+        if (const BoxDef* like = box_def_for_genre(genre)) {
+            def = *like;
+        } else {
+            // Nothing in the library defines this genre - a game on its own,
+            // with no TJA songs beside it - so the look a box.def would give
+            // it is spelled out here instead: the same colours, and the same
+            // texture, which is the plain genre art for everything except
+            // vocaloid, which has art of its own.
+            // NONE means "tint the plain box with these colours", which is
+            // what gives each genre its own look; vocaloid is the one genre
+            // the skin has art for, and its box.def uses that instead.
+            def.texture_index = (genre == GenreIndex::VOCALOID)
+                              ? TextureIndex::VOCALOID : TextureIndex::NONE;
+            if (auto colors = DEFAULT_COLORS.find(genre); colors != DEFAULT_COLORS.end()) {
+                def.back_color = colors->second[0];
+                def.fore_color = colors->second[1];
+            }
+        }
+        def.name        = gen4::genre_name(genre_no, lang);
+        def.genre_index = genre;
+        auto folder = std::make_unique<FolderBox>(gen4::genre_path(data_root, genre_no),
+                                                  def, song_files);
+        folder->tja_count = 0;
+        for (const gen4::OrderEntry& listing : library->order())
+            if (listing.genre_no == genre_no) folder->tja_count++;
+        enqueue_box(std::move(folder));
+    }
+}
+
+bool Navigator::load_gen4_genre_songs(const fs::path& path, const BoxDef& box_def) {
+    int genre_no = gen4::genre_of_path(path);
+    if (genre_no < 0) return false;
+
+    fs::path data_root = gen4::find_data_root(path);
+    const gen4::Library* library = gen4::library_for(data_root);
+    if (!library) return false;
+
+    GenreIndex genre = (GenreIndex)gen4::genre_index_for(genre_no);
+
+    BoxDef def = box_def;
+    if (const BoxDef* like = box_def_for_genre(genre)) {
+        def = *like;
+    } else if (auto colors = DEFAULT_COLORS.find(genre); colors != DEFAULT_COLORS.end()) {
+        // NONE means "tint the plain box art with these colours", which is
+        // what a box.def genre does to its songs. Vocaloid is the exception:
+        // it has no colour to tint to, only art of its own, and asking for a
+        // tint that cannot happen leaves the untinted art showing through -
+        // which is a green box under a genre that is not green.
+        def.texture_index = (genre == GenreIndex::VOCALOID)
+                          ? TextureIndex::VOCALOID : TextureIndex::NONE;
+        def.back_color    = colors->second[0];
+        def.fore_color    = colors->second[1];
+    }
+    def.name        = box_def.name;
+    def.genre_index = genre;
+
+    int songs_added = 0;
+    for (const gen4::OrderEntry& listing : library->order()) {
+        if (abort_loading) break;
+        if (listing.genre_no != genre_no) continue;
+        fs::path song_folder = data_root / "fumen" / listing.id;
+        std::error_code ec;
+        if (!fs::is_directory(song_folder, ec)) continue;
+        if (songs_added > 0 && songs_added % 10 == 0)
+            enqueue_inline_box(make_back_box(data_root));
+        auto box = make_song_box(song_folder, def, SongParser(song_folder));
+        // The running order is the order: leave it alone rather than sorting
+        // these by title the way a folder of files is sorted.
+        box->preserve_order = true;
+        box->fade_in(266);
+        enqueue_inline_box(std::move(box));
+        songs_added++;
+    }
+    return true;
+}
+
+// The folder holding a PS3 game's data: fumen/, sound/ and config/ together.
+bool Navigator::is_green_root(const fs::path& path) {
+    std::error_code ec;
+    if (!fs::is_directory(path, ec)) return false;
+    return green::find_data_root(path) == path && green::library_for(path) != nullptr;
+}
+
+// The green data root standing at - or nested just under - a folder: the
+// PS3 dumps keep it as <game>/USRDIR/data, and a folder of dumps should show
+// one box per game without the user having to point at each data folder.
+fs::path Navigator::green_root_at(const fs::path& path) {
+    if (is_green_root(path)) return path;
+    fs::path nested = path / "USRDIR" / "data";
+    if (is_green_root(nested)) return nested;
+    return {};
+}
+
+// A green song folder is fumen/<id>, holding solo/ and duet/ chart folders.
+bool Navigator::is_green_song_folder(const fs::path& path) {
+    if (path.parent_path().filename() != "fumen") return false;
+    const green::Library* library = green::library_for(path);
+    return library && library->find(path.filename().string()) != nullptr;
+}
+
+void Navigator::load_green_genres(const fs::path& data_root) {
+    const green::Library* library = green::library_for(data_root);
+    if (!library) return;
+
+    for (const std::string& genre_name : green::genres_present(*library)) {
+        if (abort_loading) break;
+        GenreIndex genre = (GenreIndex)green::genre_index_for(genre_name);
+
+        BoxDef def;
+        if (const BoxDef* like = box_def_for_genre(genre)) {
+            def = *like;
+        } else {
+            def.texture_index = (genre == GenreIndex::VOCALOID)
+                              ? TextureIndex::VOCALOID : TextureIndex::NONE;
+            if (auto colors = DEFAULT_COLORS.find(genre); colors != DEFAULT_COLORS.end()) {
+                def.back_color = colors->second[0];
+                def.fore_color = colors->second[1];
+            }
+        }
+        def.name        = genre_name;
+        def.genre_index = genre;
+        auto folder = std::make_unique<FolderBox>(green::genre_path(data_root, genre_name),
+                                                  def, song_files);
+        folder->tja_count = 0;
+        for (const green::SongEntry& e : library->songs())
+            if (e.genre == genre_name) folder->tja_count++;
+        enqueue_box(std::move(folder));
+    }
+}
+
+bool Navigator::load_green_genre_songs(const fs::path& path, const BoxDef& box_def) {
+    std::string genre_name = green::genre_of_path(path);
+    if (genre_name.empty()) return false;
+
+    fs::path data_root = green::find_data_root(path);
+    const green::Library* library = green::library_for(data_root);
+    if (!library) return false;
+
+    GenreIndex genre = (GenreIndex)green::genre_index_for(genre_name);
+
+    BoxDef def = box_def;
+    if (const BoxDef* like = box_def_for_genre(genre)) {
+        def = *like;
+    } else if (auto colors = DEFAULT_COLORS.find(genre); colors != DEFAULT_COLORS.end()) {
+        def.texture_index = (genre == GenreIndex::VOCALOID)
+                          ? TextureIndex::VOCALOID : TextureIndex::NONE;
+        def.back_color    = colors->second[0];
+        def.fore_color    = colors->second[1];
+    }
+    def.name        = box_def.name;
+    def.genre_index = genre;
+
+    int songs_added = 0;
+    for (const green::SongEntry& listing : library->songs()) {
+        if (abort_loading) break;
+        if (listing.genre != genre_name) continue;
+        fs::path song_folder = data_root / "fumen" / listing.id;
+        std::error_code ec;
+        if (!fs::is_directory(song_folder, ec)) continue;
+        if (songs_added > 0 && songs_added % 10 == 0)
+            enqueue_inline_box(make_back_box(data_root));
+        auto box = make_song_box(song_folder, def, SongParser(song_folder));
+        // The file's own order is the game's order.
+        box->preserve_order = true;
+        box->fade_in(266);
+        enqueue_inline_box(std::move(box));
+        songs_added++;
+    }
+    return true;
+}
+
+// A gen 4 song folder is named after the song id and holds that id's chart
+// files, one per difficulty. It only counts as a song when the game data it
+// belongs to can be read, since the folder alone carries no title or ratings.
+bool Navigator::is_gen4_song_folder(const fs::path& path) {
+    std::error_code ec;
+    if (!fs::is_directory(path, ec)) return false;
+
+    std::string id = path.filename().string();
+    static const char* suffixes[] = { "_e", "_n", "_h", "_m", "_x" };
+    bool has_chart = false;
+    for (const char* suffix : suffixes) {
+        if (fs::exists(path / (id + suffix + ".bin"), ec)) { has_chart = true; break; }
+    }
+    if (!has_chart) return false;
+
+    return gen4::library_for(path) != nullptr;
 }
 
 bool Navigator::is_osu_song_folder(const fs::path& path) {
@@ -1241,7 +1740,8 @@ bool Navigator::is_osu_song_folder(const fs::path& path) {
 
 
 bool Navigator::is_song(BaseBox* item) {
-    return is_song_file(item->path);
+    // What the box is, not what its path looks like.
+    return dynamic_cast<SongBox*>(item) != nullptr;
 }
 
 BaseBox* Navigator::get_current_item() {
@@ -1457,13 +1957,18 @@ void Navigator::draw() {
             pending_inline_folder != nullptr && genre_bg_end_pos.has_value()) {
             start_pos = pending_inline_folder->left_bound;
             end_pos = genre_bg_end_pos.value();  // approximation while loading
-        } else {
+        } else if (genre_bg_start < (int)items.size() && genre_bg_end < (int)items.size()) {
             start_pos = items[genre_bg_start]->left_bound;
-            end_pos = items[genre_bg_end]->right_bound;  // safe, loading done
+            end_pos = items[genre_bg_end]->right_bound;
+        } else {
+            // The wheel was rebuilt under the band; nothing to anchor it to.
+            genre_bg.reset();
         }
 
-        FolderBox* folder = pending_inline_folder;
-        genre_bg->draw(start_pos, end_pos, folder);
+        if (genre_bg.has_value()) {
+            FolderBox* folder = pending_inline_folder;
+            genre_bg->draw(start_pos, end_pos, folder);
+        }
     }
     for (auto& box : items) {
         bool on_screen = vertical_gallery

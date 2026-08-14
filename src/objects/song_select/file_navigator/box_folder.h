@@ -9,6 +9,9 @@ public:
     bool is_osu_folder = false;
     std::map<int, Crown> crown;
     bool entered = false;
+    // The genre voice this box started, so closing only talks to the audio
+    // engine when there is actually something to stop.
+    bool genre_voice_started = false;
     std::unique_ptr<FadeAnimation> enter_fade;
     std::optional<ray::Texture> box_texture;
 
@@ -25,6 +28,12 @@ public:
     void exit_box() override;
 
     void refresh_scores(std::map<std::pair<std::string, std::string>, fs::path>& song_files);
+    // Runs every scan that refresh_scores put off. Called on the loader
+    // thread once the whole wheel is up, so the boxes appear immediately and
+    // their crowns and counts fill in behind them.
+    static void run_deferred_scans(std::atomic<bool>& abort_flag);
+    // True while this box's subtree scan is still queued or running.
+    bool scan_pending = false;
     // Drop the cached crown/tja_count folder scans. Call whenever scores or
     // song lists change (after a play, favorite toggle, recent update).
     static void invalidate_scan_cache();

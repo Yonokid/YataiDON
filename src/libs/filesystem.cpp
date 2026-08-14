@@ -1,5 +1,7 @@
 #include "filesystem.h"
 #include "miniz/miniz.h"
+#include "gen4.h"
+#include "green.h"
 #include <fstream>
 #include <spdlog/spdlog.h>
 #include <unistd.h>
@@ -88,11 +90,27 @@ void extract_osz(const fs::path& osz_path) {
 std::vector<fs::path> get_song_files(std::vector<fs::path> root_path) {
     std::vector<fs::path> songs;
     for (const fs::path& path : root_path) {
-        // First pass: extract any .osz archives
+        // A song path pointing at - or into - a game's data root belongs to
+        // the song wheel, which reads the game's own tables. Scanning it here
+        // walks thousands of files and reads every chart as a loose one.
+        if (!gen4::find_data_root(path).empty() || !green::find_data_root(path).empty())
+            continue;
+
+        // First pass: extract any .osz archives. Game data roots are stepped
+        // over here just like below - there are no .osz files inside one,
+        // only tens of thousands of chart files to crawl through.
         try {
             std::vector<fs::path> osz_files;
-            for (const auto& entry : fs::recursive_directory_iterator(
-                     path, fs::directory_options::skip_permission_denied | fs::directory_options::follow_directory_symlink)) {
+            auto it = fs::recursive_directory_iterator(
+                path, fs::directory_options::skip_permission_denied | fs::directory_options::follow_directory_symlink);
+            for (; it != fs::end(it); ++it) {
+                const auto& entry = *it;
+                if (entry.is_directory() &&
+                    (gen4::find_data_root(entry.path()) == entry.path() ||
+                     green::find_data_root(entry.path()) == entry.path())) {
+                    it.disable_recursion_pending();
+                    continue;
+                }
                 if (entry.path().extension() == ".osz")
                     osz_files.push_back(entry.path());
             }
@@ -104,11 +122,35 @@ std::vector<fs::path> get_song_files(std::vector<fs::path> root_path) {
 
         // Second pass: collect .tja and .osu files
         try {
-            for (const auto& entry : std::filesystem::recursive_directory_iterator(
-                     path, std::filesystem::directory_options::skip_permission_denied | std::filesystem::directory_options::follow_directory_symlink)) {
+            auto it = std::filesystem::recursive_directory_iterator(
+                path, std::filesystem::directory_options::skip_permission_denied | std::filesystem::directory_options::follow_directory_symlink);
+            for (; it != std::filesystem::end(it); ++it) {
+                const auto& entry = *it;
+
+                // A game data root is walked by the song wheel itself, which
+                // reads the game's tables. Descending into it here would mean
+                // tens of thousands of files that are chart data and tables
+                // rather than songs, and every one of them opened.
+                if (entry.is_directory() &&
+                    (gen4::find_data_root(entry.path()) == entry.path() ||
+                     green::find_data_root(entry.path()) == entry.path())) {
+                    it.disable_recursion_pending();
+                    continue;
+                }
+
                 auto ext = entry.path().extension();
-                if (ext == ".tja" || ext == ".osu" || ext == ".bin") {
+                if (ext == ".tja" || ext == ".osu") {
                     songs.push_back(entry.path());
+                } else if (ext == ".bin") {
+                    // Charts only ever live under a fumen folder. Everywhere
+                    // else .bin is the extension of the games' data tables,
+                    // and trying to read one as a chart is just noise.
+                    bool under_fumen = false;
+                    for (fs::path dir = entry.path().parent_path();
+                         !dir.empty() && dir != dir.parent_path(); dir = dir.parent_path()) {
+                        if (dir.filename() == "fumen") { under_fumen = true; break; }
+                    }
+                    if (under_fumen) songs.push_back(entry.path());
                 }
             }
         } catch (const std::filesystem::filesystem_error& e) {

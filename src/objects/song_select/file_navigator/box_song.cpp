@@ -1,5 +1,6 @@
 #include "box_song.h"
 #include "../../../libs/audio.h"
+#include <thread>
 
 SongBox::SongBox(const fs::path& path, const BoxDef& box_def, SongParser parser)
     : BaseBox(path, box_def)
@@ -29,16 +30,32 @@ SongBox::SongBox(const fs::path& path, const BoxDef& box_def, SongParser parser)
 
 void SongBox::refresh_scores() {
     hashes = scores_manager.get_hashes(path);
+    // An arcade chart's hash means parsing and digesting the whole chart, and
+    // this runs for every difficulty of every box a genre opens - hundreds of
+    // file reads for a wheel that is just being looked at. No stored hash
+    // means the song was never played, so there is no score to find anyway;
+    // playing it once computes and records the real hash.
+    bool cheap_hash = !std::holds_alternative<FumenParser>(parser.impl);
     for (const auto& [course, course_data] : parser.metadata.course_data) {
         if (course < 0 || course >= static_cast<int>(hashes.size()))
             continue;
-        if (hashes[course].empty())
+        if (hashes[course].empty() && cheap_hash)
             hashes[course] = parser.get_diff_hash(course);
     }
     for (int i = 0; i < 5; i++) {
         scores[i] = scores_manager.get_score(hashes[i], i, global_data.config->general.player_1_id);
     }
     score_history.reset();
+}
+
+std::string SongBox::hash_for(int difficulty) {
+    if (difficulty < 0 || difficulty >= (int)hashes.size()) return "";
+    if (hashes[difficulty].empty()) {
+        hashes[difficulty] = parser.get_diff_hash(difficulty);
+        if (!hashes[difficulty].empty())
+            scores_manager.add_path_binding(path, hashes);
+    }
+    return hashes[difficulty];
 }
 
 void SongBox::reset() {
@@ -48,6 +65,8 @@ void SongBox::reset() {
         audio.unload_music_stream("preview");
     }
     music_playing = false;
+    preview_load.reset();
+    preview_attempted = false;
     score_history.reset();
     box_opened_at = 0.0;
 }
@@ -84,13 +103,54 @@ void SongBox::update(double current_time) {
     BaseBox::update(current_time);
     diff_fade_in->update(current_time);
 
-    if (yellow_box.has_value() && (yellow_box->left_out != nullptr) && yellow_box->left_out->is_finished && fs::exists(parser.metadata.wave) && !music_playing) {
+    auto wave_ext = parser.metadata.wave.extension();
+    bool is_bank = wave_ext == ".nus3bank" || wave_ext == ".nub";
+
+    // A bank has to be decoded whole, which takes over a second: done on this
+    // thread it is a frozen wheel, and started when the box has finished
+    // opening it is a second of silence on top of the opening. So the decode
+    // runs on its own thread, kicked off as soon as the cursor has rested
+    // here for a moment, overlapping the animation it used to wait behind.
+    if (is_bank && yellow_box.has_value() && !music_playing && !preview_load &&
+        !preview_attempted && get_current_ms() - bar_open_started_at > 250 &&
+        fs::exists(parser.metadata.wave)) {
+        preview_attempted = true;
+        preview_load = std::make_shared<PreviewLoad>();
+        std::thread([state = preview_load, wave = parser.metadata.wave] {
+            state->ok = audio.prepare_nus3bank_pcm(wave, state->pcm, true);
+            state->done.store(true, std::memory_order_release);
+        }).detach();
+    }
+
+    if (!is_bank && yellow_box.has_value() && (yellow_box->left_out != nullptr) && yellow_box->left_out->is_finished && fs::exists(parser.metadata.wave) && !music_playing) {
         music_playing = true;
         audio.stop_sound("bgm");
         audio.load_music_stream(parser.metadata.wave, "preview");
         if (audio.is_music_stream_valid("preview")) {
             audio.play_music_stream("preview", VolumePreset::MUSIC);
             audio.seek_music_stream("preview", parser.metadata.demostart);
+        }
+    }
+
+    // The decoded preview starts once the box has also finished opening, the
+    // same moment the synchronous path above starts its music.
+    if (preview_load && preview_load->done.load(std::memory_order_acquire) &&
+        yellow_box.has_value() && (yellow_box->left_out != nullptr) &&
+        yellow_box->left_out->is_finished && !music_playing) {
+        auto state = std::move(preview_load);
+        if (state->ok) {
+            music_playing = true;
+            audio.stop_sound("bgm");
+            // The bank names its own preview point; the chart has no
+            // DEMOSTART to fall back on beyond zero.
+            float demo_start = state->pcm.preview_ms > 0
+                             ? state->pcm.preview_ms / 1000.0f
+                             : parser.metadata.demostart;
+            audio.load_music_stream_prepared(std::move(state->pcm), "preview");
+            if (audio.is_music_stream_valid("preview")) {
+                audio.play_music_stream("preview", VolumePreset::MUSIC);
+                audio.seek_music_stream("preview", demo_start);
+            }
         }
     }
 
@@ -115,6 +175,8 @@ void SongBox::expand_box() {
 void SongBox::close_box() {
     BaseBox::close_box();
     box_opened_at = 0.0;
+    preview_load.reset();
+    preview_attempted = false;
     if (music_playing) {
         if (audio.is_music_stream_valid("preview")) {
             audio.stop_music_stream("preview");

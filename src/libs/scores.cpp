@@ -123,6 +123,7 @@ ScoresManager::ScoresManager(const fs::path& db_path) {
 }
 
 void ScoresManager::load_score_cache() {
+    std::lock_guard<std::mutex> lock(maps_mutex);
     score_cache.clear();
 
     sqlite3_stmt* stmt;
@@ -337,6 +338,7 @@ void ScoresManager::export_to_hiroba(const std::string& access_code, int player_
 }
 
 std::optional<Score> ScoresManager::get_score(std::string& hash, int difficulty, int player_id) {
+    std::lock_guard<std::mutex> lock(maps_mutex);
     auto it = score_cache.find(std::make_tuple(hash, difficulty, player_id));
     if (it != score_cache.end()) return it->second;
     return std::nullopt;
@@ -372,6 +374,7 @@ Score ScoresManager::save_score(std::string& hash, int difficulty, int player_id
     spdlog::info("Saved score for hash: {} score: {} crown: {}", hash, score.score, (int)score.crown);
 
     auto key = std::make_tuple(hash, difficulty, player_id);
+    std::lock_guard<std::mutex> lock(maps_mutex);
     auto it = score_cache.find(key);
     bool is_better = it == score_cache.end() ||
         score.crown > it->second.crown ||
@@ -382,6 +385,7 @@ Score ScoresManager::save_score(std::string& hash, int difficulty, int player_id
 }
 
 void ScoresManager::add_path_binding(const fs::path& path, const std::array<std::string, 5>& hashes) {
+    std::lock_guard<std::mutex> lock(maps_mutex);
     path_to_hashes[path] = hashes;
     std::string single = std::accumulate(hashes.begin(), hashes.end(), std::string{});
     single_hash_to_path[single] = path;
@@ -391,23 +395,30 @@ void ScoresManager::add_path_binding(const fs::path& path, const std::array<std:
 }
 
 std::optional<fs::path> ScoresManager::get_path_by_hash(const std::string& single_hash) {
+    std::lock_guard<std::mutex> lock(maps_mutex);
     auto it = single_hash_to_path.find(single_hash);
     if (it != single_hash_to_path.end()) return it->second;
     return std::nullopt;
 }
 
 std::optional<fs::path> ScoresManager::get_path_by_diff_hash(const std::string& diff_hash) {
+    std::lock_guard<std::mutex> lock(maps_mutex);
     auto it = diff_hash_to_path.find(diff_hash);
     if (it != diff_hash_to_path.end()) return it->second;
     return std::nullopt;
 }
 
-std::array<std::string, 5>& ScoresManager::get_hashes(const fs::path& path) {
-    return path_to_hashes[path];
+std::array<std::string, 5> ScoresManager::get_hashes(const fs::path& path) {
+    std::lock_guard<std::mutex> lock(maps_mutex);
+    auto it = path_to_hashes.find(path);
+    return it != path_to_hashes.end() ? it->second : std::array<std::string, 5>{};
 }
 
 std::string ScoresManager::get_single_hash(const fs::path& path) {
-    return std::accumulate(path_to_hashes[path].begin(), path_to_hashes[path].end(), std::string{});
+    std::lock_guard<std::mutex> lock(maps_mutex);
+    auto it = path_to_hashes.find(path);
+    if (it == path_to_hashes.end()) return "";
+    return std::accumulate(it->second.begin(), it->second.end(), std::string{});
 }
 
 void ScoresManager::add_song(const std::array<std::string, 5>& hashes, const std::string& title, const std::string& subtitle) {

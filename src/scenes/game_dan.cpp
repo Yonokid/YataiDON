@@ -333,6 +333,10 @@ std::optional<Screens> DanGameScreen::update() {
         song_index = 0;
         prev_good = prev_ok = prev_bad = prev_drumroll = 0;
         sd.dan_result_data = DanResultData();
+        // The flag still says the music is on from before the restart, and
+        // with it set the first song never gets its playback started.
+        song_started = false;
+        score_saved  = false;
         init_dan();
         audio.play_sound("restart", VolumePreset::SOUND);
     }

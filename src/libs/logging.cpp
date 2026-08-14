@@ -150,6 +150,10 @@ void setup_logging(const std::string& log_level_str) {
         logger->set_level(level);
         spdlog::set_default_logger(logger);
         spdlog::flush_on(spdlog::level::critical);
+        // Without a periodic flush the file trails several seconds behind
+        // the game, which reads like a freeze wherever the log happens to
+        // stop mid-line.
+        spdlog::flush_every(std::chrono::seconds(1));
 
         std::set_terminate(handle_exception);
         std::signal(SIGINT, signal_handler);

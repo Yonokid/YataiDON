@@ -32,6 +32,9 @@ private:
     bool is_init      = false;
     bool is_preloaded = false;
     bool built_hide_dan = false;
+    bool reloading_roots = false;
+    bool genre_box_defs_built = false;
+    std::map<GenreIndex, BoxDef> genre_box_defs;
 
     std::optional<InlineState>  inline_state;
     std::optional<fs::path>     pending_inline_path;
@@ -61,6 +64,9 @@ private:
     // that same folder puts the cursor back on the song that was played.
     std::optional<fs::path>  reopen_folder_path;
     std::optional<fs::path>  reopen_song_path;
+    // Where the cursor was when the whole wheel had to be rebuilt, so coming
+    // back out of a folder or a game does not dump it on the first box.
+    std::optional<fs::path>  restore_cursor_path;
 
     std::optional<fs::path>  recent_folder_path;
     std::optional<fs::path>  favorite_folder_path;
@@ -78,6 +84,17 @@ private:
     void set_positions(bool init, float duration);
     bool is_song_file(const fs::path& path);
     bool is_osu_song_folder(const fs::path& path);
+    bool is_gen4_song_folder(const fs::path& path);
+    bool is_gen4_root(const fs::path& path);
+    bool is_green_root(const fs::path& path);
+    fs::path green_root_at(const fs::path& path);
+    bool is_green_song_folder(const fs::path& path);
+    void load_green_genres(const fs::path& data_root);
+    bool load_green_genre_songs(const fs::path& genre_path, const BoxDef& box_def);
+    bool only_gen4_songs();
+    const BoxDef* box_def_for_genre(GenreIndex genre);
+    void load_gen4_genres(const fs::path& data_root);
+    bool load_gen4_genre_songs(const fs::path& genre_path, const BoxDef& box_def);
     bool has_def_file(const std::filesystem::path& path);
     fs::path find_box_def_folder(const fs::path& song_path);
     void setup_back_box(const fs::path& path, bool has_children);
@@ -88,6 +105,7 @@ private:
     void enqueue_inline_box(std::unique_ptr<BaseBox> box);
     void parse_song_list(const fs::path& path, BoxDef box_def, bool inline_mode);
     void load_current_directory_async(const fs::path path);
+    void load_all_roots();
     void load_collection_difficulty(const fs::path& path, const BoxDef& box_def, int course, int level);
     void load_from_song_list(const fs::path& path, const BoxDef& box_def, bool mark_favorite);
     void load_collection_new(const fs::path& path, const BoxDef& box_def);

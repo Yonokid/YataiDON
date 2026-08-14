@@ -130,8 +130,16 @@ FetchContent_MakeAvailable(sol2)
 if(NOT ANDROID AND NOT EMSCRIPTEN)
   set(ZLIB_USE_STATIC_LIBS ON)
   if(WIN32)
-    set(CPPTRACE_GET_SYMBOLS_WITH_ADDR2LINE ON CACHE BOOL "" FORCE)
-    set(CPPTRACE_UNWIND_WITH_DBGHELP        ON CACHE BOOL "" FORCE)
+    # dbghelp, not addr2line: with addr2line on the PATH its location is baked
+    # into a define whose quoting does not survive this toolchain, and dbghelp
+    # resolves mingw symbols fine.
+    set(CPPTRACE_GET_SYMBOLS_WITH_ADDR2LINE OFF CACHE BOOL "" FORCE)
+    # dbghelp resolves the system DLLs' pdb symbols, libdwarf resolves our own
+    # mingw DWARF ones - without it a crash inside the game prints bare
+    # addresses for exactly the frames that matter.
+    set(CPPTRACE_GET_SYMBOLS_WITH_LIBDWARF  ON  CACHE BOOL "" FORCE)
+    set(CPPTRACE_GET_SYMBOLS_WITH_DBGHELP   ON  CACHE BOOL "" FORCE)
+    set(CPPTRACE_UNWIND_WITH_DBGHELP        ON  CACHE BOOL "" FORCE)
   endif()
   FetchContent_Declare(
       cpptrace
@@ -453,4 +461,41 @@ if(WIN32)
   FetchContent_MakeAvailable(portaudio)
 else()
   add_library(portaudio INTERFACE IMPORTED)
+endif()
+
+# G.719 (Siren 22) -- the codec inside the .nus3bank audio of the gen 4 arcade
+# games. No decoder for it exists in FFmpeg, and the only working one is
+# kode54's library, which wraps the ITU reference sources. Those carry an
+# Ericsson/Polycom copyright, so they are fetched at build time and never
+# vendored into this tree; the repository has no CMake build of its own, so the
+# targets are declared here.
+option(YATAIDON_G719 "Build G.719 audio support for gen 4 arcade data" OFF)
+if(YATAIDON_G719)
+  FetchContent_Declare(
+    libg719
+    GIT_REPOSITORY https://github.com/kode54/libg719_decode.git
+    GIT_TAG master
+    GIT_SHALLOW TRUE
+  )
+  FetchContent_Populate(libg719)
+
+  file(GLOB G719_SOURCES
+       ${libg719_SOURCE_DIR}/g719.c
+       ${libg719_SOURCE_DIR}/reference_code/common/*.c
+       ${libg719_SOURCE_DIR}/reference_code/decoder/*.c)
+
+  add_library(g719 STATIC ${G719_SOURCES})
+  target_include_directories(g719 PUBLIC
+                             ${libg719_SOURCE_DIR}
+                             ${libg719_SOURCE_DIR}/reference_code/include)
+  set_target_properties(g719 PROPERTIES C_STANDARD 99)
+  # Its stack_alloc.h refuses to compile until one of the two temporary
+  # allocation modes is picked. VAR_ARRAYS uses C99 variable length arrays,
+  # which every compiler we target has, and unlike alloca it needs no
+  # platform header.
+  target_compile_definitions(g719 PRIVATE VAR_ARRAYS)
+  if(NOT MSVC)
+    # Reference code, not ours to tidy: keep its warnings out of our build log.
+    target_compile_options(g719 PRIVATE -w)
+  endif()
 endif()

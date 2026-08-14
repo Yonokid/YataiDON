@@ -1,7 +1,10 @@
 #include "box_folder.h"
+#include "../../../libs/gen4.h"
+#include "../../../libs/green.h"
 #include "../../../libs/filesystem.h"
 #include "../../../libs/scores.h"
 #include "../../../libs/audio.h"
+#include <deque>
 #include <mutex>
 
 // The crown/count scan below walks the folder's whole subtree and runs a
@@ -17,38 +20,20 @@ struct FolderScan {
 };
 std::mutex scan_cache_mutex;
 std::map<fs::path, FolderScan> scan_cache;
-}
 
-void FolderBox::invalidate_scan_cache() {
-    std::lock_guard<std::mutex> lock(scan_cache_mutex);
-    scan_cache.clear();
-}
+// Folders whose scans were put off so the wheel could appear first.
+std::mutex deferred_mutex;
+std::deque<fs::path> deferred_scans;
 
-FolderBox::FolderBox(const fs::path& path, const BoxDef& box_def, std::map<std::pair<std::string, std::string>, fs::path>& song_files)
-    : BaseBox(path, box_def), tja_count(0)
-{
-    this->text_name = box_def.name;
-    enter_fade = std::make_unique<FadeAnimation>(166);
-    refresh_scores(song_files);
-}
-
-void FolderBox::refresh_scores(std::map<std::pair<std::string, std::string>, fs::path>& song_files) {
-    {
-        std::lock_guard<std::mutex> lock(scan_cache_mutex);
-        auto it = scan_cache.find(path);
-        if (it != scan_cache.end()) {
-            crown = it->second.crown;
-            tja_count = it->second.tja_count;
-            return;
-        }
-    }
-
-    crown.clear();
-    tja_count = 0;
+// The subtree walk itself, self-contained: everything it touches - the score
+// maps, the cache - is behind its own lock, so it can run on any thread.
+void scan_folder_now(const fs::path& path) {
+    std::map<int, Crown> crown;
+    int tja_count = 0;
     std::set<int> disqualified;
 
     auto update_crown = [&](const fs::path& file_path) {
-        auto& hashes = scores_manager.get_hashes(file_path);
+        auto hashes = scores_manager.get_hashes(file_path);
         for (int diff = 0; diff < 5; diff++) {
             if (hashes[diff].empty()) continue;
             auto score = scores_manager.get_score(hashes[diff], diff, global_data.config->general.player_1_id);
@@ -68,13 +53,21 @@ void FolderBox::refresh_scores(std::map<std::pair<std::string, std::string>, fs:
         }
     };
 
-    for (const auto& entry : fs::recursive_directory_iterator(path)) {
+    // Errors are stepped over rather than thrown: one unreadable entry deep in
+    // a tree should not take the folder box down with it.
+    std::error_code scan_ec;
+    auto scan = fs::recursive_directory_iterator(
+        path, fs::directory_options::skip_permission_denied, scan_ec);
+    while (scan != fs::end(scan)) {
+        const fs::directory_entry& entry = *scan;
         if (entry.path().filename() == "song_list.txt") {
             auto entries = read_song_list(entry.path());
             tja_count += (int)entries.size();
             for (const auto& e : entries)
                 if (auto found = scores_manager.get_path_by_hash(e.hash))
                     update_crown(*found);
+            scan.increment(scan_ec);
+            if (scan_ec) scan_ec.clear();
             continue;
         }
         auto ext = entry.path().extension();
@@ -82,11 +75,86 @@ void FolderBox::refresh_scores(std::map<std::pair<std::string, std::string>, fs:
             tja_count++;
             update_crown(entry.path());
         }
+
+        scan.increment(scan_ec);
+        if (scan_ec) scan_ec.clear();
     }
 
+    std::lock_guard<std::mutex> lock(scan_cache_mutex);
+    scan_cache[path] = {crown, tja_count};
+}
+}
+
+void FolderBox::invalidate_scan_cache() {
+    std::lock_guard<std::mutex> lock(scan_cache_mutex);
+    scan_cache.clear();
+}
+
+FolderBox::FolderBox(const fs::path& path, const BoxDef& box_def, std::map<std::pair<std::string, std::string>, fs::path>& song_files)
+    : BaseBox(path, box_def), tja_count(0)
+{
+    this->text_name = box_def.name;
+    enter_fade = std::make_unique<FadeAnimation>(166);
+    refresh_scores(song_files);
+}
+
+void FolderBox::refresh_scores(std::map<std::pair<std::string, std::string>, fs::path>& song_files) {
+    (void)song_files;
     {
         std::lock_guard<std::mutex> lock(scan_cache_mutex);
+        auto it = scan_cache.find(path);
+        if (it != scan_cache.end()) {
+            crown = it->second.crown;
+            tja_count = it->second.tja_count;
+            return;
+        }
+    }
+
+    crown.clear();
+    tja_count = 0;
+
+    // A game data root holds thousands of files that are not songs, and its
+    // song count is known without looking at the disk at all.
+    if (const gen4::Library* library = gen4::library_for(path)) {
+        int genre_no = gen4::genre_of_path(path);
+        for (const gen4::OrderEntry& listing : library->order())
+            if (genre_no < 0 || listing.genre_no == genre_no) tja_count++;
+        std::lock_guard<std::mutex> lock(scan_cache_mutex);
         scan_cache[path] = {crown, tja_count};
+        return;
+    }
+    if (const green::Library* library = green::library_for(path)) {
+        std::string genre = green::genre_of_path(path);
+        for (const green::SongEntry& e : library->songs())
+            if (genre.empty() || e.genre == genre) tja_count++;
+        std::lock_guard<std::mutex> lock(scan_cache_mutex);
+        scan_cache[path] = {crown, tja_count};
+        return;
+    }
+
+    // Anything else means walking its whole subtree - seconds of disk for a
+    // big library - so the scan is put off until the wheel itself is up, and
+    // update() below picks the result up when it lands in the cache.
+    scan_pending = true;
+    std::lock_guard<std::mutex> lock(deferred_mutex);
+    deferred_scans.push_back(path);
+}
+
+void FolderBox::run_deferred_scans(std::atomic<bool>& abort_flag) {
+    for (;;) {
+        if (abort_flag) return;   // leave the rest queued for the next load
+        fs::path next;
+        {
+            std::lock_guard<std::mutex> lock(deferred_mutex);
+            if (deferred_scans.empty()) return;
+            next = std::move(deferred_scans.front());
+            deferred_scans.pop_front();
+        }
+        {
+            std::lock_guard<std::mutex> lock(scan_cache_mutex);
+            if (scan_cache.count(next)) continue;
+        }
+        scan_folder_now(next);
     }
 }
 
@@ -113,16 +181,36 @@ void FolderBox::load_text() {
 }
 
 void FolderBox::update(double current_time) {
+    if (scan_pending) {
+        std::lock_guard<std::mutex> lock(scan_cache_mutex);
+        auto it = scan_cache.find(path);
+        if (it != scan_cache.end()) {
+            crown = it->second.crown;
+            tja_count = it->second.tja_count;
+            scan_pending = false;
+            // The count text may already be baked with the placeholder.
+            if (text_loaded)
+                tja_count_text = std::make_unique<OutlinedText>(std::to_string(tja_count),
+                    tex.skin_config[SC::SONG_TJA_COUNT].font_size, ray::WHITE, ray::BLACK, false);
+        }
+    }
+
     bool is_open_prev = yellow_box_opened;
     enter_fade->update(current_time);
     BaseBox::update(current_time);
 
+    // Only the open/close transitions touch the audio engine. The old form
+    // asked it "is the voice playing" every frame for every closed box on the
+    // wheel - hundreds of lock acquisitions a second across the boxes, enough
+    // to starve the audio writers and wedge the whole engine.
     if (!is_open_prev && yellow_box_opened) {
         if (!audio.is_sound_playing("voice_enter")) {
             audio.play_sound("genre_voice_" + std::to_string((int)genre_index), VolumePreset::VOICE);
+            genre_voice_started = true;
         }
-    } else if (!yellow_box_opened && audio.is_sound_playing("genre_voice_" + std::to_string((int)genre_index))) {
+    } else if (!yellow_box_opened && genre_voice_started) {
         audio.stop_sound("genre_voice_" + std::to_string((int)genre_index));
+        genre_voice_started = false;
     }
 }
 
