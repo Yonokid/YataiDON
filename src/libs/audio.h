@@ -130,6 +130,22 @@ public:
     float get_sound_time_played(const std::string& name) const;
     void  seek_sound(const std::string& name, float position);
 
+    // The two halves of loading a .nus3bank as a music stream. Decoding and
+    // resampling one takes over a second, so the heavy half touches no engine
+    // state and can run on a worker thread; the cheap half hands the finished
+    // buffer to the engine.
+    struct PreparedPCM {
+        std::unique_ptr<float[]> data;      // interleaved, at the device rate
+        unsigned int frames     = 0;
+        unsigned int rate       = 0;
+        int          channels   = 0;
+        int          preview_ms = 0;        // the bank's own preview point
+        std::string  source_path;
+    };
+    bool prepare_nus3bank_pcm(const fs::path& file_path, PreparedPCM& out,
+                              bool quick_resample = false);
+    std::string load_music_stream_prepared(PreparedPCM&& pcm, const std::string& name);
+
     std::string load_music_stream(const fs::path& file_path, const std::string& name);
 #ifndef __EMSCRIPTEN__
     std::string load_music_stream_memory(const av::AVAudioStream& audio_stream, const std::string& name);

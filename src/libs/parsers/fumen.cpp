@@ -1,4 +1,5 @@
 #include "fumen.h"
+#include <algorithm>
 #include <fstream>
 
 #pragma pack(push, 1)
@@ -96,27 +97,85 @@ static bool is_roll(uint32_t t)    { return t == FUMEN_RENDA || t == FUMEN_BIG_R
 static bool is_balloon(uint32_t t) { return t == FUMEN_BALLOON || t == FUMEN_KUSUDAMA; }
 static bool has_renda_padding(uint32_t t) { return t == FUMEN_RENDA || t == FUMEN_BIG_RENDA; }
 
-FumenParser::FumenParser(const fs::path& path) : file_path(path) {
-    metadata             = TJAMetadata();
-    ex_data              = TJAEXData();
-    metadata.title["en"] = path.stem().string();
-    metadata.course_data[0] = CourseData{};
+FumenParser::FumenParser(const fs::path& path, int start_delay)
+    : file_path(path), start_delay(static_cast<double>(start_delay)) {
+    metadata = TJAMetadata();
+    ex_data  = TJAEXData();
+
+    std::error_code ec;
+    if (fs::is_directory(path, ec)) {
+        song_id = path.filename().string();
+        library = gen4::library_for(path);
+    }
+
+    const gen4::SongEntry* entry = library ? library->find(song_id) : nullptr;
+    if (!entry) {
+        // A bare chart file, or a folder the datatable does not list: all that
+        // can be said about it is its name, and that it has one chart.
+        metadata.title["en"] = path.stem().string();
+        metadata.course_data[0] = CourseData{};
+        return;
+    }
+
+    for (const auto& [lang, text] : entry->title)
+        if (!text.empty()) metadata.title[lang] = text;
+    for (const auto& [lang, text] : entry->subtitle)
+        if (!text.empty()) metadata.subtitle[lang] = text;
+    if (metadata.title.find("en") == metadata.title.end())
+        metadata.title["en"] = song_id;
+
+    // Only the difficulties that actually ship a chart, so the wheel does not
+    // offer one that cannot be played.
+    for (int d = 0; d < 5; d++) {
+        if (!library->has_difficulty(song_id, d)) continue;
+        CourseData course;
+        course.level        = entry->stars[d];
+        course.is_branching = entry->branch[d];
+        metadata.course_data[d] = course;
+    }
+
+    if (!entry->sound_file.empty())
+        metadata.wave = library->root() / (entry->sound_file + ".nus3bank");
 }
 
-void FumenParser::build_notes() {
-    if (parsed) return;
-    parsed = true;
+std::vector<uint8_t> FumenParser::read_chart(int diff) {
+    if (library) return library->load_chart(song_id, diff);
+
+    // A chart taken straight from the game data is encrypted; one that has
+    // already been unpacked is not. Trying the key tells the two apart: a
+    // plain file fails its padding check and is then used as it is.
+    static const std::vector<uint8_t> key = gen4::derive_key(gen4::FUMEN_SEED);
+    std::vector<uint8_t> plain = gen4::load_encrypted(file_path, key);
+    if (!plain.empty()) return plain;
 
     std::ifstream f(file_path, std::ios::binary);
     if (!f) {
         spdlog::warn("FumenParser: cannot open {}", file_path.string());
-        return;
+        return {};
     }
+    return std::vector<uint8_t>((std::istreambuf_iterator<char>(f)),
+                                std::istreambuf_iterator<char>());
+}
+
+void FumenParser::build_notes(int diff) {
+    if (cached_diff == diff) return;
+    cached_diff  = diff;
+    cached_notes = NoteList();
+
+    std::vector<uint8_t> data = read_chart(diff);
+    size_t pos = 0;
+    auto take = [&](void* dst, size_t n) {
+        if (pos + n > data.size()) return false;
+        memcpy(dst, data.data() + pos, n);
+        pos += n;
+        return true;
+    };
 
     FumenHeader hdr{};
-    f.read(reinterpret_cast<char*>(&hdr), sizeof(FumenHeader));
-    if (!f || hdr.number_of_measures == 0 || hdr.number_of_measures > 100000) {
-        spdlog::warn("FumenParser: invalid header in {}", file_path.string());
+    if (!take(&hdr, sizeof(FumenHeader)) ||
+        hdr.number_of_measures == 0 || hdr.number_of_measures > 100000) {
+        spdlog::warn("FumenParser: no readable chart in {} difficulty {}",
+                     file_path.string(), diff);
         return;
     }
 
@@ -126,11 +185,16 @@ void FumenParser::build_notes() {
 
     for (uint32_t m = 0; m < hdr.number_of_measures; m++) {
         FumenMeasureData mdata{};
-        f.read(reinterpret_cast<char*>(&mdata), sizeof(FumenMeasureData));
-        if (!f) break;
+        if (!take(&mdata, sizeof(FumenMeasureData))) break;
 
-        double measure_ms = static_cast<double>(mdata.measure_offset);
         double bpm        = static_cast<double>(mdata.bpm);
+
+        // The engine does not play a measure at the time the file gives it: it
+        // adds one whole 4/4 measure at that measure's own BPM. Chart-native
+        // times are that much too early, and since the term depends on the
+        // BPM of each measure it cannot be corrected with one fixed offset.
+        double lead_in    = bpm > 0.0 ? 60000.0 / bpm * 4.0 : 0.0;
+        double measure_ms = static_cast<double>(mdata.measure_offset) + lead_in + start_delay;
         bool   gogo       = mdata.is_gogo_time != 0;
         bool   show_bar   = mdata.is_bar_line_visible != 0;
 
@@ -160,27 +224,24 @@ void FumenParser::build_notes() {
             uint16_t branch_unk  = 0;
             float    scroll      = 1.0f;
 
-            f.read(reinterpret_cast<char*>(&note_count), sizeof(note_count));
-            f.read(reinterpret_cast<char*>(&branch_unk), sizeof(branch_unk));
-            f.read(reinterpret_cast<char*>(&scroll),     sizeof(scroll));
-            if (!f) break;
+            if (!take(&note_count, sizeof(note_count)) ||
+                !take(&branch_unk, sizeof(branch_unk)) ||
+                !take(&scroll,     sizeof(scroll))) break;
 
             if (b == 0) normal_scroll = scroll;
 
             for (uint16_t n = 0; n < note_count; n++) {
                 FumenNoteBase nb{};
-                f.read(reinterpret_cast<char*>(&nb), sizeof(FumenNoteBase));
-                if (!f) break;
+                if (!take(&nb, sizeof(FumenNoteBase))) break;
 
                 if (has_renda_padding(nb.type)) {
                     uint32_t extra[2]{};
-                    f.read(reinterpret_cast<char*>(extra), 8);
+                    take(extra, 8);
                 }
 
                 if (b != 0) continue;
 
-                double hit_ms = static_cast<double>(mdata.measure_offset)
-                                + static_cast<double>(nb.note_offset);
+                double hit_ms = measure_ms + static_cast<double>(nb.note_offset);
                 NoteType nt = map_note_type(nb.type);
 
                 Note note;
@@ -211,7 +272,11 @@ void FumenParser::build_notes() {
                     cached_notes.notes.push_back(tail);
 
                 } else if (is_balloon(nb.type)) {
-                    note.count = 20;
+                    // The hit count is the first half of the word at offset 16,
+                    // which the simple note types use for their score value
+                    // instead. Twenty was a placeholder.
+                    int hits = (int)(uint16_t)(nb.unknown2 & 0xFFFF);
+                    note.count = hits > 0 ? hits : 20;
                     cached_notes.notes.push_back(note);
 
                     Note tail;
@@ -247,17 +312,24 @@ void FumenParser::build_notes() {
         }
     }
 
+    // The added measure is worth less at a higher BPM, so a tempo change can
+    // put a later measure's note ahead of an earlier one in wall time.
+    std::stable_sort(cached_notes.notes.begin(), cached_notes.notes.end(),
+                     [](const Note& a, const Note& b) { return a.hit_ms < b.hit_ms; });
+    for (size_t i = 0; i < cached_notes.notes.size(); i++)
+        cached_notes.notes[i].index = (int)i;
+
     modifier_moji(cached_notes);
 }
 
 std::tuple<NoteList, std::deque<NoteList>, std::deque<NoteList>, std::deque<NoteList>>
-FumenParser::notes_to_position(int /*diff*/) {
-    build_notes();
+FumenParser::notes_to_position(int diff) {
+    build_notes(diff);
     return {cached_notes, {}, {}, {}};
 }
 
-std::string FumenParser::get_diff_hash(int /*difficulty*/) {
-    build_notes();
+std::string FumenParser::get_diff_hash(int difficulty) {
+    build_notes(difficulty);
     if (cached_notes.notes.empty()) return "";
     std::vector<unsigned char> buffer;
     for (const Note& n : cached_notes.notes) {
@@ -269,5 +341,7 @@ std::string FumenParser::get_diff_hash(int /*difficulty*/) {
 }
 
 std::string FumenParser::get_song_hash() {
-    return get_diff_hash(0);
+    // The oni chart stands in for the song: every song has one, and it is the
+    // one difficulty that is never a cut-down arrangement of another.
+    return get_diff_hash(3);
 }

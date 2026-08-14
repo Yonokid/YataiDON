@@ -1,5 +1,6 @@
 #include "filesystem.h"
 #include "miniz/miniz.h"
+#include "gen4.h"
 #include <fstream>
 #include <spdlog/spdlog.h>
 #include <unistd.h>
@@ -104,11 +105,34 @@ std::vector<fs::path> get_song_files(std::vector<fs::path> root_path) {
 
         // Second pass: collect .tja and .osu files
         try {
-            for (const auto& entry : std::filesystem::recursive_directory_iterator(
-                     path, std::filesystem::directory_options::skip_permission_denied | std::filesystem::directory_options::follow_directory_symlink)) {
+            auto it = std::filesystem::recursive_directory_iterator(
+                path, std::filesystem::directory_options::skip_permission_denied | std::filesystem::directory_options::follow_directory_symlink);
+            for (; it != std::filesystem::end(it); ++it) {
+                const auto& entry = *it;
+
+                // A game data root is walked by the song wheel itself, which
+                // reads the game's tables. Descending into it here would mean
+                // tens of thousands of files that are chart data and tables
+                // rather than songs, and every one of them opened.
+                if (entry.is_directory() && !gen4::find_data_root(entry.path()).empty() &&
+                    gen4::find_data_root(entry.path()) == entry.path()) {
+                    it.disable_recursion_pending();
+                    continue;
+                }
+
                 auto ext = entry.path().extension();
-                if (ext == ".tja" || ext == ".osu" || ext == ".bin") {
+                if (ext == ".tja" || ext == ".osu") {
                     songs.push_back(entry.path());
+                } else if (ext == ".bin") {
+                    // Charts only ever live under a fumen folder. Everywhere
+                    // else .bin is the extension of the games' data tables,
+                    // and trying to read one as a chart is just noise.
+                    bool under_fumen = false;
+                    for (fs::path dir = entry.path().parent_path();
+                         !dir.empty() && dir != dir.parent_path(); dir = dir.parent_path()) {
+                        if (dir.filename() == "fumen") { under_fumen = true; break; }
+                    }
+                    if (under_fumen) songs.push_back(entry.path());
                 }
             }
         } catch (const std::filesystem::filesystem_error& e) {
