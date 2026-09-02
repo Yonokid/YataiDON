@@ -40,7 +40,7 @@ private:
     int total_notes = 0;
     int dan_color = 0;
 
-    Gauge dan_gauge{GaugeMode::DAN, PlayerNum::P1, 1};  // initialized properly in init_dan()
+    std::optional<Gauge> dan_gauge;  // constructed lazily in init_dan(), once textures are loaded
 
     std::vector<bool> exam_failed;
     bool   failed_out    = false;

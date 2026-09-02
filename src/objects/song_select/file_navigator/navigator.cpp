@@ -11,7 +11,6 @@
 #include <random>
 #include <algorithm>
 #include <cmath>
-#include <cstdlib>   // r56: std::getenv (YATAIDON_R56_DISABLE gate)
 
 static std::unique_ptr<SongBox> make_song_box(const fs::path& path, const BoxDef& box_def, SongParser parser) {
     if (path.extension() == ".osu")

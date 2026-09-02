@@ -2,90 +2,100 @@
 
 #include "../../libs/global_data.h"
 #include "../../libs/animation.h"
-#include "../enums.h"
 
 class Gauge {
 public:
-    float gauge_length;
-    float gauge_max;
 
-    Gauge(GaugeMode mode, PlayerNum player_num, int total_notes, int difficulty = 0, int level = 1);
-
-    static Gauge make_result(GaugeMode mode, PlayerNum player_num, float gauge_length, bool is_2p = false);
+    Gauge(int total_notes, int difficulty, int level, PlayerNum player_num);
 
     void add_good();
     void add_ok();
     void add_bad();
     void update(double current_ms);
     void draw(float y = 0.0f);
-    void draw_result(double external_fade = 1.0);
 
-    bool get_is_clear() const { return is_clear; }
-    bool get_is_rainbow() const { return is_rainbow; }
-    double get_soul() const { return soul; }
-    float get_progress() const { return gauge_length / gauge_max; }
-    float get_flash_attribute() const {
-        if (!gauge_update_anim) return 0.0f;
-        if ((int)gauge_length <= (int)previous_length) return 0.0f;
-        return gauge_update_anim->attribute;
-    }
-
-    float get_clear_progress() const {
-        if (chn_model && norma > 0) return (float)norma / 10000.0f;
-        if (clear_start.empty() || gauge_max <= 0.0f) return 1.0f;
-        int i = difficulty;
-        if (i < 0) i = 0;
-        if (i >= (int)clear_start.size()) i = (int)clear_start.size() - 1;
-        return clear_start[i] / gauge_max;
-    }
-
-    ResultState get_state() const { return state; }
-    bool result_is_clear() const { return state == ResultState::CLEAR || state == ResultState::RAINBOW; }
-    bool result_is_finished() const { return gauge_fade_in && gauge_fade_in->is_finished; }
+    bool get_is_clear() const { return points >= clear_points; }
+    bool get_is_rainbow() const { return points >= max_points; }
+    float get_length() const { return (float)points / max_points * 100;}
 
 private:
-    Gauge();  // bare init for make_result
+    int good_points;
+    int ok_points;
+    int bad_points;
+    int points = 0;
+    int max_points = 10000;
+    int clear_points = 8000;
+    int points_per_bar = 200;
 
-    GaugeMode mode;
-    PlayerNum player_num;
-    int total_notes;
-    int difficulty;
-
-    // NORMAL mode
     std::string string_diff;
-    std::vector<int> clear_start;
-    int level;
-
-    bool chn_model = false;
-    double soul = 0.0;
-    int tp_great = 0;
-    int tp_good = 0;
-    int tp_loss = 0;
-    int norma = 0;
-    int art_index = 0;
-    struct GaugeTable {
-        float clear_rate;
-        float ok_multiplier;
-        float bad_multiplier;
-    };
-    std::vector<std::vector<GaugeTable>> table;
-    double rainbow_start_ms = -1.0;
-    float rainbow_frac = 0.0f;
-
-    bool anims_loaded = false;
-
-    // Result presentation
-    bool is_result = false;
-    bool is_2p = false;
-    float result_scale = 1.0f;
-    ResultState state = ResultState::FAIL;
-    FadeAnimation* gauge_fade_in = nullptr;
-
-    // Shared
-    float previous_length;
-    bool is_clear;
-    bool is_rainbow;
+    PlayerNum player_num;
     TextureChangeAnimation* tamashii_fire_change;
     FadeAnimation* gauge_update_anim;
     std::optional<FadeAnimation*> rainbow_fade_in;
+    double rainbow_start_ms = -1.0;
+    float rainbow_frac = 0.0f;
+    bool anims_loaded = false;
+    int difficulty;
+    int previous_points = 0;
+    static constexpr float max_length = 100.0f;
+
+    struct GaugeTable {
+        float soul_percent;
+        float ok_multiplier;
+        float bad_multiplier;
+    };
+    std::vector<std::vector<GaugeTable>> table = {
+        // Easy (★1–5, ★6–10 unused)
+        {
+            {60.0f,    0.75f, -0.5f},  // ★1
+            {63.333f,  0.75f, -0.5f},  // ★2
+            {63.333f,  0.75f, -0.5f},  // ★3
+            {73.333f,  0.75f, -0.5f},  // ★4
+            {73.333f,  0.75f, -0.5f},  // ★5
+            {0.0f, 0.0f, 0.0f},        // ★6 (unused)
+            {0.0f, 0.0f, 0.0f},        // ★7 (unused)
+            {0.0f, 0.0f, 0.0f},        // ★8 (unused)
+            {0.0f, 0.0f, 0.0f},        // ★9 (unused)
+            {0.0f, 0.0f, 0.0f},        // ★10 (unused)
+        },
+        // Normal (★1–7, ★8–10 unused)
+        {
+            {65.6f,  0.75f, -0.5f},   // ★1 (ok/bad assumed, not directly confirmed)
+            {65.6f,  0.75f, -0.5f},   // ★2 (assumed)
+            {69.5f,  0.75f, -0.5f},   // ★3 (assumed)
+            {70.3f,  0.75f, -0.75f},  // ★4
+            {75.0f,  0.75f, -1.0f},   // ★5 (ok assumed)
+            {75.0f,  0.75f, -1.0f},   // ★6 (assumed)
+            {75.0f,  0.75f, -1.0f},   // ★7 (assumed)
+            {0.0f, 0.0f, 0.0f},       // ★8 (unused)
+            {0.0f, 0.0f, 0.0f},       // ★9 (unused)
+            {0.0f, 0.0f, 0.0f},       // ★10 (unused)
+        },
+        // Hard (★1–8, ★9–10 unused)
+        {
+            {77.6f,   0.75f, -0.75f}, // ★1 (ok assumed)
+            {77.6f,   0.75f, -0.75f}, // ★2 (assumed)
+            {72.5f,   0.75f, -1.0f},  // ★3 (ok assumed)
+            {69.15f,  0.75f, -1.17f}, // ★4 (ok assumed)
+            {67.5f,   0.75f, -1.25f}, // ★5 (ok assumed)
+            {68.74f,  0.75f, -1.25f}, // ★6 (assumed)
+            {68.74f,  0.75f, -1.25f}, // ★7 (assumed)
+            {68.74f,  0.75f, -1.25f}, // ★8 (assumed)
+            {0.0f, 0.0f, 0.0f},       // ★9 (unused)
+            {0.0f, 0.0f, 0.0f},       // ★10 (unused)
+        },
+        // Oni (★1–10)
+        {
+            {70.75f, 0.5f, -1.6f},  // ★1
+            {70.75f, 0.5f, -1.6f},  // ★2
+            {70.75f, 0.5f, -1.6f},  // ★3
+            {70.75f, 0.5f, -1.6f},  // ★4
+            {70.75f, 0.5f, -1.6f},  // ★5
+            {70.75f, 0.5f, -1.6f},  // ★6
+            {70.75f, 0.5f, -1.6f},  // ★7
+            {70.0f,  0.5f, -2.0f},  // ★8
+            {76.75f, 0.5f, -2.0f},  // ★9
+            {76.75f, 0.5f, -2.0f},  // ★10
+        },
+    };
 };

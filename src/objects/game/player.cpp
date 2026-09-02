@@ -75,8 +75,10 @@ ResultData Player::get_result_score() {
     result.bad = bad_count;
     result.max_combo = max_combo;
     result.total_drumroll = total_drumroll;
-    if (dan_gauge) result.gauge_length = dan_gauge->gauge_length;
-    else if (gauge.has_value()) result.gauge_length = gauge->gauge_length;
+    // ResultData.gauge_length is expected on the old 87-unit display scale
+    // (see result_player.lua); Gauge only exposes 0-100%, so convert.
+    if (dan_gauge) result.gauge_length = dan_gauge->get_length() * 0.87f;
+    else if (gauge.has_value()) result.gauge_length = gauge->get_length() * 0.87f;
     if (skipped_run) result.gauge_length = 0.0f;
     return result;
 }
@@ -303,7 +305,7 @@ void Player::update(double ms_from_start, double current_ms, std::optional<Backg
         global_data.live_drumroll = total_drumroll;
         global_data.live_gogo     = is_gogo_time;
         if (gauge.has_value()) {
-            global_data.live_soul       = gauge->get_soul();
+            global_data.live_soul       = gauge->get_length();  // now 0-100%, not the old 0-10000 soul-point scale
             global_data.live_is_clear   = gauge->get_is_clear();
             global_data.live_is_rainbow = gauge->get_is_rainbow();
         }
@@ -402,8 +404,7 @@ void Player::update(double ms_from_start, double current_ms, std::optional<Backg
     } else if (gauge.has_value()) {
         gauge->update(current_ms);
         if (background.has_value()) {
-            background->handle_gauge(player_num, gauge->get_progress(), gauge->get_is_clear(), gauge->get_is_rainbow(),
-                                     gauge->get_clear_progress(), gauge->get_flash_attribute());
+            background->handle_gauge(player_num, gauge->get_length() / 100.0f, gauge->get_is_clear(), gauge->get_is_rainbow());
         }
         bool gauge_full_now = gauge->get_is_rainbow();
         if (gauge_full_now && !was_gauge_full) {
@@ -659,7 +660,7 @@ void Player::reset_chart() {
         }
     }
     judgeable_note_count = gauge_total_notes;
-    gauge = Gauge(GaugeMode::NORMAL, player_num, gauge_total_notes, difficulty, stars);
+    gauge = Gauge(gauge_total_notes, difficulty, stars - 1, player_num);
 
     //setup score
     base_score = 0;
@@ -1544,10 +1545,12 @@ void Player::draw_modifiers(float y) {
 }
 
 void Player::draw_lane_cover(float y) {
-    if (is_2p) {
-        chara->draw(tex.skin_config[SC::GAME_CHARA_P2].x, y + tex.skin_config[SC::GAME_CHARA_P2].y, 1.0f);
-    } else {
-        chara->draw(tex.skin_config[SC::GAME_CHARA_P1].x, y + tex.skin_config[SC::GAME_CHARA_P1].y, 1.0f);
+    if (!is_balloon) {
+        if (is_2p) {
+            chara->draw(tex.skin_config[SC::GAME_CHARA_P2].x, y + tex.skin_config[SC::GAME_CHARA_P2].y, 1.0f);
+        } else {
+            chara->draw(tex.skin_config[SC::GAME_CHARA_P1].x, y + tex.skin_config[SC::GAME_CHARA_P1].y, 1.0f);
+        }
     }
     tex.draw_texture(lane_cover_tex_id, {.y=y});
     if (is_dan) tex.draw_texture(LANE::DAN_LANE_COVER, {.y=y});

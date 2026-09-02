@@ -474,7 +474,10 @@ struct GaugeFixture : public SandboxScreen::Fixture {
 
     uint32_t anchor_texture_id() override { return GAUGE::OVERLAY_HARD; }
 
-    void reset(double) override { active.emplace(GaugeMode::NORMAL, player_num, 100, 2, 5); type_idx = 0; }
+    void reset(double) override {
+        active.emplace(100, 2, 5, player_num);
+        type_idx = 0;
+    }
     void on_space(double) override {
         if (!active) return;
         if (type_idx == 0)      active->add_good();
@@ -493,7 +496,7 @@ struct GaugeFixture : public SandboxScreen::Fixture {
     std::vector<std::string> debug_lines() override {
         if (!active) return {};
         return {
-            "Progress : " + std::to_string((int)(active->get_progress() * 100)) + "%",
+            "Progress : " + std::to_string((float)(active->get_length())) + "%",
             std::string("Clear    : ") + (active->get_is_clear()   ? "yes" : "no"),
             std::string("Rainbow  : ") + (active->get_is_rainbow() ? "yes" : "no"),
         };

@@ -69,7 +69,7 @@ void DanGameScreen::init_dan() {
     exam_song_failed.assign(sd.selected_dan_exam.size(), {false, false, false});
     dan_info_cache.reset();
     song_max_combo = 0;
-    dan_gauge = Gauge(GaugeMode::DAN, global_data.player_num, total_notes);
+    dan_gauge.emplace(total_notes, 0, 0, global_data.player_num);
 
     // Create player for first song
     const auto& first = sd.selected_dan[0];
@@ -84,7 +84,7 @@ void DanGameScreen::init_dan() {
         get_player_modifiers(global_data.player_num)));
     players[0]->set_is_dan(true);
     players[0]->gauge.reset();
-    players[0]->dan_gauge = &dan_gauge;
+    players[0]->dan_gauge = &dan_gauge.value();
 
     init_skip();
 
@@ -120,7 +120,7 @@ void DanGameScreen::change_song() {
     song_started = false;
 
     players[0]->reload_for_dan(parser, entry.difficulty);
-    players[0]->dan_gauge = &dan_gauge;
+    players[0]->dan_gauge = &dan_gauge.value();
 
     init_skip();
 
@@ -170,8 +170,7 @@ const SkinInfo& DanGameScreen::dan_exam_info() {
 
 int DanGameScreen::get_exam_progress(const Exam& exam) {
     Player* p = players[0].get();
-    float gauge_pct = (dan_gauge.gauge_max > 0)
-        ? (dan_gauge.gauge_length / dan_gauge.gauge_max) * 100.0f : 0.0f;
+    float gauge_pct = dan_gauge ? dan_gauge->get_length() : 0.0f;
 
     if (exam.type == "gauge")        return (int)gauge_pct;
     if (exam.type == "judgeperfect") return p->get_good();
@@ -335,7 +334,7 @@ void DanGameScreen::save_result_data(bool all_failed) {
     sd.dan_result_data.is_gaiden     = sd.dan_gaiden;
     sd.dan_result_data.dan_title    = sd.song_title;
     sd.dan_result_data.score        = players[0]->get_score();
-    sd.dan_result_data.gauge_length = dan_gauge.gauge_length;
+    if (dan_gauge) sd.dan_result_data.gauge_length = dan_gauge->get_length();
     sd.dan_result_data.max_combo    = players[0]->get_max_combo();
     sd.dan_result_data.exams        = sd.selected_dan_exam;
 
@@ -577,8 +576,8 @@ void DanGameScreen::push_dan_state() {
     st["song_count"]      = (int)sd.selected_dan.size();
     st["total_notes"]     = total_notes;
     st["remaining_notes"] = dan_info_cache->remaining_notes;
-    st["gauge"]           = dan_gauge.gauge_length;
-    st["gauge_max"]       = dan_gauge.gauge_max;
+    st["gauge"]           = dan_gauge ? dan_gauge->get_length() : 0.0f;  // 0-100%
+    st["gauge_max"]       = 100.0f;
 
     sol::table rows = lua.create_table();
     const auto& exams = sd.selected_dan_exam;
@@ -797,7 +796,7 @@ void DanGameScreen::draw_dan_info() {
 void DanGameScreen::draw() {
     if (background.has_value()) background->draw_back();
     draw_dan_info();
-    dan_gauge.draw();
+    if (dan_gauge) dan_gauge->draw();
     if (background.has_value()) background->draw_gauge(PlayerNum::P1);
     if (players.size() == 1)
         players[0]->draw(ms_from_start, 0, 184 * tex.screen_scale, mask_shader);
