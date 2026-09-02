@@ -3,6 +3,8 @@
 #include "box_base.h"
 #include "score_history.h"
 #include "../../../libs/song_parser.h"
+#include "../../../libs/audio.h"
+#include <atomic>
 #include <cmath>
 
 class SongBox : public BaseBox {
@@ -18,17 +20,26 @@ public:
     std::unique_ptr<OutlinedText> bpm_text;
     std::optional<ray::Texture2D> preimage;
     bool music_playing = false;
+    struct PreviewLoad {
+        std::atomic<bool>       done{false};
+        bool                    ok = false;
+        AudioEngine::PreparedPCM pcm;
+    };
+    std::shared_ptr<PreviewLoad> preview_load;
+    bool preview_attempted = false;
     std::unique_ptr<ScoreHistory> score_history;
     double box_opened_at = 0.0;
     FadeAnimation* diff_fade_in;
     bool is_ura = false;
-    // The genre the song itself belongs to. Same as genre_index for a song
-    // sitting in its genre folder, but inside a collection the box keeps the
-    // collection's genre (its colours and background are the collection's)
-    // while the game screen still needs the song's own genre for its label.
     GenreIndex song_genre_index = GenreIndex::DEFAULT;
 
     SongBox(const fs::path& path, const BoxDef& box_def, SongParser parser);
+    ~SongBox() override { release_preview_slot(); }
+
+    static void service_bgm_resume(double current_ms);
+    static void reset_bgm_slot();
+    void release_preview_slot();
+    bool holds_preview_slot = false;
 
     void reset() override;
 
@@ -41,6 +52,7 @@ public:
     std::vector<Difficulty> get_diffs();
 
     void refresh_scores();
+    std::string hash_for(int difficulty);
 
     const char* lua_kind() const override { return "song"; }
     OutlinedText* horizontal_subtitle() {

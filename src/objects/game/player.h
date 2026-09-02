@@ -55,7 +55,12 @@ public:
 
     std::optional<JudgeCounter> judge_counter;
     std::optional<Gauge> gauge;
-    Gauge* dan_gauge = nullptr;  // non-owning; set by DanGameScreen
+    Gauge* dan_gauge = nullptr;
+    Background* bg_hook = nullptr;
+
+    Player* kusudama_partner = nullptr;
+    int kusudama_shared_hits = 0;
+    Player* kusudama_owner() { return (kusudama_partner && is_2p) ? kusudama_partner : this; }
 
     std::optional<Note> get_first_note();
 
@@ -65,6 +70,9 @@ public:
     int get_ok()   const { return ok_count; }
     int get_bad()  const { return bad_count; }
     bool is_auto_play() const { return modifiers.auto_play; }
+    bool is_skip_enabled() const { return modifiers.skip; }
+    void cut_to_end(double now, int prev_good = 0, int prev_ok = 0, int prev_bad = 0);
+    bool was_skipped() const { return skipped_run; }
     const Modifiers& get_modifiers() const { return modifiers; }
     void set_auto_play(bool value) { modifiers.auto_play = value; }
     void reset_performance() {
@@ -72,10 +80,12 @@ public:
         combo = max_combo = 0;
         score = 0;
         total_drumroll = 0;
+        was_gauge_full = false;
         if (judge_counter) judge_counter = JudgeCounter();
     }
     int get_score() const { return score; }
     int get_max_combo() const { return max_combo; }
+    int get_combo() const { return combo; }
     int get_total_drumroll() const { return total_drumroll; }
     int get_scissor_x() const { return virtual_to_screen_x(static_cast<float>(tex.textures[lane_cover_tex_id]->x2[0])); }
     void set_is_dan(bool v) { is_dan = v; }
@@ -101,6 +111,8 @@ protected:
 
 private:
     bool is_2p;
+    int  judgeable_note_count = 0;
+    bool skipped_run = false;
     bool is_dan;
     int difficulty;
     int visual_offset;
@@ -125,6 +137,7 @@ private:
 
     float scroll_multiplier;
     bool is_gogo_time;
+    bool was_gauge_full = false;
     Side autoplay_hit_side;
     int last_subdivision;
 

@@ -9,7 +9,8 @@ private:
 public:
     Game2PScreen() : GameScreen("game") {}
 
-    void on_screen_start() override;
+    PlayerNum scene_player_num() const override { return PlayerNum::TWO_PLAYER; }
+
     void init_tja(fs::path song) override;
     std::optional<Screens> update() override;
 };

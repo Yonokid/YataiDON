@@ -1,4 +1,4 @@
-#include "entry.h"
+﻿#include "entry.h"
 #include "../libs/input.h"
 #include "../libs/scores.h"
 
@@ -6,7 +6,7 @@ void EntryScreen::on_screen_start() {
     Screen::on_screen_start();
     side = 1;
     is_2p = false;
-    box_manager = std::make_unique<BoxManager>();
+    box_manager = std::make_unique<BoxManager>(global_data.entry_join_pending);
     state = EntryState::SELECT_SIDE;
 
     {
@@ -21,19 +21,47 @@ void EntryScreen::on_screen_start() {
         if (box_manager->is_costume_box()) {
             box_manager->open_costume_menu(global_data.player_num);
         } else {
+            if (!box_manager->selection_allowed()) box_manager->move_left();
             box_manager->select_box();
         }
     });
 
     lua_entry = std::make_unique<EntryScript>();
     lua_entry->start_side_select();
-
     reload_preview_chara(global_data.config->general.player_1_id);
     announce_played = false;
     players.clear();
     players.resize(2);
-
     audio.play_sound("bgm", VolumePreset::MUSIC);
+
+    if (global_data.entry_join_pending) {
+        global_data.entry_join_pending = false;
+        start_second_player_join();
+    }
+}
+
+void EntryScreen::start_second_player_join() {
+    const PlayerNum first  = global_data.entry_joined_seat;
+    const PlayerNum second = (first == PlayerNum::P1) ? PlayerNum::P2 : PlayerNum::P1;
+
+    side = (first == PlayerNum::P1) ? 0 : 2;
+    global_data.player_num = first;
+    players[0] = std::make_unique<EntryPlayer>(first, side, box_manager.get());
+    players[0]->start_animations();
+
+    const int second_side = (second == PlayerNum::P1) ? 0 : 2;
+    global_data.player_num = second;
+    players[1] = std::make_unique<EntryPlayer>(second, second_side, box_manager.get());
+    players[1]->start_animations();
+    audio.play_sound("cloud", VolumePreset::SOUND);
+    audio.play_sound("entry_start_" + std::to_string((int)second) + "p", VolumePreset::VOICE);
+
+    global_data.player_num = PlayerNum::P1;
+    is_2p = true;
+    side = 1;
+    state = EntryState::SELECT_MODE;
+    spdlog::info("[2P join] ENTRY resumed: {}P kept (first_login {}P), {}P entered, mode select",
+                 (int)first, (int)global_data.first_login_player, (int)second);
 }
 
 void EntryScreen::reload_preview_chara(int player_id) {
@@ -52,14 +80,54 @@ Screens EntryScreen::on_screen_end(Screens next_screen) {
     return Screen::on_screen_end(next_screen);
 }
 
+bool EntryScreen::arcade_credit() const {
+    return tex.options[SCO::ENTRY_CREDIT_ARCADE];
+}
+
+bool EntryScreen::seat_joined(PlayerNum player_num) const {
+    for (auto& player : players) {
+        if (player && player->player_num == player_num) return true;
+    }
+    return false;
+}
+
+void EntryScreen::join_player(PlayerNum player_num) {
+    side = (player_num == PlayerNum::P1) ? 0 : 2;
+    global_data.player_num = player_num;
+
+    if (players[0]) {
+        players[1] = std::make_unique<EntryPlayer>(global_data.player_num, side, box_manager.get());
+        players[1]->start_animations();
+        global_data.player_num = PlayerNum::P1;
+        is_2p = true;
+    } else {
+        global_data.first_login_player = global_data.player_num;
+        players[0] = std::make_unique<EntryPlayer>(global_data.player_num, side, box_manager.get());
+        players[0]->start_animations();
+        is_2p = false;
+    }
+    audio.play_sound("cloud", VolumePreset::SOUND);
+    audio.play_sound("entry_start_" + std::to_string((int)global_data.player_num) + "p", VolumePreset::VOICE);
+    if (state == EntryState::SELECT_SIDE) lua_entry->decide_side_select(side);
+    state = EntryState::SELECT_MODE;
+    audio.play_sound("don", VolumePreset::SOUND);
+}
+
 std::optional<Screens> EntryScreen::handle_input() {
+    if (arcade_credit() && state == EntryState::SELECT_SIDE) {
+        if (!seat_joined(PlayerNum::P1) &&
+            (is_l_don_pressed(PlayerNum::P1) || is_r_don_pressed(PlayerNum::P1))) {
+            join_player(PlayerNum::P1);
+        } else if (!seat_joined(PlayerNum::P2) &&
+                   (is_l_don_pressed(PlayerNum::P2) || is_r_don_pressed(PlayerNum::P2))) {
+            join_player(PlayerNum::P2);
+        }
+        return std::nullopt;
+    }
     if (state == EntryState::SELECT_SIDE) {
         if (is_l_don_pressed() || is_r_don_pressed()) {
             if (side == 1) {
                 if (players[0]) {
-                    // The side select was opened to add a second player -
-                    // cancelling it goes back to the first player's mode
-                    // select instead of dropping the whole entry to title.
                     audio.play_sound("don", VolumePreset::SOUND);
                     state = EntryState::SELECT_MODE;
                     return std::nullopt;
@@ -107,8 +175,23 @@ std::optional<Screens> EntryScreen::handle_input() {
             if (player) player->handle_input();
         }
     } else if (state == EntryState::SELECT_MODE) {
-        // The mode boxes are only drawn once every player's entry animation
-        // has played out; don't let them be picked while they are invisible.
+        if (arcade_credit()) {
+            if (!seat_joined(PlayerNum::P1) &&
+                (is_l_don_pressed(PlayerNum::P1) || is_r_don_pressed(PlayerNum::P1))) {
+                join_player(PlayerNum::P1);
+                return std::nullopt;
+            }
+            if (!seat_joined(PlayerNum::P2) &&
+                (is_l_don_pressed(PlayerNum::P2) || is_r_don_pressed(PlayerNum::P2))) {
+                join_player(PlayerNum::P2);
+                return std::nullopt;
+            }
+            if (!mode_select_ready()) return std::nullopt;
+            for (auto& player : players) {
+                if (player) player->handle_input();
+            }
+            return std::nullopt;
+        }
         if (!mode_select_ready()) return std::nullopt;
         for (auto& player : players) {
             if (player) player->handle_input();
@@ -144,7 +227,9 @@ std::optional<Screens> EntryScreen::update() {
     entry_overlay.update(current_time);
     lua_entry->update(current_time);
     box_manager->update(current_time, is_2p);
-    timer->update(current_time);
+    if (!(arcade_credit() && state == EntryState::SELECT_SIDE)) {
+        timer->update(current_time);
+    }
     nameplate.update(current_time);
     chara->update(current_time);
     for (auto& player : players) {
@@ -187,9 +272,14 @@ void EntryScreen::draw_side_select(float fade) {
     auto& skin = tex.skin_config;
     lua_entry->draw_side_select();
 
-    chara->draw(tex.skin_config[SC::CHARA_ENTRY].x, tex.skin_config[SC::CHARA_ENTRY].y);
+    const bool show_preview = !arcade_credit() || seat_joined(PlayerNum::P1) || seat_joined(PlayerNum::P2);
+    if (show_preview) {
+        chara->draw(tex.skin_config[SC::CHARA_ENTRY].x, tex.skin_config[SC::CHARA_ENTRY].y);
+    }
     lua_entry->draw_side_select_buttons(side);
-    nameplate.draw(skin[SC::NAMEPLATE_ENTRY].x, skin[SC::NAMEPLATE_ENTRY].y, fade);
+    if (show_preview) {
+        nameplate.draw(skin[SC::NAMEPLATE_ENTRY].x, skin[SC::NAMEPLATE_ENTRY].y, fade);
+    }
 }
 
 void EntryScreen::draw_player_drum() {

@@ -1,6 +1,7 @@
 {
     "title": "九級",
     "color": 0,
+    "rank_art": 23,
     "exams": [
         {
             "type": "gauge",

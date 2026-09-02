@@ -1,6 +1,7 @@
 {
     "title": "初級",
     "color": 0,
+    "rank_art": 21,
     "exams": [
         {
             "type": "gauge",

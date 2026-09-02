@@ -50,13 +50,15 @@ void EntryPlayer::update(double current_time) {
 
 void EntryPlayer::open_costume_menu() {
     costume_menu.emplace(player_num);
+    preset_seq_applied = 0;
 }
 
 void EntryPlayer::draw_drum() {
     auto pos_opt = call_r<sol::table>(fn_draw_drum_back, "EntryPlayer:draw_drum_back");
     if (pos_opt) {
         sol::table& pos = pos_opt.value();
-        chara->draw(pos.get<float>(1), pos.get<float>(2));
+        sol::optional<float> s = pos[3];
+        chara->draw(pos.get<float>(1), pos.get<float>(2), s.value_or(1.0f));
     }
     call(fn_draw_drum_front, "EntryPlayer:draw_drum_front");
 }
@@ -89,6 +91,20 @@ float EntryPlayer::get_nameplate_fadein() {
 void EntryPlayer::handle_input() {
     if (costume_menu) {
         costume_menu->handle_input();
+        if (int seq = costume_menu->get_preset_seq(); seq != preset_seq_applied) {
+            preset_seq_applied = seq;
+            bool mirror = player_num == PlayerNum::P2;
+            int player_id = get_player_id(player_num);
+            auto pd = scores_manager.get_player_data(player_id);
+            PlayerData* pd_ptr = pd ? &*pd : nullptr;
+            if (auto cos = costume_menu->get_preset_cos_id()) {
+                std::string cos_name = std::to_string(*cos);
+                chara = std::make_unique<Chara3D>(cos_name, mirror);
+            } else {
+                chara = make_chara_from_player_data(pd_ptr, mirror);  // preview dropped
+            }
+            apply_pd_look(*chara, pd_ptr, player_num);
+        }
         if (costume_menu->get_index().has_value()) {
             int selected_index = costume_menu->get_index().value();
             CostumePickStage stage = costume_menu->get_pick_stage();
@@ -137,7 +153,7 @@ void EntryPlayer::handle_input() {
             }
             costume_menu.reset();
             chara_pick_stage = CostumePickStage::NONE;
-            audio.play_sound("costume_select_" + std::to_string((int)player_num) + "p", VolumePreset::SOUND);
+            audio.play_sound("costume_select_" + std::to_string((int)player_num) + "p", VolumePreset::VOICE);
             chara->set_anim(AnimIndex::DON_BALLOON_SUCCESS);
         }
         return;

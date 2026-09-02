@@ -41,7 +41,8 @@ void PracticeMenu::build_text() {
         int chars = 0;
         for (unsigned char c : label)
             if ((c & 0xC0) != 0x80) chars++;
-        int   fs    = (int)(tex.skin_config[SC::SONG_BOX_NAME].font_size);
+        const int base_fs = (int)(tex.skin_config[SC::SONG_BOX_NAME].font_size);
+        int   fs    = base_fs;
         float avail = tex.skin_config[SC::PRACTICE_MENU_LABEL].width;
         float v     = 1.0f;
         if (chars > 1) {
@@ -53,8 +54,9 @@ void PracticeMenu::build_text() {
                 v = 1.0f;
             }
         }
+        float outline = 5.0f * ((float)fs / (float)base_fs);
         menu_text.push_back(std::make_unique<OutlinedText>(label, fs,
-            ray::WHITE, ray::BLACK, true, 5, 2.0f, v));
+            ray::WHITE, ray::BLACK, true, outline, 2.0f, v));
     }
 }
 

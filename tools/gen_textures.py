@@ -2,10 +2,11 @@
 """
 Generate texture_ids_generated.h from the texture.json files in a skin.
 
-Usage: gen_textures.py <graphics_dir> <output_header>
+Usage: gen_textures.py <graphics_dir> [<graphics_dir> ...] <output_header>
 
-Walks <graphics_dir>/{screen}/{subset}/texture.json (depth-2 relative to
-graphics_dir). Produces:
+Walks {screen}/{subset}/texture.json under every graphics dir given (the base
+skin plus any child skins). The result is the UNION over all of them, so a child
+skin may introduce texture names — and whole subsets — of its own.  Produces:
   - enum TexID : uint32_t  — one value per (subset, texture_name) pair
   - per-subset namespaces  — YELLOW_BOX::CROWN_FC etc. for ergonomic access
   - tex_id_map             — "subset/name" -> TexID, used once at load time
@@ -26,27 +27,30 @@ def to_identifier(name: str) -> str:
     return upper
 
 
-def generate(graphics_dir: str, output_path: str) -> None:
-    root = Path(graphics_dir)
-
-    # Collect ordered (subset, texture_name) pairs, union across all screens.
-    # texture.json files may live at any depth under the graphics root; the subset
-    # name is always the leaf folder (tex_json.parent.name).
+def generate(graphics_dirs: list[str], output_path: str) -> None:
+    # Collect ordered (subset, texture_name) pairs, union across all screens and
+    # all skins. texture.json files may live at any depth under a graphics root;
+    # the subset name is always the leaf folder (tex_json.parent.name).
     subset_textures: dict[str, set[str]] = {}
-    for tex_json in sorted(root.rglob("texture.json")):
-        subset_dir = tex_json.parent
-        subset_name = subset_dir.name
-        with open(tex_json, encoding="utf-8") as f:
-            try:
-                data = json.load(f)
-            except json.JSONDecodeError as e:
-                print(f"  WARNING: skipping {tex_json}: {e}", file=sys.stderr)
-                continue
-        subset_textures.setdefault(subset_name, set()).update(data.keys())
-        # Also include frame sub-directories (e.g. indicator/text/) not listed in texture.json
-        for entry in subset_dir.iterdir():
-            if entry.is_dir() and entry.name not in data:
-                subset_textures[subset_name].add(entry.name)
+    for graphics_dir in graphics_dirs:
+        root = Path(graphics_dir)
+        if not root.is_dir():
+            print(f"  WARNING: skipping missing graphics dir {root}", file=sys.stderr)
+            continue
+        for tex_json in sorted(root.rglob("texture.json")):
+            subset_dir = tex_json.parent
+            subset_name = subset_dir.name
+            with open(tex_json, encoding="utf-8") as f:
+                try:
+                    data = json.load(f)
+                except json.JSONDecodeError as e:
+                    print(f"  WARNING: skipping {tex_json}: {e}", file=sys.stderr)
+                    continue
+            subset_textures.setdefault(subset_name, set()).update(data.keys())
+            # Also include frame sub-directories (e.g. indicator/text/) not listed in texture.json
+            for entry in subset_dir.iterdir():
+                if entry.is_dir() and entry.name not in data and not entry.name.startswith('.'):
+                    subset_textures[subset_name].add(entry.name)
 
     # Assign globally unique sequential IDs
     entries: list[tuple[str, str, int]] = []   # (subset, tex_name, id)
@@ -107,11 +111,13 @@ def generate(graphics_dir: str, output_path: str) -> None:
         f.write(content)
 
     total_subsets = len(subset_textures)
-    print(f"Generated {output_path} ({total_subsets} subsets, {len(entries)} textures)")
+    print(f"Generated {output_path} ({total_subsets} subsets, {len(entries)} textures, "
+          f"{len(graphics_dirs)} skin(s))")
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print(f"Usage: {sys.argv[0]} <graphics_dir> <output_header>", file=sys.stderr)
+    if len(sys.argv) < 3:
+        print(f"Usage: {sys.argv[0]} <graphics_dir> [<graphics_dir> ...] <output_header>",
+              file=sys.stderr)
         sys.exit(1)
-    generate(sys.argv[1], sys.argv[2])
+    generate(sys.argv[1:-1], sys.argv[-1])

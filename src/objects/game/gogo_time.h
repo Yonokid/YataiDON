@@ -6,6 +6,7 @@ class GogoTime {
 private:
     TextureResizeAnimation* fire_resize;
     TextureChangeAnimation* fire_change;
+    float fire_fade;
 
 public:
     GogoTime();

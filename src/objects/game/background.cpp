@@ -33,8 +33,12 @@ Background::Background(PlayerNum player_num, float bpm, const std::string& scene
         fn_handle_drumroll = lua_object["handle_drumroll"];
         fn_handle_balloon  = lua_object["handle_balloon"];
         fn_handle_gauge  = lua_object["handle_gauge"];
+        fn_handle_song_end = lua_object["handle_song_end"];
+        fn_handle_dan      = lua_object["handle_dan"];
+        fn_handle_skip     = lua_object["handle_skip"];
         fn_draw_back     = lua_object["draw_back"];
         fn_draw_fore     = lua_object["draw_fore"];
+        fn_draw_gauge    = lua_object["draw_gauge"];
     }
 }
 
@@ -97,11 +101,40 @@ void Background::handle_balloon(PlayerNum player_num) {
     }
 }
 
-void Background::handle_gauge(PlayerNum player_num, float progress, bool is_clear, bool is_rainbow) {
-    auto result = fn_handle_gauge(lua_object, static_cast<int>(player_num), progress, is_clear, is_rainbow);
+void Background::handle_gauge(PlayerNum player_num, float progress, bool is_clear, bool is_rainbow,
+                              float clear_progress, float flash) {
+    auto result = fn_handle_gauge(lua_object, static_cast<int>(player_num), progress, is_clear, is_rainbow,
+                                  clear_progress, flash);
     if (!result.valid()) {
         sol::error err = result;
         spdlog::error("Error calling handle_gauge: {}", err.what());
+    }
+}
+
+void Background::handle_song_end(PlayerNum player_num, int good, int ok, int bad, int total_notes) {
+    if (!fn_handle_song_end.valid()) return;
+    auto result = fn_handle_song_end(lua_object, static_cast<int>(player_num), good, ok, bad, total_notes);
+    if (!result.valid()) {
+        sol::error err = result;
+        spdlog::error("Error calling handle_song_end: {}", err.what());
+    }
+}
+
+void Background::handle_dan(PlayerNum player_num, const sol::table& state) {
+    if (!fn_handle_dan.valid()) return;
+    auto result = fn_handle_dan(lua_object, static_cast<int>(player_num), state);
+    if (!result.valid()) {
+        sol::error err = result;
+        spdlog::error("Error calling handle_dan: {}", err.what());
+    }
+}
+
+void Background::handle_skip(PlayerNum player_num, const sol::table& state) {
+    if (!fn_handle_skip.valid()) return;
+    auto result = fn_handle_skip(lua_object, static_cast<int>(player_num), state);
+    if (!result.valid()) {
+        sol::error err = result;
+        spdlog::error("Error calling handle_skip: {}", err.what());
     }
 }
 
@@ -118,5 +151,14 @@ void Background::draw_fore() {
     if (!result.valid()) {
         sol::error err = result;
         spdlog::error("Error calling draw_fore: {}", err.what());
+    }
+}
+
+void Background::draw_gauge(PlayerNum player_num) {
+    if (!fn_draw_gauge.valid()) return;
+    auto result = fn_draw_gauge(lua_object, static_cast<int>(player_num));
+    if (!result.valid()) {
+        sol::error err = result;
+        spdlog::error("Error calling draw_gauge: {}", err.what());
     }
 }

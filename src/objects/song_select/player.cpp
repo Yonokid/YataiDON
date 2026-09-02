@@ -4,8 +4,8 @@
 #include "../../libs/input.h"
 #include "../../libs/scores.h"
 
-void SongSelectPlayer::try_lua_selector(bool is_half, float fade_in) {
-    selector_handled_by_lua = script && script->draw_selector(this, is_half, fade_in);
+void SongSelectPlayer::try_lua_selector(bool is_half, float fade_in, int pass) {
+    selector_handled_by_lua = script && script->draw_selector(this, is_half, fade_in, pass);
 }
 
 SongSelectPlayer::SongSelectPlayer(PlayerNum player_num)
@@ -87,8 +87,6 @@ void SongSelectPlayer::init_diff_cursor() {
     int last = global_data.last_difficulty[(int)player_num];
     if (last < (int)Difficulty::EASY) return;
 
-    // An ura pick lands the cursor on the oni column; the player flips to
-    // ura themselves if this song has one.
     Difficulty desired = (Difficulty)std::min(last, (int)Difficulty::ONI);
 
     Difficulty pick = Difficulty::BACK;
@@ -105,9 +103,6 @@ void SongSelectPlayer::init_diff_cursor() {
     }
     if (pick != Difficulty::BACK) {
         selected_difficulty = pick;
-        // draw_selector positions from prev_diff until the move animation
-        // has run; leaving it at BACK draws the cursor over the option
-        // column instead of the picked difficulty.
         prev_diff = pick;
     }
 }
@@ -125,8 +120,6 @@ void SongSelectPlayer::start_background_diffs() {
 }
 
 void SongSelectPlayer::sync_ura(bool ura) {
-    // A player who already confirmed keeps what the column showed when
-    // they pressed; only someone still choosing follows the toggle.
     if (voice_played || is_ready) return;
     if (is_ura == ura) return;
     is_ura = ura;
@@ -140,6 +133,8 @@ SongSelectState SongSelectPlayer::select_song() {
     BaseBox* item = navigator.get_current_item();
     if (navigator.is_directory(item) && item->genre_index == GenreIndex::DAN) {
         global_data.session_data[(int)player_num].selected_dan_folder = item->path;
+        if ((int)player_num >= 0 && (int)player_num < (int)global_data.dan_folder.size())
+            global_data.dan_folder[(int)player_num] = item->path;
         return SongSelectState::DAN_SELECTED;
     } else if (navigator.is_song(item)) {
         navigator.enter_diff_select();
@@ -200,9 +195,6 @@ SongSelectState SongSelectPlayer::handle_input_browsing(double current_ms) {
         }
     }
 
-    // A don landing on the same frame as a navigation would open the newly
-    // selected item while the boxes are still mid-slide, corrupting the
-    // wheel display - navigation wins, the select is dropped for this frame.
     if (!navigated && (l_don || r_don)) {
         BaseBox* item = navigator.get_current_item();
         if (navigator.is_directory(item) && item->collection == COLLECTIONS[5])
@@ -215,14 +207,14 @@ SongSelectState SongSelectPlayer::handle_input_browsing(double current_ms) {
 std::optional<std::pair<int,int>> SongSelectPlayer::handle_input_diff_sort(DiffSortSelect* diff_sort_selector) {
     if (is_l_kat_pressed(player_num)) {
         diff_sort_selector->input_left();
-        audio.play_sound("kat", VolumePreset::SOUND);
+        if (!tex.options[SCO::ONE_MENU_SORT]) audio.play_sound("kat", VolumePreset::SOUND);
     }
     if (is_r_kat_pressed(player_num)) {
         diff_sort_selector->input_right();
-        audio.play_sound("kat", VolumePreset::SOUND);
+        if (!tex.options[SCO::ONE_MENU_SORT]) audio.play_sound("kat", VolumePreset::SOUND);
     }
     if (is_l_don_pressed(player_num) || is_r_don_pressed(player_num)) {
-        audio.play_sound("don", VolumePreset::SOUND);
+        if (!tex.options[SCO::ONE_MENU_SORT]) audio.play_sound("don", VolumePreset::SOUND);
         return diff_sort_selector->input_select();
     }
     return std::nullopt;
@@ -256,6 +248,8 @@ std::optional<std::string> SongSelectPlayer::handle_input_search() {
     }
     return std::nullopt;
 }
+
+static bool neiro_in_options() { return tex.options[SCO::OPTION_NEIRO_ROW]; }
 
 SongSelectState SongSelectPlayer::handle_input_selecting() {
     bool l_kat = is_l_kat_pressed(player_num);
@@ -305,7 +299,7 @@ SongSelectState SongSelectPlayer::handle_input_selecting() {
             if (selected_difficulty == Difficulty::MODIFIER) {
                 modifier_selector = ModifierSelector(player_num, &player_data);
                 chara->set_anim(AnimIndex::DON_SELECT_PANELUP);
-            } else if (selected_difficulty == Difficulty::NEIRO) {
+            } else if (selected_difficulty == Difficulty::NEIRO && !neiro_in_options()) {
                 neiro_selector = NeiroSelector(player_num, &player_data);
                 chara->set_anim(AnimIndex::DON_SELECT_PANELUP);
             } else if (selected_difficulty >= Difficulty::EASY) {
@@ -326,7 +320,9 @@ void SongSelectPlayer::navigate_difficulty_left() {
     if (is_ura && selected_difficulty == Difficulty::URA) {
         diff_selector_move_1->start();
         prev_diff = selected_difficulty;
-        selected_difficulty = (curr_diffs.size() == 1) ? Difficulty::NEIRO : curr_diffs[curr_diffs.size() - 3];
+        selected_difficulty = (curr_diffs.size() == 1)
+            ? (neiro_in_options() ? Difficulty::MODIFIER : Difficulty::NEIRO)
+            : curr_diffs[curr_diffs.size() - 3];
     } else if (selected_difficulty == Difficulty::NEIRO || selected_difficulty == Difficulty::MODIFIER) {
         diff_selector_move_2->start();
         prev_diff = selected_difficulty;
@@ -340,7 +336,7 @@ void SongSelectPlayer::navigate_difficulty_left() {
     } else if (selected_difficulty == curr_diffs.front()) {
         diff_selector_move_2->start();
         prev_diff = selected_difficulty;
-        selected_difficulty = Difficulty::NEIRO;
+        selected_difficulty = neiro_in_options() ? Difficulty::MODIFIER : Difficulty::NEIRO;
     } else {
         diff_selector_move_1->start();
         prev_diff = selected_difficulty;
@@ -364,7 +360,8 @@ void SongSelectPlayer::navigate_difficulty_right() {
     if ((selected_difficulty == Difficulty::ONI || selected_difficulty == Difficulty::URA) && has_ura && has_oni) {
         ura_toggle = (ura_toggle + 1) % 10;
         if (ura_toggle == 0) toggle_ura_mode();
-    } else if (selected_difficulty == Difficulty::NEIRO) {
+    } else if (selected_difficulty == Difficulty::NEIRO
+               || (selected_difficulty == Difficulty::MODIFIER && neiro_in_options())) {
         prev_diff = selected_difficulty;
         selected_difficulty = curr_diffs.front();
         diff_selector_move_2->start();
@@ -393,9 +390,6 @@ void SongSelectPlayer::toggle_ura_mode() {
 }
 
 void SongSelectPlayer::draw_selector(bool is_half, float fade_in) {
-    // Keep the cursor hidden until the difficulty panel finished expanding:
-    // parts of the selector (the outline) draw unfaded, so a pre-placed
-    // cursor popped in at full opacity over the still-fading panel.
     if (fade_in < 1.0f) return;
     float fade = (neiro_selector.has_value() || modifier_selector.has_value())
         ? 0.5f : fade_in;
@@ -457,7 +451,7 @@ void SongSelectPlayer::draw_background_diffs(SongSelectState state) {
     float x_offset = ((int)player_num == 2) ? tex.skin_config[SC::SONG_SELECT_BG_DIFF_P2_OFFSET].x : 0.0f;
     float bounce_y  = -selected_diff_bounce->attribute;
     float bounce_y2 =  selected_diff_bounce->attribute;
-    int diff_frame     = (int)selected_difficulty;
+    int diff_frame     = (int)(std::min(Difficulty::URA, selected_difficulty));
     int diff_frame_oni = (int)(std::min(Difficulty::ONI, selected_difficulty));
 
     tex.draw_texture(GLOBAL::BACKGROUND_DIFF, {.frame=diff_frame, .x=x_offset, .y=bounce_y,  .y2=bounce_y2, .fade=std::min(0.5f, (float)selected_diff_fadein->attribute)});
@@ -469,8 +463,9 @@ void SongSelectPlayer::draw_background_diffs(SongSelectState state) {
 }
 
 void SongSelectPlayer::draw(SongSelectState state, bool is_half, float diff_fade_in) {
-    if (selected_song && state == SongSelectState::SONG_SELECTED && !selector_handled_by_lua) {
-        draw_selector(is_half, diff_fade_in);
+    if (selected_song && state == SongSelectState::SONG_SELECTED) {
+        try_lua_selector(is_half, diff_fade_in, 1);
+        if (!selector_handled_by_lua) draw_selector(is_half, diff_fade_in);
     }
     selector_handled_by_lua = false;
 
@@ -490,13 +485,13 @@ void SongSelectPlayer::draw(SongSelectState state, bool is_half, float diff_fade
 
     if (player_num == PlayerNum::P1) {
         nameplate.draw(tex.skin_config[SC::SONG_SELECT_NAMEPLATE_1P].x, tex.skin_config[SC::SONG_SELECT_NAMEPLATE_1P].y);
-        chara->draw(tex.skin_config[SC::SONG_SELECT_CHARA_1P].x, tex.skin_config[SC::SONG_SELECT_CHARA_1P].y + (offset * 0.6f));
+        chara->draw(tex.skin_config[SC::SONG_SELECT_CHARA_1P].x, tex.skin_config[SC::SONG_SELECT_CHARA_1P].y + (offset * 0.6f), 1.0f);
     } else {
         nameplate.draw(tex.skin_config[SC::SONG_SELECT_NAMEPLATE_2P].x, tex.skin_config[SC::SONG_SELECT_NAMEPLATE_2P].y);
-        chara->draw(tex.skin_config[SC::SONG_SELECT_CHARA_2P].x, tex.skin_config[SC::SONG_SELECT_CHARA_2P].y + (offset * 0.6f));
+        chara->draw(tex.skin_config[SC::SONG_SELECT_CHARA_2P].x, tex.skin_config[SC::SONG_SELECT_CHARA_2P].y + (offset * 0.6f), 1.0f);
     }
 
-    if (neiro_selector.has_value())   neiro_selector->draw();
-    if (modifier_selector.has_value()) modifier_selector->draw();
+    if (neiro_selector.has_value()    && !(script && script->draw_option_panel(this, 2))) neiro_selector->draw();
+    if (modifier_selector.has_value() && !(script && script->draw_option_panel(this, 1))) modifier_selector->draw();
     if (ura_switch.has_value()) ura_switch->draw();
 }

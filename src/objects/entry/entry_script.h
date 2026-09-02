@@ -10,6 +10,7 @@ private:
     sol::protected_function fn_draw_background;
     sol::protected_function fn_draw_side_select;
     sol::protected_function fn_draw_side_select_buttons;
+    sol::protected_function fn_decide_side_select;
     sol::protected_function fn_draw_footer;
     sol::protected_function fn_draw_player_entry;
 
@@ -22,6 +23,7 @@ public:
     void draw_background();
     void draw_side_select();
     void draw_side_select_buttons(int side);
+    void decide_side_select(int side);
     void draw_footer(bool p1_joined, bool p2_joined);
     void draw_player_entry();
 };

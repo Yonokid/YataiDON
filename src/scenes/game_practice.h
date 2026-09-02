@@ -28,7 +28,6 @@ public:
     PracticePlayer(std::optional<SongParser>& parser_ref, PlayerNum player_num_param,
                    int difficulty_param, bool is_2p_param, const Modifiers& modifiers_param)
         : Player(parser_ref, player_num_param, difficulty_param, is_2p_param, modifiers_param) {
-        gauge.reset();
         judge_counter = JudgeCounter();
     }
 
@@ -63,6 +62,7 @@ public:
     PracticeGameScreen() : GameScreen("game") {}
 
     void on_screen_start() override;
+    std::string background_scene_preset() const override { return "PRACTICE"; }
     Screens on_screen_end(Screens next_screen) override;
     void init_tja(fs::path song) override;
     std::optional<Screens> update() override;

@@ -16,6 +16,8 @@
 std::atomic<bool> input_thread_running{true};
 std::thread input_thread;
 
+static std::atomic<double> last_input_ms{0.0};
+
 static std::unordered_map<SDL_JoystickID, SDL_Joystick*> sdl_joysticks;
 // keyed by joy_id * 256 + button_index
 static std::unordered_map<int64_t, bool>  sdl_prev_button;
@@ -318,6 +320,7 @@ static bool SDLCALL touch_event_watch(void* /*userdata*/, SDL_Event* event) {
             int vkey = touch_quadrant_vkey(pos, sw, sh);
             touch_id_to_vkey[id] = vkey;
             touch_drum_pressed.store(true, std::memory_order_relaxed);
+            last_input_ms.store(get_current_ms(), std::memory_order_relaxed);
             std::lock_guard<std::mutex> lock(input_mutex);
             pressed_keys.insert(vkey);
         }
@@ -426,11 +429,17 @@ void poll_keyboard_once() {
         }
     }
 
+    if (!local_pressed.empty()) last_input_ms.store(get_current_ms(), std::memory_order_relaxed);
+
     if (!local_pressed.empty() || !local_released.empty()) {
         std::lock_guard<std::mutex> lock(input_mutex);
         pressed_keys.insert(local_pressed.begin(), local_pressed.end());
         released_keys.insert(local_released.begin(), local_released.end());
     }
+}
+
+double get_last_input_ms() {
+    return last_input_ms.load(std::memory_order_relaxed);
 }
 
 int take_gamepad_button_pressed() {

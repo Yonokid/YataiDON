@@ -21,9 +21,17 @@ private:
     bool draw_clear_full;
     std::string name;
     int frame;
+    uint32_t combo_tex;
+    uint32_t combo_highlight_tex;
+    uint32_t combo_overlay_tex;
+    std::string combo_sound;
+    std::string combo_voice;
+    bool has_panel;
+    uint32_t panel_tex;
+    FadeAnimation* panel_fade_in;
 
 public:
-    FCAnimation(bool is_2p);
+    FCAnimation(bool is_2p, bool donderful = false);
 
     void update(double current_ms);
     void draw();

@@ -44,11 +44,8 @@ ScoresManager::ScoresManager(const fs::path& db_path) {
             sqlite3_exec(db_fsd, sql, nullptr, nullptr, nullptr);
         }
     }
-
-    if (version < 3) {
-        sqlite3_exec(db_fsd, "ALTER TABLE scores ADD COLUMN played_at INTEGER NOT NULL DEFAULT 0;",
-                     nullptr, nullptr, nullptr);
-    }
+    sqlite3_exec(db_fsd, "ALTER TABLE scores ADD COLUMN played_at INTEGER NOT NULL DEFAULT 0;",
+                    nullptr, nullptr, nullptr);
 
     if (version < 4) {
         sqlite3_exec(db_fsd, "ALTER TABLE scores ADD COLUMN modifiers TEXT NOT NULL DEFAULT '{}';",
@@ -56,6 +53,10 @@ ScoresManager::ScoresManager(const fs::path& db_path) {
     }
 
     sqlite3_exec(db_fsd, "PRAGMA user_version = 4;", nullptr, nullptr, nullptr);
+
+    sqlite3_exec(db_fsd,
+            "ALTER TABLE players ADD COLUMN modifier_skip BOOL NOT NULL DEFAULT 0;",
+            nullptr, nullptr, nullptr);
 
     std::string create_players =
         "CREATE TABLE IF NOT EXISTS players"
@@ -82,7 +83,8 @@ ScoresManager::ScoresManager(const fs::path& db_path) {
         "chara_is_costume BOOL NOT NULL DEFAULT 1,"
         "chara_paint_index INTEGER NOT NULL DEFAULT 0,"
         "chara_face_index INTEGER NOT NULL DEFAULT 0,"
-        "chara_acce_index INTEGER NOT NULL DEFAULT 0);";
+        "chara_acce_index INTEGER NOT NULL DEFAULT 0,"
+        "modifier_skip BOOL NOT NULL DEFAULT 0);";
 
     std::string create_songs =
         "CREATE TABLE IF NOT EXISTS songs"
@@ -135,6 +137,7 @@ ScoresManager::ScoresManager(const fs::path& db_path) {
 }
 
 void ScoresManager::load_score_cache() {
+    std::lock_guard<std::mutex> lock(maps_mutex);
     score_cache.clear();
 
     sqlite3_stmt* stmt;
@@ -371,6 +374,7 @@ int ScoresManager::sync_from_server(const std::string& access_code) {
 }
 
 std::optional<Score> ScoresManager::get_score(std::string& hash, int difficulty, int player_id) {
+    std::lock_guard<std::mutex> lock(maps_mutex);
     auto it = score_cache.find(std::make_tuple(hash, difficulty, player_id));
     if (it != score_cache.end()) return it->second;
     return std::nullopt;
@@ -408,6 +412,7 @@ Score ScoresManager::save_score(std::string& hash, int difficulty, int player_id
     spdlog::info("Saved score for hash: {} score: {} crown: {}", hash, score.score, (int)score.crown);
 
     auto key = std::make_tuple(hash, difficulty, player_id);
+    std::lock_guard<std::mutex> lock(maps_mutex);
     auto it = score_cache.find(key);
     bool is_better = it == score_cache.end() ||
         score.crown > it->second.crown ||
@@ -418,32 +423,41 @@ Score ScoresManager::save_score(std::string& hash, int difficulty, int player_id
 }
 
 void ScoresManager::add_path_binding(const fs::path& path, const std::array<std::string, 5>& hashes) {
+    std::lock_guard<std::mutex> lock(maps_mutex);
     path_to_hashes[path] = hashes;
     std::string single = std::accumulate(hashes.begin(), hashes.end(), std::string{});
-    single_hash_to_path[single] = path;
+    if (!single.empty()) single_hash_to_path[single] = path;
     for (const std::string& hash : hashes) {
         if (!hash.empty()) diff_hash_to_path[hash] = path;
     }
 }
 
 std::optional<fs::path> ScoresManager::get_path_by_hash(const std::string& single_hash) {
+    if (single_hash.empty()) return std::nullopt;
+    std::lock_guard<std::mutex> lock(maps_mutex);
     auto it = single_hash_to_path.find(single_hash);
     if (it != single_hash_to_path.end()) return it->second;
     return std::nullopt;
 }
 
 std::optional<fs::path> ScoresManager::get_path_by_diff_hash(const std::string& diff_hash) {
+    std::lock_guard<std::mutex> lock(maps_mutex);
     auto it = diff_hash_to_path.find(diff_hash);
     if (it != diff_hash_to_path.end()) return it->second;
     return std::nullopt;
 }
 
-std::array<std::string, 5>& ScoresManager::get_hashes(const fs::path& path) {
-    return path_to_hashes[path];
+std::array<std::string, 5> ScoresManager::get_hashes(const fs::path& path) {
+    std::lock_guard<std::mutex> lock(maps_mutex);
+    auto it = path_to_hashes.find(path);
+    return it != path_to_hashes.end() ? it->second : std::array<std::string, 5>{};
 }
 
 std::string ScoresManager::get_single_hash(const fs::path& path) {
-    return std::accumulate(path_to_hashes[path].begin(), path_to_hashes[path].end(), std::string{});
+    std::lock_guard<std::mutex> lock(maps_mutex);
+    auto it = path_to_hashes.find(path);
+    if (it == path_to_hashes.end()) return "";
+    return std::accumulate(it->second.begin(), it->second.end(), std::string{});
 }
 
 void ScoresManager::add_song(const std::array<std::string, 5>& hashes, const std::string& title, const std::string& subtitle) {
@@ -551,7 +565,7 @@ std::optional<PlayerData> ScoresManager::get_player_data(int player_id) {
         " modifier_auto, modifier_speed, modifier_display, modifier_inverse, modifier_random,"
         " neiro_index, chara_color_1, chara_color_2, chara_color_3,"
         " chara_head_index, chara_body_index, chara_cos_index, chara_is_costume,"
-        " chara_paint_index, chara_face_index, chara_acce_index"
+        " chara_paint_index, chara_face_index, chara_acce_index, modifier_skip"
         " FROM players WHERE player_id = ?;";
 
     if (sqlite3_prepare_v2(db_fsd, query, -1, &stmt, nullptr) != SQLITE_OK) {
@@ -620,6 +634,7 @@ std::optional<PlayerData> ScoresManager::get_player_data(int player_id) {
     p.chara_paint_index = sqlite3_column_int(stmt, 20);
     p.chara_face_index  = sqlite3_column_int(stmt, 21);
     p.chara_acce_index  = sqlite3_column_int(stmt, 22);
+    p.modifier_skip     = sqlite3_column_int(stmt, 23);
 
     sqlite3_finalize(stmt);
     return p;
@@ -633,7 +648,7 @@ void ScoresManager::save_player_data(const PlayerData& player) {
         " modifier_auto = ?, modifier_speed = ?, modifier_display = ?, modifier_inverse = ?, modifier_random = ?,"
         " neiro_index = ?, chara_color_1 = ?, chara_color_2 = ?, chara_color_3 = ?,"
         " chara_head_index = ?, chara_body_index = ?, chara_cos_index = ?, chara_is_costume = ?,"
-        " chara_paint_index = ?, chara_face_index = ?, chara_acce_index = ?"
+        " chara_paint_index = ?, chara_face_index = ?, chara_acce_index = ?, modifier_skip = ?"
         " WHERE player_id = ?;";
 
     if (sqlite3_prepare_v2(db_fsd, query, -1, &stmt, nullptr) != SQLITE_OK) {
@@ -667,11 +682,75 @@ void ScoresManager::save_player_data(const PlayerData& player) {
     sqlite3_bind_int (stmt, 20, player.chara_paint_index);
     sqlite3_bind_int (stmt, 21, player.chara_face_index);
     sqlite3_bind_int (stmt, 22, player.chara_acce_index);
-    sqlite3_bind_int (stmt, 23, player.player_id);
+    sqlite3_bind_int (stmt, 23, player.modifier_skip);
+    sqlite3_bind_int (stmt, 24, player.player_id);
 
     if (sqlite3_step(stmt) != SQLITE_DONE)
         spdlog::error("save_player: failed to update player {}: {}", player.player_id, sqlite3_errmsg(db_fsd));
 
+    sqlite3_finalize(stmt);
+}
+
+static void ensure_dan_table(sqlite3* db) {
+    sqlite3_exec(db,
+        "CREATE TABLE IF NOT EXISTS dan_results"
+        "(player_id INTEGER NOT NULL,"
+        "course TEXT NOT NULL,"
+        "dan_index INTEGER NOT NULL DEFAULT -1,"
+        "rank INTEGER NOT NULL DEFAULT 0,"
+        "score INTEGER NOT NULL DEFAULT 0,"
+        "PRIMARY KEY(player_id, course));",
+        nullptr, nullptr, nullptr);
+    sqlite3_exec(db,
+        "ALTER TABLE dan_results ADD COLUMN arrival INTEGER NOT NULL DEFAULT 0;",
+        nullptr, nullptr, nullptr);
+}
+
+std::optional<DanRecord> ScoresManager::get_dan_record(int player_id, const std::string& course_title) {
+    ensure_dan_table(db_fsd);
+    sqlite3_stmt* stmt;
+    const char* query =
+        "SELECT dan_index, rank, score, arrival FROM dan_results WHERE player_id = ? AND course = ?;";
+    if (sqlite3_prepare_v2(db_fsd, query, -1, &stmt, nullptr) != SQLITE_OK) {
+        spdlog::error("get_dan_record: failed to prepare: {}", sqlite3_errmsg(db_fsd));
+        return std::nullopt;
+    }
+    sqlite3_bind_int (stmt, 1, player_id);
+    sqlite3_bind_text(stmt, 2, course_title.c_str(), -1, SQLITE_STATIC);
+    std::optional<DanRecord> out;
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        DanRecord r;
+        r.dan_index = sqlite3_column_int(stmt, 0);
+        r.rank      = sqlite3_column_int(stmt, 1);
+        r.score     = sqlite3_column_int(stmt, 2);
+        r.arrival   = sqlite3_column_int(stmt, 3);
+        out = r;
+    }
+    sqlite3_finalize(stmt);
+    return out;
+}
+
+void ScoresManager::save_dan_record(int player_id, const std::string& course_title, const DanRecord& rec) {
+    ensure_dan_table(db_fsd);
+    sqlite3_stmt* stmt;
+    const char* query =
+        "INSERT INTO dan_results (player_id, course, dan_index, rank, score, arrival)"
+        " VALUES (?, ?, ?, ?, ?, ?)"
+        " ON CONFLICT(player_id, course) DO UPDATE SET"
+        " dan_index = excluded.dan_index, rank = excluded.rank, score = excluded.score,"
+        " arrival = excluded.arrival;";
+    if (sqlite3_prepare_v2(db_fsd, query, -1, &stmt, nullptr) != SQLITE_OK) {
+        spdlog::error("save_dan_record: failed to prepare: {}", sqlite3_errmsg(db_fsd));
+        return;
+    }
+    sqlite3_bind_int (stmt, 1, player_id);
+    sqlite3_bind_text(stmt, 2, course_title.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_int (stmt, 3, rec.dan_index);
+    sqlite3_bind_int (stmt, 4, rec.rank);
+    sqlite3_bind_int (stmt, 5, rec.score);
+    sqlite3_bind_int (stmt, 6, rec.arrival);
+    if (sqlite3_step(stmt) != SQLITE_DONE)
+        spdlog::error("save_dan_record: failed for {}: {}", course_title, sqlite3_errmsg(db_fsd));
     sqlite3_finalize(stmt);
 }
 

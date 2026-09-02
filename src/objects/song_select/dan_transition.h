@@ -6,6 +6,8 @@ class DanTransition {
 private:
     MoveAnimation* slide_in;
     bool started;
+    double start_ms = 0;
+    double last_ms  = 0;
 public:
     DanTransition();
     void start();
@@ -13,4 +15,7 @@ public:
     void draw();
     bool is_started();
     bool is_finished();
+
+    double progress() const;
+    double duration() const;
 };

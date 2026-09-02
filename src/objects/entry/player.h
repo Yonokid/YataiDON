@@ -17,6 +17,7 @@ private:
     std::unique_ptr<Chara3D> chara;
     int chara_index = 0;
     CostumePickStage chara_pick_stage = CostumePickStage::NONE;
+    int preset_seq_applied = 0;
 
     sol::protected_function fn_start_animations;
     sol::protected_function fn_update;

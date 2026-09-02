@@ -1,5 +1,9 @@
 #include "filesystem.h"
 #include "miniz/miniz.h"
+#ifdef SUPPORT_FUMEN
+#include "optional/gen3.h"
+#include "optional/gen4.h"
+#endif
 #include <fstream>
 #include <spdlog/spdlog.h>
 #include <unistd.h>
@@ -85,34 +89,65 @@ void extract_osz(const fs::path& osz_path) {
     spdlog::info("extract_osz: extracted {} to {}", osz_path.string(), out_dir.string());
 }
 
+static void collect_charts_from(const fs::path& path, std::vector<fs::path>& songs,
+                                 std::vector<fs::path>* osz_out) {
+    auto it = fs::recursive_directory_iterator(
+        path, fs::directory_options::skip_permission_denied | fs::directory_options::follow_directory_symlink);
+    for (; it != fs::end(it); ++it) {
+        const auto& entry = *it;
+
+        if (entry.is_directory() &&
+            (gen4::find_data_root(entry.path()) == entry.path() ||
+             gen3::find_data_root(entry.path()) == entry.path())) {
+            it.disable_recursion_pending();
+            continue;
+        }
+
+        auto ext = entry.path().extension();
+        if (ext == ".tja" || ext == ".osu") {
+            songs.push_back(entry.path());
+        } else if (ext == ".osz") {
+            if (osz_out) osz_out->push_back(entry.path());
+        } else if (ext == ".bin") {
+            bool under_fumen = false;
+            for (fs::path dir = entry.path().parent_path();
+                 !dir.empty() && dir != dir.parent_path(); dir = dir.parent_path()) {
+                if (dir.filename() == "fumen") { under_fumen = true; break; }
+            }
+            if (under_fumen) songs.push_back(entry.path());
+        }
+    }
+}
+
 std::vector<fs::path> get_song_files(std::vector<fs::path> root_path) {
     std::vector<fs::path> songs;
     for (const fs::path& path : root_path) {
-        // First pass: extract any .osz archives
-        try {
-            std::vector<fs::path> osz_files;
-            for (const auto& entry : fs::recursive_directory_iterator(
-                     path, fs::directory_options::skip_permission_denied | fs::directory_options::follow_directory_symlink)) {
-                if (entry.path().extension() == ".osz")
-                    osz_files.push_back(entry.path());
-            }
-            for (const auto& osz : osz_files)
-                extract_osz(osz);
-        } catch (const fs::filesystem_error& e) {
-            spdlog::error("Error scanning for .osz files: {}", e.what());
-        }
+#ifdef SUPPORT_FUMEN
+        if (!gen4::find_data_root(path).empty() || !gen3::find_data_root(path).empty())
+            continue;
+#endif
 
-        // Second pass: collect .tja and .osu files
+        std::vector<fs::path> osz_files;
         try {
-            for (const auto& entry : std::filesystem::recursive_directory_iterator(
-                     path, std::filesystem::directory_options::skip_permission_denied | std::filesystem::directory_options::follow_directory_symlink)) {
-                auto ext = entry.path().extension();
-                if (ext == ".tja" || ext == ".osu" || ext == ".bin") {
-                    songs.push_back(entry.path());
-                }
-            }
+            collect_charts_from(path, songs, &osz_files);
         } catch (const std::filesystem::filesystem_error& e) {
             spdlog::error("Error scanning song directory: {}", e.what());
+            continue;
+        }
+
+        if (!osz_files.empty()) {
+            for (const auto& osz : osz_files)
+                extract_osz(osz);
+            for (const auto& osz : osz_files) {
+                fs::path out_dir = osz.parent_path() / osz.stem();
+                std::error_code ec;
+                if (!fs::exists(out_dir, ec)) continue;
+                try {
+                    collect_charts_from(out_dir, songs, nullptr);
+                } catch (const std::filesystem::filesystem_error& e) {
+                    spdlog::error("Error scanning extracted archive {}: {}", out_dir.string(), e.what());
+                }
+            }
         }
     }
     return songs;

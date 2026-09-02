@@ -58,7 +58,7 @@ public:
     std::optional<std::string> handle_input_search();
 
     void draw_selector(bool is_half, float fade_in);
-    void try_lua_selector(bool is_half, float fade_in);
+    void try_lua_selector(bool is_half, float fade_in, int pass);
     void draw_background_diffs(SongSelectState state);
     void draw(SongSelectState state, bool is_half, float diff_fade_in);
 

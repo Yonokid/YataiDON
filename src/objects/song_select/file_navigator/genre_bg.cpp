@@ -2,10 +2,14 @@
 
 GenreBG::GenreBG(std::string& text_name, std::optional<ray::Color> color, TextureIndex texture_index, float distance)
 : texture_index(texture_index) {
-    float font_size = tex.skin_config[SC::SONG_BOX_NAME].font_size;
-    if (utf8_char_count(text_name) >= 30)
-        font_size -= (int)(10 * tex.screen_scale);
-    name = make_unique<OutlinedText>(text_name, font_size, ray::WHITE, ray::BLACK, false);
+    float base_font_size = (float)tex.skin_config[SC::SONG_BOX_NAME].font_size;
+    float font_size = base_font_size;
+    float name_outline = 5.0f;
+    if (utf8_char_count(text_name) >= 30) {
+        font_size = base_font_size - 10.0f * tex.screen_scale;
+        name_outline = 5.0f * (font_size / base_font_size);
+    }
+    name = make_unique<OutlinedText>(text_name, (int)font_size, ray::WHITE, ray::BLACK, false, name_outline);
 
     if (color.has_value()) {
         shader = load_shader("shader/dummy.vs", "shader/colortransform.fs");

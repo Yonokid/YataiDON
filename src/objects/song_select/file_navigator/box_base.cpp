@@ -87,6 +87,7 @@ void BaseBox::set_position(float target_position) {
 void BaseBox::move_box(float target_position, float duration) {
     this->target_position = target_position;
     float delta = target_position - position;
+    move_delta = delta;
     move = std::make_unique<MoveAnimation>(duration, delta, false, false, 0, 0.0, std::nullopt, std::nullopt, "cubic");
     move->start();
 }
@@ -109,8 +110,15 @@ void BaseBox::update(double current_time) {
     move->update(current_time);
     if (!move->is_finished) {
         position += move->attribute - prev_position;
+        if (move_delta != 0.0f && cross_lead != 0.0f) {
+            float p = (float)(move->attribute / move_delta);
+            if (p < 0.0f) p = 0.0f; else if (p > 1.0f) p = 1.0f;
+            cross_pos = cross_target + cross_lead * (1.0f - p);
+        }
     } else {
         position = target_position;
+        cross_pos = cross_target;
+        cross_lead = 0.0f;
         if (yellow_box.has_value() && !yellow_box_opened) {
             yellow_box->create_anim();
             yellow_box_opened = true;

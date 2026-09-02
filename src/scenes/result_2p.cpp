@@ -1,4 +1,5 @@
 #include "result_2p.h"
+#include <algorithm>
 
 void Result2PScreen::on_screen_start() {
     ResultScreen::on_screen_start();
@@ -12,6 +13,13 @@ void Result2PScreen::on_screen_start() {
     player_2.emplace(PlayerNum::P2, true, true);
 }
 
+double Result2PScreen::reveal_end_ms() {
+    double a = player_1.has_value() ? player_1->reveal_end_ms() : 0.0;
+    double b = player_2.has_value() ? player_2->reveal_end_ms() : 0.0;
+    if (a == 0 || b == 0) return 0.0;
+    return std::max(a, b);
+}
+
 std::optional<Screens> Result2PScreen::update() {
     Screen::update();
     double current_time = get_current_ms();
@@ -19,9 +27,7 @@ std::optional<Screens> Result2PScreen::update() {
     if (player_1.has_value()) player_1->update(current_time, fade_in.has_value() && fade_in->is_finished(), skipped_time > 0);
     if (player_2.has_value()) player_2->update(current_time, fade_in.has_value() && fade_in->is_finished(), skipped_time > 0);
 
-    if (current_time >= start_ms + 5000 && fade_out && !fade_out->is_started) {
-        handle_input();
-    }
+    update_input_and_timeout(current_time);
 
     if (fade_out) {
         fade_out->update(current_time);

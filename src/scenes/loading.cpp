@@ -12,7 +12,20 @@ void LoadingScreen::on_screen_start() {
     progress_bar_x = (tex.screen_width - progress_bar_width) / 2;
     progress_bar_y = tex.screen_height * 0.85;
 
-    fade_in = std::make_unique<FadeAnimation>(1000, 0.0, false, false, 1.0);
+    if (const SkinInfo* bar = tex.skin_entry("loading_progress_bar")) {
+        if (bar->width > 0 && bar->height > 0) {
+            progress_bar_x = bar->x;
+            progress_bar_y = bar->y;
+            progress_bar_width = bar->width;
+            progress_bar_height = bar->height;
+        }
+    }
+
+    double fade_ms = 1000;
+    if (const SkinInfo* f = tex.skin_entry("loading_fade_ms")) {
+        if (f->x > 0) fade_ms = f->x;
+    }
+    fade_in = std::make_unique<FadeAnimation>(fade_ms, 0.0, false, false, 1.0);
     allnet_indicator = AllNetIcon();
 
     songs = get_song_files(global_data.config->paths.tja_path);

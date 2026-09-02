@@ -17,8 +17,7 @@ NoteArc::NoteArc(NoteType note_type, double current_ms, PlayerNum player_num, bo
     end_y = tex.skin_config[SC::GAUGE_HIT_EFFECT_NOTE].y;
 
     if (player_num == PlayerNum::P2) {
-        this->start_y += tex.skin_config[SC::OFFSET_2P].y;
-        end_y += tex.skin_config[SC::OFFSET_2P].y;
+        end_y += tex.skin_config[SC::GAUGE_HIT_EFFECT_NOTE].height;
     }
 
     if (player_num == PlayerNum::P1) {

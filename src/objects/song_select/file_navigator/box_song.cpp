@@ -1,12 +1,29 @@
 #include "box_song.h"
 #include "navigator.h"
 #include "../../../libs/audio.h"
+#include <thread>
+
+namespace {
+    double bgm_resume_at   = 0.0;   // 0 = nothing pending
+    int    preview_holders = 0;     // focused song boxes that own the bgm slot
+}
+
+void SongBox::reset_bgm_slot() {
+    bgm_resume_at   = 0.0;
+    preview_holders = 0;
+}
+
+void SongBox::service_bgm_resume(double current_ms) {
+    if (bgm_resume_at <= 0.0) return;
+    if (preview_holders > 0) { bgm_resume_at = 0.0; return; }   // a song took it
+    if (current_ms < bgm_resume_at) return;
+    bgm_resume_at = 0.0;
+    audio.play_sound("bgm", VolumePreset::MUSIC);
+}
 
 SongBox::SongBox(const fs::path& path, const BoxDef& box_def, SongParser parser)
     : BaseBox(path, box_def)
 {
-    // Same as the box's genre unless this is a collection listing, where
-    // apply_song_genre overrides it with the folder the song lives in.
     song_genre_index = genre_index;
 
     parser.get_metadata();
@@ -17,10 +34,6 @@ SongBox::SongBox(const fs::path& path, const BoxDef& box_def, SongParser parser)
     auto& subtitles = parser.metadata.subtitle;
     text_subtitle = subtitles.count(lang) ? subtitles.at(lang) : subtitles.count("en") ? subtitles.at("en") : subtitles.empty() ? "" : subtitles.begin()->second;
 
-    // Move, don't copy: the parser holds every line of the chart file, and
-    // the copy showed up hard when a big folder builds hundreds of boxes.
-    // Moving after get_metadata() also means the member actually carries the
-    // parsed metadata.
     this->parser = std::move(parser);
 
     is_favorite = false;
@@ -30,10 +43,15 @@ SongBox::SongBox(const fs::path& path, const BoxDef& box_def, SongParser parser)
 
 void SongBox::refresh_scores() {
     hashes = scores_manager.get_hashes(path);
+#ifdef SUPPORT_FUMEN
+    bool cheap_hash = !std::holds_alternative<FumenParser>(parser.impl);
+#else
+    bool cheap_hash = true;
+#endif
     for (const auto& [course, course_data] : parser.metadata.course_data) {
         if (course < 0 || course >= static_cast<int>(hashes.size()))
             continue;
-        if (hashes[course].empty())
+        if (hashes[course].empty() && cheap_hash)
             hashes[course] = parser.get_diff_hash(course);
     }
     for (int i = 0; i < 5; i++) {
@@ -45,6 +63,16 @@ void SongBox::refresh_scores() {
     score_history.reset();
 }
 
+std::string SongBox::hash_for(int difficulty) {
+    if (difficulty < 0 || difficulty >= (int)hashes.size()) return "";
+    if (hashes[difficulty].empty()) {
+        hashes[difficulty] = parser.get_diff_hash(difficulty);
+        if (!hashes[difficulty].empty())
+            scores_manager.add_path_binding(path, hashes);
+    }
+    return hashes[difficulty];
+}
+
 void SongBox::reset() {
     BaseBox::reset();
     diff_fade_in = (FadeAnimation*)tex.get_animation(12);
@@ -52,6 +80,9 @@ void SongBox::reset() {
         audio.unload_music_stream("preview");
     }
     music_playing = false;
+    preview_load.reset();
+    preview_attempted = false;
+    release_preview_slot();
     score_history.reset();
     box_opened_at = 0.0;
 }
@@ -66,15 +97,23 @@ std::vector<Difficulty> SongBox::get_diffs() {
 
 void SongBox::load_text() {
     BaseBox::load_text();
-    float font_size = utf8_char_count(text_subtitle) < 30
-        ? tex.skin_config[SC::YB_SUBTITLE].font_size
-        : tex.skin_config[SC::YB_SUBTITLE].font_size - (int)(10 * tex.screen_scale);
-    subtitle = make_unique<OutlinedText>(text_subtitle, font_size, ray::WHITE, ray::BLACK, true);
+    float base_sub_font = (float)tex.skin_config[SC::YB_SUBTITLE].font_size;
+    float font_size = base_sub_font;
+    float sub_outline = 5.0f;
+    if (utf8_char_count(text_subtitle) >= 30) {
+        font_size = base_sub_font - 10.0f * tex.screen_scale;
+        sub_outline = 5.0f * (font_size / base_sub_font);
+    }
+    subtitle = make_unique<OutlinedText>(text_subtitle, (int)font_size, ray::WHITE, ray::BLACK, true, sub_outline);
 
-    font_size = tex.skin_config[SC::SONG_BOX_NAME].font_size;
-    if (utf8_char_count(text_name) >= 30)
-        font_size -= (int)(10 * tex.screen_scale);
-    name_black = make_unique<OutlinedText>(text_name, font_size, ray::WHITE, ray::BLACK, true);
+    float base_name_font = (float)tex.skin_config[SC::SONG_BOX_NAME].font_size;
+    font_size = base_name_font;
+    float name_outline = 5.0f;
+    if (utf8_char_count(text_name) >= 30) {
+        font_size = base_name_font - 10.0f * tex.screen_scale;
+        name_outline = 5.0f * (font_size / base_name_font);
+    }
+    name_black = make_unique<OutlinedText>(text_name, (int)font_size, ray::WHITE, ray::BLACK, true, name_outline);
     bpm_text = make_unique<OutlinedText>("BPM\n" + std::to_string(static_cast<int>(parser.metadata.bpm)), tex.skin_config[SC::SONG_BOX_BPM].font_size, ray::WHITE, ray::BLACK, false);
     if (exists(parser.metadata.preimage)) {
         preimage = ray::LoadTexture(parser.metadata.preimage.string().c_str());
@@ -88,13 +127,45 @@ void SongBox::update(double current_time) {
     BaseBox::update(current_time);
     diff_fade_in->update(current_time);
 
-    if (yellow_box.has_value() && (yellow_box->left_out != nullptr) && yellow_box->left_out->is_finished && fs::exists(parser.metadata.wave) && !music_playing) {
+    auto wave_ext = parser.metadata.wave.extension();
+    bool is_bank = wave_ext == ".nus3bank" || wave_ext == ".nub";
+
+    if (is_bank && yellow_box.has_value() && !music_playing && !preview_load &&
+        !preview_attempted && get_current_ms() - bar_open_started_at > 250 &&
+        fs::exists(parser.metadata.wave)) {
+        preview_attempted = true;
+        preview_load = std::make_shared<PreviewLoad>();
+        std::thread([state = preview_load, wave = parser.metadata.wave] {
+            state->ok = audio.prepare_nus3bank_pcm(wave, state->pcm, true);
+            state->done.store(true, std::memory_order_release);
+        }).detach();
+    }
+
+    if (!is_bank && yellow_box.has_value() && (yellow_box->left_out != nullptr) && yellow_box->left_out->is_finished && fs::exists(parser.metadata.wave) && !music_playing) {
         music_playing = true;
         audio.stop_sound("bgm");
         audio.load_music_stream(parser.metadata.wave, "preview");
         if (audio.is_music_stream_valid("preview")) {
             audio.play_music_stream("preview", VolumePreset::MUSIC);
             audio.seek_music_stream("preview", parser.metadata.demostart);
+        }
+    }
+
+    if (preview_load && preview_load->done.load(std::memory_order_acquire) &&
+        yellow_box.has_value() && (yellow_box->left_out != nullptr) &&
+        yellow_box->left_out->is_finished && !music_playing) {
+        auto state = std::move(preview_load);
+        if (state->ok) {
+            music_playing = true;
+            audio.stop_sound("bgm");
+            float demo_start = state->pcm.preview_ms > 0
+                             ? state->pcm.preview_ms / 1000.0f
+                             : parser.metadata.demostart;
+            audio.load_music_stream_prepared(std::move(state->pcm), "preview");
+            if (audio.is_music_stream_valid("preview")) {
+                audio.play_music_stream("preview", VolumePreset::MUSIC);
+                audio.seek_music_stream("preview", demo_start);
+            }
         }
     }
 
@@ -114,17 +185,30 @@ void SongBox::update(double current_time) {
 void SongBox::expand_box() {
     BaseBox::expand_box();
     box_opened_at = get_current_ms();
+    if (!holds_preview_slot && fs::exists(parser.metadata.wave)) {
+        holds_preview_slot = true;
+        preview_holders++;
+    }
+}
+
+void SongBox::release_preview_slot() {
+    if (!holds_preview_slot) return;
+    holds_preview_slot = false;
+    if (preview_holders > 0) preview_holders--;
 }
 
 void SongBox::close_box() {
     BaseBox::close_box();
     box_opened_at = 0.0;
+    preview_load.reset();
+    preview_attempted = false;
+    release_preview_slot();
     if (music_playing) {
         if (audio.is_music_stream_valid("preview")) {
             audio.stop_music_stream("preview");
             audio.unload_music_stream("preview");
         }
-        audio.play_sound("bgm", VolumePreset::MUSIC);
+        bgm_resume_at = get_current_ms() + 330.0;
         music_playing = false;
     }
 }

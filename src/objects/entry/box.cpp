@@ -1,4 +1,4 @@
-#include "box.h"
+﻿#include "box.h"
 
 Box::Box(const std::string& text_str, int font_size, Screens location) : location(location) {
     x = tex.textures[MODE_SELECT::BOX]->x[0];

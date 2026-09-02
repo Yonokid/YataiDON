@@ -1,6 +1,7 @@
 {
     "title": "名人",
     "color": 4,
+    "rank_art": 16,
     "exams": [
         {
             "type": "gauge",

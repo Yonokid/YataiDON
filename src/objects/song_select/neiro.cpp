@@ -29,6 +29,7 @@ NeiroSelector::NeiroSelector(PlayerNum player_num, PlayerData* player) : player_
     audio.play_sound("voice_hitsound_select_" + std::to_string((int)player_num) + "p", VolumePreset::VOICE);
 
     move = (MoveAnimation*)tex.get_animation(28, true);
+    move_out = tex.has_animation(39) ? (MoveAnimation*)tex.get_animation(39, true) : nullptr;
     move->start();
     blue_arrow_fade = (FadeAnimation*)tex.get_animation(29, true);
     blue_arrow_move = (MoveAnimation*)tex.get_animation(30, true);
@@ -52,7 +53,7 @@ void NeiroSelector::load_sound() {
 void NeiroSelector::left() {
     if (move->is_started && !move->is_finished) return;
     selected_sound = ((selected_sound - 1) % (int)sounds.size() + (int)sounds.size()) % (int)sounds.size();
-    audio.unload_sound(curr_sound);
+    if (!curr_sound.empty()) audio.unload_sound(curr_sound);
     load_sound();
     move_sideways->start();
     fade_sideways->start();
@@ -60,9 +61,6 @@ void NeiroSelector::left() {
     text = std::move(text_2);
     text_2 = std::make_unique<OutlinedText>(sounds[selected_sound], tex.skin_config[SC::NEIRO_TEXT].font_size, ray::WHITE, ray::BLACK, false);
 
-    // direction is the on-screen slide direction of the texts: pressing left
-    // scrolls the content rightward so the previous value enters from the
-    // left edge (the incoming text is placed at direction * -OPTION_TEXT_IN.x).
     direction = 1;
     if (selected_sound == (int)sounds.size() - 1) return;
     audio.play_sound(curr_sound, VolumePreset::HITSOUND);
@@ -71,7 +69,7 @@ void NeiroSelector::left() {
 void NeiroSelector::right() {
     if (move->is_started && !move->is_finished) return;
     selected_sound = (selected_sound + 1) % (int)sounds.size();
-    audio.unload_sound(curr_sound);
+    if (!curr_sound.empty()) audio.unload_sound(curr_sound);
     load_sound();
     move_sideways->start();
     fade_sideways->start();
@@ -88,7 +86,8 @@ void NeiroSelector::confirm() {
     if (move->is_started && !move->is_finished) return;
     player->neiro_index = selected_sound == (int)sounds.size() - 1 ? -1 : selected_sound;
     is_confirmed = true;
-    move->restart();
+    if (move_out) { move = move_out; move->start(); }
+    else          { move->restart(); }
 }
 
 void NeiroSelector::update(double current_ms) {

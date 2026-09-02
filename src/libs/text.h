@@ -6,16 +6,30 @@
 class FontManager {
 private:
     fs::path font_path;
-    ray::Font font;
-    int max_font_size;
-    std::unordered_set<int> codepoint_cache;
+
+    struct SizedFont {
+        ray::Font font{};
+        std::unordered_set<int> codepoints;  // only what was asked for AT THIS SIZE
+        uint64_t last_used = 0;
+        bool loaded = false;
+    };
+
+    std::unordered_map<int, SizedFont> fonts;
+    uint64_t use_clock = 0;
+
+    ray::Texture sentinel_texture{};
+
     mutable std::mutex font_mutex;
+
+    static constexpr size_t MAX_SIZED_FONTS = 32;
+
+    SizedFont& acquire(const std::string& text, int font_size);  // font_mutex held
+    void evict_lru(int keep_size);                               // font_mutex held
+
 public:
     FontManager();
     void init(const fs::path& font_path);
     ray::Font get_font(const std::string& text, int font_size);
-    // Returns a deep copy of the current font safe to use on another thread.
-    // Caller must UnloadFont() the returned font when done.
     ray::Font copy_font(const std::string& text, int font_size);
 };
 
@@ -49,7 +63,7 @@ public:
     OutlinedText(std::string text, int font_size,
                  ray::Color color, ray::Color outline_color,
                  bool is_vertical,
-                 int outline_thickness = 5,
+                 float outline_thickness = 5.0f,
                  float spacing = 2.0f,
                  float v_advance = 1.0f);
 

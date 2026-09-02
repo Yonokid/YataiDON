@@ -29,6 +29,8 @@ bool check_key_released(int key);
 // only sees devices it has a gamepad mapping for.
 int take_gamepad_button_pressed();
 
+double get_last_input_ms();
+
 // Clear all buffered input events
 // Useful when changing screens or locking input
 void clear_input_buffers();

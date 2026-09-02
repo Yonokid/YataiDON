@@ -539,7 +539,7 @@ void Chara3D::draw_outline(float x, float y) {
     // canvas to the window, so follow the skin resolution or the model
     // shrinks relative to everything else on hi-res skins.
     for (auto& part : parts)
-        ray::DrawModel(part, {x, y, 400.0f}, scale * tex.screen_scale, ray::WHITE);
+        ray::DrawModel(part, {x, y, 400.0f}, scale * draw_scale * tex.screen_scale, ray::WHITE);
     rlSetCullFace(RL_CULL_FACE_BACK);
 
     for (size_t p = 0; p < parts.size(); p++) {
@@ -558,13 +558,12 @@ void Chara3D::draw_3d(float x, float y) {
         parts[p].transform = rot;
     }
     for (size_t p = 0; p < parts.size(); p++)
-        draw_model_face_last(parts[p], part_face_material_index[p], {x, y, 400.0f}, scale * tex.screen_scale);
+        draw_model_face_last(parts[p], part_face_material_index[p], {x, y, 400.0f}, scale * draw_scale * tex.screen_scale);
     for (size_t p = 0; p < parts.size(); p++)
         parts[p].transform = saved[p];
 }
 
-void Chara3D::draw(float x, float y) {
-    if (!model_valid) return;
+void Chara3D::draw(float x, float y, float scale_mul) {
 
     int rw = ray::GetRenderWidth();
     int rh = ray::GetRenderHeight();

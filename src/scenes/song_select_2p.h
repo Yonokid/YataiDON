@@ -14,6 +14,8 @@ protected:
     bool is_2p_screen() override { return true; }
     Screens get_game_screen_target() override { return Screens::GAME_2P; }
 
+    bool hides_dan() override { return true; }
+
 public:
     SongSelect2PScreen() : SongSelectScreen("song_select") {}
 

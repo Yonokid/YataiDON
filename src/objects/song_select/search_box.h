@@ -7,7 +7,6 @@ class SearchBox {
 private:
     FadeAnimation* diff_fade_in;
     TextureChangeAnimation* bg_resize;
-    ray::Font font;
 
 public:
     std::string current_search;

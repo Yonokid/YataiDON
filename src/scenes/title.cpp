@@ -6,6 +6,7 @@
 
 void TitleScreen::on_screen_start() {
     Screen::on_screen_start();
+    reset_attract_objects();
     load_videos();
     state = TitleState::OP_VIDEO;
     hit_taiko_text = std::make_unique<OutlinedText>(tex.skin_config[SC::HIT_TAIKO_TO_START].text[global_data.config->general.language], tex.skin_config[SC::HIT_TAIKO_TO_START].font_size, ray::WHITE, ray::BLACK, false, 4);
@@ -40,9 +41,20 @@ void TitleScreen::load_videos() {
     }
 }
 
-Screens TitleScreen::on_screen_end(Screens next_screen) {
+void TitleScreen::reset_attract_objects() {
     op_video.reset();
     attract_video.reset();
+    warning_board.reset();
+    attract_camera.reset();
+    camera_cloud.reset();
+    bana_advert_1.reset();
+    bana_advert_2.reset();
+}
+
+Screens TitleScreen::on_screen_end(Screens next_screen) {
+    reset_attract_objects();
+    global_data.title_state = "";
+    global_data.title_state_start_ms = 0.0;
     return Screen::on_screen_end(next_screen);
 }
 

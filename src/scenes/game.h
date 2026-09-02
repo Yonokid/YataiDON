@@ -30,9 +30,6 @@ public:
 
     std::optional<VideoPlayer> movie;
     std::optional<std::string> song_music;
-    // Song audio decodes (and possibly resamples) on a worker thread; the
-    // synchronous load blocked the main thread for seconds on long songs.
-    // update() polls this and fills song_music when the load finishes.
     std::future<std::string> pending_song_load;
     std::optional<SongParser> parser;
     std::string scene_preset;
@@ -44,6 +41,9 @@ public:
     std::optional<Background> background;
 
     void on_screen_start() override;
+
+    virtual PlayerNum scene_player_num() const { return global_data.player_num; }
+    virtual std::string background_scene_preset() const { return scene_preset; }
 
     virtual Modifiers get_player_modifiers(PlayerNum pn);
 
@@ -64,6 +64,20 @@ public:
     void resync_song(double ms_from_start);
 
     void end_song();
+
+    static constexpr int SKIP_HITS = 10;
+    PlayerNum skip_lane = PlayerNum::ALL;
+    int    skip_count = 0;
+    int    skip_last  = -1;
+    size_t skip_play_hits = 0;
+    bool   skipped = false;
+    std::unique_ptr<OutlinedText> skip_text;
+    void init_skip();
+    void update_skip();
+    void poll_skip();
+    void push_skip_state();
+    void do_skip();
+    void draw_skip();
 
     std::optional<Screens> global_keys();
 

@@ -40,6 +40,14 @@ else()
   set(NETWORK_ENABLED OFF)
 endif()
 
+set(DATATABLE_SEED "${_env_DATATABLE_SEED}" CACHE STRING "Decryption seed for the gen 4 datatable")
+set(FUMEN_SEED "${_env_FUMEN_SEED}" CACHE STRING "Decryption seed for gen 4 fumen")
+if(DATATABLE_SEED AND FUMEN_SEED)
+  set(SUPPORT_FUMEN ON)
+else()
+  set(SUPPORT_FUMEN OFF)
+endif()
+
 include(cmake/deps.cmake)
 include(cmake/codegen.cmake)
 
@@ -54,6 +62,13 @@ file(GLOB_RECURSE HeaderFiles
     src/*.h
     src/*.hpp
 )
+
+list(FILTER CppFiles EXCLUDE REGEX "/src/libs/optional/")
+if(SUPPORT_FUMEN)
+  file(GLOB Gen4CppFiles src/libs/optional/*.cpp)
+  list(APPEND CppFiles ${Gen4CppFiles})
+endif()
+
 message(STATUS "C++ files found: ${CppFiles}")
 
 if(ANDROID)
@@ -140,6 +155,17 @@ if(NOT ANDROID AND NOT EMSCRIPTEN)
   target_link_libraries(${PROJECT_NAME} PRIVATE rtaudio)
 endif()
 target_link_libraries(${PROJECT_NAME} PRIVATE portaudio)
+
+target_link_libraries(${PROJECT_NAME} PRIVATE g719)
+target_compile_definitions(${PROJECT_NAME} PRIVATE YATAIDON_G719)
+
+if(SUPPORT_FUMEN)
+  target_compile_definitions(${PROJECT_NAME} PRIVATE
+    SUPPORT_FUMEN
+    DATATABLE_SEED="${DATATABLE_SEED}"
+    FUMEN_SEED="${FUMEN_SEED}"
+  )
+endif()
 
 include(cmake/platform.cmake)
 

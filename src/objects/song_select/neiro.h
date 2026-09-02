@@ -24,9 +24,13 @@ private:
     void load_sound();
 
 public:
+    const std::vector<std::string>& lua_names() const { return sounds; }
+    int lua_index() const { return selected_sound; }
+
     bool is_finished;
     bool is_confirmed;
     MoveAnimation* move;
+    MoveAnimation* move_out = nullptr;
 
     NeiroSelector(PlayerNum player_num, PlayerData* player);
     void update(double current_ms);

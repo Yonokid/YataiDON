@@ -10,6 +10,7 @@ private:
     WebCamera camera;
 
     TextureChangeAnimation* live_icon_texture_change;
+    BaseAnimation* scene_timer = nullptr;
 public:
     AttractCamera();
 

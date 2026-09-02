@@ -29,10 +29,11 @@ float FPSCounter::get_fps() {
 
 void FPSCounter::draw() {
     int curr_fps = get_fps();
-    float pos = 20.0f * global_tex.screen_scale;
+    int   size = (int)(20.0f * global_tex.screen_scale);
+    float pos  = (float)size;
 
     ray::Color color;
-    ray::Font font = font_manager.get_font(std::to_string(curr_fps), pos);
+    ray::Font font = font_manager.get_font(std::to_string(curr_fps), size);
 
     if (curr_fps < 30) color = ray::RED;
     else if (curr_fps < 60) color = ray::YELLOW;

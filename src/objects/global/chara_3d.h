@@ -91,6 +91,7 @@ private:
     double last_frame_ms = 0;
 
     float scale;
+    float draw_scale = 1.0f;
     float rot_x;
     float rot_y;
     float rot_z;
@@ -123,6 +124,8 @@ private:
     void load_face_anims(fs::path& anim_path);
     void draw_outline(float x, float y);
     void draw_3d(float x, float y);
+    void ensure_render_targets(int rw, int rh);
+    void prewarm_render_targets();
 public:
     Chara3D(std::string& model_name, bool mirror = false, bool use_skin_config = false);
     Chara3D(std::string& head_name, std::string& body_name, bool mirror = false, bool use_skin_config = false);
@@ -142,7 +145,7 @@ public:
 
     void update(double current_ms);
 
-    void draw(float x, float y);
+    void draw(float x, float y, float scale_mul = 1.0f);
 };
 
 struct PlayerData;

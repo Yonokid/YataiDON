@@ -43,6 +43,7 @@ private:
     FadeAnimation* text_overlay_fade;
 
     void scene_manager(double current_ms);
+    void reset_attract_objects();
 public:
     TitleScreen() : Screen("title") {
     }

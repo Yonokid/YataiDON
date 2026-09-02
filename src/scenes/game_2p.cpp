@@ -1,14 +1,6 @@
 #include "game_2p.h"
 #include "../libs/input.h"
 
-void Game2PScreen::on_screen_start() {
-    GameScreen::on_screen_start();
-    if (!movie.has_value()) {
-        background.emplace(PlayerNum::TWO_PLAYER, bpm, scene_preset);
-    }
-    result_transition = ResultTransition(PlayerNum::TWO_PLAYER);
-}
-
 void Game2PScreen::init_tja(fs::path song) {
     int delay = (song.extension() == ".osu") ? 0 : start_delay;
     parser = SongParser(song, delay, PlayerNum::P1);
@@ -44,6 +36,9 @@ void Game2PScreen::init_tja(fs::path song) {
         global_data.session_data[(int)PlayerNum::P2].selected_difficulty, true,
         get_player_modifiers(PlayerNum::P2)));
 
+    players[0]->kusudama_partner = players[1].get();
+    players[1]->kusudama_partner = players[0].get();
+
     start_ms = get_current_ms() - parser->metadata.offset * 1000;
 }
 
@@ -59,11 +54,8 @@ std::optional<Screens> Game2PScreen::update() {
     if (transition->is_finished()) {
         start_song(ms_from_start);
         global_data.input_locked = 0;
-    } else {
-        start_ms = current_time - parser->metadata.offset * 1000;
     }
-
-    resync_song(ms_from_start);
+    resync_song(current_time);
 
     update_background(current_time);
 
@@ -78,10 +70,10 @@ std::optional<Screens> Game2PScreen::update() {
     }
     else if (ms_from_start >= players[0]->end_time) {
         if (ms_from_start >= players[0]->end_time + 1000 && !score_saved) {
-            global_data.session_data[global_data.config->general.player_1_id].result_data = players[0]->get_result_score();
-            global_data.session_data[global_data.config->general.player_2_id].result_data = players[1]->get_result_score();
-            save_score(global_data.config->general.player_1_id, PlayerNum::P1);
-            save_score(global_data.config->general.player_2_id, PlayerNum::P2);
+            global_data.session_data[(int)PlayerNum::P1].result_data = players[0]->get_result_score();
+            global_data.session_data[(int)PlayerNum::P2].result_data = players[1]->get_result_score();
+            save_score(get_player_id(PlayerNum::P1), PlayerNum::P1);
+            save_score(get_player_id(PlayerNum::P2), PlayerNum::P2);
             for (int i = 0; i < 2; i++) {
                 players[i]->spawn_ending_anim();
             }
@@ -107,8 +99,6 @@ std::optional<Screens> Game2PScreen::update() {
         paused = false;
         pause_time = 0;
         last_resync_ms = 0;
-        // See GameScreen::restart_song - reset the chart clock or the song
-        // starts immediately, skipping the lead-in (#83).
         start_ms = get_current_ms() - parser->metadata.offset*1000 - (double)global_data.config->general.audio_offset;
         ms_from_start = get_current_ms() - start_ms;
     }

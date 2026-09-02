@@ -14,9 +14,12 @@ public:
 private:
     sol::protected_function fn_update;
     sol::protected_function fn_draw;
+    sol::protected_function fn_draw_top;
 
 public:
     Indicator(State state);
     void update(double current_ms);
     void draw(float x, float y, float fade = 1.0f);
+
+    void draw_top();
 };

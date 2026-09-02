@@ -99,6 +99,8 @@ private:
     std::optional<std::string> ease_out;
     std::optional<double> reverse_delay;
     std::optional<double> reverse_delay_saved;
+    std::optional<int> waypoint;
+    double waypoint_at = 0.5;
 
 public:
     int start_position;
@@ -106,7 +108,9 @@ public:
                   bool lock_input = false, int start_position = 0, double delay = 0.0,
                   std::optional<double> reverse_delay = std::nullopt,
                   std::optional<std::string> ease_in = std::nullopt,
-                  std::optional<std::string> ease_out = std::nullopt);
+                  std::optional<std::string> ease_out = std::nullopt,
+                  std::optional<int> waypoint = std::nullopt,
+                  double waypoint_at = 0.5);
 
     void restart() override;
 

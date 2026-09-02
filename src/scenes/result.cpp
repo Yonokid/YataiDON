@@ -32,15 +32,41 @@ Screens ResultScreen::on_screen_end(Screens next_screen) {
     return Screen::on_screen_end(next_screen);
 }
 
-void ResultScreen::handle_input() {
-    if (fade_in.has_value() && fade_in->is_finished() && is_r_don_pressed() || is_l_don_pressed()) {
+double ResultScreen::reveal_end_ms() {
+    return player_1.has_value() ? player_1->reveal_end_ms() : 0.0;
+}
+
+void ResultScreen::handle_input(double current_ms) {
+    bool l = is_l_don_pressed();
+    bool r = is_r_don_pressed();
+    if (!(l || r)) return;
+
+    double reveal_end = reveal_end_ms();
+    if (reveal_end == 0) {
         if (skipped_time == 0) {
-            skipped_time = get_current_ms();
-            audio.play_sound("don", VolumePreset::SOUND);
-        } else if (get_current_ms() > skipped_time + 5000 && !fade_out->is_started) {
-            fade_out->start();
+            skipped_time = current_ms;
             audio.play_sound("don", VolumePreset::SOUND);
         }
+        return;
+    }
+    if (current_ms >= reveal_end + kWaitEffectEndMs + kWaitNextSceneMs && !fade_out->is_started) {
+        fade_out->start();
+        audio.play_sound("don", VolumePreset::SOUND);
+    }
+}
+
+void ResultScreen::update_input_and_timeout(double current_ms) {
+    if (!fade_out || fade_out->is_started) return;
+
+    if (skip_enabled_ms == 0 && fade_in.has_value() && fade_in->is_finished())
+        skip_enabled_ms = current_ms + kEnableSkipMs;
+
+    if (skip_enabled_ms > 0 && current_ms >= skip_enabled_ms) handle_input(current_ms);
+
+    double reveal_end = reveal_end_ms();
+    if (reveal_end > 0 && !fade_out->is_started
+        && current_ms >= reveal_end + kWaitEffectEndMs + kAutoNextSceneMs) {
+        fade_out->start();
     }
 }
 
@@ -51,9 +77,7 @@ std::optional<Screens> ResultScreen::update() {
     if (fade_in.has_value()) fade_in->update(current_time);
     if (player_1.has_value()) player_1->update(current_time, fade_in.has_value() && fade_in->is_finished(), skipped_time > 0);
 
-    if (current_time >= start_ms + 5000 && fade_out && !fade_out->is_started) {
-        handle_input();
-    }
+    update_input_and_timeout(current_time);
 
     if (fade_out) {
         fade_out->update(current_time);

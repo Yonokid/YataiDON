@@ -138,8 +138,10 @@ FetchContent_MakeAvailable(sol2)
 if(NOT ANDROID AND NOT EMSCRIPTEN)
   set(ZLIB_USE_STATIC_LIBS ON)
   if(WIN32)
-    set(CPPTRACE_GET_SYMBOLS_WITH_ADDR2LINE ON CACHE BOOL "" FORCE)
-    set(CPPTRACE_UNWIND_WITH_DBGHELP        ON CACHE BOOL "" FORCE)
+    set(CPPTRACE_GET_SYMBOLS_WITH_ADDR2LINE OFF CACHE BOOL "" FORCE)
+    set(CPPTRACE_GET_SYMBOLS_WITH_LIBDWARF  ON  CACHE BOOL "" FORCE)
+    set(CPPTRACE_GET_SYMBOLS_WITH_DBGHELP   ON  CACHE BOOL "" FORCE)
+    set(CPPTRACE_UNWIND_WITH_DBGHELP        ON  CACHE BOOL "" FORCE)
   endif()
   FetchContent_Declare(
       cpptrace
@@ -488,4 +490,28 @@ if(WIN32)
   FetchContent_MakeAvailable(portaudio)
 else()
   add_library(portaudio INTERFACE IMPORTED)
+endif()
+
+# G.719 (Siren 22)
+FetchContent_Declare(
+  libg719
+  GIT_REPOSITORY https://github.com/kode54/libg719_decode.git
+  GIT_TAG master
+  GIT_SHALLOW TRUE
+)
+FetchContent_Populate(libg719)
+
+file(GLOB G719_SOURCES
+     ${libg719_SOURCE_DIR}/g719.c
+     ${libg719_SOURCE_DIR}/reference_code/common/*.c
+     ${libg719_SOURCE_DIR}/reference_code/decoder/*.c)
+
+add_library(g719 STATIC ${G719_SOURCES})
+target_include_directories(g719 PUBLIC
+                           ${libg719_SOURCE_DIR}
+                           ${libg719_SOURCE_DIR}/reference_code/include)
+set_target_properties(g719 PROPERTIES C_STANDARD 99)
+target_compile_definitions(g719 PRIVATE VAR_ARRAYS)
+if(NOT MSVC)
+  target_compile_options(g719 PRIVATE -w)
 endif()

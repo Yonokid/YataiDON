@@ -1,6 +1,7 @@
 {
     "title": "六段",
     "color": 3,
+    "rank_art": 10,
     "exams": [
         {
             "type": "gauge",

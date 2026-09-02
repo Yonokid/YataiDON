@@ -1,9 +1,9 @@
 [submodule "Skins/PyTaikoGreen"]
 	path = Skins/PyTaikoGreen
 	url = https://ese.tjadataba.se/Yonokid/PyTaikoGreen.git
-[submodule "Skins/YataiDON-HSS"]
-	path = Skins/YataiDON-HSS
-	url = http://ese.tjadataba.se/Yonokid/YataiDON-HSS.git
 [submodule "Skins/YataiDONRed"]
 	path = Skins/YataiDONRed
 	url = http://ese.tjadataba.se/Yonokid/YataiDONRed.git
+[submodule "Skins/YataiDONNijiiro"]
+	path = Skins/YataiDONNijiiro
+	url = http://ese.tjadataba.se/Yonokid/YataiDONNijiiro.git

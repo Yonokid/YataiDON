@@ -41,6 +41,11 @@ public:
 
     float position;
     float cross_pos = 0.0f;
+    float cross_target = 0.0f;
+    float cross_lead   = 0.0f;   // cross_pos - cross_target at glide start
+    float move_delta   = 0.0f;   // row-axis span of the active move (0 = none)
+    void snap_cross(float x)  { cross_pos = cross_target = x; cross_lead = 0.0f; }
+    void glide_cross(float x) { cross_lead = cross_pos - x; cross_target = x; }
     bool vertical = false;
     float left_bound;
     float right_bound;

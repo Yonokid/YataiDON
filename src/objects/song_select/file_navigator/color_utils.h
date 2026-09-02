@@ -14,10 +14,6 @@ struct BoxColors {
     ray::Color text;
 };
 
-// If box_color is set (#BOXCOLOR present), it is the box color, back_color
-// becomes the text outline, and fore_color becomes the text fill.
-// Otherwise back_color is the box color and fore_color is the outline
-// (legacy behavior), with text always white.
 BoxColors resolve_box_colors(const std::optional<ray::Color>& box_color,
                               const std::optional<ray::Color>& back_color,
                               const std::optional<ray::Color>& fore_color);

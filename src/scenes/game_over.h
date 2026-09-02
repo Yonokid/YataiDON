@@ -16,6 +16,10 @@ private:
     MoveAnimation* text_bounce_up;
     MoveAnimation* text_bounce_down_2;
     FadeAnimation* fade_out;
+    FadeAnimation* copyright_fade = nullptr;
+    FadeAnimation* copyright_hold = nullptr;
+    bool has_copyright = false;
+    FadeAnimation* blackout_cue = nullptr;
     bool ad_played;
     bool voice_played;
 

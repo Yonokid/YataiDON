@@ -1,6 +1,7 @@
 {
     "title": "玄人",
     "color": 4,
+    "rank_art": 15,
     "exams": [
         {
             "type": "gauge",

@@ -1,3 +1,5 @@
+#include <cstdlib>
+#include <fstream>
 #include <iostream>
 #include <rlgl.h>
 #ifdef PLATFORM_ANDROID
@@ -62,6 +64,36 @@ void draw_outer_border(int screen_width, int screen_height, ray::Color last_colo
     DrawRectangle(0, screen_height, screen_width, screen_height, last_color);
 }
 
+[[noreturn]] static void exit_now(int code) {
+    std::cout.flush();
+    std::cerr.flush();
+    if (auto logger = spdlog::default_logger()) logger->flush();
+    std::_Exit(code);
+}
+
+static std::filesystem::path path_from_arg(const std::string& arg) {
+#ifdef _WIN32
+    if (arg.empty()) return {};
+    UINT cp = CP_UTF8;
+    int n = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
+                                arg.c_str(), -1, nullptr, 0);
+    if (n <= 0) {
+        cp = CP_ACP;
+        n = MultiByteToWideChar(CP_ACP, 0, arg.c_str(), -1, nullptr, 0);
+    }
+    if (n <= 1) return {};
+    std::wstring wide(static_cast<size_t>(n - 1), L'\0');
+    if (MultiByteToWideChar(cp, 0, arg.c_str(), -1, wide.data(), n) <= 0) return {};
+    return std::filesystem::path(wide);
+#else
+    try {
+        return std::filesystem::path(arg);
+    } catch (const std::exception&) {
+        return {};
+    }
+#endif
+}
+
 Screens check_args(int argc, char* argv[]) {
     if (argc == 1) {
         return Screens::LOADING;
@@ -91,7 +123,7 @@ Screens check_args(int argc, char* argv[]) {
             std::cout << "  --practice  : Start in practice mode\n";
             std::cout << "  --skin-viewer : Open skin viewer\n";
             std::cout << "  --sandbox   : Open sandbox mode\n";
-            std::exit(0);
+            exit_now(0);
         } else if (song_path.empty()) {
             song_path = arg;
         } else if (!difficulty.has_value()) {
@@ -99,7 +131,7 @@ Screens check_args(int argc, char* argv[]) {
                 difficulty = std::stoi(arg);
             } catch (const std::exception& e) {
                 std::cerr << "Error: Invalid difficulty value: " << arg << "\n";
-                std::exit(1);
+                exit_now(1);
             }
         }
     }
@@ -107,16 +139,25 @@ Screens check_args(int argc, char* argv[]) {
     if (song_path.empty()) {
         std::cerr << "Error: song_path is required\n";
         std::cerr << "Use --help for usage information\n";
-        std::exit(1);
+        exit_now(1);
     }
 
-    std::filesystem::path path(song_path);
-    if (!std::filesystem::exists(path)) {
+    std::filesystem::path path = path_from_arg(song_path);
+    if (path.empty()) {
+        std::cerr << "Error: Song path could not be interpreted: " << song_path << "\n";
+        exit_now(1);
+    }
+    std::error_code path_ec;
+    if (!std::filesystem::exists(path, path_ec) || path_ec) {
         std::cerr << "Error: Song file not found: " << song_path << "\n";
-        std::exit(1);
+        exit_now(1);
     }
 
-    path = std::filesystem::absolute(path);
+    {
+        std::error_code abs_ec;
+        std::filesystem::path abs = std::filesystem::absolute(path, abs_ec);
+        if (!abs_ec) path = abs;
+    }
     SongParser tja(path);
 
     int selected_difficulty;
@@ -128,7 +169,7 @@ Screens check_args(int argc, char* argv[]) {
                 std::cerr << key << " ";
             }
             std::cerr << "\n";
-            std::exit(1);
+            exit_now(1);
         }
         selected_difficulty = difficulty.value();
     } else {
@@ -146,7 +187,7 @@ Screens check_args(int argc, char* argv[]) {
     Screens current_screen = practice ? Screens::GAME_PRACTICE : Screens::GAME;
     global_data.session_data[(int)PlayerNum::P1].selected_song = path;
     global_data.session_data[(int)PlayerNum::P1].selected_difficulty = selected_difficulty;
-    //global_data.modifiers[(int)PlayerNum::P1].auto_play = auto_play;
+    if (auto_play) global_data.force_auto_play = true;
 
     return current_screen;
 }
@@ -162,7 +203,22 @@ struct LoopState {
     FPSCounter fps_counter;
     ray::Color last_color = ray::BLACK;
     TextureResizeAnimation* touch_drum_resize = nullptr;
+    double screen_fade_start = 0.0;
 };
+
+static bool screen_fade_applies(Screens from, Screens to) {
+    switch (to) {
+        case Screens::GAME: case Screens::GAME_2P: case Screens::GAME_DAN:
+        case Screens::GAME_PRACTICE: case Screens::AI_GAME:
+        case Screens::RESULT: case Screens::RESULT_2P: case Screens::DAN_RESULT:
+            return false;
+        default: break;
+    }
+    if (from == Screens::LOADING) return false;
+    if (from == Screens::SONG_SELECT && to == Screens::DAN_SELECT) return false;
+    if (from == Screens::ENTRY && to == Screens::DAN_SELECT) return false;
+    return true;
+}
 
 static LoopState* g_loop = nullptr;
 double g_frame_ms = 0.0;
@@ -208,11 +264,28 @@ static void run_frame() {
     if (screen->screen_init) {
         screen->_do_draw();
     }
+    if (L.screen_fade_start > 0.0) {
+        const SkinInfo* cfg = tex.skin_entry("screen_fade_ms");
+        const double dur = (cfg && cfg->x > 0) ? cfg->x : 500.0;
+        const double t = (g_frame_ms - L.screen_fade_start) / dur;
+        if (t >= 1.0) {
+            L.screen_fade_start = 0.0;
+        } else {
+            const float a = static_cast<float>(1.0 - (t < 0.0 ? 0.0 : t));
+            ray::DrawRectangle(0, 0, tex.screen_width, tex.screen_height, ray::Fade(ray::BLACK, a));
+        }
+    }
 
     if (next_screen.has_value()) {
         spdlog::info("Screen changed from {} to {}", L.current_screen, next_screen.value());
         clear_input_buffers();
+        if (tex.skin_entry("screen_fade_ms") && screen_fade_applies(L.current_screen, next_screen.value()))
+            L.screen_fade_start = g_frame_ms;
+        else
+            L.screen_fade_start = 0.0;
+        global_data.previous_screen = global_data.current_screen;
         L.current_screen = next_screen.value();
+        global_data.current_screen = screens_to_string(L.current_screen);
         global_data.input_locked = 0;
     }
 
@@ -387,6 +460,7 @@ int main(int argc, char* argv[]) {
     L.screen_width       = tex.screen_width;
     L.screen_height      = tex.screen_height;
     L.current_screen     = initial_screen;
+    global_data.current_screen = screens_to_string(initial_screen);
     L.target_duration    = std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::duration<double>(1.0 / target_fps));
     L.touch_drum_resize  = (TextureResizeAnimation*)global_tex.get_animation(66);
     L.touch_drum_resize->start();

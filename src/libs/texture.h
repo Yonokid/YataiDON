@@ -30,7 +30,17 @@ struct DrawTextureParams {
     double fade = 1.1f;
     int index = 0;
     std::optional<ray::Rectangle> src = std::nullopt;
+    std::optional<int> blend = std::nullopt;
 };
+
+inline int blend_from_string(const std::string& s) {
+    if (s == "additive")   return ray::BLEND_ADDITIVE;
+    if (s == "multiplied") return ray::BLEND_MULTIPLIED;
+    if (s == "add_colors") return ray::BLEND_ADD_COLORS;
+    if (s == "subtract_colors") return ray::BLEND_SUBTRACT_COLORS;
+    if (s == "alpha_premultiply") return ray::BLEND_ALPHA_PREMULTIPLY;
+    return ray::BLEND_ALPHA;
+}
 
 struct SkinInfo {
     float x;
@@ -39,11 +49,14 @@ struct SkinInfo {
     float width;
     float height;
     std::map<std::string, std::string> text;
+    float outline = -1.0f;
 
     SkinInfo(float x = 0, float y = 0, int font_size = 0,
              float width = 0, float height = 0,
-             const std::map<std::string, std::string>& text = {})
-        : x(x), y(y), font_size(font_size), width(width), height(height), text(text) {}
+             const std::map<std::string, std::string>& text = {},
+             float outline = -1.0f)
+        : x(x), y(y), font_size(font_size), width(width), height(height), text(text),
+          outline(outline) {}
 };
 
 struct Chara3DConfig {
@@ -66,10 +79,9 @@ struct TextureObject {
         : name(name), width(width), height(height), x{0}, y{0}, x2{width}, y2{height} {}
     virtual ~TextureObject() = default;
 
-    // GPU texture for the given animation frame; nullptr if this object has
-    // no drawable texture. Virtual dispatch here keeps draw_texture free of
-    // per-call dynamic_casts.
     virtual const ray::Texture2D* frame_texture(int frame) const { return nullptr; }
+
+    virtual int frame_count() const { return 1; }
 };
 
 struct SingleTexture : public TextureObject {
@@ -108,6 +120,8 @@ struct FramedTexture : public TextureObject {
         }
     }
 
+    int frame_count() const override { return static_cast<int>(textures.size()); }
+
     const ray::Texture2D* frame_texture(int frame) const override {
         if (frame >= static_cast<int>(textures.size())) {
             throw std::runtime_error("Frame " + std::to_string(frame) +
@@ -129,10 +143,6 @@ private:
 public:
     std::unordered_map<uint32_t, std::shared_ptr<TextureObject>> textures;
     std::unordered_map<SC, SkinInfo> skin_config;
-    // Same entries as skin_config, keyed by the raw JSON key. Lua and other
-    // runtime consumers read skin_config.json keys the skinner just wrote,
-    // which may not exist in the generated SC enum until the next rebuild —
-    // this map lets them work without one.
     std::unordered_map<std::string, SkinInfo> skin_config_by_name;
     std::unordered_map<SCO, bool> options;
     Chara3DConfig chara_3d_config;
@@ -148,12 +158,49 @@ public:
 
     void init(const fs::path& skin_path);
 
+    const SkinInfo* skin_entry(const std::string& key) const {
+        auto it = skin_config_by_name.find(key);
+        return it == skin_config_by_name.end() ? nullptr : &it->second;
+    }
+
+    std::string skin_text(const std::string& key, const std::string& language,
+                          const std::string& fallback = "") const {
+        auto it = skin_config_by_name.find(key);
+        if (it == skin_config_by_name.end()) return fallback;
+        auto t = it->second.text.find(language);
+        return t == it->second.text.end() ? fallback : t->second;
+    }
+
     ~TextureWrapper() {
         unload_textures();
     }
 
+    // Non-Graphics per-skin asset roots (Sounds/Videos/Models) have no inheritance
+    // mechanism of their own ??these let those subsystems reuse the same parent-skin
+    // knowledge init() already parsed from skin_config.json's screen.parent, instead
+    // of every skin needing its own physical copy of everything.
+    fs::path skin_root()   const { return graphics_path.parent_path(); }
+    fs::path parent_root() const { return parent_graphics_path.parent_path(); }
+    bool has_parent_skin() const { return parent_graphics_path != graphics_path; }
+
+    // relative_path is skin-root-relative, e.g. "Sounds/don.wav", "Videos/op_videos".
+    // Prefers the child skin's own copy; falls back to the parent's if the child
+    // doesn't have it. Returns the child path unchanged if neither exists (same
+    // "let the caller's own missing-file handling deal with it" behavior as before
+    // this existed).
+    fs::path resolve_skin_path(const fs::path& relative_path) const {
+        fs::path child = skin_root() / relative_path;
+        if (fs::exists(child)) return child;
+        if (has_parent_skin()) {
+            fs::path parent = parent_root() / relative_path;
+            if (fs::exists(parent)) return parent;
+        }
+        return child;
+    }
+
     void unload_textures();
 
+    bool has_animation(const int id) const { return animations.find(id) != animations.end(); }
     BaseAnimation* get_animation(const int id, bool is_copy = false);
     BaseAnimation* get_animation(const int id, const std::string& screen_name);
 
@@ -173,6 +220,8 @@ public:
 
     TexID get_enum(const std::string& name);
 
+    bool has_texture(const std::string& name);
+
     void draw_texture(uint32_t id, const DrawTextureParams& = {});
 };
 
@@ -180,6 +229,6 @@ extern TextureWrapper tex;
 
 extern TextureWrapper global_tex;
 
-// TexID enum, per-subset namespaces, and tex_id_map — auto-generated from skin texture.json files
+// TexID enum, per-subset namespaces, and tex_id_map ??auto-generated from skin texture.json files
 // Usage: tex.draw_texture(YELLOW_BOX::CROWN_FC, {...})
 //        tex.textures[YELLOW_BOX::CROWN_FC]->width

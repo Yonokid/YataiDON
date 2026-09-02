@@ -1,6 +1,7 @@
 {
     "title": "超人",
     "color": 4,
+    "rank_art": 17,
     "exams": [
         {
             "type": "gauge",

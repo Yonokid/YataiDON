@@ -38,12 +38,14 @@ private:
     std::vector<std::unique_ptr<EntryPlayer>> players;
 
     void reload_preview_chara(int player_id);
+    bool arcade_credit() const;
+    bool seat_joined(PlayerNum player_num) const;
+    void join_player(PlayerNum player_num);
+    void start_second_player_join();
     void draw_background();
     void draw_side_select(float fade);
     void draw_player_drum();
     void draw_mode_select();
-    // True once every registered player's entry animation has played out,
-    // i.e. once the mode boxes are actually on screen.
     bool mode_select_ready();
     std::optional<Screens> handle_input();
 

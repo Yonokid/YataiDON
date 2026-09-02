@@ -205,7 +205,7 @@ Config get_config() {
     config.general.song_timer = config_file["general"]["song_timer"].value_or(false);
     config.general.judge_counter = config_file["general"]["judge_counter"].value_or(false);
     config.general.nijiiro_notes = config_file["general"]["nijiiro_notes"].value_or(false);
-    config.general.log_level = config_file["general"]["log_level"].value_or(2);
+    config.general.log_level = config_file["general"]["log_level"].value_or("info");
     config.general.practice_mode_bar_delay = config_file["general"]["practice_mode_bar_delay"].value_or(0);
     config.general.score_method = config_file["general"]["score_method"].value_or("standard");
     config.general.display_bpm = config_file["general"]["display_bpm"].value_or(false);

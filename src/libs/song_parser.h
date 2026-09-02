@@ -1,7 +1,9 @@
 #pragma once
 
 #include <variant>
-#include "parsers/fumen.h"
+#ifdef SUPPORT_FUMEN
+#include "optional/fumen.h"
+#endif
 #include "parsers/osu.h"
 #include "parsers/tja.h"
 
@@ -24,7 +26,11 @@ public:
     std::string get_song_hash();
     std::string get_diff_hash(int difficulty);
 
+#ifdef SUPPORT_FUMEN
     std::variant<TJAParser, OsuParser, FumenParser> impl;
+#else
+    std::variant<TJAParser, OsuParser> impl;
+#endif
 
 private:
     void sync();

@@ -11,12 +11,20 @@ AttractCamera::AttractCamera() {
 
     live_icon_texture_change = (TextureChangeAnimation*)tex.get_animation(36);
     live_icon_texture_change->start();
+
+    scene_timer = tex.has_animation(37) ? tex.get_animation(37) : nullptr;
+    if (scene_timer) scene_timer->start();
 }
 
 void AttractCamera::update(double current_ms) {
     camera.update();
     live_icon_texture_change->update(current_ms);
-    finished = (current_ms - start_ms >= 30000);
+    if (scene_timer) {
+        scene_timer->update(current_ms);
+        finished = scene_timer->is_finished;
+    } else {
+        finished = (current_ms - start_ms >= 30000);
+    }
 }
 
 void AttractCamera::draw() {

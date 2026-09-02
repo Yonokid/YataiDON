@@ -11,12 +11,21 @@ private:
     FadeAnimation* fade_out;
     bool is_2p;
     bool is_vertical;
+    int dan_box_index = -1;
+    bool dan_available = false;
+    std::string dan_text;
+
+    void build_board_list();
+    void change_board_list();
 
 public:
     bool costume_menu_open;
     PlayerNum opening_player = PlayerNum::P1;
 
-    BoxManager();
+
+    explicit BoxManager(bool two_player = false);
+    bool check_board_list_change() const;
+    bool selection_allowed() const;
     void select_box();
     bool is_box_selected();
     bool is_finished();

@@ -1,7 +1,18 @@
 #include "diff_sort.h"
+#include "song_select_script.h"
 #include "../../libs/audio.h"
 
-DiffSortSelect::DiffSortSelect(Statistics statistics, int prev_diff, int prev_level) : prev_diff(prev_diff), prev_level(prev_level), statistics(statistics) {
+static constexpr double SORT_IN_MS         = 1000.0 / 60.0 * 10.0;
+static constexpr double SORT_OUT_MS        = 1000.0 / 60.0 * 10.0;
+static constexpr double SORT_START_WAIT_MS = 1000.0;
+static constexpr double SORT_END_WAIT_MS   = 2000.0;
+static constexpr double SORT_ARROW_MS      = 1000.0 / 60.0 * 10.0;
+static constexpr float  SORT_ARROW_PUSH    = 12.5f;
+
+DiffSortSelect::DiffSortSelect(Statistics statistics, int prev_diff, int prev_level,
+                               SongSelectScript* script, int prev_order)
+    : prev_diff(prev_diff), prev_level(prev_level), statistics(statistics), script(script) {
+    one_menu_sort = tex.options[SCO::ONE_MENU_SORT] && script && script->has_sort_window();
     selected_box = -1;
     selected_level = 1;
     in_level_select = false;
@@ -20,9 +31,11 @@ DiffSortSelect::DiffSortSelect(Statistics statistics, int prev_diff, int prev_le
     blue_arrow_fade = (FadeAnimation*)tex.get_animation(29);
     blue_arrow_move = (MoveAnimation*)tex.get_animation(30);
 
-    bg_resize->start();
-    diff_fade_in->start();
-    box_flicker->start();
+    if (!one_menu_sort) {
+        bg_resize->start();
+        diff_fade_in->start();
+        box_flicker->start();
+    }
 
     for (const auto& [course, levels] : statistics) {
         std::array<int, 3> sums = {0, 0, 0};
@@ -34,11 +47,83 @@ DiffSortSelect::DiffSortSelect(Statistics statistics, int prev_diff, int prev_le
         diff_sort_sum_stat[course] = sums;
     }
 
+    if (one_menu_sort) {
+        sort_param[0] = (prev_diff  >= 0 && prev_diff  < diff_count) ? prev_diff + 1 : 1;
+        sort_param[1] = (prev_level >= star_min && prev_level <= star_max) ? prev_level : 1;
+        sort_param[2] = (prev_order >= 1 && prev_order <= order_count) ? prev_order : 1;
+        session = 0;
+        t_open = now_ms = get_current_ms();
+        one_menu_sort_refresh_song_num();
+    }
+
     audio.play_sound("voice_diff_sort_enter", VolumePreset::VOICE);
 
 }
 
+void DiffSortSelect::one_menu_sort_refresh_song_num() {
+    song_num = statistics[std::min(sort_param[0], 5) - 1][sort_param[1]].total;
+}
+
+bool DiffSortSelect::one_menu_sort_input_locked() const {
+    return (now_ms - t_open) < SORT_START_WAIT_MS || t_end > 0.0;
+}
+
+int DiffSortSelect::lua_phase() const {
+    if (t_out > 0.0) return 3;
+    if (t_end > 0.0) return 2;
+    if ((now_ms - t_open) < SORT_IN_MS) return 0;
+    return 1;
+}
+
+float DiffSortSelect::lua_alpha() const {
+    if (t_out > 0.0) {
+        float u = (float)((now_ms - t_out) / SORT_OUT_MS);
+        return std::max(0.0f, 1.0f - u);
+    }
+    float u = (float)((now_ms - t_open) / SORT_IN_MS);
+    return std::min(1.0f, std::max(0.0f, u));
+}
+
+float DiffSortSelect::lua_arrow_offset(int row) const {
+    if (row < 0 || row > 2 || arrow_dir[row] == 0) return 0.0f;
+    double e = now_ms - arrow_t0[row];
+    if (e < 0.0 || e >= SORT_ARROW_MS) return 0.0f;
+    double f = e / SORT_ARROW_MS * 10.0;
+    float local = (f <= 5.0) ? (float)(-SORT_ARROW_PUSH * (f / 5.0))
+                             : (float)(-SORT_ARROW_PUSH * (1.0 - (f - 5.0) / 5.0));
+    return local * (float)arrow_dir[row];
+}
+
+void DiffSortSelect::one_menu_sort_change_param(int move) {
+    if (one_menu_sort_input_locked()) return;
+    audio.play_sound("kat", VolumePreset::SOUND);
+    int& v = sort_param[session];
+    v += move;
+    if (session == 1)      v = std::min(star_max,    std::max(star_min, v));
+    else if (session == 0) v = std::min(diff_count,  std::max(1, v));
+    else                   v = std::min(order_count, std::max(1, v));
+    one_menu_sort_refresh_song_num();
+    arrow_dir[session] = (move > 0) ? 1 : -1;
+    arrow_t0[session]  = now_ms;
+}
+
+std::optional<std::array<int, 3>> DiffSortSelect::take_result() {
+    if (!finished) return std::nullopt;
+    finished = false;
+    return one_menu_sort_result;
+}
+
 void DiffSortSelect::update(double current_ms) {
+    if (one_menu_sort) {
+        now_ms = current_ms;
+        if (t_end > 0.0 && t_out == 0.0 && (current_ms - t_end) >= SORT_END_WAIT_MS)
+            t_out = current_ms;                       // CloseSortWindow -> label "out"
+        if (t_out > 0.0 && !one_menu_sort_result && (current_ms - t_out) >= SORT_OUT_MS) {
+            one_menu_sort_result = std::array<int, 3>{ sort_param[0] - 1, sort_param[1], sort_param[2] };
+            finished = true;
+        }
+        return;
+    }
     bg_resize->update(current_ms);
     diff_fade_in->update(current_ms);
     box_flicker->update(current_ms);
@@ -49,6 +134,17 @@ void DiffSortSelect::update(double current_ms) {
 }
 
 std::optional<std::pair<int, int>> DiffSortSelect::input_select() {
+    if (one_menu_sort) {
+        if (one_menu_sort_input_locked()) return std::nullopt;
+        if (session == 1 && song_num <= 0) {
+            audio.play_sound("cancel", VolumePreset::SOUND);
+            return std::nullopt;
+        }
+        audio.play_sound("don", VolumePreset::SOUND);
+        session++;
+        if (session > 2) t_end = now_ms;
+        return std::nullopt;
+    }
     if (confirmation) {
         if (confirm_index == 0) {
             confirmation = false;
@@ -81,6 +177,7 @@ std::optional<std::pair<int, int>> DiffSortSelect::input_select() {
 }
 
 void DiffSortSelect::input_left() {
+    if (one_menu_sort) { one_menu_sort_change_param(-1); return; }
     if (confirmation) {
         confirm_index = std::max(confirm_index - 1, 0);
     } else if (in_level_select) {
@@ -91,6 +188,7 @@ void DiffSortSelect::input_left() {
 }
 
 void DiffSortSelect::input_right() {
+    if (one_menu_sort) { one_menu_sort_change_param(1); return; }
     if (confirmation) {
         confirm_index = std::min(confirm_index + 1, 2);
     } else if (in_level_select) {
@@ -281,6 +379,9 @@ void DiffSortSelect::draw_level_select() {
 }
 
 void DiffSortSelect::draw() {
+    if (one_menu_sort) {
+        if (script && script->draw_sort_window(this)) return;
+    }
     ray::DrawRectangle(0, 0, tex.screen_width, tex.screen_height, ray::Fade(ray::BLACK, 0.6));
     if (in_level_select) {
         draw_level_select();

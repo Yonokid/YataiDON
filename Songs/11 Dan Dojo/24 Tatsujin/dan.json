@@ -1,6 +1,7 @@
 {
     "title": "達人",
     "color": 5,
+    "rank_art": 18,
     "exams": [
         {
             "type": "gauge",

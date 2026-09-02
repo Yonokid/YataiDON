@@ -21,11 +21,20 @@ protected:
     std::optional<ray::Texture2D> loading_graphic;
     double start_ms = 0;
     double skipped_time = 0;
+    static constexpr double kFrameMs        = 1000.0 / 120.0;
+    static constexpr double kEnableSkipMs   =  100 * kFrameMs;
+    static constexpr double kWaitEffectEndMs =  500 * kFrameMs;
+    static constexpr double kWaitNextSceneMs =  500 * kFrameMs;
+    static constexpr double kAutoNextSceneMs = 3600 * kFrameMs;
+    double skip_enabled_ms = 0;
     std::optional<ResultPlayer> player_1;
     std::optional<FadeIn> fade_in;
     std::unique_ptr<SongNum> song_num;
 
-    void handle_input();
+    void handle_input(double current_ms);
+
+    virtual double reveal_end_ms();
+    void update_input_and_timeout(double current_ms);
 
     void draw_overlay();
 

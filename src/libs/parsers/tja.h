@@ -1,6 +1,7 @@
 #pragma once
 
 #include <spdlog/spdlog.h>
+#include "../md5.h"
 #include <cstddef>
 #include <deque>
 #include <filesystem>
@@ -30,6 +31,7 @@ struct Modifiers {
     bool inverse = false;
     int random = 0;
     int subdiff = 0;
+    bool skip = false;
 };
 
 enum class NoteType : int {
@@ -88,6 +90,7 @@ public:
     bool is_branch_start;
     // Drumroll specific
     std::optional<int> color;
+    float roll_intensity = 0.0f;
     // Balloon specific
     std::optional<int> count;
     std::optional<bool> popped;
@@ -351,7 +354,6 @@ private:
     Note add_note(char item, ParserState& state);
 };
 
-std::string md5_hexdigest(const std::vector<unsigned char>& data);
 double get_ms_per_measure(double bpm_val, double time_sig);
 int calculate_base_score(const NoteList& notes);
 std::string test_encodings(const std::filesystem::path& file_path);

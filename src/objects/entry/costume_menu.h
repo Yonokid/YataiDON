@@ -30,6 +30,9 @@ public:
     CostumePickStage get_pick_stage() const { return pick_stage; }
     int get_picked_head_id() const { return picked_head_id; }
 
+    std::optional<int> get_preset_cos_id() const { return preset_cos_id; }
+    int get_preset_seq() const { return preset_seq; }
+
 private:
     sol::protected_function fn_update;
     sol::protected_function fn_draw_bg;
@@ -45,6 +48,17 @@ private:
     int picked_head_id = -1;
 
     void load_costume_icons(const std::string& subdir, const std::string& json_key);
+
+    bool presets_enabled = false;
+    std::optional<int> preset_cos_id;
+    int preset_seq = 0;
+    std::vector<int> preset_pool;
+    std::unordered_map<uint32_t, std::vector<int>> preset_sets;
+    bool preset_data_loaded = false;
+    std::unordered_map<uint32_t, int> preset_rolled;
+    void load_preset_data();
+    void apply_preset(uint32_t item);
+    static bool is_preset_item(uint32_t item);
 
     static constexpr int NUM_ITEMS = 7;
     static constexpr std::array<uint32_t, NUM_ITEMS> ITEMS = {

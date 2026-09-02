@@ -20,6 +20,7 @@ if(WIN32)
         ws2_32
         msvcrt
         dbghelp
+        psapi
     )
   if(TARGET SDL3::SDL3-static)
     target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3-static)

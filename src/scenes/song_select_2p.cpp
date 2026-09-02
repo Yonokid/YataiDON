@@ -1,9 +1,11 @@
 #include "song_select_2p.h"
 #include "../libs/input.h"
+#include <filesystem>
 
 void SongSelect2PScreen::on_screen_start() {
     SongSelectScreen::on_screen_start();
     player_2 = std::make_unique<SongSelectPlayer>(PlayerNum::P2);
+    player_2->script = script.get();
 }
 
 static void init_player_diffs(SongSelectPlayer* p, SongBox* song) {
@@ -44,9 +46,6 @@ void SongSelect2PScreen::handle_input_selecting() {
         player_2->handle_input_selecting();
     }
 
-    // Both players share one difficulty column, so whoever flipped the
-    // oni/ura toggle this frame decides it for both - what the column
-    // shows is what both players get.
     if (player->is_ura != ura_1p)        player_2->sync_ura(player->is_ura);
     else if (player_2->is_ura != ura_2p) player->sync_ura(player_2->is_ura);
 }
@@ -57,13 +56,13 @@ void SongSelect2PScreen::select_song(SongBox* song) {
     auto& sd1 = global_data.session_data[(int)PlayerNum::P1];
     sd1.selected_song = song->path;
     sd1.selected_difficulty = (int)player->selected_difficulty;
-    sd1.song_hash = song->hashes[sd1.selected_difficulty];
+    sd1.song_hash = song->hash_for(sd1.selected_difficulty);
     sd1.genre_index = (int)song->song_genre_index - 1;
 
     auto& sd2 = global_data.session_data[(int)PlayerNum::P2];
     sd2.selected_song = song->path;
     sd2.selected_difficulty = (int)player_2->selected_difficulty;
-    sd2.song_hash = song->hashes[sd2.selected_difficulty];
+    sd2.song_hash = song->hash_for(sd2.selected_difficulty);
     sd2.genre_index = (int)song->song_genre_index - 1;
 
     global_data.last_difficulty[(int)PlayerNum::P1] = sd1.selected_difficulty;
@@ -88,11 +87,13 @@ std::optional<Screens> SongSelect2PScreen::update() {
     if (search_box) search_box->update(current_time);
 
     if (navigator.diff_sort_ready() && !diff_sort_selector) {
-        diff_sort_selector.emplace(cached_stats, last_diff_sort.first, last_diff_sort.second);
+        diff_sort_selector.emplace(cached_stats, last_diff_sort.first, last_diff_sort.second,
+                                   script.get(), last_diff_order);
     }
     if (diff_sort_selector) {
         state = SongSelectState::DIFF_SORTING;
         diff_sort_selector->update(current_time);
+        apply_sort_window_result();
     }
 
     poll_song_jump(current_time);
@@ -107,10 +108,6 @@ std::optional<Screens> SongSelect2PScreen::update() {
             select_song((SongBox*)item);
         }
     }
-    // A BACK pick from either player cancels diff select for both. This must
-    // not be an else-if on the both-ready branch: with the other player
-    // already ready, a BACK pick used to land in that branch, do nothing,
-    // and leave both players locked.
     if (!game_transition.has_value() &&
         ((player->is_ready && player->selected_difficulty == Difficulty::BACK) ||
          (player_2->is_ready && player_2->selected_difficulty == Difficulty::BACK))) {
@@ -151,10 +148,15 @@ void SongSelect2PScreen::draw() {
     navigator.draw_background();
     player->draw_background_diffs(state);
     player_2->draw_background_diffs(state);
+    bool same_diff = (player->selected_difficulty == player_2->selected_difficulty);
+    if (state == SongSelectState::SONG_SELECTED) {
+        if (script && script->has_box_bg()) navigator.draw_diff_select_bg();
+        if (player->selected_song)   player->try_lua_selector(same_diff, navigator.get_diff_fade_in(), 0);
+        if (player_2->selected_song) player_2->try_lua_selector(same_diff, navigator.get_diff_fade_in(), 0);
+    }
     if (screen_init) navigator.draw();
     script->draw_footer();
 
-    bool same_diff = (player->selected_difficulty == player_2->selected_difficulty);
     player->draw(state, same_diff, navigator.get_diff_fade_in());
     player_2->draw(state, same_diff, navigator.get_diff_fade_in());
 
@@ -164,5 +166,10 @@ void SongSelect2PScreen::draw() {
 
     if (diff_sort_selector) diff_sort_selector->draw();
     if (search_box) search_box->draw();
-    if (game_transition.has_value()) game_transition->draw();
+    if (game_transition.has_value()) {
+        game_transition->draw();
+        global_data.in_transition = true;
+        coin_overlay.draw();
+        global_data.in_transition = false;
+    }
 }

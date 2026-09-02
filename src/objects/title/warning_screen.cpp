@@ -80,9 +80,8 @@ void WarningCharacters::update(double current_ms) {
 
     if (chara_1_frame->attribute != saved_frame) {
         saved_frame = chara_1_frame->attribute;
-        if (!shadow_fade->is_started) {
-            shadow_fade->start();
-        }
+        if (!shadow_fade->is_started) shadow_fade->start();
+        else                          shadow_fade->restart();
     }
 }
 
@@ -143,7 +142,7 @@ void WarningScreen::update(double current_ms) {
     board->update(current_ms);
     fade_in->update(current_ms);
     fade_out->update(current_ms);
-    double delay = 566.67;
+    double delay = 533.33;
     double elapsed_time = current_ms - start_ms;
     warning_x->update(current_ms);
     characters->update(current_ms);

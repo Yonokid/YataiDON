@@ -2,6 +2,7 @@
 #include "../../libs/audio.h"
 #include "../../libs/input.h"
 #include "../../libs/scores.h"
+#include <algorithm>
 #include <cmath>
 
 Player::Player(std::optional<SongParser>& parser_ref, PlayerNum player_num_param, int difficulty_param,
@@ -61,7 +62,7 @@ Player::Player(std::optional<SongParser>& parser_ref, PlayerNum player_num_param
         chara->set_don_colors(chara_default_color_1(player_id), chara_default_color_2(player_id), {249, 240, 225, 255});
     }
     chara->set_anim(AnimIndex::DON_NORMAL);
-    if (global_data.config->general.judge_counter) {
+    if (global_data.config->general.judge_counter && !is_2p) {
         judge_counter = JudgeCounter();
     }
 }
@@ -76,16 +77,21 @@ ResultData Player::get_result_score() {
     result.total_drumroll = total_drumroll;
     if (dan_gauge) result.gauge_length = dan_gauge->gauge_length;
     else if (gauge.has_value()) result.gauge_length = gauge->gauge_length;
+    if (skipped_run) result.gauge_length = 0.0f;
     return result;
 }
 
 void Player::spawn_ending_anim() {
+    if (skipped_run) {
+        ending_anim.reset();
+        return;
+    }
     if (!gauge.has_value() && !dan_gauge) return;
     bool is_clear = dan_gauge ? dan_gauge->get_is_clear() : gauge->get_is_clear();
     if (!is_clear) {
         ending_anim = FailAnimation(is_2p);
     } else if (bad_count == 0) {
-        ending_anim = FCAnimation(is_2p);
+        ending_anim = FCAnimation(is_2p, ok_count == 0);
     } else {
         ending_anim = ClearAnimation(is_2p);
     }
@@ -110,6 +116,7 @@ void Player::reload_for_dan(std::optional<SongParser>& new_parser, int new_diffi
     gauge.reset();
     reset_chart();
     gauge.reset();  // reset_chart recreates gauge; discard it for dan mode
+    skipped_run = false;
 }
 
 void Player::handle_timeline(double ms_from_start) {
@@ -152,9 +159,6 @@ void Player::autoplay_manager(double ms_from_start, double current_ms, std::opti
             check_note(ms_from_start, hit_type, current_ms, background);
         }
     } else {
-        // A big note is struck with both hands, like a player would, so light
-        // up both sides and leave the alternating hand where it was for the
-        // next single note. Drumrolls keep alternating even when big.
         auto autoplay_hit = [&](DrumType type, bool big) {
             if (big) {
                 spawn_hit_effects(type, Side::LEFT);
@@ -165,19 +169,28 @@ void Player::autoplay_manager(double ms_from_start, double current_ms, std::opti
             }
         };
 
+        const double bad_window = (difficulty <= (int)Difficulty::NORMAL)
+                                ? Timing::BAD_EASY : Timing::BAD;
+
         while (!don_notes.empty() && ms_from_start >= don_notes.front().hit_ms) {
+            if (ms_from_start > don_notes.front().hit_ms + bad_window) break;
+            const size_t remaining = don_notes.size();
             hit_type = DrumType::DON;
             autoplay_hit(hit_type, don_notes.front().type == NoteType::DON_L);
             audio.play_sound(don_hitsound, VolumePreset::HITSOUND);
             check_note(ms_from_start, hit_type, current_ms, background);
             last_note_hit = current_ms;
+            if (don_notes.size() == remaining) break;
         }
 
         while (!kat_notes.empty() && ms_from_start >= kat_notes.front().hit_ms) {
+            if (ms_from_start > kat_notes.front().hit_ms + bad_window) break;
+            const size_t remaining = kat_notes.size();
             hit_type = DrumType::KAT;
             autoplay_hit(hit_type, kat_notes.front().type == NoteType::KAT_L);
             audio.play_sound(kat_hitsound, VolumePreset::HITSOUND);
             check_note(ms_from_start, hit_type, current_ms, background);
+            if (kat_notes.size() == remaining) break;
         }
     }
 }
@@ -282,6 +295,19 @@ void Player::evaluate_branch(double current_ms) {
 }
 
 void Player::update(double ms_from_start, double current_ms, std::optional<Background>& background) {
+    bg_hook = background.has_value() ? &background.value() : nullptr;
+
+    if (!is_2p) {
+        global_data.live_combo    = combo;
+        global_data.live_score    = score;
+        global_data.live_drumroll = total_drumroll;
+        global_data.live_gogo     = is_gogo_time;
+        if (gauge.has_value()) {
+            global_data.live_soul       = gauge->get_soul();
+            global_data.live_is_clear   = gauge->get_is_clear();
+            global_data.live_is_rainbow = gauge->get_is_rainbow();
+        }
+    }
     note_manager(ms_from_start, background);
     combo_display.update(current_ms, combo);
     if (combo_announce.has_value()) {
@@ -339,6 +365,7 @@ void Player::update(double ms_from_start, double current_ms, std::optional<Backg
             NoteType note_type = it->note_type;
             bool is_big = it->is_big;
             it = draw_arc_list.erase(it);
+            gauge_hit_effect.clear();
             gauge_hit_effect.push_back(GaugeHitEffect(note_type, is_big, player_num == PlayerNum::P2));
         } else {
             ++it;
@@ -375,8 +402,14 @@ void Player::update(double ms_from_start, double current_ms, std::optional<Backg
     } else if (gauge.has_value()) {
         gauge->update(current_ms);
         if (background.has_value()) {
-            background->handle_gauge(player_num, gauge->get_progress(), gauge->get_is_clear(), gauge->get_is_rainbow());
+            background->handle_gauge(player_num, gauge->get_progress(), gauge->get_is_clear(), gauge->get_is_rainbow(),
+                                     gauge->get_clear_progress(), gauge->get_flash_attribute());
         }
+        bool gauge_full_now = gauge->get_is_rainbow();
+        if (gauge_full_now && !was_gauge_full) {
+            chara->set_anim(AnimIndex::DON_FULL_GAGE);
+        }
+        was_gauge_full = gauge_full_now;
     }
     if (judge_counter.has_value()) {
         judge_counter->update(good_count, ok_count, bad_count, total_drumroll);
@@ -395,13 +428,6 @@ void Player::update(double ms_from_start, double current_ms, std::optional<Backg
 }
 
 void Player::draw(double ms_from_start, float x, float y, ray::Shader& mask_shader) {
-    if (!is_balloon) {
-        if (is_2p) {
-            chara->draw(tex.skin_config[SC::GAME_CHARA_P2].x, y + tex.skin_config[SC::GAME_CHARA_P2].y);
-        } else {
-            chara->draw(tex.skin_config[SC::GAME_CHARA_P1].x, y + tex.skin_config[SC::GAME_CHARA_P1].y);
-        }
-    }
     tex.draw_texture(LANE::LANE_BACKGROUND, {.y=y});
     if (player_num == PlayerNum::AI) tex.draw_texture(LANE::AI_LANE_BACKGROUND, {.y=y});
     if (branch_indicator.has_value()) {
@@ -413,6 +439,7 @@ void Player::draw(double ms_from_start, float x, float y, ray::Shader& mask_shad
         } else {
             gauge->draw(y);
         }
+        if (bg_hook) bg_hook->draw_gauge(player_num);
     }
     if (lane_hit_effect.has_value()) {
         lane_hit_effect->draw(y);
@@ -451,6 +478,14 @@ void Player::draw_practice(double ms_from_start, float x, float y, ray::Shader& 
     if (player_num == PlayerNum::AI) tex.draw_texture(LANE::AI_LANE_BACKGROUND, {.y=y});
     if (branch_indicator.has_value()) {
         branch_indicator->draw(y);
+    }
+    if (gauge.has_value()) {
+        if (is_2p) {
+            gauge->draw(y + tex.skin_config[SC::GAUGE_2P_OFFSET].y);
+        } else {
+            gauge->draw(y);
+        }
+        if (bg_hook) bg_hook->draw_gauge(player_num);
     }
     if (lane_hit_effect.has_value()) {
         lane_hit_effect->draw(y);
@@ -591,6 +626,8 @@ void Player::reset_chart() {
     curr_drumroll_count = 0;
     is_balloon = false;
     curr_balloon_count = 0;
+    kusudama_shared_hits = 0;
+    last_subdivision = -1;
     is_branch = false;
     branch_condition = "";
     branch_p_count = 0;
@@ -621,6 +658,7 @@ void Player::reset_chart() {
             gauge_total_notes++;
         }
     }
+    judgeable_note_count = gauge_total_notes;
     gauge = Gauge(GaugeMode::NORMAL, player_num, gauge_total_notes, difficulty, stars);
 
     //setup score
@@ -827,7 +865,9 @@ void Player::handle_lyric(double ms_from_start, const TimelineObject& timeline_o
 }
 
 void Player::play_note_manager(double current_ms, std::optional<Background>& background) {
-    if (!don_notes.empty() && don_notes.front().hit_ms + Timing::BAD < current_ms) {
+    const double miss_window = (difficulty <= (int)Difficulty::NORMAL)
+                             ? Timing::BAD_EASY : Timing::BAD;
+    while (!don_notes.empty() && don_notes.front().hit_ms + miss_window < current_ms) {
         combo = 0;
         if (background.has_value()) background->handle_bad(PlayerNum(1 + is_2p));
         bad_count++;
@@ -838,7 +878,7 @@ void Player::play_note_manager(double current_ms, std::optional<Background>& bac
         branch_note_count++;
     }
 
-    if (!kat_notes.empty() && kat_notes.front().hit_ms + Timing::BAD < current_ms) {
+    while (!kat_notes.empty() && kat_notes.front().hit_ms + miss_window < current_ms) {
         combo = 0;
         if (background.has_value()) background->handle_bad(PlayerNum(1 + is_2p));
         bad_count++;
@@ -878,7 +918,7 @@ void Player::play_note_manager(double current_ms, std::optional<Background>& bac
 }
 
 void Player::draw_note_manager(double current_ms) {
-    if (!draw_note_list.empty() && current_ms >= draw_note_list.front().load_ms) {
+    while (!draw_note_list.empty() && current_ms >= draw_note_list.front().load_ms) {
         Note current_note = draw_note_list.front();
         draw_note_list.pop_front();
 
@@ -966,7 +1006,8 @@ void Player::note_correct(const Note& note, double current_ms) {
     if (note.type < NoteType::BALLOON_HEAD) {
         combo++;
         if (combo % 10 == 0) {
-            chara->set_anim(AnimIndex::DON_COMBO);
+            chara->set_anim(bad_count == 0 ? AnimIndex::DON_FULL_COMBO
+                                            : AnimIndex::DON_COMBO);
         }
         if (combo % 100 == 0) {
             combo_announce = ComboAnnounce(combo, current_ms, player_num);
@@ -1037,20 +1078,38 @@ void Player::check_balloon(double current_ms, DrumType drum_type, const Note& ba
 
 void Player::check_kusudama(double current_ms, DrumType drum_type, const Note& balloon, std::optional<Background>& background) {
     if (drum_type != DrumType::DON) return;
-    if (!kusudama_counter.has_value()) {
-        kusudama_counter = KusudamaCounter(balloon.count.value());
+
+    Player* owner = kusudama_owner();
+    if (!owner->kusudama_counter.has_value()) {
+        owner->kusudama_counter = KusudamaCounter(balloon.count.value());
+        owner->kusudama_shared_hits = 0;
     }
     if (background.has_value()) background->handle_balloon(PlayerNum(is_2p + 1));
-    curr_balloon_count++;
     total_drumroll++;
     score += 100;
     base_score_list.push_back(ScoreCounterAnimation(player_num, 100, is_2p));
     if (curr_balloon_count == balloon.count.value()) {
         is_balloon = false;
+
+    owner->kusudama_shared_hits++;
+    owner->kusudama_counter->update(current_ms, owner->kusudama_shared_hits);
+
+    if (owner->kusudama_shared_hits == balloon.count.value()) {
         audio.play_sound("kusudama_pop", VolumePreset::HITSOUND);
-        kusudama_counter->update(current_ms, curr_balloon_count);
+
+        is_balloon = false;
         note_correct(balloon, current_ms);
-        curr_balloon_count = 0;
+
+        if (kusudama_partner && kusudama_partner != this && kusudama_partner->is_balloon &&
+            !kusudama_partner->other_notes.empty() &&
+            kusudama_partner->other_notes.front().type == NoteType::KUSUDAMA) {
+            Note partner_note = kusudama_partner->other_notes.front();
+            kusudama_partner->is_balloon = false;
+            kusudama_partner->note_correct(partner_note, current_ms);
+        }
+    }
+
+        owner->kusudama_shared_hits = 0;
     }
 }
 
@@ -1201,11 +1260,35 @@ void Player::kusudama_counter_manager(double current_ms) {
         kusudama_counter.reset();
     }
     if (kusudama_counter.has_value()) {
-        kusudama_counter->update(current_ms, curr_balloon_count);
+        kusudama_counter->update(current_ms, kusudama_shared_hits);
         if (kusudama_counter->is_finished()) {
             kusudama_counter.reset();
         }
     }
+}
+
+void Player::cut_to_end(double now, int prev_good, int prev_ok, int prev_bad) {
+    draw_note_list.clear();
+    draw_note_buffer.clear();
+    don_notes.clear();
+    kat_notes.clear();
+    other_notes.clear();
+    barlines.clear();
+    branch_m.clear();
+    branch_e.clear();
+    branch_n.clear();
+    timeline.clear();
+    is_drumroll = false;
+    is_balloon = false;
+    drumroll_counter.reset();
+    balloon_counter.reset();
+    kusudama_counter.reset();
+    end_time = now - 1000.0;
+
+    skipped_run = true;
+    int song_good = good_count - prev_good;
+    int song_ok   = ok_count   - prev_ok;
+    bad_count = prev_bad + std::max(0, judgeable_note_count - song_good - song_ok);
 }
 
 void Player::spawn_hit_effects(DrumType drum_type, Side side) {
@@ -1360,7 +1443,7 @@ void Player::draw_notes(double current_ms, float y) {
         if (balloon_counter.has_value() && note.type == NoteType::BALLOON_HEAD && !other_notes.empty() && note.index == other_notes[0].index) {
             return true;
         }
-        if (kusudama_counter.has_value() && note.type == NoteType::KUSUDAMA && !other_notes.empty() && note.index == other_notes[0].index) {
+        if (kusudama_owner()->kusudama_counter.has_value() && note.type == NoteType::KUSUDAMA && !other_notes.empty() && note.index == other_notes[0].index) {
             return true;
         }
         return note.type == NoteType::TAIL;
@@ -1393,7 +1476,6 @@ void Player::draw_notes(double current_ms, float y) {
         if (skip_note(note)) continue;
         auto pos = note_position(note);
         if (!pos) continue;
-
         if (note.color.has_value()) {
             draw_drumroll(current_ms, y, note, current_eighth, false);
         } else if (note.type == NoteType::BALLOON_HEAD) {
@@ -1462,6 +1544,11 @@ void Player::draw_modifiers(float y) {
 }
 
 void Player::draw_lane_cover(float y) {
+    if (is_2p) {
+        chara->draw(tex.skin_config[SC::GAME_CHARA_P2].x, y + tex.skin_config[SC::GAME_CHARA_P2].y, 1.0f);
+    } else {
+        chara->draw(tex.skin_config[SC::GAME_CHARA_P1].x, y + tex.skin_config[SC::GAME_CHARA_P1].y, 1.0f);
+    }
     tex.draw_texture(lane_cover_tex_id, {.y=y});
     if (is_dan) tex.draw_texture(LANE::DAN_LANE_COVER, {.y=y});
 }
@@ -1505,12 +1592,17 @@ void Player::draw_overlays(float y, const ray::Shader& mask_shader) {
             nameplate.draw(tex.skin_config[SC::GAME_NAMEPLATE_1P].x, y + tex.skin_config[SC::GAME_NAMEPLATE_1P].y);
         }
     }
+    if (is_balloon) {
+        float rig_2p_y = 0.0f;
+        if (is_2p && balloon_counter.has_value()) {
+            if (const SkinInfo* p2 = tex.skin_entry("balloon_counter_2p_offset"))
+                rig_2p_y = p2->y;
+        }
+        chara->draw(tex.skin_config[SC::GAME_CHARA_BALLOON].x, y + tex.skin_config[SC::GAME_CHARA_BALLOON].y + rig_2p_y, 1.0f);
+    }
 
     if (drumroll_counter.has_value()) {
         drumroll_counter->draw(y + (tex.skin_config[SC::COMBO_ANNOUNCE_P2_Y_OFFSET].y * is_2p));
-    }
-    if (is_balloon) {
-        chara->draw(tex.skin_config[SC::GAME_CHARA_BALLOON].x, y + tex.skin_config[SC::GAME_CHARA_BALLOON].y);
     }
     if (balloon_counter.has_value()) {
         balloon_counter->draw(y);
@@ -1550,13 +1642,10 @@ void Player::seek_to(double resume_time) {
     is_balloon = false;
     curr_drumroll_count = 0;
     curr_balloon_count = 0;
+    kusudama_shared_hits = 0;
 
     reset_chart();
 
-    // Keep notes sitting exactly on the resume boundary (a bar's downbeat
-    // lands there): the resume time is derived with floating arithmetic and
-    // can come out a hair above the note's hit_ms, occasionally dropping
-    // the first note of the target bar from the hit queues.
     const double boundary_eps = 1.0;
     auto filter = [resume_time, boundary_eps](std::deque<Note>& q) {
         while (!q.empty() && q.front().hit_ms < resume_time - boundary_eps) q.pop_front();

@@ -43,7 +43,7 @@ enum class Screens {
 };
 
 inline std::string screens_to_string(Screens screen) {
-    static const std::array<std::string, 25> names = {
+    static const std::array<std::string, 24> names = {
         "TITLE",
         "ENTRY",
         "SONG_SELECT",

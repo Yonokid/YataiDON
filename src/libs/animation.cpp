@@ -1,7 +1,9 @@
 #include "animation.h"
 #include "global_data.h"
 #include "rapidjson/error/en.h"
+#include <algorithm>
 #include <cmath>
+#include <spdlog/spdlog.h>
 
 using std::runtime_error;
 
@@ -150,12 +152,14 @@ MoveAnimation::MoveAnimation(double duration, int total_distance, bool loop,
               bool lock_input, int start_position, double delay,
               std::optional<double> reverse_delay,
               std::optional<std::string> ease_in,
-              std::optional<std::string> ease_out)
+              std::optional<std::string> ease_out,
+              std::optional<int> waypoint, double waypoint_at)
     : BaseAnimation(duration, delay, loop, lock_input),
       total_distance(total_distance), start_position(start_position),
       total_distance_saved(total_distance), start_position_saved(start_position),
       ease_in(ease_in), ease_out(ease_out),
-      reverse_delay(reverse_delay), reverse_delay_saved(reverse_delay) {
+      reverse_delay(reverse_delay), reverse_delay_saved(reverse_delay),
+      waypoint(waypoint), waypoint_at(std::clamp(waypoint_at, 0.001, 0.999)) {
     attribute = start_position;
 }
 
@@ -188,15 +192,23 @@ void MoveAnimation::update(double current_time_ms) {
         }
     } else {
         double progress = (elapsed_time - delay) / duration;
-        progress = applyEasing(progress, ease_in, ease_out);
-        attribute = start_position + (total_distance * progress);
+        if (waypoint.has_value()) {
+            double w = (double)waypoint.value();
+            attribute = (progress <= waypoint_at)
+                ? start_position + w * (progress / waypoint_at)
+                : start_position + w + ((double)total_distance - w) * ((progress - waypoint_at) / (1.0 - waypoint_at));
+        } else {
+            progress = applyEasing(progress, ease_in, ease_out);
+            attribute = start_position + (total_distance * progress);
+        }
     }
 }
 
 std::unique_ptr<BaseAnimation> MoveAnimation::copy() const {
     return std::make_unique<MoveAnimation>(
         duration, total_distance_saved, loop, lock_input,
-        start_position_saved, delay_saved, reverse_delay_saved, ease_in, ease_out
+        start_position_saved, delay_saved, reverse_delay_saved, ease_in, ease_out,
+        waypoint, waypoint_at
     );
 }
 
@@ -433,7 +445,17 @@ Value AnimationParser::findRefs(int anim_id, std::set<int>& visited) {
 
 std::unique_ptr<BaseAnimation> AnimationParser::createAnimation(const Value& anim_obj) {
     std::string type = anim_obj["type"].GetString();
-    double duration = anim_obj["duration"].GetDouble();
+    // "sample" derives its natural duration from its table window, so the key
+    // is optional there; every other type keeps requiring it (the old
+    // unconditional GetDouble() threw on absence, matching this).
+    double duration = 0.0;
+    if (anim_obj.HasMember("duration")) {
+        duration = anim_obj["duration"].IsDouble() ? anim_obj["duration"].GetDouble()
+                 : anim_obj["duration"].IsInt() ? static_cast<double>(anim_obj["duration"].GetInt())
+                 : 0.0;
+    } else if (type != "sample") {
+        throw std::runtime_error("Animation of type '" + type + "' requires duration");
+    }
 
     auto get_double = [&](const char* key, double def) {
         if (anim_obj.HasMember(key)) {
@@ -452,6 +474,13 @@ std::unique_ptr<BaseAnimation> AnimationParser::createAnimation(const Value& ani
 
     auto get_bool = [&](const char* key, bool def) {
         return anim_obj.HasMember(key) && anim_obj[key].IsBool() ? anim_obj[key].GetBool() : def;
+    };
+
+    auto get_int_opt = [&](const char* key) -> std::optional<int> {
+        if (!anim_obj.HasMember(key)) return std::nullopt;
+        if (anim_obj[key].IsInt())    return anim_obj[key].GetInt();
+        if (anim_obj[key].IsDouble()) return static_cast<int>(anim_obj[key].GetDouble());
+        return std::nullopt;
     };
 
     auto get_string_opt = [&](const char* key) -> std::optional<std::string> {
@@ -498,7 +527,9 @@ std::unique_ptr<BaseAnimation> AnimationParser::createAnimation(const Value& ani
             delay,
             get_double_opt("reverse_delay"),
             get_string_opt("ease_in"),
-            get_string_opt("ease_out")
+            get_string_opt("ease_out"),
+            get_int_opt("waypoint"),
+            get_double("waypoint_at", 0.5)
         );
     } else if (type == "texture_change") {
         std::vector<std::tuple<double, double, int>> textures;
@@ -532,6 +563,13 @@ std::unique_ptr<BaseAnimation> AnimationParser::createAnimation(const Value& ani
             get_string_opt("ease_in"),
             get_string_opt("ease_out")
         );
+    } else if (type == "sample") {
+        // No sample-table data source exists anymore, so this always falls
+        // back (the FAIL-SOFT path the type was designed with from the start).
+        if (anim_obj.HasMember("fallback")) {
+            return createAnimation(anim_obj["fallback"]);
+        }
+        throw std::runtime_error("Animation of type 'sample' has no 'fallback' to use");
     } else {
         throw std::runtime_error("Unknown animation type: " + type);
     }

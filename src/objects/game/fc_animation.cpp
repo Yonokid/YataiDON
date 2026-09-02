@@ -2,8 +2,26 @@
 #include "../../libs/texture.h"
 #include "../../libs/audio.h"
 
-FCAnimation::FCAnimation(bool is_2p)
+FCAnimation::FCAnimation(bool is_2p, bool donderful)
     : is_2p(is_2p), draw_clear_full(false), name("in"), frame(0) {
+
+    const bool has_dfc_tex = donderful &&
+        tex.has_texture("ending_donderful/full_combo") &&
+        tex.has_texture("ending_donderful/full_combo_highlight") &&
+        tex.has_texture("ending_donderful/full_combo_overlay");
+    const std::string subset = has_dfc_tex ? "ending_donderful/" : "ending_anim/";
+    combo_tex           = tex.get_enum(subset + "full_combo");
+    combo_highlight_tex = tex.get_enum(subset + "full_combo_highlight");
+    combo_overlay_tex   = tex.get_enum(subset + "full_combo_overlay");
+
+    has_panel = has_dfc_tex && tex.has_texture("ending_donderful/background");
+    panel_tex = has_panel ? tex.get_enum("ending_donderful/background") : 0;
+    panel_fade_in = new FadeAnimation(250, 0.0, false, false, 1.0, 0.0);
+
+    const bool has_dfc_sound = donderful && audio.has_sound("donderful_combo");
+    combo_sound = has_dfc_sound ? "donderful_combo" : "full_combo";
+    combo_voice = (donderful && audio.has_sound("donderful_combo_voice"))
+                  ? "donderful_combo_voice" : "full_combo_voice";
 
     bachio_fade_in = (FadeAnimation*)tex.get_animation(46);
     bachio_texture_change = (TextureChangeAnimation*)tex.get_animation(47);
@@ -37,7 +55,7 @@ FCAnimation::FCAnimation(bool is_2p)
     fan_fade_in = (FadeAnimation*)tex.get_animation(61);
     fan_texture_change = (TextureChangeAnimation*)tex.get_animation(62);
 
-    audio.play_sound("full_combo", VolumePreset::SOUND);
+    audio.play_sound(combo_sound, VolumePreset::SOUND);
 }
 
 void FCAnimation::update(double current_ms) {
@@ -59,12 +77,14 @@ void FCAnimation::update(double current_ms) {
         bachio_move_up->start();
         fan_fade_in->start();
         fan_texture_change->start();
-        audio.play_sound("full_combo_voice", VolumePreset::VOICE);
+        audio.play_sound(combo_voice, VolumePreset::VOICE);
     }
 
     if (clear_highlight_fade_in->attribute == 1.0f) {
+        if (!draw_clear_full && has_panel) panel_fade_in->start();
         draw_clear_full = true;
     }
+    panel_fade_in->update(current_ms);
 
     for (auto fade : clear_separate_fade_in) {
         fade->update(current_ms);
@@ -83,23 +103,12 @@ void FCAnimation::update(double current_ms) {
 
 void FCAnimation::draw() {
     if (draw_clear_full) {
-        tex.draw_texture(ENDING_ANIM::FULL_COMBO_OVERLAY, {
-            .y = (float)(-fc_highlight_up->attribute),
-            .fade = 0.5f,
-            .index = (int)is_2p
-        });
-
-        tex.draw_texture(ENDING_ANIM::FULL_COMBO, {
-            .y = (float)(-fc_highlight_up->attribute),
-            .index = (int)is_2p
-        });
-
-        tex.draw_texture(ENDING_ANIM::FULL_COMBO_HIGHLIGHT, {
-            .y = (float)(-fc_highlight_up->attribute),
-            .fade = (float)(fc_highlight_fade_out->attribute),
-            .index = (int)is_2p
-        });
-
+        if (has_panel) {
+            tex.draw_texture(panel_tex, {
+                .fade = (float)(panel_fade_in->attribute),
+                .index = (int)is_2p
+            });
+        }
         tex.draw_texture(ENDING_ANIM::FAN_L, {
             .frame = (int)fan_texture_change->attribute,
             .fade = (float)(fan_fade_in->attribute),
@@ -109,6 +118,23 @@ void FCAnimation::draw() {
         tex.draw_texture(ENDING_ANIM::FAN_R, {
             .frame = (int)fan_texture_change->attribute,
             .fade = (float)(fan_fade_in->attribute),
+            .index = (int)is_2p
+        });
+
+        tex.draw_texture(combo_overlay_tex, {
+            .y = (float)(-fc_highlight_up->attribute),
+            .fade = 0.5f,
+            .index = (int)is_2p
+        });
+
+        tex.draw_texture(combo_tex, {
+            .y = (float)(-fc_highlight_up->attribute),
+            .index = (int)is_2p
+        });
+
+        tex.draw_texture(combo_highlight_tex, {
+            .y = (float)(-fc_highlight_up->attribute),
+            .fade = (float)(fc_highlight_fade_out->attribute),
             .index = (int)is_2p
         });
     } else {

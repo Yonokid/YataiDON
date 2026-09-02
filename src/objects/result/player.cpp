@@ -8,7 +8,7 @@ ResultPlayer::ResultPlayer(PlayerNum player_num, bool has_2p, bool is_2p)
     int player_id = get_player_id(player_num);
     auto pd = scores_manager.get_player_data(player_id);
 
-    chara = make_chara_from_player_data(pd ? &*pd : nullptr);
+    chara = make_chara_from_player_data(pd ? &*pd : nullptr, is_2p);
     if (pd) {
         chara->set_don_colors(pd->chara_color_1, pd->chara_color_2, pd->chara_color_3);
         chara->apply_face(pd->chara_face_index);
@@ -24,12 +24,12 @@ ResultPlayer::ResultPlayer(PlayerNum player_num, bool has_2p, bool is_2p)
         player_num,
         pd ? pd->dan : -1, pd ? pd->gold : false, pd ? pd->rainbow : false, pd ? pd->title_bg : 0);
     update_list = {
-        {"score",          sd.result_data.score},
         {"good",           sd.result_data.good},
         {"ok",             sd.result_data.ok},
         {"bad",            sd.result_data.bad},
+        {"total_drumroll", sd.result_data.total_drumroll},
         {"max_combo",      sd.result_data.max_combo},
-        {"total_drumroll", sd.result_data.total_drumroll}
+        {"score",          sd.result_data.score}
     };
 
     CrownType crown_type;
@@ -69,23 +69,54 @@ ResultPlayer::ResultPlayer(PlayerNum player_num, bool has_2p, bool is_2p)
               mods.display, mods.inverse, mods.random, mods.speed))
         return;
 
+    sol::optional<bool>   ci  = lua_object["count_up_instant"];
+    sol::optional<double> crm = lua_object["count_up_row_ms"];
+    sol::optional<double> csm = lua_object["count_up_score_ms"];
+    count_up_instant  = ci.value_or(false);
+    count_up_row_ms   = crm.value_or(count_up_row_ms);
+    count_up_score_ms = csm.value_or(count_up_score_ms);
+    sol::optional<std::string> crs = lua_object["count_up_row_sound"];
+    sol::optional<std::string> css = lua_object["count_up_score_sound"];
+    sol::optional<bool>        c1p = lua_object["count_up_sound_1p_only"];
+    count_up_row_sound    = crs.value_or(count_up_row_sound);
+    count_up_score_sound  = css.value_or(count_up_score_sound);
+    count_up_sound_1p_only = c1p.value_or(count_up_sound_1p_only);
+
     fn_update     = lua_object["update"];
     fn_draw       = lua_object["draw"];
     fn_draw_gauge = lua_object["draw_gauge"];
+    fn_chara_pos  = lua_object["chara_pos"];
+    fn_nameplate_pos = lua_object["nameplate_pos"];
+}
+
+void ResultPlayer::assign_field(const std::string& field_name, const std::string& value) {
+    if      (field_name == "score")          score          = value;
+    else if (field_name == "good")           good           = value;
+    else if (field_name == "ok")             ok             = value;
+    else if (field_name == "bad")            bad            = value;
+    else if (field_name == "max_combo")      max_combo      = value;
+    else if (field_name == "total_drumroll") total_drumroll = value;
 }
 
 void ResultPlayer::update_score_animation(double current_ms, bool is_skipped) {
     if (is_skipped) {
         while (update_index < (int)update_list.size()) {
             auto& [field_name, value] = update_list[update_index];
-            std::string value_str = std::to_string(value);
-            if      (field_name == "score")          score          = value_str;
-            else if (field_name == "good")           good           = value_str;
-            else if (field_name == "ok")             ok             = value_str;
-            else if (field_name == "bad")            bad            = value_str;
-            else if (field_name == "max_combo")      max_combo      = value_str;
-            else if (field_name == "total_drumroll") total_drumroll = value_str;
+            assign_field(field_name, std::to_string(value));
             update_index++;
+        }
+    } else if (count_up_instant) {
+        if (score_delay.has_value() && update_index < (int)update_list.size()
+            && current_ms > score_delay.value()) {
+            auto& [field_name, value] = update_list[update_index];
+            assign_field(field_name, std::to_string(value));
+            bool is_last = (update_index == (int)update_list.size() - 1);
+            if (!count_up_sound_1p_only || player_num == PlayerNum::P1)
+                audio.play_sound(is_last ? count_up_score_sound : count_up_row_sound,
+                                 VolumePreset::SOUND);
+            update_index++;
+            score_delay.value() +=
+                (update_index == (int)update_list.size() - 1) ? count_up_score_ms : count_up_row_ms;
         }
     } else if (score_delay.has_value() && update_index < (int)update_list.size()) {
         if (current_ms > score_delay.value()) {
@@ -113,6 +144,7 @@ void ResultPlayer::update_score_animation(double current_ms, bool is_skipped) {
             }
         }
     }
+    if (rows_done_ms == 0 && update_index >= (int)update_list.size()) rows_done_ms = current_ms;
     if (update_index > 0 && !high_score_sound_played) {
         SessionData& sd = global_data.session_data[(int)player_num];
         if (sd.result_data.score > sd.result_data.prev_score) {
@@ -132,16 +164,49 @@ void ResultPlayer::update(double current_ms, bool fade_in_finished, bool is_skip
     update_score_animation(current_ms, is_skipped);
     call(fn_update, "ResultPlayer:update",
          current_ms, fade_in_finished,
-         score, good, ok, bad, max_combo, total_drumroll);
+         score, good, ok, bad, max_combo, total_drumroll, is_skipped);
     nameplate.update(current_ms);
     chara->update(current_ms);
 }
 
+double ResultPlayer::reveal_end_ms() {
+    if (lua_object.valid()) {
+        sol::optional<double> from_lua = lua_object["reveal_end_ms"];
+        if (from_lua && from_lua.value() > 0) return from_lua.value();
+    }
+    return rows_done_ms;
+}
+
 void ResultPlayer::draw() {
     call(fn_draw, "ResultPlayer:draw");
-    chara->draw(tex.skin_config[SC::RESULT_CHARA].x,
-                tex.skin_config[SC::RESULT_CHARA].y + ((int)is_2p * tex.screen_height / 2));
+    float cx = tex.skin_config[SC::RESULT_CHARA].x;
+    float cy = tex.skin_config[SC::RESULT_CHARA].y + ((int)is_2p * tex.screen_height / 2);
+    float cs = 1.0f;
+    if (fn_chara_pos.valid()) {
+        auto pos_opt = call_r<sol::table>(fn_chara_pos, "ResultPlayer:chara_pos");
+        if (pos_opt) {
+            sol::table& pos = pos_opt.value();
+            sol::optional<float> px = pos[1], py = pos[2], ps = pos[3];
+            cx = px.value_or(cx);
+            cy = py.value_or(cy);
+            cs = ps.value_or(cs);
+        }
+    }
+    chara->draw(cx, cy, cs);
     call(fn_draw_gauge, "ResultPlayer:draw_gauge");
-    nameplate.draw(tex.skin_config[SC::RESULT_NAMEPLATE].x,
-                   tex.skin_config[SC::RESULT_NAMEPLATE].y + (is_2p * tex.skin_config[SC::RESULT_NAMEPLATE].height));
+    float nx = tex.skin_config[SC::RESULT_NAMEPLATE].x;
+    float ny = tex.skin_config[SC::RESULT_NAMEPLATE].y
+             + (is_2p * tex.skin_config[SC::RESULT_NAMEPLATE].height);
+    float nf = 1.0f;
+    if (fn_nameplate_pos.valid()) {
+        auto pos_opt = call_r<sol::table>(fn_nameplate_pos, "ResultPlayer:nameplate_pos");
+        if (pos_opt) {
+            sol::table& pos = pos_opt.value();
+            sol::optional<float> px = pos[1], py = pos[2], pf = pos[3];
+            nx = px.value_or(nx);
+            ny = py.value_or(ny);
+            nf = pf.value_or(nf);
+        }
+    }
+    nameplate.draw(nx, ny, nf);
 }
