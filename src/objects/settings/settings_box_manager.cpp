@@ -1,8 +1,9 @@
 #include "settings_box_manager.h"
 
 static constexpr int   INITIAL_SELECTED = 3;
-static constexpr float BOX_STEP         = 100.0f;
-static constexpr float BOX_INITIAL_Y    = -50.0f;
+// Same 1280x720-canvas base values as SettingsBox; scale with the skin.
+static constexpr float BOX_STEP_BASE      = 100.0f;
+static constexpr float BOX_INITIAL_Y_BASE = -50.0f;
 
 SettingsBoxManager::SettingsBoxManager(const rapidjson::Document& tmpl)
     : num_boxes(0)
@@ -33,7 +34,8 @@ SettingsBoxManager::SettingsBoxManager(const rapidjson::Document& tmpl)
     num_boxes = (int)boxes.size();
 
     for (int i = 0; i < num_boxes; i++) {
-        boxes[i]->set_y(BOX_INITIAL_Y + i * BOX_STEP);
+        boxes[i]->set_box_count(num_boxes);
+        boxes[i]->set_y((BOX_INITIAL_Y_BASE + i * BOX_STEP_BASE) * tex.screen_scale);
     }
 
     selected_box_index = std::min(selected_box_index, num_boxes - 1);

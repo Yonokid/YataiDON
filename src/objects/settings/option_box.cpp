@@ -4,10 +4,14 @@
 
 std::string getKeyString(int key_code);
 
-static constexpr int   OPTION_FONT_SIZE = 30;
-static constexpr float DESC_X           = 450.0f;
-static constexpr float DESC_Y           = 270.0f;
-static constexpr float DESC_FONT_SIZE   = 25.0f;
+static constexpr int   OPTION_FONT_SIZE_BASE = 30;
+static constexpr float DESC_X_BASE           = 450.0f;
+static constexpr float DESC_Y_BASE           = 270.0f;
+static constexpr float DESC_FONT_SIZE_BASE   = 25.0f;
+
+// These are laid out for the 1280x720 base canvas; scale with the skin so
+// higher-resolution skins don't drift out of alignment with the box art.
+static int option_font_size() { return (int)(OPTION_FONT_SIZE_BASE * tex.screen_scale); }
 
 static std::unique_ptr<FadeAnimation> make_flicker() {
     auto fa = std::make_unique<FadeAnimation>(400.0, 0.0, true, false, 1.0, 0.0,
@@ -21,7 +25,7 @@ BaseOptionBox::BaseOptionBox(const std::string& name,
                              const std::string& path)
     : description_text(description)
     , config_ref(get_config_ref(path))
-    , name_text(std::make_unique<OutlinedText>(name, OPTION_FONT_SIZE, ray::WHITE, ray::BLACK, false, 4, -4))
+    , name_text(std::make_unique<OutlinedText>(name, option_font_size(), ray::WHITE, ray::BLACK, false, 4, -4))
     , is_highlighted(false)
 {}
 
@@ -33,13 +37,15 @@ void BaseOptionBox::draw_base() const {
         tex.draw_texture(BACKGROUND::TITLE);
     }
     auto& title_obj = tex.textures[BACKGROUND::TITLE];
-    float text_x = title_obj->x[0] + (title_obj->width  / 2.0f) - (name_text->width  / 2.0f);
-    float text_y = title_obj->y[0] + (title_obj->height / 8.0f);
+    float text_x = title_obj->x[0] + (title_obj->x2[0]  / 2.0f) - (name_text->width  / 2.0f);
+    float text_y = title_obj->y[0] + (title_obj->y2[0] / 8.0f);
     name_text->draw({.x=text_x, .y=text_y});
 
-    ray::Font font = font_manager.get_font(description_text, (int)DESC_FONT_SIZE);
+    float desc_font_size = DESC_FONT_SIZE_BASE * tex.screen_scale;
+    ray::Font font = font_manager.get_font(description_text, (int)desc_font_size);
     ray::DrawTextEx(font, description_text.c_str(),
-                    {DESC_X, DESC_Y}, DESC_FONT_SIZE, 1, ray::BLACK);
+                    {DESC_X_BASE * tex.screen_scale, DESC_Y_BASE * tex.screen_scale},
+                    desc_font_size, 1, ray::BLACK);
 }
 
 BoolOptionBox::BoolOptionBox(const std::string& name,
@@ -49,8 +55,8 @@ BoolOptionBox::BoolOptionBox(const std::string& name,
                              const std::string& false_label)
     : BaseOptionBox(name, description, path)
     , value(config_ref.get_bool())
-    , on_text(std::make_unique<OutlinedText>(true_label,  OPTION_FONT_SIZE, ray::WHITE, ray::BLACK, false, 4, -4))
-    , off_text(std::make_unique<OutlinedText>(false_label, OPTION_FONT_SIZE, ray::WHITE, ray::BLACK, false, 4, -4))
+    , on_text(std::make_unique<OutlinedText>(true_label,  option_font_size(), ray::WHITE, ray::BLACK, false, 4, -4))
+    , off_text(std::make_unique<OutlinedText>(false_label, option_font_size(), ray::WHITE, ray::BLACK, false, 4, -4))
 {}
 
 void BoolOptionBox::confirm() {
@@ -70,8 +76,8 @@ void BoolOptionBox::draw() {
     } else {
         tex.draw_texture(OPTION::BUTTON_OFF, {.index=0});
     }
-    float ox = btn->x[0] + (btn->width / 2.0f) - (off_text->width  / 2.0f);
-    float oy = btn->y[0] + (btn->height / 2.0f) - (off_text->height / 2.0f);
+    float ox = btn->x[0] + (btn->x2[0] / 2.0f) - (off_text->width  / 2.0f);
+    float oy = btn->y[0] + (btn->y2[0] / 2.0f) - (off_text->height / 2.0f);
     off_text->draw({.x=ox, .y=oy});
 
     if (value) {
@@ -79,8 +85,8 @@ void BoolOptionBox::draw() {
     } else {
         tex.draw_texture(OPTION::BUTTON_OFF, {.index=1});
     }
-    float nx = btn->x[1] + (btn->width / 2.0f) - (on_text->width  / 2.0f);
-    float ny = btn->y[1] + (btn->height / 2.0f) - (on_text->height / 2.0f);
+    float nx = btn->x[1] + (btn->x2[1] / 2.0f) - (on_text->width  / 2.0f);
+    float ny = btn->y[1] + (btn->y2[1] / 2.0f) - (on_text->height / 2.0f);
     on_text->draw({.x=nx, .y=ny});
 }
 
@@ -108,10 +114,10 @@ IntOptionBox::IntOptionBox(const std::string& name,
             }
         }
         value_text = std::make_unique<OutlinedText>(value_list[value_index].second,
-                                      OPTION_FONT_SIZE, ray::WHITE, ray::BLACK, false, 4, -4);
+                                      option_font_size(), ray::WHITE, ray::BLACK, false, 4, -4);
     } else {
         value_text = std::make_unique<OutlinedText>(int_display(value),
-                                      OPTION_FONT_SIZE, ray::WHITE, ray::BLACK, false, 4, -4);
+                                      option_font_size(), ray::WHITE, ray::BLACK, false, 4, -4);
     }
 }
 
@@ -119,7 +125,7 @@ void IntOptionBox::rebuild_text() {
     std::string label = value_list.empty()
         ? int_display(value)
         : value_list[value_index].second;
-    value_text = std::make_unique<OutlinedText>(label, OPTION_FONT_SIZE, ray::WHITE, ray::BLACK, false, 4, -4);
+    value_text = std::make_unique<OutlinedText>(label, option_font_size(), ray::WHITE, ray::BLACK, false, 4, -4);
 }
 
 void IntOptionBox::confirm() {
@@ -158,8 +164,8 @@ void IntOptionBox::draw() {
         tex.draw_texture(OPTION::BUTTON_ON,  {.fade=flicker_fade->attribute, .index=2});
     }
     auto& btn = tex.textures[OPTION::BUTTON_ON];
-    float tx = btn->x[2] + (btn->width  / 2.0f) - (value_text->width  / 2.0f);
-    float ty = btn->y[2] + (btn->height / 2.0f) - (value_text->height / 2.0f);
+    float tx = btn->x[2] + (btn->x2[2]  / 2.0f) - (value_text->width  / 2.0f);
+    float ty = btn->y[2] + (btn->y2[2] / 2.0f) - (value_text->height / 2.0f);
     value_text->draw({.x=tx, .y=ty});
 }
 
@@ -185,9 +191,9 @@ StrOptionBox::StrOptionBox(const std::string& name,
             }
         }
         value_text = std::make_unique<OutlinedText>(value_list[value_index].second,
-                                      OPTION_FONT_SIZE, ray::WHITE, ray::BLACK, false, 4, -4);
+                                      option_font_size(), ray::WHITE, ray::BLACK, false, 4, -4);
     } else {
-        value_text = std::make_unique<OutlinedText>(value, OPTION_FONT_SIZE, ray::WHITE, ray::BLACK, false, 4, -4);
+        value_text = std::make_unique<OutlinedText>(value, option_font_size(), ray::WHITE, ray::BLACK, false, 4, -4);
     }
 }
 
@@ -195,7 +201,7 @@ void StrOptionBox::rebuild_text() {
     std::string label = value_list.empty()
         ? input_string
         : value_list[value_index].second;
-    value_text = std::make_unique<OutlinedText>(label, OPTION_FONT_SIZE, ray::WHITE, ray::BLACK, false, 4, -4);
+    value_text = std::make_unique<OutlinedText>(label, option_font_size(), ray::WHITE, ray::BLACK, false, 4, -4);
 }
 
 void StrOptionBox::confirm() {
@@ -262,8 +268,8 @@ void StrOptionBox::draw() {
         tex.draw_texture(OPTION::BUTTON_ON,  {.fade=flicker_fade->attribute, .index=2});
     }
     auto& btn = tex.textures[OPTION::BUTTON_ON];
-    float tx = btn->x[2] + (btn->width  / 2.0f) - (value_text->width  / 2.0f);
-    float ty = btn->y[2] + (btn->height / 2.0f) - (value_text->height / 2.0f);
+    float tx = btn->x[2] + (btn->x2[2]  / 2.0f) - (value_text->width  / 2.0f);
+    float ty = btn->y[2] + (btn->y2[2] / 2.0f) - (value_text->height / 2.0f);
     value_text->draw({.x=tx, .y=ty});
 }
 
@@ -290,7 +296,7 @@ void KeybindOptionBox::rebuild_text() {
         if (i + 1 < (int)value.size()) label += ", ";
     }
     value_text = std::make_unique<OutlinedText>(label.empty() ? "none" : label,
-                                  OPTION_FONT_SIZE, ray::WHITE, ray::BLACK, false, 4, -4);
+                                  option_font_size(), ray::WHITE, ray::BLACK, false, 4, -4);
 }
 
 void KeybindOptionBox::confirm() {
@@ -323,8 +329,8 @@ void KeybindOptionBox::draw() {
         tex.draw_texture(OPTION::BUTTON_ON,  {.fade=flicker_fade->attribute, .index=2});
     }
     auto& btn = tex.textures[OPTION::BUTTON_ON];
-    float tx = btn->x[2] + (btn->width  / 2.0f) - (value_text->width  / 2.0f);
-    float ty = btn->y[2] + (btn->height / 2.0f) - (value_text->height / 2.0f);
+    float tx = btn->x[2] + (btn->x2[2]  / 2.0f) - (value_text->width  / 2.0f);
+    float ty = btn->y[2] + (btn->y2[2] / 2.0f) - (value_text->height / 2.0f);
     value_text->draw({.x=tx, .y=ty});
 }
 
@@ -350,7 +356,7 @@ void KeyBindControllerOptionBox::rebuild_text() {
         if (i + 1 < (int)value.size()) label += ", ";
     }
     value_text = std::make_unique<OutlinedText>(label.empty() ? "none" : label,
-                                  OPTION_FONT_SIZE, ray::WHITE, ray::BLACK, false, 4, -4);
+                                  option_font_size(), ray::WHITE, ray::BLACK, false, 4, -4);
 }
 
 void KeyBindControllerOptionBox::confirm() {
@@ -398,8 +404,8 @@ void KeyBindControllerOptionBox::draw() {
         tex.draw_texture(OPTION::BUTTON_ON,  {.fade=flicker_fade->attribute, .index=2});
     }
     auto& b = tex.textures[OPTION::BUTTON_ON];
-    float tx = b->x[2] + (b->width  / 2.0f) - (value_text->width  / 2.0f);
-    float ty = b->y[2] + (b->height / 2.0f) - (value_text->height / 2.0f);
+    float tx = b->x[2] + (b->x2[2]  / 2.0f) - (value_text->width  / 2.0f);
+    float ty = b->y[2] + (b->y2[2] / 2.0f) - (value_text->height / 2.0f);
     value_text->draw({.x=tx, .y=ty});
 }
 
@@ -416,7 +422,7 @@ FloatOptionBox::FloatOptionBox(const std::string& name,
 
 void FloatOptionBox::rebuild_text() {
     std::string label = std::to_string((int)(value * 100)) + "%";
-    value_text = std::make_unique<OutlinedText>(label, OPTION_FONT_SIZE, ray::WHITE, ray::BLACK, false, 4, -4);
+    value_text = std::make_unique<OutlinedText>(label, option_font_size(), ray::WHITE, ray::BLACK, false, 4, -4);
 }
 
 void FloatOptionBox::confirm() {
@@ -445,8 +451,8 @@ void FloatOptionBox::draw() {
         tex.draw_texture(OPTION::BUTTON_ON,  {.fade=flicker_fade->attribute, .index=2});
     }
     auto& btn = tex.textures[OPTION::BUTTON_ON];
-    float tx = btn->x[2] + (btn->width  / 2.0f) - (value_text->width  / 2.0f);
-    float ty = btn->y[2] + (btn->height / 2.0f) - (value_text->height / 2.0f);
+    float tx = btn->x[2] + (btn->x2[2]  / 2.0f) - (value_text->width  / 2.0f);
+    float ty = btn->y[2] + (btn->y2[2] / 2.0f) - (value_text->height / 2.0f);
     value_text->draw({.x=tx, .y=ty});
 }
 
@@ -459,7 +465,7 @@ AudioOffsetOptionBox::AudioOffsetOptionBox(const std::string& name,
     , calibrate_screen(calibrate_screen)
     , offset_highlighted(true)
     , value_text(nullptr)
-    , calibrate_text(std::make_unique<OutlinedText>("Calibrate", OPTION_FONT_SIZE, ray::WHITE, ray::BLACK, false, 4, -4))
+    , calibrate_text(std::make_unique<OutlinedText>("Calibrate", option_font_size(), ray::WHITE, ray::BLACK, false, 4, -4))
     , flicker_fade(make_flicker())
 {
     rebuild_text();
@@ -467,7 +473,7 @@ AudioOffsetOptionBox::AudioOffsetOptionBox(const std::string& name,
 
 void AudioOffsetOptionBox::rebuild_text() {
     std::string label = (value >= 0 ? "+" : "") + std::to_string(value) + " ms";
-    value_text = std::make_unique<OutlinedText>(label, OPTION_FONT_SIZE,
+    value_text = std::make_unique<OutlinedText>(label, option_font_size(),
                                   ray::WHITE, ray::BLACK, false, 4, -4);
 }
 
@@ -511,8 +517,8 @@ void AudioOffsetOptionBox::draw() {
     }
     {
         auto& btn = tex.textures[OPTION::BUTTON_ON];
-        float tx = btn->x[0] + (btn->width  / 2.0f) - (value_text->width  / 2.0f);
-        float ty = btn->y[0] + (btn->height / 2.0f) - (value_text->height / 2.0f);
+        float tx = btn->x[0] + (btn->x2[0]  / 2.0f) - (value_text->width  / 2.0f);
+        float ty = btn->y[0] + (btn->y2[0] / 2.0f) - (value_text->height / 2.0f);
         value_text->draw({.x=tx, .y=ty});
     }
 
@@ -524,8 +530,8 @@ void AudioOffsetOptionBox::draw() {
     }
     {
         auto& btn = tex.textures[OPTION::BUTTON_ON];
-        float tx = btn->x[1] + (btn->width  / 2.0f) - (calibrate_text->width  / 2.0f);
-        float ty = btn->y[1] + (btn->height / 2.0f) - (calibrate_text->height / 2.0f);
+        float tx = btn->x[1] + (btn->x2[1]  / 2.0f) - (calibrate_text->width  / 2.0f);
+        float ty = btn->y[1] + (btn->y2[1] / 2.0f) - (calibrate_text->height / 2.0f);
         calibrate_text->draw({.x=tx, .y=ty});
     }
 }

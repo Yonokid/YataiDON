@@ -9,6 +9,7 @@ private:
     float           x;
     float           y;
     float           start_position;
+    float           wrap_bottom;
     float           target_position;
     int             direction;
     BaseAnimation*  move_anim;
@@ -31,6 +32,7 @@ public:
     ~SettingsBox();
 
     void set_y(float new_y);
+    void set_box_count(int box_count);
 
     // Returns false when the box should become un-selected (exit to outer navigation)
     bool move_left();

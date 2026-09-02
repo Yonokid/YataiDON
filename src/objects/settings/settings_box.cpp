@@ -48,18 +48,27 @@ std::unique_ptr<BaseOptionBox> SettingsBox::make_option_box(const rapidjson::Val
     return std::make_unique<StrOptionBox>(name, desc, path, values_map);
 }
 
-static constexpr float WRAP_BOTTOM = 750.0f;
-static constexpr float WRAP_TOP    = -50.0f;
-static constexpr float BOX_STEP    = 100.0f;
+// Laid out for the 1280x720 base canvas; scale with the skin so box
+// movement and label size stay aligned with the (already-scaled) box art.
+static constexpr float WRAP_TOP_BASE    = -50.0f;
+static constexpr float BOX_STEP_BASE    = 100.0f;
+static constexpr int   LABEL_FONT_SIZE_BASE = 35;
+static constexpr float LABEL_OUTLINE_BASE   = 5.0f;
+
+static float wrap_top() { return WRAP_TOP_BASE * tex.screen_scale; }
+static float box_step() { return BOX_STEP_BASE * tex.screen_scale; }
 
 SettingsBox::SettingsBox(const std::string& name,
                          const std::string& label_text,
                          const rapidjson::Value& options_json)
     : box_name(name)
-    , label(std::make_unique<OutlinedText>(label_text, 35, ray::WHITE, ray::Color{109,68,24,255}, false, 5))
-    , x(10.0f)
-    , y(WRAP_TOP)
-    , start_position(WRAP_TOP)
+    , label(std::make_unique<OutlinedText>(label_text,
+            (int)(LABEL_FONT_SIZE_BASE * tex.screen_scale), ray::WHITE,
+            ray::Color{109,68,24,255}, false, LABEL_OUTLINE_BASE))
+    , x(10.0f * tex.screen_scale)
+    , y(wrap_top())
+    , start_position(wrap_top())
+    , wrap_bottom(wrap_top())  // corrected by set_box_count() once the manager knows the total
     , target_position(std::numeric_limits<float>::infinity())
     , direction(1)
     , move_anim(nullptr)
@@ -92,14 +101,20 @@ void SettingsBox::set_y(float new_y) {
     target_position = std::numeric_limits<float>::infinity();
 }
 
+// The wrap range must equal box_count * box_step exactly, or boxes overlap
+// (and hide each other) once they've cycled through the carousel once.
+void SettingsBox::set_box_count(int box_count) {
+    wrap_bottom = wrap_top() + box_count * box_step();
+}
+
 bool SettingsBox::move_left() {
     if (y != target_position && !std::isinf(target_position)) return false;
     move_anim->start();
     direction      = 1;
     start_position = y;
-    target_position = y + BOX_STEP * direction;
-    if (target_position >= WRAP_BOTTOM) {
-        target_position = WRAP_TOP + (target_position - WRAP_BOTTOM);
+    target_position = y + box_step() * direction;
+    if (target_position >= wrap_bottom) {
+        target_position = wrap_top() + (target_position - wrap_bottom);
     }
     return true;
 }
@@ -109,9 +124,9 @@ void SettingsBox::move_right() {
     move_anim->start();
     direction      = -1;
     start_position = y;
-    target_position = y + BOX_STEP * direction;
-    if (target_position < WRAP_TOP) {
-        target_position = WRAP_BOTTOM + (target_position - WRAP_TOP);
+    target_position = y + box_step() * direction;
+    if (target_position < wrap_top()) {
+        target_position = wrap_bottom + (target_position - wrap_top());
     }
 }
 
@@ -177,8 +192,8 @@ void SettingsBox::update(double current_time_ms, bool selected) {
 
 void SettingsBox::draw_text() const {
     auto& box_tex = tex.textures[BOX::BOX];
-    float text_x = x + box_tex->x[0] + (box_tex->width  / 2.0f) - (label->width  / 2.0f);
-    float text_y = y + box_tex->y[0] + (box_tex->height / 2.0f) - (label->height / 2.0f);
+    float text_x = x + box_tex->x[0] + (box_tex->x2[0] / 2.0f) - (label->width  / 2.0f);
+    float text_y = y + box_tex->y[0] + (box_tex->y2[0] / 2.0f) - (label->height / 2.0f);
 
     if (is_selected) {
         label->draw({.x=text_x, .y=text_y});
