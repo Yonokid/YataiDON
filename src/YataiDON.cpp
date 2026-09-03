@@ -358,6 +358,7 @@ int main(int argc, char* argv[]) {
     ray::SetTraceLogLevel(ray::LOG_ERROR);
     setup_logging(global_data.config->general.log_level);
 
+    ensure_skin_extracted(global_data.config->paths.skin);
     fs::path root_skin_path = fs::path("Skins") / global_data.config->paths.skin;
     set_skin_graphics_path(root_skin_path / "Graphics");
 

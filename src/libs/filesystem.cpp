@@ -89,6 +89,56 @@ void extract_osz(const fs::path& osz_path) {
     spdlog::info("extract_osz: extracted {} to {}", osz_path.string(), out_dir.string());
 }
 
+void ensure_skin_extracted(const std::string& skin_name) {
+    fs::path skin_dir = fs::path("Skins") / skin_name;
+    std::error_code ec;
+    if (fs::exists(skin_dir, ec)) return;
+
+    fs::path zip_path = fs::path("Skins") / (skin_name + ".zip");
+    if (!fs::exists(zip_path, ec)) return;
+
+    mz_zip_archive zip = {};
+    if (!mz_zip_reader_init_file(&zip, zip_path.string().c_str(), 0)) {
+        spdlog::error("ensure_skin_extracted: failed to open {}", zip_path.string());
+        return;
+    }
+
+    int num_files = (int)mz_zip_reader_get_num_files(&zip);
+
+    std::string common_prefix;
+    for (int i = 0; i < num_files; i++) {
+        mz_zip_archive_file_stat stat;
+        if (!mz_zip_reader_file_stat(&zip, i, &stat)) continue;
+        std::string name = stat.m_filename;
+        auto slash = name.find('/');
+        if (slash == std::string::npos) { common_prefix.clear(); break; }
+        std::string top = name.substr(0, slash + 1);
+        if (i == 0) common_prefix = top;
+        else if (top != common_prefix) { common_prefix.clear(); break; }
+    }
+
+    fs::create_directories(skin_dir, ec);
+    for (int i = 0; i < num_files; i++) {
+        mz_zip_archive_file_stat stat;
+        if (!mz_zip_reader_file_stat(&zip, i, &stat)) continue;
+        if (mz_zip_reader_is_file_a_directory(&zip, i)) continue;
+
+        std::string name = stat.m_filename;
+        if (!common_prefix.empty() && name.rfind(common_prefix, 0) == 0)
+            name = name.substr(common_prefix.size());
+        if (name.empty()) continue;
+
+        fs::path out_file = skin_dir / name;
+        fs::create_directories(out_file.parent_path(), ec);
+
+        if (!mz_zip_reader_extract_to_file(&zip, i, out_file.string().c_str(), 0))
+            spdlog::warn("ensure_skin_extracted: failed to extract {} from {}", stat.m_filename, zip_path.string());
+    }
+
+    mz_zip_reader_end(&zip);
+    spdlog::info("ensure_skin_extracted: extracted {} to {}", zip_path.string(), skin_dir.string());
+}
+
 static void collect_charts_from(const fs::path& path, std::vector<fs::path>& songs,
                                  std::vector<fs::path>* osz_out) {
     auto it = fs::recursive_directory_iterator(
@@ -231,6 +281,7 @@ fs::path resolve_parent_graphics_path(const fs::path& graphics_path) {
     auto skin_config_file = read_json_file(graphics_path / "skin_config.json");
     if (skin_config_file.HasMember("screen") && skin_config_file["screen"].HasMember("parent")) {
         std::string parent = skin_config_file["screen"]["parent"].GetString();
+        ensure_skin_extracted(parent);
         return fs::path("Skins") / parent / "Graphics";
     }
     return graphics_path;
