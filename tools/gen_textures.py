@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Generate texture_ids_generated.h from the texture.json files in a skin.
 

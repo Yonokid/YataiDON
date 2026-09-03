@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Generate src/libs/skin_config_generated.h from a skin_config.json file.
 
