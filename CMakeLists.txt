@@ -113,10 +113,12 @@ endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_BINARY_DIR}/generated
+)
+target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE
     ${raylib_SOURCE_DIR}/src/external
     ${rapidjson_SOURCE_DIR}/include
     ${tomlplusplus_SOURCE_DIR}/include
-    ${CMAKE_BINARY_DIR}/generated
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
