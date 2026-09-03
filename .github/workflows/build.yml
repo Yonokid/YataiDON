@@ -22,8 +22,8 @@ jobs:
         id: submod
         run: |
           echo "sha_ptg=$(git ls-tree HEAD Skins/PyTaikoGreen | awk '{print $3}')" >> $GITHUB_OUTPUT
-          echo "sha_hss=$(git ls-tree HEAD Skins/YataiDON-HSS | awk '{print $3}')" >> $GITHUB_OUTPUT
-          echo "sha_hss=$(git ls-tree HEAD Skins/YataiDONRed | awk '{print $3}')" >> $GITHUB_OUTPUT
+          echo "sha_red=$(git ls-tree HEAD Skins/YataiDONRed | awk '{print $3}')" >> $GITHUB_OUTPUT
+          echo "sha_nijiiro=$(git ls-tree HEAD Skins/YataiDONNijiiro | awk '{print $3}')" >> $GITHUB_OUTPUT
 
       - name: Cache submodule
         id: cache-submod
@@ -31,9 +31,9 @@ jobs:
         with:
           path: |
             Skins/PyTaikoGreen
-            Skins/YataiDON-HSS
             Skins/YataiDONRed
-          key: submod-${{ steps.submod.outputs.sha_ptg }}-${{ steps.submod.outputs.sha_hss }}
+            Skins/YataiDONNijiiro
+          key: submod-${{ steps.submod.outputs.sha_ptg }}-${{ steps.submod.outputs.sha_red }}-${{ steps.submod.outputs.sha_nijiiro }}
 
       - name: Fetch submodule
         if: steps.cache-submod.outputs.cache-hit != 'true'
@@ -175,8 +175,8 @@ jobs:
         shell: bash
         run: |
           echo "sha_ptg=$(git ls-tree HEAD Skins/PyTaikoGreen | awk '{print $3}')" >> $GITHUB_OUTPUT
-          echo "sha_hss=$(git ls-tree HEAD Skins/YataiDON-HSS | awk '{print $3}')" >> $GITHUB_OUTPUT
-          echo "sha_hss=$(git ls-tree HEAD Skins/YataiDONRed | awk '{print $3}')" >> $GITHUB_OUTPUT
+          echo "sha_red=$(git ls-tree HEAD Skins/YataiDONRed | awk '{print $3}')" >> $GITHUB_OUTPUT
+          echo "sha_nijiiro=$(git ls-tree HEAD Skins/YataiDONNijiiro | awk '{print $3}')" >> $GITHUB_OUTPUT
 
       - name: Cache submodule
         id: cache-submod
@@ -184,9 +184,9 @@ jobs:
         with:
           path: |
             Skins/PyTaikoGreen
-            Skins/YataiDON-HSS
             Skins/YataiDONRed
-          key: submod-${{ steps.submod.outputs.sha_ptg }}-${{ steps.submod.outputs.sha_hss }}
+            Skins/YataiDONNijiiro
+          key: submod-${{ steps.submod.outputs.sha_ptg }}-${{ steps.submod.outputs.sha_red }}-${{ steps.submod.outputs.sha_nijiiro }}
 
       - name: Fetch submodule
         if: steps.cache-submod.outputs.cache-hit != 'true'
@@ -270,8 +270,8 @@ jobs:
         id: submod
         run: |
           echo "sha_ptg=$(git ls-tree HEAD Skins/PyTaikoGreen | awk '{print $3}')" >> $GITHUB_OUTPUT
-          echo "sha_hss=$(git ls-tree HEAD Skins/YataiDON-HSS | awk '{print $3}')" >> $GITHUB_OUTPUT
-          echo "sha_hss=$(git ls-tree HEAD Skins/YataiDONRed | awk '{print $3}')" >> $GITHUB_OUTPUT
+          echo "sha_red=$(git ls-tree HEAD Skins/YataiDONRed | awk '{print $3}')" >> $GITHUB_OUTPUT
+          echo "sha_nijiiro=$(git ls-tree HEAD Skins/YataiDONNijiiro | awk '{print $3}')" >> $GITHUB_OUTPUT
 
       - name: Cache submodule
         id: cache-submod
@@ -279,9 +279,9 @@ jobs:
         with:
           path: |
             Skins/PyTaikoGreen
-            Skins/YataiDON-HSS
             Skins/YataiDONRed
-          key: submod-${{ steps.submod.outputs.sha_ptg }}-${{ steps.submod.outputs.sha_hss }}
+            Skins/YataiDONNijiiro
+          key: submod-${{ steps.submod.outputs.sha_ptg }}-${{ steps.submod.outputs.sha_red }}-${{ steps.submod.outputs.sha_nijiiro }}
 
       - name: Fetch submodule
         if: steps.cache-submod.outputs.cache-hit != 'true'
@@ -373,8 +373,8 @@ jobs:
         id: submod
         run: |
           echo "sha_ptg=$(git ls-tree HEAD Skins/PyTaikoGreen | awk '{print $3}')" >> $GITHUB_OUTPUT
-          echo "sha_hss=$(git ls-tree HEAD Skins/YataiDON-HSS | awk '{print $3}')" >> $GITHUB_OUTPUT
-          echo "sha_hss=$(git ls-tree HEAD Skins/YataiDONRed | awk '{print $3}')" >> $GITHUB_OUTPUT
+          echo "sha_red=$(git ls-tree HEAD Skins/YataiDONRed | awk '{print $3}')" >> $GITHUB_OUTPUT
+          echo "sha_nijiiro=$(git ls-tree HEAD Skins/YataiDONNijiiro | awk '{print $3}')" >> $GITHUB_OUTPUT
 
       - name: Cache submodule
         id: cache-submod
@@ -382,9 +382,9 @@ jobs:
         with:
           path: |
             Skins/PyTaikoGreen
-            Skins/YataiDON-HSS
             Skins/YataiDONRed
-          key: submod-${{ steps.submod.outputs.sha_ptg }}-${{ steps.submod.outputs.sha_hss }}
+            Skins/YataiDONNijiiro
+          key: submod-${{ steps.submod.outputs.sha_ptg }}-${{ steps.submod.outputs.sha_red }}-${{ steps.submod.outputs.sha_nijiiro }}
 
       - name: Fetch submodule
         if: steps.cache-submod.outputs.cache-hit != 'true'
