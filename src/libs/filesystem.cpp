@@ -96,12 +96,14 @@ static void collect_charts_from(const fs::path& path, std::vector<fs::path>& son
     for (; it != fs::end(it); ++it) {
         const auto& entry = *it;
 
+#ifdef SUPPORT_FUMEN
         if (entry.is_directory() &&
             (gen4::find_data_root(entry.path()) == entry.path() ||
              gen3::find_data_root(entry.path()) == entry.path())) {
             it.disable_recursion_pending();
             continue;
         }
+#endif
 
         auto ext = entry.path().extension();
         if (ext == ".tja" || ext == ".osu") {
