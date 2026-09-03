@@ -167,8 +167,10 @@ int DanNavigator::scan_root_data(const fs::path& root_path, std::vector<DanBoxDa
                      root_path.string(), ec ? ec.message() : "no such directory");
         return 0;
     }
+#ifdef SUPPORT_FUMEN
     if (!gen4::find_data_root(root_path).empty() ||
         !gen3::find_data_root(root_path).empty()) return 0;
+#endif
 
     int added = 0;
     try {
@@ -177,12 +179,14 @@ int DanNavigator::scan_root_data(const fs::path& root_path, std::vector<DanBoxDa
         for (; it != fs::end(it); ++it) {
             if (scan_abort.load()) break;
             const auto& entry = *it;
+#ifdef SUPPORT_FUMEN
             if (entry.is_directory() &&
                 (gen4::find_data_root(entry.path()) == entry.path() ||
                  gen3::find_data_root(entry.path()) == entry.path())) {
                 it.disable_recursion_pending();
                 continue;
             }
+#endif
             if (entry.path().filename() == "dan.json") {
                 if (auto d = load_dan_box_data(entry.path())) {
                     out.push_back(std::move(*d));
