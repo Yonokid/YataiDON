@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-project(YataiDON VERSION 1.0.1 LANGUAGES C CXX)
+project(YataiDON VERSION 1.0.2 LANGUAGES C CXX)
 
 cmake_policy(SET CMP0002 NEW)  # Logical target names must be globally unique
 cmake_policy(SET CMP0079 NEW)  # Allow target_link_libraries() everywhere
