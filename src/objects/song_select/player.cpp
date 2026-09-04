@@ -1,4 +1,5 @@
 #include "player.h"
+#include "raylib.h"
 #include "song_select_script.h"
 #include "../../libs/audio.h"
 #include "../../libs/input.h"
@@ -153,10 +154,10 @@ SongSelectState SongSelectPlayer::select_song() {
 
 SongSelectState SongSelectPlayer::handle_input_browsing(double current_ms) {
 
-    bool l_kat = is_l_kat_pressed(player_num);
-    bool r_kat = is_r_kat_pressed(player_num);
-    bool l_don = is_l_don_pressed(player_num);
-    bool r_don = is_r_don_pressed(player_num);
+    bool l_kat = is_l_kat_pressed(player_num) || ray::IsKeyPressed(ray::KEY_LEFT);
+    bool r_kat = is_r_kat_pressed(player_num) || ray::IsKeyPressed(ray::KEY_RIGHT);
+    bool l_don = is_l_don_pressed(player_num) || ray::IsKeyPressed(ray::KEY_ENTER);
+    bool r_don = is_r_don_pressed(player_num) || ray::IsKeyPressed(ray::KEY_ENTER);
     float wheel = ray::GetMouseWheelMove();
 
     if (ray::IsKeyPressed(ray::KEY_F5)) {
