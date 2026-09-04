@@ -18,7 +18,9 @@ public:
 
     void update(double current_ms);
 
-    void draw(float judge_x, float judge_y);
+    void draw_effect(float judge_x, float judge_y);
+
+    void draw_text(float judge_x, float judge_y);
 
     bool is_finished() const;
 };

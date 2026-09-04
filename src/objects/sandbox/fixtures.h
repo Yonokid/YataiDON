@@ -47,7 +47,11 @@ struct JudgmentFixture : public SandboxScreen::Fixture {
         if (active && active->is_finished()) active.reset();
         if (active) active->update(ms);
     }
-    void draw() override { if (active) active->draw(0, 0); }
+    void draw() override {
+        if (!active) return;
+        active->draw_effect(0, 0);
+        active->draw_text(0, 0);
+    }
 
     std::vector<std::string> type_names() override { return {"GOOD", "OK", "BAD"}; }
     int  get_type()           override { return type_idx; }

@@ -5,6 +5,7 @@
 #include "../objects/sandbox/fixtures_song_select.h"
 #include "../objects/sandbox/fixtures_global.h"
 #include "../objects/sandbox/fixtures_entry.h"
+#include "../libs/input.h"
 
 static constexpr int SB_PANEL_W       = 220;
 static constexpr int SB_ITEM_H        = 32;
@@ -274,11 +275,11 @@ std::optional<Screens> SandboxScreen::handle_input() {
         }
     }
 
-    if (ray::IsKeyPressed(ray::KEY_COMMA)) {
+    if (is_l_kat_pressed()) {
         current_ms -= FRAME_MS;
         if (current_ms < fixture_start_ms) current_ms = fixture_start_ms;
         fixtures[fixture_idx]->update(current_ms);
-    } else if (ray::IsKeyPressed(ray::KEY_PERIOD)) {
+    } else if (is_r_kat_pressed()) {
         current_ms += FRAME_MS;
         fixtures[fixture_idx]->update(current_ms);
     }
