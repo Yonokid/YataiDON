@@ -18,7 +18,6 @@ ResultPlayer::ResultPlayer(PlayerNum player_num, bool has_2p, bool is_2p)
     chara->set_anim(AnimIndex::DON_NORMAL);
 
     SessionData& sd = global_data.session_data[(int)player_num];
-    score_animator = ScoreAnimator(sd.result_data.score);
     nameplate = Nameplate(
         pd ? pd->username : "", pd ? pd->title : "",
         player_num,
@@ -31,6 +30,7 @@ ResultPlayer::ResultPlayer(PlayerNum player_num, bool has_2p, bool is_2p)
         {"max_combo",      sd.result_data.max_combo},
         {"score",          sd.result_data.score}
     };
+    score_animator = ScoreAnimator(std::get<1>(update_list[0]));
 
     CrownType crown_type;
     if (sd.result_data.ok == 0 && sd.result_data.bad == 0)
