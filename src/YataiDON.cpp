@@ -196,8 +196,6 @@ struct LoopState {
     std::unordered_map<Screens, std::unique_ptr<Screen>> screens;
     Screens current_screen = Screens::LOADING;
     ray::Camera2D camera   = {};
-    int screen_width       = 0;
-    int screen_height      = 0;
     std::chrono::steady_clock::duration target_duration = std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::duration<double>(1.0 / 60.0));
     std::chrono::time_point<std::chrono::steady_clock> next_frame_time = std::chrono::steady_clock::now();
     FPSCounter fps_counter;
@@ -223,6 +221,42 @@ static bool screen_fade_applies(Screens from, Screens to) {
 static LoopState* g_loop = nullptr;
 double g_frame_ms = 0.0;
 
+static void populate_screens(std::unordered_map<Screens, std::unique_ptr<Screen>>& screens,
+                              std::optional<Screens> except = std::nullopt) {
+    if (except != Screens::ENTRY)           screens[Screens::ENTRY]           = std::make_unique<EntryScreen>();
+    if (except != Screens::TITLE)           screens[Screens::TITLE]           = std::make_unique<TitleScreen>();
+    if (except != Screens::SONG_SELECT)     screens[Screens::SONG_SELECT]     = std::make_unique<SongSelectScreen>();
+    if (except != Screens::SONG_SELECT_2P)  screens[Screens::SONG_SELECT_2P]  = std::make_unique<SongSelect2PScreen>();
+    if (except != Screens::LOADING)         screens[Screens::LOADING]         = std::make_unique<LoadingScreen>();
+    if (except != Screens::GAME)            screens[Screens::GAME]            = std::make_unique<GameScreen>();
+    if (except != Screens::GAME_2P)         screens[Screens::GAME_2P]         = std::make_unique<Game2PScreen>();
+    if (except != Screens::GAME_PRACTICE)   screens[Screens::GAME_PRACTICE]   = std::make_unique<PracticeGameScreen>();
+    if (except != Screens::PRACTICE_SELECT) screens[Screens::PRACTICE_SELECT] = std::make_unique<PracticeSongSelectScreen>();
+    if (except != Screens::RESULT)          screens[Screens::RESULT]          = std::make_unique<ResultScreen>();
+    if (except != Screens::RESULT_2P)       screens[Screens::RESULT_2P]       = std::make_unique<Result2PScreen>();
+    if (except != Screens::DAN_SELECT)      screens[Screens::DAN_SELECT]      = std::make_unique<DanSelectScreen>();
+    if (except != Screens::GAME_DAN)        screens[Screens::GAME_DAN]        = std::make_unique<DanGameScreen>();
+    if (except != Screens::DAN_RESULT)      screens[Screens::DAN_RESULT]      = std::make_unique<DanResultScreen>();
+    if (except != Screens::SETTINGS)        screens[Screens::SETTINGS]        = std::make_unique<SettingsScreen>();
+    if (except != Screens::INPUT_CALI)      screens[Screens::INPUT_CALI]      = std::make_unique<InputCaliScreen>();
+    if (except != Screens::SKIN_VIEWER)     screens[Screens::SKIN_VIEWER]     = std::make_unique<SkinViewerScreen>();
+    if (except != Screens::SANDBOX)         screens[Screens::SANDBOX]         = std::make_unique<SandboxScreen>();
+    if (except != Screens::GAME_OVER)       screens[Screens::GAME_OVER]       = std::make_unique<GameOverScreen>();
+    if (except != Screens::INPUT_TEST)      screens[Screens::INPUT_TEST]      = std::make_unique<InputTestScreen>();
+}
+
+void drop_other_screens_for_skin_reload() {
+    if (!g_loop) return;
+    for (auto& [key, ptr] : g_loop->screens) {
+        if (key != g_loop->current_screen) ptr.reset();
+    }
+}
+
+void reload_skin_screens() {
+    if (!g_loop) return;
+    populate_screens(g_loop->screens, g_loop->current_screen);
+}
+
 static void run_frame() {
     LoopState& L = *g_loop;
 
@@ -244,7 +278,11 @@ static void run_frame() {
         spdlog::info("Toggled borderless windowed mode");
     }
 
-    L.camera = compute_camera2d(L.screen_width, L.screen_height);
+    // Read tex.screen_width/height live, not a cached copy -- a skin change
+    // (settings.cpp's unload_skin()+load_skin()) can change the virtual
+    // canvas size for a skin of a different resolution mid-session, and a
+    // stale copy here would misalign the camera against it from then on.
+    L.camera = compute_camera2d(tex.screen_width, tex.screen_height);
 
     ray::BeginDrawing();
 
@@ -306,7 +344,7 @@ static void run_frame() {
         L.fps_counter.draw();
     }
 
-    draw_outer_border(L.screen_width, L.screen_height, L.last_color);
+    draw_outer_border(tex.screen_width, tex.screen_height, L.last_color);
 
     ray::EndBlendMode();
     ray::EndMode2D();
@@ -354,28 +392,16 @@ int main(int argc, char* argv[]) {
         flags |= ray::FLAG_VSYNC_HINT;
         spdlog::info("VSync enabled");
     }
+    #ifdef PLATFORM_ANDROID
+        SDL_SetHint(SDL_HINT_ANDROID_TRAP_BACK_BUTTON, "1");
+        SDL_SetHint(SDL_HINT_ORIENTATIONS, "LandscapeLeft LandscapeRight");
+    #endif
     ray::SetConfigFlags(flags);
     ray::SetTraceLogLevel(ray::LOG_ERROR);
     setup_logging(global_data.config->general.log_level);
 
-    ensure_skin_extracted(global_data.config->paths.skin.string());
-    fs::path root_skin_path = fs::path("Skins") / global_data.config->paths.skin;
-    set_skin_graphics_path(root_skin_path / "Graphics");
-
-    tex.init(root_skin_path / "Graphics");
-
-#ifdef PLATFORM_ANDROID
-    SDL_SetHint(SDL_HINT_ANDROID_TRAP_BACK_BUTTON, "1");
-    SDL_SetHint(SDL_HINT_ORIENTATIONS, "LandscapeLeft LandscapeRight");
-#endif
-    ray::InitWindow(tex.screen_width, tex.screen_height, "YataiDON");
-
-    global_tex.init(root_skin_path / "Graphics");
-    global_tex.load_screen_textures("global");
-    script_manager.init(root_skin_path / "Scripts");
-    fs::path font_path = resolve_skin_path("Graphics/font.ttf");
-    font_manager.init(font_path);
-    audio.init_audio_device(root_skin_path / "Sounds", global_data.config->audio, global_data.config->volume);
+    ray::InitWindow(1280, 720, "YataiDON");
+    load_skin();
 
     scores_manager.player_1 = global_data.config->general.player_1_id;
     scores_manager.player_2 = global_data.config->general.player_2_id;
@@ -458,36 +484,15 @@ int main(int argc, char* argv[]) {
     g_loop = new LoopState();
     LoopState& L = *g_loop;
 
-    L.screen_width       = tex.screen_width;
-    L.screen_height      = tex.screen_height;
     L.current_screen     = initial_screen;
     global_data.current_screen = screens_to_string(initial_screen);
     L.target_duration    = std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::duration<double>(1.0 / target_fps));
     L.touch_drum_resize  = (TextureResizeAnimation*)global_tex.get_animation(66);
     L.touch_drum_resize->start();
 
-    L.screens[Screens::ENTRY]           = std::make_unique<EntryScreen>();
-    L.screens[Screens::TITLE]           = std::make_unique<TitleScreen>();
-    L.screens[Screens::SONG_SELECT]     = std::make_unique<SongSelectScreen>();
-    L.screens[Screens::SONG_SELECT_2P]  = std::make_unique<SongSelect2PScreen>();
-    L.screens[Screens::LOADING]         = std::make_unique<LoadingScreen>();
-    L.screens[Screens::GAME]            = std::make_unique<GameScreen>();
-    L.screens[Screens::GAME_2P]         = std::make_unique<Game2PScreen>();
-    L.screens[Screens::GAME_PRACTICE]   = std::make_unique<PracticeGameScreen>();
-    L.screens[Screens::PRACTICE_SELECT] = std::make_unique<PracticeSongSelectScreen>();
-    L.screens[Screens::RESULT]          = std::make_unique<ResultScreen>();
-    L.screens[Screens::RESULT_2P]       = std::make_unique<Result2PScreen>();
-    L.screens[Screens::DAN_SELECT]      = std::make_unique<DanSelectScreen>();
-    L.screens[Screens::GAME_DAN]        = std::make_unique<DanGameScreen>();
-    L.screens[Screens::DAN_RESULT]      = std::make_unique<DanResultScreen>();
-    L.screens[Screens::SETTINGS]        = std::make_unique<SettingsScreen>();
-    L.screens[Screens::INPUT_CALI]      = std::make_unique<InputCaliScreen>();
-    L.screens[Screens::SKIN_VIEWER]     = std::make_unique<SkinViewerScreen>();
-    L.screens[Screens::SANDBOX]         = std::make_unique<SandboxScreen>();
-    L.screens[Screens::GAME_OVER]       = std::make_unique<GameOverScreen>();
-    L.screens[Screens::INPUT_TEST]      = std::make_unique<InputTestScreen>();
+    populate_screens(L.screens);
 
-    L.camera = compute_camera2d(L.screen_width, L.screen_height);
+    L.camera = compute_camera2d(tex.screen_width, tex.screen_height);
 
 #ifndef __EMSCRIPTEN__
     if (global_data.config->video.borderless) {

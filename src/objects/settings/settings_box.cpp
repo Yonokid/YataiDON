@@ -1,5 +1,6 @@
 #include "settings_box.h"
 #include "../../libs/input.h"
+#include "../../libs/filesystem.h"
 
 std::unique_ptr<BaseOptionBox> SettingsBox::make_option_box(const rapidjson::Value& opt) {
     std::string type        = opt["type"].GetString();
@@ -34,6 +35,13 @@ std::unique_ptr<BaseOptionBox> SettingsBox::make_option_box(const rapidjson::Val
         return std::make_unique<IntOptionBox>(name, desc, path, values_map);
     }
     if (type == "string") {
+        return std::make_unique<StrOptionBox>(name, desc, path, values_map);
+    }
+    if (type == "skin") {
+        // Skin choices come from what's actually installed, not the json
+        // template -- it can't know that ahead of time.
+        values_map.clear();
+        for (const auto& skin : list_available_skins()) values_map[skin] = skin;
         return std::make_unique<StrOptionBox>(name, desc, path, values_map);
     }
     if (type == "keybind") {

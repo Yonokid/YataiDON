@@ -9,16 +9,15 @@
 class SettingsScreen : public Screen {
 private:
     std::unique_ptr<SettingsBoxManager> box_manager;
-    Indicator           indicator;
-    CoinOverlay         coin_overlay;
-    AllNetIcon          allnet_indicator;
+    std::optional<Indicator> indicator;
+    std::optional<CoinOverlay> coin_overlay;
+    std::optional<AllNetIcon> allnet_indicator;
     std::string         username_on_entry;
 
     std::optional<Screens> handle_input();
 
 public:
-    SettingsScreen() : Screen("settings"),
-                       indicator(Indicator::State::SELECT) {}
+    SettingsScreen() : Screen("settings") {}
 
     void on_screen_start() override;
     Screens on_screen_end(Screens next_screen) override;

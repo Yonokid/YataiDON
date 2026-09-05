@@ -132,6 +132,13 @@ public:
     void join_loader();
     void preload(std::vector<fs::path> songs_paths);
     void init(std::vector<fs::path> songs_paths);
+    // navigator is a global, not owned by any Screen, so the skin-reload
+    // screen rebuild never touches it. Its boxes and genre_bg hold raw
+    // Animation*/Shader handles into tex/global_tex, which unload_skin()
+    // frees out from under them. Call before a skin reload (song files
+    // themselves are skin-independent, so is_preloaded is left alone); the
+    // next init() then takes its already-existing full-rebuild path.
+    void reset_for_skin_reload();
     void add_to_recent(const SongBox* song);
     void toggle_favorite(SongBox* song);
     void refresh_scores();

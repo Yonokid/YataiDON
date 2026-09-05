@@ -120,6 +120,11 @@ void ScriptManager::init(fs::path script_path) {
     lua->open_libraries(sol::lib::base, sol::lib::package, sol::lib::string,
                         sol::lib::math, sol::lib::table);
 
+    // index_scripts() only inserts a name that isn't already indexed, so a
+    // stale entry from the previous skin (or its parent) would otherwise
+    // permanently shadow this skin's own script of the same name.
+    scripts.clear();
+
     // A partial skin scripts only some screens and leans on its parent for
     // the rest, exactly like its graphics.
     fs::path parent_scripts;

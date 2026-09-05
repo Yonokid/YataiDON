@@ -13,6 +13,11 @@ void extract_osz(const fs::path& osz_path);
 
 void ensure_skin_extracted(const std::string& skin_name);
 
+// Skin names found under Skins/: extracted directories (containing a
+// Graphics folder) plus not-yet-extracted .zip skins (by filename stem),
+// sorted and de-duplicated.
+std::vector<std::string> list_available_skins();
+
 std::vector<fs::path> get_song_files(std::vector<fs::path> root_path);
 
 rapidjson::Document read_json_file(fs::path file_path);

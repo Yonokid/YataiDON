@@ -29,6 +29,7 @@ private:
 public:
     FontManager();
     void init(const fs::path& font_path);
+    void unload();
     ray::Font get_font(const std::string& text, int font_size);
     ray::Font copy_font(const std::string& text, int font_size);
 };

@@ -18,6 +18,18 @@ void FontManager::init(const fs::path& font_path) {
     }
 }
 
+void FontManager::unload() {
+    std::lock_guard<std::mutex> lock(font_mutex);
+    for (auto& [size, entry] : fonts) {
+        if (entry.loaded) ray::UnloadFont(entry.font);
+    }
+    fonts.clear();
+    if (sentinel_texture.id != 0) {
+        ray::UnloadTexture(sentinel_texture);
+        sentinel_texture = {};
+    }
+}
+
 void FontManager::evict_lru(int keep_size) {
     while (fonts.size() > MAX_SIZED_FONTS) {
         auto victim = fonts.end();

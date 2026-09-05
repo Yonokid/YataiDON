@@ -5,31 +5,40 @@
 #include <variant>
 
 struct ConfigRef {
-    std::variant<bool*, int*, float*, std::string*, std::vector<int>*> ptr;
+    std::variant<bool*, int*, float*, std::string*, std::vector<int>*, fs::path*> ptr;
 
     ConfigRef(bool* p)              : ptr(p) {}
     ConfigRef(int* p)               : ptr(p) {}
     ConfigRef(float* p)             : ptr(p) {}
     ConfigRef(std::string* p)       : ptr(p) {}
     ConfigRef(std::vector<int>* p)  : ptr(p) {}
+    ConfigRef(fs::path* p)          : ptr(p) {}
 
     bool             get_bool()  const { return *std::get<bool*>(ptr); }
     int              get_int()   const { return *std::get<int*>(ptr); }
     float            get_float() const { return *std::get<float*>(ptr); }
-    std::string      get_str()   const { return *std::get<std::string*>(ptr); }
     std::vector<int> get_vec()   const { return *std::get<std::vector<int>*>(ptr); }
+    std::string      get_str()   const {
+        if (auto* p = std::get_if<fs::path*>(&ptr)) return (*p)->string();
+        return *std::get<std::string*>(ptr);
+    }
 
     void set_bool(bool v)                   { *std::get<bool*>(ptr) = v; }
     void set_int(int v)                     { *std::get<int*>(ptr) = v; }
     void set_float(float v)                 { *std::get<float*>(ptr) = v; }
-    void set_str(const std::string& v)      { *std::get<std::string*>(ptr) = v; }
     void set_vec(const std::vector<int>& v) { *std::get<std::vector<int>*>(ptr) = v; }
+    void set_str(const std::string& v) {
+        if (auto* p = std::get_if<fs::path*>(&ptr)) { **p = v; return; }
+        *std::get<std::string*>(ptr) = v;
+    }
 
     bool is_bool()  const { return std::holds_alternative<bool*>(ptr); }
     bool is_int()   const { return std::holds_alternative<int*>(ptr); }
     bool is_float() const { return std::holds_alternative<float*>(ptr); }
-    bool is_str()   const { return std::holds_alternative<std::string*>(ptr); }
     bool is_vec()   const { return std::holds_alternative<std::vector<int>*>(ptr); }
+    bool is_str()   const {
+        return std::holds_alternative<std::string*>(ptr) || std::holds_alternative<fs::path*>(ptr);
+    }
 };
 
 inline ConfigRef get_config_ref(const std::string& path) {
@@ -48,6 +57,8 @@ inline ConfigRef get_config_ref(const std::string& path) {
     if (path == "general/score_method")             return &c->general.score_method;
     if (path == "general/display_bpm")              return &c->general.display_bpm;
     if (path == "general/touch_input")              return &c->general.touch_input;
+    // paths
+    if (path == "paths/skin")                        return &c->paths.skin;
     // network
     if (path == "network/online_play")              return &c->network.online_play;
     if (path == "network/access_code")              return &c->network.access_code;

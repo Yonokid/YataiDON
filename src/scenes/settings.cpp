@@ -2,8 +2,10 @@
 #include "../libs/audio.h"
 #include "../libs/input.h"
 #include "../libs/filesystem.h"
+#include "../libs/global_data.h"
 #include "../libs/scores.h"
 #include "../libs/network.h"
+#include "../objects/song_select/file_navigator/navigator.h"
 
 void save_config(const Config& config);
 
@@ -42,11 +44,20 @@ Screens SettingsScreen::on_screen_end(Screens next_screen) {
         network.update_username(access_code, scores_manager.player_1_data.username);
     }
 
-    audio.close_audio_device();
-    fs::path sounds_path = fs::path("Skins") / global_data.config->paths.skin / "Sounds";
-    audio.init_audio_device(sounds_path, global_data.config->audio, global_data.config->volume);
-
     box_manager.reset();
+
+    indicator.reset();
+    coin_overlay.reset();
+    allnet_indicator.reset();
+    drop_other_screens_for_skin_reload();
+    // navigator is a global, not a Screen -- the rebuild above never
+    // touches it, so it needs its own reset.
+    navigator.reset_for_skin_reload();
+
+    unload_skin();
+    load_skin();
+
+    reload_skin_screens();
 
     return Screen::on_screen_end(next_screen);
 }
@@ -80,8 +91,8 @@ std::optional<Screens> SettingsScreen::handle_input() {
 std::optional<Screens> SettingsScreen::update() {
     Screen::update();
     double current_time = get_current_ms();
-    allnet_indicator.update(current_time);
-    indicator.update(current_time);
+    allnet_indicator->update(current_time);
+    indicator->update(current_time);
     box_manager->update(current_time);
     if (auto screen = box_manager->pending_screen_change())
         return on_screen_end(*screen);
@@ -92,8 +103,8 @@ void SettingsScreen::draw() {
     tex.draw_texture(BACKGROUND::BACKGROUND);
     box_manager->draw();
     tex.draw_texture(BACKGROUND::FOOTER);
-    indicator.draw(tex.skin_config[SC::SONG_SELECT_INDICATOR].x,
-                   tex.skin_config[SC::SONG_SELECT_INDICATOR].y);
-    coin_overlay.draw();
-    allnet_indicator.draw();
+    indicator->draw(tex.skin_config[SC::SONG_SELECT_INDICATOR].x,
+                    tex.skin_config[SC::SONG_SELECT_INDICATOR].y);
+    coin_overlay->draw();
+    allnet_indicator->draw();
 }

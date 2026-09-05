@@ -146,6 +146,11 @@ void Navigator::load_all_roots() {
 #endif
 }
 
+void Navigator::reset_for_skin_reload() {
+    join_loader();
+    is_init = false;
+}
+
 void Navigator::preload(std::vector<fs::path> songs_paths) {
     if (is_preloaded) return;
     root_paths = songs_paths;

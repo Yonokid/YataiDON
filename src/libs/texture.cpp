@@ -29,6 +29,15 @@ void TextureWrapper::init(const fs::path& skin_path) {
         throw std::runtime_error("The skin path provided is not a valid path");
     }
 
+    // Every entry below is only ever inserted/overwritten from what the new
+    // skin's (and its parent's) json actually specifies. A key the previous
+    // skin set but this one doesn't mention would otherwise survive the
+    // switch with the old skin's value.
+    skin_config.clear();
+    skin_config_by_name.clear();
+    options.clear();
+    chara_3d_config = Chara3DConfig{};
+
     auto skin_config_file = read_json_file(graphics_path / "skin_config.json");
 
     // Derive screen dimensions from child config first so screen_scale is known.

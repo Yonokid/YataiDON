@@ -4,6 +4,7 @@
 #include "optional/gen3.h"
 #include "optional/gen4.h"
 #endif
+#include <algorithm>
 #include <fstream>
 #include <spdlog/spdlog.h>
 #include <unistd.h>
@@ -137,6 +138,21 @@ void ensure_skin_extracted(const std::string& skin_name) {
 
     mz_zip_reader_end(&zip);
     spdlog::info("ensure_skin_extracted: extracted {} to {}", zip_path.string(), skin_dir.string());
+}
+
+std::vector<std::string> list_available_skins() {
+    std::vector<std::string> names;
+    std::error_code ec;
+    for (const auto& e : fs::directory_iterator(fs::path("Skins"), ec)) {
+        if (e.is_directory(ec) && fs::exists(e.path() / "Graphics", ec)) {
+            names.push_back(e.path().filename().string());
+        } else if (e.path().extension() == ".zip") {
+            names.push_back(e.path().stem().string());
+        }
+    }
+    std::sort(names.begin(), names.end());
+    names.erase(std::unique(names.begin(), names.end()), names.end());
+    return names;
 }
 
 static void collect_charts_from(const fs::path& path, std::vector<fs::path>& songs,
