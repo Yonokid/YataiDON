@@ -70,4 +70,17 @@ private:
         COSTUME_SELECT::PRESET_3,
         COSTUME_SELECT::RANDOM_ITEM,
     };
+    // skin option `costume_arcade_order`: the cabinet's five presets first, in its order
+    // (default / cool / cute / joke / random), then the YataiDON-only costume and head/body
+    // pickers. The skin's Lua row must list the items in the same order it selects here.
+    static constexpr std::array<uint32_t, NUM_ITEMS> ITEMS_ARCADE = {
+        COSTUME_SELECT::DEFAULT,
+        COSTUME_SELECT::PRESET_1,
+        COSTUME_SELECT::PRESET_2,
+        COSTUME_SELECT::PRESET_3,
+        COSTUME_SELECT::RANDOM_ITEM,
+        COSTUME_SELECT::COSTUME,
+        COSTUME_SELECT::HEAD_BODY,
+    };
+    std::array<uint32_t, NUM_ITEMS> items = ITEMS;
 };

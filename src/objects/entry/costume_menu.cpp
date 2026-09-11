@@ -14,6 +14,7 @@ CostumeMenu::CostumeMenu(PlayerNum player_num) : player_num(player_num), is_2p(p
     float title_y = info.y;
 
     presets_enabled = tex.options[SCO::COSTUME_PRESET_SLOTS];
+    if (tex.options[SCO::COSTUME_ARCADE_ORDER]) items = ITEMS_ARCADE;
 
     if (!load("CostumeMenu", "costume_menu", is_2p, text_str, title_x, title_y)) return;
     fn_update  = lua_object["update"];
@@ -187,8 +188,8 @@ void CostumeMenu::handle_input() {
             audio.play_sound("kat", VolumePreset::SOUND);
         }
         if (presets_enabled && selected_index != prev_index) {
-            if (is_preset_item(ITEMS[selected_index])) {
-                apply_preset(ITEMS[selected_index]);
+            if (is_preset_item(items[selected_index])) {
+                apply_preset(items[selected_index]);
             } else if (preset_cos_id) {
                 preset_cos_id.reset();
                 preset_seq++;
@@ -196,19 +197,19 @@ void CostumeMenu::handle_input() {
         }
 
         if (is_l_don_pressed(player_num) || is_r_don_pressed(player_num)) {
-            if (ITEMS[selected_index] == COSTUME_SELECT::COSTUME) {
+            if (items[selected_index] == COSTUME_SELECT::COSTUME) {
                 costume_select_mode = true;
                 pick_stage = CostumePickStage::NONE;
                 load_costume_icons("costume_icon", "costume");
                 audio.play_sound("don", VolumePreset::SOUND);
-            } else if (ITEMS[selected_index] == COSTUME_SELECT::HEAD_BODY) {
+            } else if (items[selected_index] == COSTUME_SELECT::HEAD_BODY) {
                 costume_select_mode = true;
                 pick_stage = CostumePickStage::HEAD;
                 picked_head_id = -1;
                 load_costume_icons("costume_head_icon", "head");
                 audio.play_sound("don", VolumePreset::SOUND);
-            } else if (presets_enabled && is_preset_item(ITEMS[selected_index])) {
-                if (!preset_cos_id) apply_preset(ITEMS[selected_index]);
+            } else if (presets_enabled && is_preset_item(items[selected_index])) {
+                if (!preset_cos_id) apply_preset(items[selected_index]);
                 if (preset_cos_id) {
                     confirmed = true;
                     audio.play_sound("don", VolumePreset::SOUND);
