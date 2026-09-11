@@ -31,6 +31,9 @@ private:
     std::map<std::pair<std::string, std::string>, fs::path> song_files;
     // song path -> every title and subtitle in every language, ASCII-folded, for Song Search
     std::unordered_map<std::string, std::string> song_search_text;
+    // song path -> level per course 0..4 (-1 = course absent), filled by the same scan; the
+    // difficulty filter reads this instead of re-parsing every chart on disk
+    std::unordered_map<std::string, std::array<int, 5>> song_levels;
     int open_index;
     bool is_init      = false;
     bool is_preloaded = false;

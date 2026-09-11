@@ -231,6 +231,10 @@ void Navigator::preload(std::vector<fs::path> songs_paths) {
                             for (const auto& [lang, t] : parsed_entry.metadata.title)    text += t + '\n';
                             for (const auto& [lang, t] : parsed_entry.metadata.subtitle) text += t + '\n';
                             song_search_text[file.string()] = search_fold(text);
+                            std::array<int, 5> lv; lv.fill(-1);
+                            for (const auto& [course, data] : parsed_entry.metadata.course_data)
+                                if (course >= 0 && course <= 4) lv[course] = (int)data.level;
+                            song_levels[file.string()] = lv;
                         }
                     } catch (const std::exception& inner) {
                         spdlog::warn("Skipping song during scan: {}", inner.what());
@@ -779,53 +783,61 @@ void Navigator::load_collection_new(const fs::path& path, const BoxDef& box_def)
     }
 }
 
+// Difficulty filter: the startup scan already parsed every chart, so the course levels come
+// from song_levels (no disk parse per song); only the hits are parsed, in parallel, for their
+// boxes. Songs live under the siblings of the collection folder; the sibling (first path
+// component below their common parent) supplies the genre.
 void Navigator::load_collection_difficulty(const fs::path& path, const BoxDef& box_def, int course, int level, int order) {
-    struct Hit { fs::path path; BoxDef sibling; bool unmet; };
+    struct Hit { fs::path path; fs::path sibling; bool unmet; };
     std::vector<Hit> hits;
 
     const int crown_needed = (order == 2) ? (int)Crown::CLEAR
                            : (order == 3) ? (int)Crown::FC
                            : (order == 4) ? (int)Crown::DFC : 0;
 
-    for (const auto& sibling : fs::directory_iterator(path.parent_path())) {
+    wait_for_song_files();
+    const fs::path parent = path.parent_path();
+    // the scan thread is joined above, so song_levels is read without a lock
+    std::vector<std::pair<std::string, std::array<int, 5>>> index(song_levels.begin(), song_levels.end());
+    std::sort(index.begin(), index.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
+    for (const auto& [path_str, levels] : index) {
         if (abort_loading) break;
-        if (!fs::is_directory(sibling) || sibling.path() == path) continue;
-        BoxDef sibling_box_def = parse_box_def(sibling.path());
-        for (const auto& entry : fs::recursive_directory_iterator(sibling)) {
-            if (abort_loading) break;
-            if (!is_song_file(entry.path())) continue;
-            SongParser parser(entry.path());
-            parser.get_metadata();
-            auto it = parser.metadata.course_data.find(course);
-            if (it == parser.metadata.course_data.end()) continue;
-            if ((int)it->second.level != level) continue;
+        if (course < 0 || course > 4 || levels[course] != level) continue;
+        fs::path song_path(path_str);
+        // the song must sit below one of the collection folder's siblings
+        fs::path rel = song_path.lexically_relative(parent);
+        if (rel.empty() || rel.begin()->string() == ".." ) continue;
+        fs::path sibling = parent / *rel.begin();
+        if (sibling == path || !fs::is_directory(sibling)) continue;
 
-            bool unmet = false;
-            if (crown_needed > 0) {
-                unmet = true;
-                const auto& hashes = scores_manager.get_hashes(entry.path());
-                std::string hash = hashes[std::min(course, 4)];
-                if (!hash.empty()) {
-                    auto score = scores_manager.get_score(hash, course, scores_manager.player_1);
-                    if (score.has_value() && (int)score->crown >= crown_needed) unmet = false;
-                }
+        bool unmet = false;
+        if (crown_needed > 0) {
+            unmet = true;
+            const auto& hashes = scores_manager.get_hashes(song_path);
+            std::string hash = hashes[std::min(course, 4)];
+            if (!hash.empty()) {
+                auto score = scores_manager.get_score(hash, course, scores_manager.player_1);
+                if (score.has_value() && (int)score->crown >= crown_needed) unmet = false;
             }
-            hits.push_back(Hit{entry.path(), sibling_box_def, unmet});
         }
+        hits.push_back(Hit{song_path, sibling, unmet});
     }
 
     if (crown_needed > 0)
         std::stable_partition(hits.begin(), hits.end(), [](const Hit& h) { return h.unmet; });
 
+    std::vector<fs::path> hit_paths;
+    hit_paths.reserve(hits.size());
+    for (const auto& h : hits) hit_paths.push_back(h.path);
+    auto preparsed = parse_songs_parallel(hit_paths, abort_loading);
+
     int songs_added = 0;
     for (const auto& h : hits) {
         if (abort_loading) break;
         if (songs_added > 0 && songs_added % 10 == 0)
-            enqueue_inline_box(make_back_box(path.parent_path(), &inline_back_def));
-        SongParser parser(h.path);
-        parser.get_metadata();
-        auto song = make_song_box(h.path, box_def, parser);
-        apply_song_genre(song.get(), h.sibling);
+            enqueue_inline_box(make_back_box(parent, &inline_back_def));
+        auto song = make_song_box(h.path, box_def, take_parser(preparsed, h.path));
+        apply_song_genre(song.get(), parse_box_def(h.sibling));
         song->fade_in(266);
         enqueue_inline_box(std::move(song));
         songs_added++;
