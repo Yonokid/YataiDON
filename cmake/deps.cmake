@@ -74,7 +74,7 @@ FetchContent_Declare(
   GIT_TAG        master
   GIT_SHALLOW    TRUE
   UPDATE_DISCONNECTED TRUE
-  PATCH_COMMAND sed -i "112a #include <ctype.h>                 // Required for: isalpha() [Used in IsPathFile()]" src/rcore.c || true
+  PATCH_COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_LIST_DIR}/patch_raylib_ctype.cmake
 )
 FetchContent_GetProperties(raylib)
 FetchContent_MakeAvailable(raylib)
@@ -119,7 +119,7 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/marovira/lua.git
     GIT_TAG 5.4.8
     GIT_SHALLOW TRUE
-    PATCH_COMMAND sed -i "s/cmake_minimum_required(VERSION 3\\.30)/cmake_minimum_required(VERSION 3.5)/" CMakeLists.txt || true
+    PATCH_COMMAND ${CMAKE_COMMAND} -DPATCH_FILE=CMakeLists.txt -DOLD_VERSION=3.30 -P ${CMAKE_CURRENT_LIST_DIR}/patch_min_cmake_version.cmake
 )
 FetchContent_MakeAvailable(lua)
 
@@ -130,8 +130,8 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/ThePhD/sol2.git
     GIT_TAG v3.5.0
     GIT_SHALLOW TRUE
-    PATCH_COMMAND git apply ${CMAKE_SOURCE_DIR}/cmake/patches/sol2-android-noexcept.patch || true
-        COMMAND sed -i "s/cmake_minimum_required(VERSION 3\\.26\\.0)/cmake_minimum_required(VERSION 3.5)/" CMakeLists.txt || true
+    PATCH_COMMAND ${CMAKE_COMMAND} -DPATCH_FILE=${CMAKE_SOURCE_DIR}/cmake/patches/sol2-android-noexcept.patch -P ${CMAKE_CURRENT_LIST_DIR}/apply_git_patch.cmake
+        COMMAND ${CMAKE_COMMAND} -DPATCH_FILE=CMakeLists.txt -DOLD_VERSION=3.26.0 -P ${CMAKE_CURRENT_LIST_DIR}/patch_min_cmake_version.cmake
 )
 FetchContent_MakeAvailable(sol2)
 
@@ -160,7 +160,7 @@ if(ANDROID OR EMSCRIPTEN OR WIN32)
       GIT_REPOSITORY https://github.com/xiph/ogg.git
       GIT_TAG v1.3.5
       GIT_SHALLOW TRUE
-      PATCH_COMMAND sed -i "s/cmake_minimum_required(VERSION 2\\.8\\.12)/cmake_minimum_required(VERSION 3.5)/" CMakeLists.txt || true
+      PATCH_COMMAND ${CMAKE_COMMAND} -DPATCH_FILE=CMakeLists.txt -DOLD_VERSION=2.8.12 -P ${CMAKE_CURRENT_LIST_DIR}/patch_min_cmake_version.cmake
   )
   FetchContent_MakeAvailable(ogg)
   set(OGG_INCLUDE_DIR "${ogg_SOURCE_DIR}/include" CACHE PATH "" FORCE)
@@ -171,7 +171,7 @@ if(ANDROID OR EMSCRIPTEN OR WIN32)
       GIT_REPOSITORY https://github.com/xiph/vorbis.git
       GIT_TAG v1.3.7
       GIT_SHALLOW TRUE
-      PATCH_COMMAND sed -i "s/cmake_minimum_required(VERSION 2\\.8\\.12)/cmake_minimum_required(VERSION 3.5)/" CMakeLists.txt || true
+      PATCH_COMMAND ${CMAKE_COMMAND} -DPATCH_FILE=CMakeLists.txt -DOLD_VERSION=2.8.12 -P ${CMAKE_CURRENT_LIST_DIR}/patch_min_cmake_version.cmake
   )
   FetchContent_MakeAvailable(vorbis)
   set(Vorbis_Vorbis_INCLUDE_DIR "${vorbis_SOURCE_DIR}/include" CACHE PATH "" FORCE)
