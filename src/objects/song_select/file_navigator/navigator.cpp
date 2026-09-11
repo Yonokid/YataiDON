@@ -2208,11 +2208,14 @@ std::string normalize_title(std::string s) {
     replace_all(s, "-Old Audio-", "");
     replace_all(s, "-旧曲-", "");
 
+    // Keep UTF-8 (bytes >= 0x80) so a Japanese / Chinese title survives; only ASCII
+    // punctuation and spaces are dropped. Stripping every non-alnum byte turned every
+    // all-CJK title into "", so any two such songs compared equal.
     s.erase(std::remove_if(s.begin(), s.end(), [](unsigned char c) {
-        return !std::isalnum(c);
+        return c < 0x80 && !std::isalnum(c);
     }), s.end());
 
-    std::transform(s.begin(), s.end(), s.begin(), ::tolower);
+    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return (char)std::tolower(c); });
 
     return s;
 }
@@ -2220,6 +2223,7 @@ std::string normalize_title(std::string s) {
 std::optional<fs::path> Navigator::find_song_by_title(const std::string& title, const std::string& subtitle) {
     std::string norm_title = normalize_title(title);
     std::string norm_subtitle = normalize_title(subtitle);
+    if (norm_title.empty()) return std::nullopt;   // nothing to match on
 
     for (auto& [key, path] : song_files) {
         if (normalize_title(key.first) == norm_title &&
