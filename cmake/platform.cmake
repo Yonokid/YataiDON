@@ -35,6 +35,8 @@ if(WIN32)
   set_target_properties(${PROJECT_NAME} PROPERTIES
         LINK_FLAGS "-Wl,--allow-multiple-definition"
     )
+elseif(IOS)
+  include(${CMAKE_CURRENT_LIST_DIR}/ios.cmake)
 elseif(APPLE)
   target_link_libraries(${PROJECT_NAME} PRIVATE
         "-framework CoreVideo"
@@ -128,11 +130,11 @@ elseif(UNIX)
 endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-  if(ANDROID OR EMSCRIPTEN)
+  if(ANDROID OR IOS OR EMSCRIPTEN)
     target_compile_options(${PROJECT_NAME} PRIVATE
             -O0
             -g
-            -fmax-errors=0
+            $<$<CXX_COMPILER_ID:GNU>:-fmax-errors=0>
             -fno-omit-frame-pointer
         )
   elseif(NOT WIN32)
@@ -175,6 +177,8 @@ else()
           -march=x86-64
           -DNDEBUG
       )
+  elseif(IOS)
+    target_compile_options(${PROJECT_NAME} PRIVATE -O2 -DNDEBUG)
   elseif(APPLE)
     target_compile_options(${PROJECT_NAME} PRIVATE
           -O2

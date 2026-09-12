@@ -283,7 +283,7 @@ std::optional<std::string> SongSelectPlayer::handle_input_search() {
         if (!search_string.empty())
             search_string.pop_back();
     } else if (ray::IsKeyPressed(ray::KEY_ENTER)
-#ifdef PLATFORM_ANDROID
+#if defined(PLATFORM_ANDROID) || defined(PLATFORM_IOS)
                || is_l_don_pressed(player_num) || is_r_don_pressed(player_num)
 #endif
     ) {

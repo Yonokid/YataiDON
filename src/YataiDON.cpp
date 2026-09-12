@@ -2,7 +2,7 @@
 #include <fstream>
 #include <iostream>
 #include <rlgl.h>
-#ifdef PLATFORM_ANDROID
+#if defined(PLATFORM_ANDROID) || defined(PLATFORM_IOS)
 #include <SDL3/SDL_main.h>
 #include <SDL3/SDL.h>
 #endif
@@ -257,19 +257,38 @@ void reload_skin_screens() {
     populate_screens(g_loop->screens, g_loop->current_screen);
 }
 
+#ifdef PLATFORM_IOS
+static bool SDLCALL ios_lifecycle_event(void*, SDL_Event* event) {
+    if (event->type == SDL_EVENT_WILL_ENTER_BACKGROUND) {
+        ios_set_suspended(true);
+        audio.suspend_ios_audio(true);
+        clear_input_buffers();
+    } else if (event->type == SDL_EVENT_DID_ENTER_FOREGROUND) {
+        clear_input_buffers();
+        ios_set_suspended(false);
+        audio.suspend_ios_audio(false);
+    }
+    return true;
+}
+#endif
+
 static void run_frame() {
     LoopState& L = *g_loop;
 
     g_frame_ms = get_current_ms();
 
     ray::PollInputEvents();
-#ifdef __EMSCRIPTEN__
+#ifdef PLATFORM_IOS
+    if (ios_is_suspended()) return;
+#endif
+#if defined(__EMSCRIPTEN__) || defined(PLATFORM_IOS)
     poll_keyboard_once();
 #endif
     poll_touch_once();
 
     auto frame_start = std::chrono::steady_clock::now();
 
+#ifndef PLATFORM_IOS
     if (check_key_pressed(global_data.config->keys.fullscreen_key)) {
         ray::ToggleFullscreen();
         spdlog::info("Toggled fullscreen");
@@ -277,6 +296,8 @@ static void run_frame() {
         ray::ToggleBorderlessWindowed();
         spdlog::info("Toggled borderless windowed mode");
     }
+
+#endif
 
     // Read tex.screen_width/height live, not a cached copy -- a skin change
     // (settings.cpp's unload_skin()+load_skin()) can change the virtual
@@ -348,6 +369,20 @@ static void run_frame() {
 
     ray::EndBlendMode();
     ray::EndMode2D();
+#ifdef PLATFORM_IOS
+    if (global_data.config->general.touch_input) {
+        float sw = static_cast<float>(ray::GetScreenWidth());
+        float sh = static_cast<float>(ray::GetScreenHeight());
+        int font_size = std::max(16, static_cast<int>(sh * 0.04f));
+        const char* labels[] = {"Back", "Pause"};
+        for (int i = 0; i < 2; ++i) {
+            float x = sw * (0.36f + i * 0.15f);
+            ray::DrawRectangleRec({x, sh * 0.025f, sw * 0.13f, sh * 0.10f}, ray::Fade(ray::BLACK, 0.6f));
+            ray::DrawText(labels[i], static_cast<int>(x + (sw * 0.13f - ray::MeasureText(labels[i], font_size)) / 2),
+                static_cast<int>(sh * 0.075f - font_size / 2), font_size, ray::WHITE);
+        }
+    }
+#endif
     ray::EndDrawing();
 
     if (!next_screen.has_value()) {
@@ -366,7 +401,7 @@ static void run_frame() {
         spdlog::info("Screenshot saved");
     }
 
-#ifndef __EMSCRIPTEN__
+#if !defined(__EMSCRIPTEN__) && !defined(PLATFORM_IOS)
     if (L.target_duration.count() > 0) {
         L.next_frame_time += L.target_duration;
         auto now = std::chrono::steady_clock::now();
@@ -396,6 +431,14 @@ int main(int argc, char* argv[]) {
         SDL_SetHint(SDL_HINT_ANDROID_TRAP_BACK_BUTTON, "1");
         SDL_SetHint(SDL_HINT_ORIENTATIONS, "LandscapeLeft LandscapeRight");
     #endif
+#ifdef PLATFORM_IOS
+    // UIKit owns the event loop. SDL_WaitEvent while minimized would prevent
+    // UIKit from delivering the foreground event that wakes the game again.
+    flags = ray::FLAG_VSYNC_HINT | ray::FLAG_WINDOW_ALWAYS_RUN;
+    SDL_SetHint(SDL_HINT_ORIENTATIONS, "LandscapeLeft LandscapeRight");
+    SDL_SetHint(SDL_HINT_AUDIO_CATEGORY, "playback");
+    SDL_SetHint(SDL_HINT_ENABLE_SCREEN_KEYBOARD, "0");
+#endif
     ray::SetConfigFlags(flags);
     ray::SetTraceLogLevel(ray::LOG_ERROR);
     setup_logging(global_data.config->general.log_level);
@@ -495,7 +538,7 @@ int main(int argc, char* argv[]) {
 
     L.camera = compute_camera2d(tex.screen_width, tex.screen_height);
 
-#ifndef __EMSCRIPTEN__
+#if !defined(__EMSCRIPTEN__) && !defined(PLATFORM_IOS)
     if (global_data.config->video.borderless) {
         ray::ToggleBorderlessWindowed();
         spdlog::info("Borderless window enabled");
@@ -507,7 +550,7 @@ int main(int argc, char* argv[]) {
 #endif
 
     rlSetBlendFactorsSeparate(RL_SRC_ALPHA, RL_ONE_MINUS_SRC_ALPHA, RL_ONE, RL_ONE_MINUS_SRC_ALPHA, RL_FUNC_ADD, RL_FUNC_ADD);
-#if defined(PLATFORM_ANDROID) || defined(__EMSCRIPTEN__)
+#if defined(PLATFORM_ANDROID) || defined(PLATFORM_IOS) || defined(__EMSCRIPTEN__)
     ray::SetExitKey(ray::KEY_NULL);
 #else
     ray::SetExitKey(global_data.config->keys.exit_key);
@@ -517,6 +560,21 @@ int main(int argc, char* argv[]) {
     L.next_frame_time = std::chrono::steady_clock::now();
 #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop(run_frame, 0, 1);
+#elif defined(PLATFORM_IOS)
+    poll_touch_once();
+    SDL_AddEventWatch(ios_lifecycle_event, nullptr);
+    int window_count = 0;
+    SDL_Window** windows = SDL_GetWindows(&window_count);
+    if (!windows || window_count == 0) {
+        SDL_free(windows);
+        return 1;
+    }
+    bool registered = SDL_SetiOSAnimationCallback(windows[0], 1,
+        [](void*) { run_frame(); }, nullptr);
+    SDL_free(windows);
+    if (!registered) return 1;
+    // UIKit owns the loop. No background input thread may outlive main().
+    return 0;
 #else
     input_thread = std::thread(input_polling_thread);
 

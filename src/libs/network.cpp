@@ -550,6 +550,7 @@ void NetworkClient::update(double current_ms) {
 
 #else
 
+bool NetworkClient::probe_online() { return false; }
 std::string NetworkClient::register_user(const std::string&) { return ""; }
 void NetworkClient::submit_score(std::string&, int, const std::string&, Score, std::map<double, InputLogType> input_log, int64_t, const std::string&, bool, int) {}
 bool NetworkClient::check_import_requested(const std::string&) { return false; }

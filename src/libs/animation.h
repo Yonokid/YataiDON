@@ -6,10 +6,18 @@
 #include <unordered_map>
 #include <set>
 
+#ifdef PLATFORM_IOS
+#include "../platform/ios.h"
+#endif
+
 inline double get_current_ms() {
+#ifdef PLATFORM_IOS
+    return ios_game_time_ms();
+#else
     using namespace std::chrono;
     auto now = high_resolution_clock::now();
     return duration<double, std::milli>(now.time_since_epoch()).count();
+#endif
 }
 
 extern double g_frame_ms;

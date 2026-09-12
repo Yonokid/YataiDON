@@ -123,6 +123,44 @@
         "ANDROID_STL": "c++_shared",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       }
+    },
+    {
+      "name": "ios-simulator",
+      "displayName": "iOS Simulator",
+      "generator": "Xcode",
+      "binaryDir": "${sourceDir}/build-ios-simulator",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      },
+      "cacheVariables": {
+        "CMAKE_SYSTEM_NAME": "iOS",
+        "CMAKE_OSX_SYSROOT": "iphonesimulator",
+        "CMAKE_OSX_ARCHITECTURES": "arm64",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "16.3",
+        "CMAKE_BUILD_TYPE": "Release",
+        "IOS_FFMPEG_PREFIX": "${sourceDir}/.ios-ffmpeg/iphonesimulator-arm64"
+      }
+    },
+    {
+      "name": "ios-device",
+      "displayName": "iOS Device",
+      "generator": "Xcode",
+      "binaryDir": "${sourceDir}/build-ios-device",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      },
+      "cacheVariables": {
+        "CMAKE_SYSTEM_NAME": "iOS",
+        "CMAKE_OSX_SYSROOT": "iphoneos",
+        "CMAKE_OSX_ARCHITECTURES": "arm64",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "16.3",
+        "CMAKE_BUILD_TYPE": "Release",
+        "IOS_FFMPEG_PREFIX": "${sourceDir}/.ios-ffmpeg/iphoneos-arm64"
+      }
     }
   ],
   "buildPresets": [
@@ -137,6 +175,22 @@
     {
       "name": "debug",
       "configurePreset": "debug"
+    },
+    {
+      "name": "ios-simulator",
+      "configurePreset": "ios-simulator",
+      "configuration": "Release",
+      "targets": [
+        "YataiDON"
+      ]
+    },
+    {
+      "name": "ios-device",
+      "configurePreset": "ios-device",
+      "configuration": "Release",
+      "targets": [
+        "YataiDON"
+      ]
     }
   ]
 }

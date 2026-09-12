@@ -1,6 +1,8 @@
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
-set(SKIN_CONFIG_JSON  "${CMAKE_SOURCE_DIR}/Skins/PyTaikoGreen/Graphics/skin_config.json")
+set(YATAIDON_SKINS_DIR "${CMAKE_SOURCE_DIR}/Skins" CACHE PATH "Skins used for code generation and iOS bundling")
+
+set(SKIN_CONFIG_JSON  "${YATAIDON_SKINS_DIR}/PyTaikoGreen/Graphics/skin_config.json")
 set(SKIN_CONFIG_GEN_H "${CMAKE_BINARY_DIR}/generated/skin_config_generated.h")
 
 add_custom_command(
@@ -23,7 +25,7 @@ set(TEXTURE_IDS_GEN_H "${CMAKE_BINARY_DIR}/generated/texture_ids_generated.h")
 set(YATAIDON_EXTRA_SKIN_DIRS "" CACHE STRING
     "Extra skin Graphics directories to include in the generated TexID enum")
 
-file(GLOB SKIN_GRAPHICS_DIRS LIST_DIRECTORIES true "${CMAKE_SOURCE_DIR}/Skins/*/Graphics")
+file(GLOB SKIN_GRAPHICS_DIRS LIST_DIRECTORIES true "${YATAIDON_SKINS_DIR}/*/Graphics")
 set(ALL_SKIN_GRAPHICS_DIRS "")
 foreach(dir IN LISTS SKIN_GRAPHICS_DIRS YATAIDON_EXTRA_SKIN_DIRS)
     if(IS_DIRECTORY "${dir}")

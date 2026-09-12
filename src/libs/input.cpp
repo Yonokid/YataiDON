@@ -276,6 +276,13 @@ static int char_to_raylib_key(unsigned char c) {
 }
 
 static bool SDLCALL touch_event_watch(void* /*userdata*/, SDL_Event* event) {
+#ifdef PLATFORM_IOS
+    if (event->type == SDL_EVENT_WILL_ENTER_BACKGROUND) {
+        touch_id_to_vkey.clear();
+        clear_input_buffers();
+        return true;
+    }
+#endif
     if (global_data.input_locked) return 1;
 
 #if defined(__linux__) && !defined(PLATFORM_ANDROID)
@@ -318,6 +325,14 @@ static bool SDLCALL touch_event_watch(void* /*userdata*/, SDL_Event* event) {
             int sh = ray::GetScreenHeight();
             ray::Vector2 pos = { event->tfinger.x * sw, event->tfinger.y * sh };
             int vkey = touch_quadrant_vkey(pos, sw, sh);
+#ifdef PLATFORM_IOS
+            // The two top-center controls remain clear of landscape notches.
+            bool navigation = event->tfinger.y >= 0.025f && event->tfinger.y <= 0.125f;
+            if (navigation && event->tfinger.x >= 0.36f && event->tfinger.x <= 0.49f)
+                vkey = global_data.config->keys.back_key;
+            else if (navigation && event->tfinger.x >= 0.51f && event->tfinger.x <= 0.64f)
+                vkey = global_data.config->keys.pause_key;
+#endif
             touch_id_to_vkey[id] = vkey;
             touch_drum_pressed.store(true, std::memory_order_relaxed);
             last_input_ms.store(get_current_ms(), std::memory_order_relaxed);
@@ -489,7 +504,7 @@ void shutdown_sdl_joysticks() {
 }
 
 void android_set_keyboard_visible(bool visible) {
-#ifdef PLATFORM_ANDROID
+#if defined(PLATFORM_ANDROID) || defined(PLATFORM_IOS)
     int count = 0;
     SDL_Window** windows = SDL_GetWindows(&count);
     if (!windows || count == 0) return;

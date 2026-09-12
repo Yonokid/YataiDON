@@ -5,7 +5,7 @@
 #include <SDL3/SDL_audio.h>
 #include <SDL3/SDL_hints.h>
 #include <SDL3/SDL_init.h>
-#if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
+#if !defined(__ANDROID__) && !defined(PLATFORM_IOS) && !defined(__EMSCRIPTEN__)
 #include <RtAudio.h>
 #endif
 #ifdef _WIN32
@@ -158,6 +158,9 @@ public:
     void  stop_music_stream(const std::string& name);
     void  unload_music_stream(const std::string& name);
     void  unload_all_music();
+#ifdef PLATFORM_IOS
+    void suspend_ios_audio(bool suspended);
+#endif
     void  seek_music_stream(const std::string& name, float position);
 
 private:
@@ -174,7 +177,7 @@ private:
     bool               sdl_audio_subsystem_initialized = false;
     std::vector<float> sdl_scratch_buffer;
 
-#if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
+#if !defined(__ANDROID__) && !defined(PLATFORM_IOS) && !defined(__EMSCRIPTEN__)
     RtAudio* rt_audio = nullptr;  // ALSA/JACK/PulseAudio/OSS/CoreAudio/DirectSound/ASIO/WASAPI
 #endif
 #ifdef _WIN32
@@ -186,7 +189,7 @@ private:
 
     std::string path_to_string(const fs::path& path) const;
 
-#if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
+#if !defined(__ANDROID__) && !defined(PLATFORM_IOS) && !defined(__EMSCRIPTEN__)
     bool init_rtaudio_device(RtAudio::Api api, const char* label);
 #endif
 #ifdef _WIN32
@@ -196,7 +199,7 @@ private:
 
     static void mix(float* out, unsigned int framesPerBuffer, AudioEngine* engine);
     static void sdl_audio_callback(void* userdata, SDL_AudioStream* stream, int additional_amount, int total_amount);
-#if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
+#if !defined(__ANDROID__) && !defined(PLATFORM_IOS) && !defined(__EMSCRIPTEN__)
     static int  rt_audio_callback(void* outputBuffer, void* inputBuffer,
                                    unsigned int framesPerBuffer, double streamTime,
                                    unsigned int status, void* userData);

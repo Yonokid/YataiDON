@@ -3,14 +3,14 @@
 A TJA player and Taiko simulator written in C++ using the [raylib](https://www.raylib.com/) library.
 
 ![License](https://img.shields.io/github/license/Yonokid/YataiDON)
-![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20Android-blue)
+![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20Android%20%7C%20iOS-blue)
 [![GitHub Stars](https://img.shields.io/github/stars/Yonokid/YataiDON?style=flat&label=stars)](https://github.com/Yonokid/YataiDON/stargazers)
 [![Discord Members](https://img.shields.io/discord/722513061419810946.svg?label=Discord&logo=discord)](https://discord.gg/XHcVYKW)
 [![Builds](https://github.com/Yonokid/YataiDON/actions/workflows/build.yml/badge.svg)](https://github.com/Yonokid/YataiDON/actions/workflows/build.yml)
 
 ## Features
 
-- Cross-platform compatibility (Windows, Linux, macOS, Android)
+- Cross-platform compatibility (Windows, Linux, macOS, Android, iOS source port)
 - Controller Support
 - Low latency audio via ASIO or WDM-KS
 - Recursive and Dynamic Song Select Menu
@@ -38,6 +38,7 @@ A TJA player and Taiko simulator written in C++ using the [raylib](https://www.r
 - **macOS**: Built via CI, largely untested
 - **Linux**: Ubuntu 20.04 or higher (other distributions may work but are untested)
 - **Android**: Android 10 (API 29) or higher
+- **iOS**: iOS 16.3 or higher; build from source with Xcode (see [iOS guide](ios/README.md))
 
 ## FAQ
 
@@ -68,6 +69,7 @@ Download the latest release for your operating system from the [releases page](h
 - [Windows (MSYS2/MinGW64)](<https://github.com/Yonokid/YataiDON/wiki/Windows-(MSYS2-MingW64)>)
 - [Windows (MSVC)](<https://github.com/Yonokid/YataiDON/wiki/Windows-(MSVC)>) *(page pending)*
 - [Android](https://github.com/Yonokid/YataiDON/wiki/Android)
+- [iOS (Xcode, iPhone/iPad and Simulator)](ios/README.md)
 
 ## Controls
 
