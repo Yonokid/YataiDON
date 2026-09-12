@@ -15,7 +15,12 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 include(FetchContent)
-set(FETCHCONTENT_BASE_DIR "${CMAKE_SOURCE_DIR}/.cmake-deps" CACHE PATH "" FORCE)
+if(IOS)
+  # Device and Simulator can both be arm64 but cannot share dependency binaries.
+  set(FETCHCONTENT_BASE_DIR "${CMAKE_BINARY_DIR}/_deps" CACHE PATH "Dependency build directory")
+else()
+  set(FETCHCONTENT_BASE_DIR "${CMAKE_SOURCE_DIR}/.cmake-deps" CACHE PATH "" FORCE)
+endif()
 
 set(CMAKE_SKIP_INSTALL_RULES ON)
 
@@ -46,6 +51,24 @@ if(DATATABLE_SEED AND FUMEN_SEED)
   set(SUPPORT_FUMEN ON)
 else()
   set(SUPPORT_FUMEN OFF)
+endif()
+
+if(IOS)
+  if(CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS "16.3")
+    message(FATAL_ERROR "YataiDON requires iOS 16.3+ for C++20 floating-point formatting")
+  endif()
+  # Never resolve macOS Homebrew libraries while cross-compiling.
+  set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
+  set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+  set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+  set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+  set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+  # Backend credentials in a desktop .env should not enable an unconfigured
+  # cross-compiled curl/TLS stack on iOS.
+  if(NETWORK_ENABLED)
+    message(STATUS "Online profile sync is not yet supported by the iOS port")
+    set(NETWORK_ENABLED OFF)
+  endif()
 endif()
 
 include(cmake/deps.cmake)
@@ -140,7 +163,7 @@ if(NETWORK_ENABLED)
   )
 endif()
 
-if(NOT ANDROID AND NOT EMSCRIPTEN)
+if(NOT ANDROID AND NOT IOS AND NOT EMSCRIPTEN)
   target_link_libraries(${PROJECT_NAME} PRIVATE cpptrace::cpptrace)
 endif()
 
@@ -153,7 +176,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE sndfile samplerate)
-if(NOT ANDROID AND NOT EMSCRIPTEN)
+if(NOT ANDROID AND NOT IOS AND NOT EMSCRIPTEN)
   target_link_libraries(${PROJECT_NAME} PRIVATE rtaudio)
 endif()
 target_link_libraries(${PROJECT_NAME} PRIVATE portaudio)
@@ -189,7 +212,7 @@ message(STATUS "Project: ${PROJECT_NAME}")
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "C++ Standard: ${CMAKE_CXX_STANDARD}")
 message(STATUS "Platform: ${CMAKE_SYSTEM_NAME}")
-if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT WIN32 AND NOT ANDROID)
+if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT WIN32 AND NOT ANDROID AND NOT IOS)
   message(STATUS "Sanitizers: AddressSanitizer, LeakSanitizer, UndefinedBehaviorSanitizer")
 endif()
 message(STATUS "===============================================================")

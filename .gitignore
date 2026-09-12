@@ -30,3 +30,5 @@ YataiDON.js
 YataiDON.wasm
 /build-em
 /build-vita
+/build-ios-*
+/.ios-ffmpeg/
