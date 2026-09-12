@@ -523,6 +523,14 @@ std::optional<Screens> DanGameScreen::update() {
             st.score    = players[0]->get_score()          - prev_score;
             st.max_combo = song_max_combo;
             if ((int)song_stats.size() <= song_index) song_stats.push_back(st);
+
+            // The cabinet lets the song's audio play out before the next one starts; the
+            // chart's last note is only where judging ends. Wait for the music to stop
+            // (capped, in case a file has a long silent tail).
+            constexpr double MAX_TAIL_MS = 20000.0;
+            const bool music_running = song_music.has_value() && audio.is_sound_playing(song_music.value());
+            if (music_running && ms_from_start < players[0]->end_time + MAX_TAIL_MS)
+                return std::nullopt;
             song_max_combo = players[0]->get_combo();
 
             prev_good     = players[0]->get_good();
