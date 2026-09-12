@@ -679,6 +679,31 @@ void DanGameScreen::draw_exam_row(const DanExamInfo& info, const Exam& exam, int
         {"renda",        DAN_INFO::EXAM_ROLL},
     };
     auto icon_it = exam_ids.find(info.exam_type);
+    const bool classic = !have(DAN_INFO::EXAM_BORDER_COUNTER);
+    if (classic) {
+        // Classic HUD (PyTaikoGreen): the border digits share value_counter (index 0) and
+        // sit left of the 以上/未満 mark, the icon shifts left to make room, and the live
+        // value uses value_counter index 1. Same layout as before the Nijiiro rework.
+        const float score_margin = tex.skin_config[SC::DAN_SCORE_BOX_MARGIN].x;
+        const std::string red_str = std::to_string(info.red_value);
+        const float type_x = -(float)red_str.size() * 20.0f * tex.screen_scale;
+        if (icon_it != exam_ids.end())
+            tex.draw_texture(icon_it->second, {.x = type_x, .y = y});
+        const float gauge_shift = (info.exam_type == "gauge") ? -score_margin : 0.0f;
+        draw_digit_counter(red_str, score_margin, DAN_INFO::VALUE_COUNTER, 0, y, gauge_shift);
+        if (info.exam_range == "less")      tex.draw_texture(DAN_INFO::EXAM_LESS, {.y = y});
+        else if (info.exam_range == "more") tex.draw_texture(DAN_INFO::EXAM_MORE, {.y = y});
+        if (exam_failed[index]) {
+            tex.draw_texture(DAN_INFO::EXAM_FAILED, {.y = y});
+        } else {
+            draw_digit_counter(std::to_string(info.counter_value), score_margin, DAN_INFO::VALUE_COUNTER, 1, y);
+            if (info.exam_type == "gauge") {
+                tex.draw_texture(DAN_INFO::EXAM_PERCENT, {.y = y, .index = 0});
+                tex.draw_texture(DAN_INFO::EXAM_PERCENT, {.y = y, .index = 1});
+            }
+        }
+        return;
+    }
     if (icon_it != exam_ids.end())
         tex.draw_texture(icon_it->second, {.y = y});
 
@@ -763,6 +788,13 @@ void DanGameScreen::draw_dan_info() {
     const SessionData& sd = global_data.session_data[(int)global_data.player_num];
 
     tex.draw_texture(DAN_INFO::TOTAL_NOTES, {});
+    // Skins built around the classic HUD (no exam_border_counter art, no Lua dan panel)
+    // still get the remaining-notes counter from the engine.
+    if (tex.textures.find((uint32_t)DAN_INFO::EXAM_BORDER_COUNTER) == tex.textures.end() &&
+        tex.textures.find((uint32_t)DAN_INFO::TOTAL_NOTES_COUNTER) != tex.textures.end()) {
+        draw_digit_counter(std::to_string(cache.remaining_notes), tex.skin_config[SC::DAN_TOTAL_NOTES_MARGIN].x,
+                           DAN_INFO::TOTAL_NOTES_COUNTER, 0, 0);
+    }
 
     float offset_y = dan_exam_info().y;
     const auto& exams = sd.selected_dan_exam;
