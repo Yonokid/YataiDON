@@ -7,12 +7,12 @@ namespace ray {
     }
 }
 
-#ifdef PLATFORM_ANDROID
+#if defined(PLATFORM_ANDROID) || defined(PLATFORM_IOS)
 #include <SDL3/SDL.h>
 #endif
 
 inline ray::Shader load_shader(const char* vs_path, const char* fs_path) {
-#ifdef PLATFORM_ANDROID
+#if defined(PLATFORM_ANDROID) || defined(PLATFORM_IOS)
     auto repath = [](const char* p) -> std::string {
         if (!p) return "";
         std::string s(p);

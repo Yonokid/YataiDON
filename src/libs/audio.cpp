@@ -26,7 +26,7 @@ static bool decode_bank(const fs::path& p, gen4::DecodedAudio& out) {
 }
 #endif
 #include <algorithm>
-#ifdef __ANDROID__
+#if defined(__ANDROID__) || defined(PLATFORM_IOS)
 extern "C" {
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
@@ -112,7 +112,7 @@ static bool ffmpeg_decode_float(const char* path,
     avformat_close_input(&fmt);
     return true;
 }
-#endif // __ANDROID__
+#endif // Android/iOS FFmpeg audio fallback
 
 static sf_count_t vf_get_filelen(void* user_data) {
     auto* vf = static_cast<VirtualFile*>(user_data);
@@ -378,7 +378,7 @@ void AudioEngine::sdl_audio_callback(void* userdata, SDL_AudioStream* stream, in
                             static_cast<int>(needed_floats * sizeof(float)));
 }
 
-#if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
+#if !defined(__ANDROID__) && !defined(PLATFORM_IOS) && !defined(__EMSCRIPTEN__)
 int AudioEngine::rt_audio_callback(void* outputBuffer, void* /*inputBuffer*/,
                                     unsigned int framesPerBuffer, double /*streamTime*/,
                                     unsigned int /*status*/, void* userData) {
@@ -420,7 +420,7 @@ int AudioEngine::pa_stream_callback(const void* /*inputBuffer*/, void* outputBuf
 }
 #endif
 
-#if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
+#if !defined(__ANDROID__) && !defined(PLATFORM_IOS) && !defined(__EMSCRIPTEN__)
 bool AudioEngine::init_rtaudio_device(RtAudio::Api api, const char* label) {
     rt_audio = new RtAudio(api, [](RtAudioErrorType type, const std::string& errorText) {
         if (type == RTAUDIO_WARNING)
@@ -605,7 +605,7 @@ bool AudioEngine::init_audio_device(const fs::path& sounds_path, const AudioConf
     this->is_ready = false;
     this->master_volume = 1.0f;
     try {
-#if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
+#if !defined(__ANDROID__) && !defined(PLATFORM_IOS) && !defined(__EMSCRIPTEN__)
         switch (audio_config.device_type) {
             case 1: return init_rtaudio_device(RtAudio::LINUX_ALSA,     "ALSA");
             case 2: return init_rtaudio_device(RtAudio::LINUX_PULSE,    "PulseAudio");
@@ -645,7 +645,7 @@ void AudioEngine::close_audio_device() {
             SDL_QuitSubSystem(SDL_INIT_AUDIO);
             sdl_audio_subsystem_initialized = false;
         }
-#if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
+#if !defined(__ANDROID__) && !defined(PLATFORM_IOS) && !defined(__EMSCRIPTEN__)
         if (rt_audio != nullptr) {
             if (rt_audio->isStreamRunning()) rt_audio->stopStream();
             if (rt_audio->isStreamOpen()) rt_audio->closeStream();
@@ -786,7 +786,7 @@ std::string AudioEngine::load_sound(const fs::path& file_path, const std::string
         }
 
         if (!file) {
-#ifdef __ANDROID__
+#if defined(__ANDROID__) || defined(PLATFORM_IOS)
             float* ff_data = nullptr;
             sf_count_t ff_frames = 0;
             unsigned int ff_rate = 0, ff_ch = 0;
@@ -1212,7 +1212,7 @@ std::string AudioEngine::load_music_stream(const fs::path& file_path, const std:
         }
 
         if (!file) {
-#ifdef __ANDROID__
+#if defined(__ANDROID__) || defined(PLATFORM_IOS)
             float* ff_data = nullptr;
             sf_count_t ff_frames = 0;
             unsigned int ff_rate = 0, ff_ch = 0;
@@ -1593,3 +1593,11 @@ void AudioEngine::seek_music_stream(const std::string& name, float position) {
 }
 
 AudioEngine audio;
+
+#ifdef PLATFORM_IOS
+void AudioEngine::suspend_ios_audio(bool suspended) {
+    if (!sdl_stream) return;
+    if (suspended) SDL_PauseAudioStreamDevice(sdl_stream);
+    else SDL_ResumeAudioStreamDevice(sdl_stream);
+}
+#endif

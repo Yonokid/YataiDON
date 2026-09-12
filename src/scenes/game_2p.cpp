@@ -106,7 +106,13 @@ std::optional<Screens> Game2PScreen::update() {
         if (song_music.has_value()) audio.stop_sound(song_music.value());
         return on_screen_end(Screens::SONG_SELECT_2P);
     }
-    if (ray::IsKeyPressed(global_data.config->keys.pause_key)) {
+    if (
+#ifdef PLATFORM_IOS
+        check_key_pressed(global_data.config->keys.pause_key)
+#else
+        ray::IsKeyPressed(global_data.config->keys.pause_key)
+#endif
+    ) {
         pause_song();
     }
 

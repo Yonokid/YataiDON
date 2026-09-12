@@ -203,7 +203,13 @@ std::optional<Screens> GameScreen::global_keys() {
         return on_screen_end(Screens::SONG_SELECT);
     }
 
-    if (ray::IsKeyPressed(global_data.config->keys.pause_key))
+    if (
+#ifdef PLATFORM_IOS
+        check_key_pressed(global_data.config->keys.pause_key)
+#else
+        ray::IsKeyPressed(global_data.config->keys.pause_key)
+#endif
+    )
         pause_song();
 
     return std::nullopt;

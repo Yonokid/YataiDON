@@ -9,6 +9,10 @@
 #include <spdlog/spdlog.h>
 #include <unistd.h>
 
+#ifdef PLATFORM_IOS
+    #include "../platform/ios.h"
+#endif
+
 #ifdef _WIN32
     #include <windows.h>
 #endif
@@ -17,7 +21,9 @@
 #endif
 
 void set_working_directory_to_executable() {
-#ifdef __ANDROID__
+#ifdef PLATFORM_IOS
+    ios_prepare_filesystem();
+#elif defined(__ANDROID__)
     std::filesystem::path exe_dir("/sdcard/YataiDON");
     std::error_code ec;
     std::filesystem::create_directories(exe_dir, ec);

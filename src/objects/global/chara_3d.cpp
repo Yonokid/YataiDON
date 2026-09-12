@@ -175,7 +175,7 @@ void Chara3D::load_part(const fs::path& model_path, const fs::path& anim_path, b
             if (model.meshMaterial[m] == face_material_index)
                 normalize_face_mesh_size(model.meshes[m], COS_FACE_PLANE_SIZE);
     }
-#ifdef PLATFORM_ANDROID
+#if defined(PLATFORM_ANDROID) || defined(PLATFORM_IOS)
     if (face_material_index != -1 && face_shader.id != 0)
         model.materials[face_material_index].shader = face_shader;
 #endif
