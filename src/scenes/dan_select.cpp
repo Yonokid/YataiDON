@@ -38,9 +38,20 @@ Exam DanNavigator::parse_exam(const rapidjson::Value& e) {
     Exam exam;
     exam.type  = e["type"].GetString();
     exam.range = e["range"].GetString();
-    if (e.HasMember("value") && e["value"].IsArray() && e["value"].Size() >= 2) {
+    if (e.HasMember("value") && e["value"].IsArray() && e["value"].Size() >= 1 && e["value"][0].IsArray()) {
+        // per-song borders: [[red, gold], [red, gold], [red, gold]] (gold optional)
+        for (auto& pair : e["value"].GetArray()) {
+            if (!pair.IsArray() || pair.Size() < 1 || !pair[0].IsInt()) continue;
+            const int red  = pair[0].GetInt();
+            const int gold = pair.Size() >= 2 && pair[1].IsInt() ? pair[1].GetInt() : Exam::GOLD_FULL;
+            exam.song_red.push_back(red);
+            exam.song_gold.push_back(gold);
+        }
+        if (!exam.song_red.empty()) { exam.red = exam.song_red[0]; exam.gold = exam.song_gold[0]; }
+        exam.gothrough = false;   // a per-song border is judged per song by definition
+    } else if (e.HasMember("value") && e["value"].IsArray() && e["value"].Size() >= 1 && e["value"][0].IsInt()) {
         exam.red  = e["value"][0].GetInt();
-        exam.gold = e["value"][1].GetInt();
+        exam.gold = e["value"].Size() >= 2 && e["value"][1].IsInt() ? e["value"][1].GetInt() : Exam::GOLD_FULL;
     }
     if (e.HasMember("gothrough") && e["gothrough"].IsBool())
         exam.gothrough = e["gothrough"].GetBool();

@@ -10,7 +10,7 @@
 inline std::string exam_threshold_text(const TextureWrapper& tex,
                                        const std::string& type,
                                        const std::string& range,
-                                       int value,
+                                       const std::string& num,
                                        const std::string& lang) {
     const bool gauge = (type == "gauge");
     const bool less  = (range == "less");
@@ -22,7 +22,6 @@ inline std::string exam_threshold_text(const TextureWrapper& tex,
                     : less  ? "%s \xE6\x9C\xAA\xE6\xBA\x80"                       // "%s 未満"
                             : "%s \xE4\xBB\xA5\xE4\xB8\x8A";                      // "%s 以上"
     std::string fmt = tex.skin_text(key, lang, tex.skin_text(key, "ja", jp));
-    const std::string num = std::to_string(value);
     // Only "%s" is substituted; "%%" is an escaped percent (the en rows use it).
     std::string out;
     for (size_t i = 0; i < fmt.size(); i++) {
@@ -31,6 +30,19 @@ inline std::string exam_threshold_text(const TextureWrapper& tex,
         else out += fmt[i];
     }
     return out;
+}
+
+inline std::string exam_threshold_text(const TextureWrapper& tex, const std::string& type,
+                                       const std::string& range, int value, const std::string& lang) {
+    return exam_threshold_text(tex, type, range, std::to_string(value), lang);
+}
+
+// "154/28/0 以上" for a per-song border, the plain number otherwise.
+inline std::string exam_border_text(const TextureWrapper& tex, const Exam& exam, const std::string& lang) {
+    if (!exam.per_song()) return exam_threshold_text(tex, exam.type, exam.range, exam.red, lang);
+    std::string num;
+    for (size_t i = 0; i < exam.song_red.size(); i++) num += (i ? "/" : "") + std::to_string(exam.song_red[i]);
+    return exam_threshold_text(tex, exam.type, exam.range, num, lang);
 }
 
 class ExamCaptionCache {

@@ -246,8 +246,7 @@ void DanBox::draw_exam_grid() {
         if (!bt) return false;
         const float ol = bt->outline >= 0 ? bt->outline : (3.0f / tex.screen_scale);
         OutlinedText* cap = exam_captions.get(
-            exam_threshold_text(tex, exam.type, exam.range, exam.red,
-                                global_data.config->general.language),
+            exam_border_text(tex, exam, global_data.config->general.language),
             bt->font_size > 0 ? bt->font_size : 28, ol);
         if (!cap) return false;
         const float pad = ExamCaptionCache::pad_for(ol, tex.screen_scale);

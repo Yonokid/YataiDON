@@ -697,7 +697,7 @@ void DanResultScreen::draw_exam_info(double fade, double now, float scale) {
                 if (sbt) {
                     if (sbt->outline >= 0) sbt_ol = sbt->outline;
                     scap = exam_captions.get(
-                        exam_threshold_text(tex, exam.type, exam.range, exam.red,
+                        exam_threshold_text(tex, exam.type, exam.range, exam.for_song(j).red,
                                             global_data.config->general.language),
                         sbt->font_size > 0 ? sbt->font_size : 20, sbt_ol);
                 }
@@ -706,7 +706,7 @@ void DanResultScreen::draw_exam_info(double fade, double now, float scale) {
                     scap->draw({.x = sbt->x + sx - scap->width + pad,
                                 .y = sbt->y - pad + y, .fade = fade});
                 } else {
-                    const std::string bs = std::to_string(exam.red);
+                    const std::string bs = std::to_string(exam.for_song(j).red);
                     const float bx = sx;
                     digits_left(bs, bx, y, border_pitch * sub_border_scale,
                                 border_id, sub_bd_pen, scale * sub_border_scale);
@@ -906,7 +906,8 @@ void DanResultScreen::draw_page2(double fade, double now) {
         bool all_gold   = !any_failed && !rd.exams.empty() && !rd.exam_data.empty();
         if (all_gold) {
             for (int i = 0; i < (int)rd.exams.size() && i < (int)rd.exam_data.size(); i++) {
-                if (rd.exam_data[i].progress < (float)rd.exams[i].gold / (float)(rd.exams[i].red > 0 ? rd.exams[i].red : 1)) {
+                // the verdict tier already folds per-song borders and the less/more sense
+                if (rd.exam_data[i].tier < 2) {
                     all_gold = false; break;
                 }
             }

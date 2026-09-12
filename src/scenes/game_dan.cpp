@@ -45,16 +45,20 @@ void DanGameScreen::init_dan() {
     SessionData& sd = global_data.session_data[(int)global_data.player_num];
 
     total_notes = 0;
+    song_note_counts.clear();
     for (const auto& entry : sd.selected_dan) {
+        int count = 0;
         try {
             SongParser sp(entry.song_path);
             auto [notes, bm, be, bn] = sp.notes_to_position(entry.difficulty);
             for (const Note& n : notes.notes)
-                if (n.type >= NoteType::DON && n.type <= NoteType::KAT_L) total_notes++;
+                if (n.type >= NoteType::DON && n.type <= NoteType::KAT_L) count++;
             for (auto& sec : bm)
                 for (const Note& n : sec.notes)
-                    if (n.type >= NoteType::DON && n.type <= NoteType::KAT_L) total_notes++;
+                    if (n.type >= NoteType::DON && n.type <= NoteType::KAT_L) count++;
         } catch (...) {}
+        song_note_counts.push_back(count);
+        total_notes += count;
     }
     if (total_notes == 0) total_notes = 1;
 
@@ -208,6 +212,23 @@ int DanGameScreen::get_exam_progress_song(const Exam& exam, int song_idx) {
     return get_exam_progress(exam);                 // gauge (course-wide by nature)
 }
 
+Exam DanGameScreen::exam_for(const Exam& exam, int song_idx) const {
+    Exam ex = song_idx >= 0 ? exam.for_song(song_idx) : exam;
+    if (ex.gold != Exam::GOLD_FULL) return ex;
+    if (ex.range == "less") {
+        ex.gold = 1;                                   // gold = none at all (value < 1)
+    } else if (ex.type == "gauge") {
+        ex.gold = 100;
+    } else if (ex.type == "judgeperfect" || ex.type == "hit" || ex.type == "combo") {
+        int notes = total_notes;
+        if (song_idx >= 0 && song_idx < (int)song_note_counts.size()) notes = song_note_counts[song_idx];
+        ex.gold = std::max(ex.red, notes);              // every note
+    } else {
+        ex.gold = ex.red;                               // score / renda: no perfect value, no gold tier
+    }
+    return ex;
+}
+
 DanInfoCache DanGameScreen::calculate_dan_info() {
     DanInfoCache cache;
     Player* p = players[0].get();
@@ -222,7 +243,7 @@ DanInfoCache DanGameScreen::calculate_dan_info() {
         DanExamInfo info;
         info.exam_type  = exam.type;
         info.exam_range = exam.range;
-        info.red_value  = exam.red;
+        info.red_value  = exam.gothrough ? exam.red : exam_for(exam, std::min(song_index, 2)).red;
 
         int val = get_exam_progress(exam);
         float progress = (exam.red > 0) ? (float)val / exam.red : 0.0f;
@@ -242,19 +263,20 @@ DanInfoCache DanGameScreen::calculate_dan_info() {
         if (progress >= 1.0f)        info.bar_texture = "exam_max";
         else if (progress >= 0.5f)   info.bar_texture = "exam_gold";
         else                          info.bar_texture = "exam_red";
-        info.bar_state = dan_bar_state(exam, val, true, near_end, just_before_end);
+        info.bar_state = dan_bar_state(exam_for(exam, -1), val, true, near_end, just_before_end);
 
         info.gothrough  = exam.gothrough;
         info.song_count = std::min(song_index, 3);
         if (!exam.gothrough) {
             for (int j = 0; j < 3 && j <= song_index; j++) {
+                const Exam ex = exam_for(exam, j);
                 int   sv = get_exam_progress_song(exam, j);
-                float sp = (exam.red > 0) ? (float)sv / exam.red : 0.0f;
-                if (exam.range == "less") { sp = 1.0f - sp; sv = std::max(0, exam.red - sv); }
+                float sp = (ex.red > 0) ? (float)sv / ex.red : 0.0f;
+                if (ex.range == "less") { sp = 1.0f - sp; sv = std::max(0, ex.red - sv); }
                 info.song_value[j]    = std::max(0, sv);
                 info.song_progress[j] = std::max(0.0f, std::min(1.0f, sp));
                 const bool live_j = (j == song_index);
-                info.song_state[j]    = dan_bar_state(exam, get_exam_progress_song(exam, j),
+                info.song_state[j]    = dan_bar_state(ex, get_exam_progress_song(exam, j),
                                                       live_j, near_end, just_before_end);
             }
             int cur = std::min(song_index, 2);
@@ -277,7 +299,8 @@ void DanGameScreen::check_exam_failures(bool course_finished, bool song_finished
     const auto& exams = global_data.session_data[(int)global_data.player_num].selected_dan_exam;
     for (int i = 0; i < (int)exams.size(); i++) {
         if (exam_failed[i]) continue;
-        const Exam& exam = exams[i];
+        const Exam& base = exams[i];
+        const Exam  exam = base.gothrough ? exam_for(base, -1) : exam_for(base, std::min(song_index, 2));
         int val = exam.gothrough ? get_exam_progress(exam)
                                   : get_exam_progress_song(exam, song_index);
         bool at_boundary = exam.gothrough ? course_finished
@@ -358,17 +381,17 @@ void DanGameScreen::save_result_data(bool all_failed) {
                 if (all_failed) {
                     re.tier = 0;
                 } else if (exam.gothrough) {
-                    re.tier = exam_tier(exam, get_exam_progress(exam));
+                    re.tier = exam_tier(exam_for(exam, -1), get_exam_progress(exam));
                 } else {
                     re.tier = 2;
                     for (int j = 0; j < course_songs; j++)
-                        re.tier = std::min(re.tier, exam_tier(exam, get_exam_progress_song(exam, j)));
+                        re.tier = std::min(re.tier, exam_tier(exam_for(exam, j), get_exam_progress_song(exam, j)));
                 }
                 if (re.tier == 0) re.failed = true;
-                re.bar_state = dan_bar_state(exam, get_exam_progress(exam));
+                re.bar_state = dan_bar_state(exam_for(exam, -1), get_exam_progress(exam));
                 if (!exam.gothrough)
                     for (int j = 0; j < course_songs; j++)
-                        re.song_state[j] = dan_bar_state(exam, get_exam_progress_song(exam, j));
+                        re.song_state[j] = dan_bar_state(exam_for(exam, j), get_exam_progress_song(exam, j));
             }
             check = std::min(check, re.tier);
             sd.dan_result_data.exam_data.push_back(re);
@@ -584,7 +607,16 @@ void DanGameScreen::push_dan_state() {
         row["type"]     = info.exam_type;
         row["range"]    = info.exam_range;
         row["red"]      = info.red_value;
-        row["gold"]     = (i < (int)exams.size()) ? exams[i].gold : 0;
+        row["gold"]     = (i < (int)exams.size()) ? exam_for(exams[i], exams[i].gothrough ? -1 : std::min(song_index, 2)).gold : 0;
+        if (i < (int)exams.size() && exams[i].per_song()) {
+            sol::table sr = lua.create_table(), sg = lua.create_table();
+            for (int j = 0; j < (int)exams[i].song_red.size(); j++) {
+                sr[j + 1] = exams[i].song_red[j];
+                sg[j + 1] = exam_for(exams[i], j).gold;
+            }
+            row["song_red"]  = sr;
+            row["song_gold"] = sg;
+        }
         row["value"]    = info.counter_value;
         row["progress"] = info.progress;
         row["bar"]      = info.bar_texture;

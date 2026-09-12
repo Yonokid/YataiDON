@@ -59,6 +59,10 @@ private:
     int prev_score = 0;
     struct SongStats { int good = 0, ok = 0, bad = 0, drumroll = 0, score = 0, max_combo = 0; };
     std::vector<SongStats> song_stats;
+    std::vector<int> song_note_counts;   // notes per course song, for the "perfect" gold border
+    // exam as judged for song_idx (-1 = course-wide): per-song pair applied and an omitted
+    // gold border resolved to the perfect value
+    Exam exam_for(const Exam& exam, int song_idx) const;
     int song_max_combo = 0;
     std::string current_song_title;
 

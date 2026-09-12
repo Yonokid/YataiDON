@@ -51,6 +51,24 @@ struct Exam {
     int gold = 0;
     std::string range;  // "less" or "more"
     bool gothrough = true;
+    // Per-song borders (dan.json value = [[red, gold], ...], one pair per song): the
+    // cabinet's per-song conditions carry a different threshold for each of the three
+    // songs. Empty for the usual course-wide pair; red/gold above then hold song 1's.
+    std::vector<int> song_red;
+    std::vector<int> song_gold;
+    // An omitted gold border means "perfect": 0 for a less exam, 100 % gauge, every note
+    // for good / hit / combo. Stored as GOLD_FULL and resolved where the note count is known.
+    static constexpr int GOLD_FULL = -1;
+    bool per_song() const { return !song_red.empty(); }
+    // The exam as it applies to song i: red/gold swapped for that song's pair.
+    Exam for_song(int i) const {
+        Exam ex = *this;
+        if (per_song() && i >= 0 && i < (int)song_red.size()) {
+            ex.red  = song_red[i];
+            ex.gold = i < (int)song_gold.size() ? song_gold[i] : song_red[i];
+        }
+        return ex;
+    }
 };
 
 inline std::string dan_bar_state(const Exam& exam, int value,
