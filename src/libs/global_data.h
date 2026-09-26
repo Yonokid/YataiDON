@@ -61,13 +61,8 @@ struct Exam {
     int gold = 0;
     std::string range;  // "less" or "more"
     bool gothrough = true;
-    // Per-song borders (dan.json value = [[red, gold], ...], one pair per song): the
-    // cabinet's per-song conditions carry a different threshold for each of the three
-    // songs. Empty for the usual course-wide pair; red/gold above then hold song 1's.
     std::vector<int> song_red;
     std::vector<int> song_gold;
-    // An omitted gold border means "perfect": 0 for a less exam, 100 % gauge, every note
-    // for good / hit / combo. Stored as GOLD_FULL and resolved where the note count is known.
     static constexpr int GOLD_FULL = -1;
     bool per_song() const { return !song_red.empty(); }
     // The exam as it applies to song i: red/gold swapped for that song's pair.
@@ -223,13 +218,6 @@ struct GlobalData {
     bool in_transition = false;
     std::string title_state = "";
     double      title_state_start_ms = 0.0;
-    int  live_combo = 0;
-    int  live_score = 0;
-    int  live_drumroll = 0;
-    bool live_gogo = false;
-    double live_soul = 0.0;
-    bool live_is_clear = false;
-    bool live_is_rainbow = false;
     int  live_skip_count = -1;
     bool live_skip_used = false;
     bool force_auto_play = false;

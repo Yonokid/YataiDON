@@ -388,17 +388,6 @@ void Player::evaluate_branch(double current_ms) {
 void Player::update(double ms_from_start, double current_ms, std::optional<Background>& background) {
     bg_hook = background.has_value() ? &background.value() : nullptr;
 
-    if (!is_2p) {
-        global_data.live_combo    = combo;
-        global_data.live_score    = score;
-        global_data.live_drumroll = total_drumroll;
-        global_data.live_gogo     = is_gogo_time;
-        if (gauge.has_value()) {
-            global_data.live_soul       = gauge->get_length();  // now 0-100%, not the old 0-10000 soul-point scale
-            global_data.live_is_clear   = gauge->get_is_clear();
-            global_data.live_is_rainbow = gauge->get_is_rainbow();
-        }
-    }
     note_manager(ms_from_start, background);
     combo_display.update(current_ms, combo);
     if (combo_announce.has_value()) {

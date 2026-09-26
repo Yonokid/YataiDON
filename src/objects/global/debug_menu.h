@@ -640,12 +640,6 @@ private:
         f.push_back({"force_auto_play", DataField::Kind::BOOL, nullptr, &g.force_auto_play});
         f.push_back({"returned_from_result", DataField::Kind::BOOL, nullptr, &g.returned_from_result});
         f.push_back({"entry_join_pending", DataField::Kind::BOOL, nullptr, &g.entry_join_pending});
-        f.push_back({"live_combo", DataField::Kind::INT, &g.live_combo});
-        f.push_back({"live_score", DataField::Kind::INT, &g.live_score});
-        f.push_back({"live_drumroll", DataField::Kind::INT, &g.live_drumroll});
-        f.push_back({"live_gogo", DataField::Kind::BOOL, nullptr, &g.live_gogo});
-        f.push_back({"live_is_clear", DataField::Kind::BOOL, nullptr, &g.live_is_clear});
-        f.push_back({"live_is_rainbow", DataField::Kind::BOOL, nullptr, &g.live_is_rainbow});
         f.push_back({"live_skip_count", DataField::Kind::INT, &g.live_skip_count});
         f.push_back({"live_skip_used", DataField::Kind::BOOL, nullptr, &g.live_skip_used});
 
