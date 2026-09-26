@@ -393,6 +393,28 @@ void DanBox::draw_exam_box() {
         if (icon_it != t_exam_icon_by_type.end())
             tex.draw_texture(icon_it->second, {.y=y, .fade=f});
 
+        // Optional skin key dan_exam_value_center: centre the whole value (digits, %, suffix) on
+        // its x, with `width` px between the parts. Skins without the key keep the per-part
+        // texture positions below, as before.
+        if (const SkinInfo* vc = tex.skin_entry("dan_exam_value_center")) {
+            const std::string digits = std::to_string(exam.red);
+            TextureObject* pct = exam.type == "gauge" ? t_exam_percent : nullptr;
+            TextureObject* suf = exam.range == "more" ? t_exam_more
+                               : exam.range == "less" ? t_exam_less : nullptr;
+            const float digits_w = (digits.size() - 1) * margin + t_judge_num->x2[0];
+            const float gap = vc->width;
+            const int parts = 1 + (pct ? 1 : 0) + (suf ? 1 : 0);
+            const float total = digits_w + (pct ? pct->x2[0] : 0.0f) + (suf ? suf->x2[0] : 0.0f)
+                              + gap * (parts - 1);
+            float cx = vc->x - total / 2.0f;
+            for (size_t j = 0; j < digits.size(); j++)
+                tex.draw_texture(t_judge_num, {.frame=digits[j]-'0', .x=cx + j * margin - t_judge_num->x[0], .y=y, .fade=f});
+            cx += digits_w + gap;
+            if (pct) { tex.draw_texture(pct, {.x=cx - pct->x[0], .y=y, .fade=f}); cx += pct->x2[0] + gap; }
+            if (suf) tex.draw_texture(suf, {.x=cx - suf->x[0], .y=y, .fade=f});
+            continue;
+        }
+
         float x_offset = 0;
         if (exam.type == "gauge") {
             tex.draw_texture(t_exam_percent, {.y=y, .fade=f});
