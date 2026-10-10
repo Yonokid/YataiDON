@@ -85,27 +85,8 @@ std::optional<Screens> SongSelect2PScreen::update() {
     Screen::update();
     SongSelectState prev_state = state;
     double current_time = get_current_ms();
-    allnet_indicator.update(current_time);
-    diff_fade_out->update(current_time);
-    script->update(current_time);
-    select_timer->update(current_time);
-    if (diff_select_timer != nullptr) diff_select_timer->update(current_time);
-    indicator->update(current_time);
-    if (search_box) search_box->update(current_time);
-
-    if (navigator.diff_sort_ready() && !diff_sort_selector) {
-        if (stats_future.valid()) {
-            stats_future.wait();
-            cached_stats = stats_future.get();
-        }
-        diff_sort_selector.emplace(cached_stats, last_diff_sort.first, last_diff_sort.second,
-                                   script.get(), last_diff_order);
-    }
-    if (diff_sort_selector) {
-        state = SongSelectState::DIFF_SORTING;
-        diff_sort_selector->update(current_time);
-        apply_sort_window_result();
-    }
+    update_selection_ui(current_time, true);
+    update_diff_sort(current_time);
 
     poll_song_jump(current_time);
     handle_input(current_time);
@@ -145,10 +126,7 @@ std::optional<Screens> SongSelect2PScreen::update() {
     if (state != prev_state) {
         script->restart_text_fade();
         if (state == SongSelectState::SEARCHING) {
-            search_box.emplace();
-            // The don key that opened the search (F/J) is also a typed character still
-            // queued in raylib's char buffer; drop it so it does not land in the query.
-            while (ray::GetCharPressed() > 0) {}
+            start_search();
         }
     }
 

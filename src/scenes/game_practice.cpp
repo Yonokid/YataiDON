@@ -236,6 +236,36 @@ void PracticeGameScreen::pause_song_practice() {
     }
 }
 
+void PracticeGameScreen::resume_practice() {
+    pause_song_practice();
+    resume_don_anim->start();
+
+    if (practice_player) {
+        practice_player->spawn_scrobble_effect(DrumType::DON, Side::LEFT, (int)global_data.player_num - 1);
+    }
+}
+
+void PracticeGameScreen::open_practice_menu() {
+    menu_don_anim->start();
+    menu.open_menu();
+}
+
+void PracticeGameScreen::change_practice_speed(bool down, bool up) {
+    if (down) {
+        song_speed = std::max(1, song_speed - 1);
+        speed_l_kat_anim->start();
+    }
+
+    if (up) {
+        song_speed = std::min(99, song_speed + 1);
+        speed_r_kat_anim->start();
+    }
+
+    if (song_music.has_value()) {
+        audio.set_sound_pitch(song_music.value(), song_speed / 10.0f);
+    }
+}
+
 void PracticeGameScreen::restart_practice() {
     if (song_music.has_value()) {
         audio.stop_sound(song_music.value());
@@ -371,9 +401,7 @@ std::optional<Screens> PracticeGameScreen::handle_mouse_input() {
         resume_don_anim ? (float)resume_don_anim->attribute : 1.0f);
     if (point_in_rect(mouse_pos.x, mouse_pos.y, resume_rect.x, resume_rect.y, resume_rect.width, resume_rect.height)) {
         if (mouse_pressed) {
-            pause_song_practice();
-            resume_don_anim->start();
-            if (practice_player) practice_player->spawn_scrobble_effect(DrumType::DON, Side::LEFT, player_idx);
+            resume_practice();
             audio.play_sound("don", VolumePreset::SOUND);
         }
         return std::nullopt;
@@ -404,8 +432,7 @@ std::optional<Screens> PracticeGameScreen::handle_mouse_input() {
         menu_don_anim ? (float)menu_don_anim->attribute : 1.0f);
     if (point_in_rect(mouse_pos.x, mouse_pos.y, menu_rect.x, menu_rect.y, menu_rect.width, menu_rect.height)) {
         if (mouse_pressed) {
-            menu_don_anim->start();
-            menu.open_menu();
+            open_practice_menu();
             audio.play_sound("don", VolumePreset::SOUND);
         }
         return std::nullopt;
@@ -416,10 +443,7 @@ std::optional<Screens> PracticeGameScreen::handle_mouse_input() {
         speed_l_kat_anim ? (float)speed_l_kat_anim->attribute : 1.0f);
     if (point_in_rect(mouse_pos.x, mouse_pos.y, speed_l_rect.x, speed_l_rect.y, speed_l_rect.width, speed_l_rect.height)) {
         if (mouse_pressed) {
-            song_speed = std::max(1, song_speed - 1);
-            speed_l_kat_anim->start();
-            if (song_music.has_value())
-                audio.set_sound_pitch(song_music.value(), song_speed / 10.0f);
+            change_practice_speed(true, false);
             audio.play_sound("kat", VolumePreset::SOUND);
         }
         return std::nullopt;
@@ -430,10 +454,7 @@ std::optional<Screens> PracticeGameScreen::handle_mouse_input() {
         speed_r_kat_anim ? (float)speed_r_kat_anim->attribute : 1.0f);
     if (point_in_rect(mouse_pos.x, mouse_pos.y, speed_r_rect.x, speed_r_rect.y, speed_r_rect.width, speed_r_rect.height)) {
         if (mouse_pressed) {
-            song_speed = std::min(99, song_speed + 1);
-            speed_r_kat_anim->start();
-            if (song_music.has_value())
-                audio.set_sound_pitch(song_music.value(), song_speed / 10.0f);
+            change_practice_speed(false, true);
             audio.play_sound("kat", VolumePreset::SOUND);
         }
         return std::nullopt;
@@ -595,25 +616,19 @@ std::optional<Screens> PracticeGameScreen::global_keys_practice() {
 
         if (is_l_don_pressed(other_player) || is_r_don_pressed(other_player)) {
             audio.play_sound("don", VolumePreset::SOUND);
-            menu_don_anim->start();
-            menu.open_menu();
+            open_practice_menu();
             return std::nullopt;
         }
 
         if (is_l_don_pressed(global_data.player_num) || is_r_don_pressed(global_data.player_num)) {
-            pause_song_practice();
-            resume_don_anim->start();
-            if (practice_player) practice_player->spawn_scrobble_effect(DrumType::DON, Side::LEFT, player_idx);
+            resume_practice();
         }
 
         bool speed_down = is_l_kat_pressed(other_player);
         bool speed_up   = is_r_kat_pressed(other_player);
         if (paused && (speed_down || speed_up)) {
             audio.play_sound("kat", VolumePreset::SOUND);
-            if (speed_down) { song_speed = std::max(1, song_speed - 1); speed_l_kat_anim->start(); }
-            if (speed_up)   { song_speed = std::min(99, song_speed + 1); speed_r_kat_anim->start(); }
-            if (song_music.has_value())
-                audio.set_sound_pitch(song_music.value(), song_speed / 10.0f);
+            change_practice_speed(speed_down, speed_up);
         }
 
         bool scrobble_left  = is_l_kat_pressed(global_data.player_num);

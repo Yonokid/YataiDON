@@ -1,3 +1,4 @@
+#include "../../../libs/localized_text.h"
 #include "box_song.h"
 #include "../../../libs/text.h"
 #include "navigator.h"
@@ -31,10 +32,10 @@ SongBox::SongBox(const fs::path& path, const BoxDef& box_def, SongParser parser)
     parser.get_metadata();
     auto& titles = parser.metadata.title;
     const std::string& lang = global_data.config->general.language;
-    text_name = titles.count(lang) ? titles.at(lang) : titles.count("en") ? titles.at("en") : titles.empty() ? "" : titles.begin()->second;
+    text_name = localized_text(titles, lang, LocalizedTextFallback::ENGLISH_OR_FIRST);
 
     auto& subtitles = parser.metadata.subtitle;
-    text_subtitle = subtitles.count(lang) ? subtitles.at(lang) : subtitles.count("en") ? subtitles.at("en") : subtitles.empty() ? "" : subtitles.begin()->second;
+    text_subtitle = localized_text(subtitles, lang, LocalizedTextFallback::ENGLISH_OR_FIRST);
 
     this->parser = std::move(parser);
 

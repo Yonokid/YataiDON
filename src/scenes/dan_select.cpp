@@ -1,3 +1,4 @@
+#include "../libs/localized_text.h"
 #include "dan_select.h"
 #include <tuple>
 #include <climits>
@@ -130,11 +131,8 @@ std::optional<DanSongEntry> DanNavigator::load_song_entry(const rapidjson::Value
 
         if (titles_out && global_data.config) {
             const std::string& lang = global_data.config->general.language;
-            titles_out->first  = meta->title.count(lang)
-                ? meta->title.at(lang)
-                : (meta->title.count("en") ? meta->title.at("en") : std::string());
-            titles_out->second = meta->subtitle.count(lang)
-                ? meta->subtitle.at(lang) : std::string();
+            titles_out->first  = localized_text(meta->title, lang, LocalizedTextFallback::ENGLISH);
+            titles_out->second = localized_text(meta->subtitle, lang, LocalizedTextFallback::NONE);
         }
 
         int genre = box_genre(path_opt->parent_path().parent_path());

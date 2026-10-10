@@ -1,3 +1,4 @@
+#include "../libs/localized_text.h"
 #include "game_dan.h"
 #include <algorithm>
 #include "../libs/input.h"
@@ -176,8 +177,8 @@ void DanGameScreen::init_dan() {
     std::string title = sd.song_title;
     hori_name = std::make_unique<OutlinedText>(title, tex.skin_config[SC::DAN_TITLE].font_size, ray::WHITE, ray::BLACK, false);
 
-    current_song_title = parser->metadata.title.count(lang) ? parser->metadata.title.at(lang) : parser->metadata.title.at("en");
-    std::string subtitle = parser->metadata.subtitle.count(lang) ? parser->metadata.subtitle.at(lang) : "";
+    current_song_title = localized_text(parser->metadata.title, lang, LocalizedTextFallback::REQUIRED_ENGLISH);
+    std::string subtitle = localized_text(parser->metadata.subtitle, lang, LocalizedTextFallback::NONE);
     song_info = SongInfo(current_song_title, subtitle, parser->metadata.subtitle_full_display, first.genre_index - 1, 1);
 
     start_ms = get_current_ms() - parser->metadata.offset * 1000 - (double)global_data.config->general.audio_offset;
@@ -205,8 +206,8 @@ void DanGameScreen::change_song() {
     init_skip();
 
     const std::string& lang = global_data.config->general.language;
-    current_song_title = parser->metadata.title.count(lang) ? parser->metadata.title.at(lang) : parser->metadata.title.at("en");
-    std::string subtitle = parser->metadata.subtitle.count(lang) ? parser->metadata.subtitle.at(lang) : "";
+    current_song_title = localized_text(parser->metadata.title, lang, LocalizedTextFallback::REQUIRED_ENGLISH);
+    std::string subtitle = localized_text(parser->metadata.subtitle, lang, LocalizedTextFallback::NONE);
     song_info = SongInfo(current_song_title, subtitle, parser->metadata.subtitle_full_display, entry.genre_index - 1, song_index + 1);
 
     between.start(get_current_ms(), current_song_title, subtitle,
@@ -232,9 +233,7 @@ void DanGameScreen::fill_unplayed_songs() {
         try {
             SongParser sp(entry.song_path);
             const auto& titles = sp.metadata.title;
-            res.song_title = titles.count(lang) ? titles.at(lang)
-                           : titles.count("en")  ? titles.at("en")
-                           : titles.empty()      ? "" : titles.begin()->second;
+            res.song_title = localized_text(titles, lang, LocalizedTextFallback::ENGLISH_OR_FIRST);
         } catch (...) {
             spdlog::warn("Dan result: could not read {}", entry.song_path.string());
         }

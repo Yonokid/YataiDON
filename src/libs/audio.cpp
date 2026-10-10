@@ -900,20 +900,11 @@ std::string AudioEngine::load_sound(const fs::path& file_path, const std::string
                                             frames, rate, target_sample_rate);
             if (!data) return "";
 
-            sound snd;
+            sound snd{};
             snd.data            = data;
             snd.frame_count     = frames;
             snd.sample_rate     = rate;
             snd.channels        = decoded.channels;
-            snd.is_playing      = false;
-            snd.current_frame   = 0;
-            snd.loop            = false;
-            snd.volume          = 1.0f;
-            snd.pan             = 0.5f;
-            snd.pitch           = 1.0f;
-            snd.frame_frac      = 0.0f;
-            snd.resampler       = nullptr;
-            snd.resample_buffer = nullptr;
             store_sound(name, snd);
             spdlog::info("Loaded sound (G.719): {} ({} frames, {} Hz, {} ch)",
                          name, frames, rate, snd.channels);
@@ -945,18 +936,11 @@ std::string AudioEngine::load_sound(const fs::path& file_path, const std::string
                               file_path.string(), sf_strerror(NULL));
                 return "";
             }
-            sound snd;
+            sound snd{};
             snd.data        = ff_data;
             snd.frame_count = ff_frames;
             snd.sample_rate = ff_rate;
             snd.channels    = ff_ch;
-            snd.is_playing  = false;
-            snd.current_frame = 0;
-            snd.loop   = false;
-            snd.volume = 1.0f;
-            snd.pan    = 0.5f;
-            snd.pitch  = 1.0f;
-            snd.frame_frac = 0.0f;
             if ((double)ff_rate != target_sample_rate) {
                 double ratio = target_sample_rate / (double)ff_rate;
                 long out_frames = (long)(ff_frames * ratio) + 1;
@@ -972,8 +956,6 @@ std::string AudioEngine::load_sound(const fs::path& file_path, const std::string
                 snd.frame_count = sd.output_frames_gen;
                 snd.sample_rate = (unsigned int)target_sample_rate;
             }
-            snd.resampler = nullptr;
-            snd.resample_buffer = nullptr;
             store_sound(name, snd);
             spdlog::debug("Loaded sound (ffmpeg): {} ({} frames, {} Hz, {} ch)",
                           name, snd.frame_count, snd.sample_rate, snd.channels);
@@ -1000,18 +982,11 @@ std::string AudioEngine::load_sound(const fs::path& file_path, const std::string
             spdlog::warn("Read {} frames, expected {} for sound: {}", frames_read, total_frames, file_path.string());
         }
 
-        sound snd;
+        sound snd{};
         snd.data = data;
         snd.frame_count = frames_read;
         snd.sample_rate = file_info.samplerate;
         snd.channels = channels;
-        snd.is_playing = false;
-        snd.current_frame = 0;
-        snd.loop = false;
-        snd.volume = 1.0f;
-        snd.pan = 0.5f;
-        snd.pitch = 1.0f;
-        snd.frame_frac = 0.0f;
 
         if (snd.sample_rate != target_sample_rate) {
             double ratio = target_sample_rate / (double)snd.sample_rate;
@@ -1039,9 +1014,6 @@ std::string AudioEngine::load_sound(const fs::path& file_path, const std::string
             snd.frame_count = src_data.output_frames_gen;
             snd.sample_rate = target_sample_rate;
         }
-
-        snd.resampler = nullptr;
-        snd.resample_buffer = nullptr;
 
         store_sound(name, snd);
 
@@ -1337,7 +1309,6 @@ std::string AudioEngine::load_music_stream_prepared(PreparedPCM&& pcm, const std
     if (!pcm.data || pcm.frames == 0 || pcm.channels <= 0) return "";
 
     music mus{};
-    mus.file_handle        = nullptr;
     mus.file_info.channels = pcm.channels;
     mus.file_info.samplerate = (int)pcm.rate;
     mus.file_path          = pcm.source_path;
@@ -1345,16 +1316,6 @@ std::string AudioEngine::load_music_stream_prepared(PreparedPCM&& pcm, const std
     mus.pcm_total_frames   = pcm.frames;
     mus.buffer_size        = 4096;
     mus.stream_buffer      = new float[mus.buffer_size * pcm.channels];
-    mus.buffer_position    = 0;
-    mus.frames_in_buffer   = 0;
-    mus.is_playing         = false;
-    mus.current_frame      = 0;
-    mus.loop               = false;
-    mus.volume             = 1.0f;
-    mus.pan                = 0.5f;
-    mus.pitch              = 1.0f;
-    mus.resampler          = nullptr;
-    mus.resample_buffer    = nullptr;
     unload_music_stream(name);
     {
         std::unique_lock<std::shared_mutex> guard(rw_lock);
@@ -1417,7 +1378,6 @@ std::string AudioEngine::load_music_stream(const fs::path& file_path, const std:
             }
 
             music mus{};
-            mus.file_handle = nullptr;
             mus.file_info.channels = (int)ff_ch;
             mus.file_info.samplerate = (int)ff_rate;
             mus.file_path = file_path.string();
@@ -1425,16 +1385,6 @@ std::string AudioEngine::load_music_stream(const fs::path& file_path, const std:
             mus.pcm_total_frames = ff_frames;
             mus.buffer_size = 4096;
             mus.stream_buffer = new float[mus.buffer_size * ff_ch];
-            mus.buffer_position = 0;
-            mus.frames_in_buffer = 0;
-            mus.is_playing = false;
-            mus.current_frame = 0;
-            mus.loop = false;
-            mus.volume = 1.0f;
-            mus.pan = 0.5f;
-            mus.pitch = 1.0f;
-            mus.resampler = nullptr;
-            mus.resample_buffer = nullptr;
             unload_music_stream(name);
             {
                 std::unique_lock<std::shared_mutex> guard(rw_lock);
@@ -1449,22 +1399,13 @@ std::string AudioEngine::load_music_stream(const fs::path& file_path, const std:
 #endif
         }
 
-        music mus;
+        music mus{};
         mus.file_handle = file;
         mus.file_info = file_info;
         mus.file_path = file_path.string();
 
         mus.buffer_size = 4096; //arbitrary buffer size?
         mus.stream_buffer = new float[mus.buffer_size * file_info.channels];
-        mus.buffer_position = 0;
-        mus.frames_in_buffer = 0;
-
-        mus.is_playing = false;
-        mus.current_frame = 0;
-        mus.loop = false;
-        mus.volume = 1.0f;
-        mus.pan = 0.5f;
-        mus.pitch = 1.0f;
 
         if (file_info.samplerate != target_sample_rate) {
             int error;
@@ -1482,9 +1423,6 @@ std::string AudioEngine::load_music_stream(const fs::path& file_path, const std:
 
             spdlog::info("Music stream {} will be resampled from {} Hz to {} Hz",
                         name, file_info.samplerate, target_sample_rate);
-        } else {
-            mus.resampler = nullptr;
-            mus.resample_buffer = nullptr;
         }
 
         unload_music_stream(name);
@@ -1521,20 +1459,8 @@ std::string AudioEngine::load_music_stream_memory(
         // sf_open_virtual stores a pointer to it.
         music mus{};
         mus.memory_buffer    = std::make_shared<std::vector<uint8_t>>(std::move(encoded));
-        mus.file_handle      = nullptr;
         mus.file_path        = "<memory:" + name + ">";
         mus.buffer_size      = 4096;
-        mus.buffer_position  = 0;
-        mus.frames_in_buffer = 0;
-        mus.is_playing       = false;
-        mus.current_frame    = 0;
-        mus.loop             = false;
-        mus.volume           = 1.0f;
-        mus.pan              = 0.5f;
-        mus.pitch            = 1.0f;
-        mus.resampler        = nullptr;
-        mus.resample_buffer  = nullptr;
-        mus.stream_buffer    = nullptr;
 
         std::unique_lock<std::shared_mutex> guard(rw_lock);
         unload_music_stream_from_map(music_streams, name);   // release any previous entry (handle/buffers/resampler)

@@ -236,20 +236,19 @@ void SongSelectScreen::handle_input(double current_ms) {
     }
 }
 
-std::optional<Screens> SongSelectScreen::update() {
-    Screen::update();
-    SongSelectState prev_state = state;
-    double current_time = get_current_ms();
+void SongSelectScreen::update_selection_ui(double current_time, bool advance_timers) {
     allnet_indicator.update(current_time);
     diff_fade_out->update(current_time);
     script->update(current_time);
-    if (join_request_ms < 0.0) {
+    if (advance_timers) {
         select_timer->update(current_time);
         if (diff_select_timer != nullptr) diff_select_timer->update(current_time);
     }
     indicator->update(current_time);
     if (search_box) search_box->update(current_time);
+}
 
+void SongSelectScreen::update_diff_sort(double current_time) {
     if (navigator.diff_sort_ready() && !diff_sort_selector) {
         if (stats_future.valid()) {
             stats_future.wait();
@@ -263,6 +262,21 @@ std::optional<Screens> SongSelectScreen::update() {
         diff_sort_selector->update(current_time);
         apply_sort_window_result();
     }
+}
+
+void SongSelectScreen::start_search() {
+    search_box.emplace();
+    // The don key that opened the search (F/J) is also a typed character still
+    // queued in raylib's char buffer; drop it so it does not land in the query.
+    while (ray::GetCharPressed() > 0) {}
+}
+
+std::optional<Screens> SongSelectScreen::update() {
+    Screen::update();
+    SongSelectState prev_state = state;
+    double current_time = get_current_ms();
+    update_selection_ui(current_time, join_request_ms < 0.0);
+    update_diff_sort(current_time);
 
     poll_song_jump(current_time);
     if (auto replay_screen = poll_replay_jump(current_time)) return replay_screen;
@@ -317,10 +331,7 @@ std::optional<Screens> SongSelectScreen::update() {
                 }
             });
         } else if (state == SongSelectState::SEARCHING) {
-            search_box.emplace();
-            // The don key that opened the search (F/J) is also a typed character still
-            // queued in raylib's char buffer; drop it so it does not land in the query.
-            while (ray::GetCharPressed() > 0) {}
+            start_search();
             set_keyboard_visible(true);
         } else if (state == SongSelectState::DAN_SELECTED) {
             dan_transition.emplace();

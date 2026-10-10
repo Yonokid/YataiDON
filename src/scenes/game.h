@@ -13,6 +13,8 @@ class GameScreen : public Screen {
 protected:
     GameScreen(const std::string& name) : Screen(name) {}
 
+    void update_gameplay(double current_ms);
+
 public:
     GameScreen() : Screen("game") {
     }

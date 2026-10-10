@@ -161,6 +161,9 @@ private:
     void init_tja_practice(const fs::path& song);
     void sync_branch_display();
     void pause_song_practice();
+    void resume_practice();
+    void open_practice_menu();
+    void change_practice_speed(bool down, bool up);
     void restart_practice();
     std::optional<Screens> handle_menu_action(PracticeMenu::Action action);
     std::optional<Screens> global_keys_practice();
