@@ -628,7 +628,9 @@ std::optional<Screens> PracticeGameScreen::global_keys_practice() {
 }
 
 std::optional<Screens> PracticeGameScreen::update() {
-    Screen::update();
+    if (auto init = Screen::update()) {
+        return init;
+    }
 
     double current_ms = get_frame_ms();
     transition->update(current_ms);

@@ -1307,7 +1307,6 @@ void Player::note_correct(const Note& note, double current_ms) {
         other_notes.pop_front();
     }
 
-    int index = note.index;
     if (note.type == NoteType::BALLOON_HEAD || note.type == NoteType::KUSUDAMA) {
         if (!other_notes.empty()) {
             other_notes.pop_front();

@@ -212,17 +212,16 @@ void GameScreen::start_song(double ms_from_start) {
 
 void GameScreen::pause_song() {
     paused = !paused;
-    double audio_time = 0.0;
     if (paused) {
         if (song_music.has_value()) {
-            audio_time = audio.get_sound_time_played(song_music.value());
+            paused_audio_time = audio.get_sound_time_played(song_music.value());
             audio.stop_sound(song_music.value());
         }
         pause_time = get_current_ms() - start_ms;
     } else {
         if (song_music.has_value()) {
             audio.play_sound(song_music.value(), VolumePreset::MUSIC);
-            audio.seek_sound(song_music.value(), audio_time);
+            audio.seek_sound(song_music.value(), paused_audio_time);
         }
         start_ms = get_current_ms() - pause_time;
     }
@@ -545,7 +544,9 @@ void GameScreen::end_song() {
 }
 
 std::optional<Screens> GameScreen::update() {
-    Screen::update();
+    if (auto init = Screen::update()) {
+        return init;
+    }
 
     double current_ms = get_frame_ms();
     allnet_indicator.update(current_ms);

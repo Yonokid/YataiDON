@@ -1057,8 +1057,6 @@ std::string AudioEngine::load_sound(const fs::path& file_path, const std::string
 }
 
 void AudioEngine::load_screen_sounds(const std::string& screen_name) {
-    auto _snd_t0 = std::chrono::steady_clock::now();
-
     std::vector<std::pair<fs::path, std::string>> queue;
     std::unordered_set<std::string> claimed;
 

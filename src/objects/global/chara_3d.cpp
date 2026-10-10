@@ -170,8 +170,10 @@ static std::unordered_map<std::string, int> parse_glb_material_indices(
     if (magic != 0x46546C67u) { fclose(f); return result; }
 
     uint32_t chunk_len = 0, chunk_type = 0;
-    fread(&chunk_len,  4, 1, f);
-    fread(&chunk_type, 4, 1, f);
+    if (fread(&chunk_len, 4, 1, f) != 1 || fread(&chunk_type, 4, 1, f) != 1) {
+        fclose(f);
+        return result;
+    }
 
     if (chunk_type != 0x4E4F534Au) { fclose(f); return result; }
 

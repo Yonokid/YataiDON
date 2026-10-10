@@ -468,9 +468,6 @@ void sort_items(std::vector<std::unique_ptr<BaseBox>>& items, int first_index, i
     if (first_index >= 0 && last_index > first_index &&
         last_index < static_cast<int>(items.size())) {
 
-        auto begin = items.begin() + first_index;
-        auto end   = items.begin() + last_index + 1;
-
         std::vector<int> back_box_positions;
         std::vector<std::unique_ptr<BaseBox>> sortable;
 
@@ -1507,7 +1504,6 @@ void Navigator::begin_inline_load() {
     // not widen, so they stay put and set_positions moves them once the songs are in -- sending
     // them off screen left the right side empty for the whole wait.
     if (approx_items > 0) {
-        const float off_screen = tex.screen_width + 150.0f;
         const float edge_delay = (float)(genre_bg->stretch->duration * 1.5);
         const float edge_duration = (float)genre_bg->move->duration;
         for (int i = 0; i < (int)items.size(); i++) {
@@ -1821,6 +1817,7 @@ bool Navigator::scan_child_folders(const fs::path& path) {
 }
 
 bool Navigator::is_directory(BaseBox* item) {
+    if (item == nullptr) return false;
     if (dynamic_cast<FolderBox*>(item) != nullptr) return true;
     return !is_song(item) && fs::is_directory(item->path);
 }

@@ -530,7 +530,10 @@ Screens DanGameScreen::on_screen_end(Screens next_screen) {
 }
 
 std::optional<Screens> DanGameScreen::update() {
-    Screen::update();
+    if (auto init = Screen::update()) {
+        return init;
+    }
+
     double current_ms = get_current_ms();
     allnet_indicator.update(current_ms);
 

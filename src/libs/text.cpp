@@ -669,7 +669,6 @@ OutlinedText::BuildData OutlinedText::build_vertical_text(
 
                     float dx = x + (char_width  - (float)tmp.width)  / 2.0f;
                     float dy = draw_y + (char_height - (float)tmp.height) / 2.0f;
-                    ray::Rectangle src = {0, 0, (float)tmp.width, (float)tmp.height};
                     ray::Rectangle dst = {dx, dy, (float)tmp.width, (float)tmp.height};
                     blit_over(target, tmp, (int)dst.x, (int)dst.y);
                     ray::UnloadImage(tmp);

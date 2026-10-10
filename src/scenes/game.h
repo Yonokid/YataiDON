@@ -99,5 +99,6 @@ public:
     void draw() override;
 
 private:
+    float paused_audio_time = 0.0f;
     std::future<std::string> pending_song_load;
 };
