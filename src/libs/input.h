@@ -22,7 +22,7 @@ void poll_touch_once();
 
 // Check if a key was pressed since the last check
 // This consumes the key press event
-bool check_key_pressed(int key);
+bool check_key_pressed(int key, float* strength = nullptr);
 
 // Check if a key was released since the last check
 // This consumes the key release event
@@ -37,7 +37,7 @@ int take_gamepad_button_pressed();
 
 // Inject a discrete gamepad-style press into the shared input buffer. Button
 // numbers use the same IDs stored in config.toml.
-void submit_gamepad_button_press(int button);
+void submit_gamepad_button_press(int button, float strength = 1.0f);
 
 void start_midi_input(const MidiConfig& config);
 void process_midi_events();
@@ -61,11 +61,11 @@ void set_touch_drum_enabled(bool enabled);
 // Draw the touch drum overlay (returns true if drawn, false if hidden)
 bool draw_touch_drum();
 
-bool is_input_key_pressed(const std::vector<int>& keys, const std::vector<int>& gamepad_buttons);
-bool is_l_don_pressed(PlayerNum player_num = PlayerNum::ALL);
-bool is_r_don_pressed(PlayerNum player_num = PlayerNum::ALL);
-bool is_l_kat_pressed(PlayerNum player_num = PlayerNum::ALL);
-bool is_r_kat_pressed(PlayerNum player_num = PlayerNum::ALL);
+bool is_input_key_pressed(const std::vector<int>& keys, const std::vector<int>& gamepad_buttons, float* strength = nullptr);
+bool is_l_don_pressed(PlayerNum player_num = PlayerNum::ALL, float* strength = nullptr);
+bool is_r_don_pressed(PlayerNum player_num = PlayerNum::ALL, float* strength = nullptr);
+bool is_l_kat_pressed(PlayerNum player_num = PlayerNum::ALL, float* strength = nullptr);
+bool is_r_kat_pressed(PlayerNum player_num = PlayerNum::ALL, float* strength = nullptr);
 
 // --- Unified keyboard text editing ---------------------------------------
 // Result of one frame of keyboard-driven text-field editing.

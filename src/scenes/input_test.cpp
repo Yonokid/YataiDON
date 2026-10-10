@@ -36,21 +36,25 @@ std::optional<Screens> InputTestScreen::update() {
         else ++it;
     }
 
-    if (is_l_don_pressed()) {
+    float strength = 1.0f;
+    if (is_l_don_pressed(PlayerNum::ALL, &strength)) {
         hit_effects.push_back(std::make_unique<InputTestDrumEffect>(DrumType::DON, Side::LEFT, drum_x_offset, drum_y_offset));
-        audio.play_sound("don", VolumePreset::SOUND);
+        audio.play_sound("don", VolumePreset::SOUND, strength);
     }
-    if (is_r_don_pressed()) {
+
+    if (is_r_don_pressed(PlayerNum::ALL, &strength)) {
         hit_effects.push_back(std::make_unique<InputTestDrumEffect>(DrumType::DON, Side::RIGHT, drum_x_offset, drum_y_offset));
-        audio.play_sound("don", VolumePreset::SOUND);
+        audio.play_sound("don", VolumePreset::SOUND, strength);
     }
-    if (is_l_kat_pressed()) {
+
+    if (is_l_kat_pressed(PlayerNum::ALL, &strength)) {
         hit_effects.push_back(std::make_unique<InputTestDrumEffect>(DrumType::KAT, Side::LEFT, drum_x_offset, drum_y_offset));
-        audio.play_sound("kat", VolumePreset::SOUND);
+        audio.play_sound("kat", VolumePreset::SOUND, strength);
     }
-    if (is_r_kat_pressed()) {
+
+    if (is_r_kat_pressed(PlayerNum::ALL, &strength)) {
         hit_effects.push_back(std::make_unique<InputTestDrumEffect>(DrumType::KAT, Side::RIGHT, drum_x_offset, drum_y_offset));
-        audio.play_sound("kat", VolumePreset::SOUND);
+        audio.play_sound("kat", VolumePreset::SOUND, strength);
     }
 
     return std::nullopt;

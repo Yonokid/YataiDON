@@ -312,7 +312,9 @@ void AudioEngine::mix(float* out, unsigned int framesPerBuffer, AudioEngine* eng
 
         if (!aref_playing.load(std::memory_order_acquire)) continue;
 
-        const float volume = std::atomic_ref<float>(snd.volume).load(std::memory_order_relaxed);
+        const float volume = std::atomic_ref<float>(snd.volume).load(std::memory_order_relaxed)
+            * std::atomic_ref<float>(snd.playback_gain).load(std::memory_order_relaxed);
+
         const float pan    = std::atomic_ref<float>(snd.pan).load(std::memory_order_relaxed);
         unsigned int frame = aref_frame.load(std::memory_order_relaxed);
 
@@ -514,8 +516,7 @@ void AudioEngine::mix(float* out, unsigned int framesPerBuffer, AudioEngine* eng
 
     const float master_vol = engine->master_volume.load(std::memory_order_relaxed);
     for (unsigned long i = 0; i < buffer_size; i++) {
-        float sample = out[i] * master_vol;
-        out[i] = (sample > 1.0f) ? 1.0f : ((sample < -1.0f) ? -1.0f : sample);
+        out[i] = std::clamp(out[i] * master_vol, -1.0f, 1.0f);
     }
 
 }
@@ -1180,7 +1181,7 @@ uint64_t AudioEngine::sound_play_count(const std::string& name) {
     return it == play_counts.end() ? 0 : it->second;
 }
 
-void AudioEngine::play_sound(const std::string& name, VolumePreset volume_preset) {
+void AudioEngine::play_sound(const std::string& name, VolumePreset volume_preset, float gain) {
     {
         std::lock_guard<std::mutex> g(play_count_lock);
         ++play_counts[name];
@@ -1200,6 +1201,7 @@ void AudioEngine::play_sound(const std::string& name, VolumePreset volume_preset
             std::atomic_ref<float>(snd.volume).store(volume, std::memory_order_relaxed);
         }
 
+        std::atomic_ref<float>(snd.playback_gain).store(std::max(gain, 0.0f), std::memory_order_relaxed);
         std::atomic_ref<unsigned int>(snd.current_frame).store(0, std::memory_order_relaxed);
         std::atomic_ref<float>(snd.frame_frac).store(0.0f, std::memory_order_relaxed);
         std::atomic_ref<bool>(snd.is_playing).store(true, std::memory_order_release);

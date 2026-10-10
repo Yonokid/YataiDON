@@ -1668,7 +1668,7 @@ void Player::handle_input(double ms_from_start, double current_ms, std::optional
     }
 
     struct InputCheck {
-        bool (*check_func)(PlayerNum);
+        bool (*check_func)(PlayerNum, float*);
         DrumType drum_type;
         Side side;
         const std::string* sound;
@@ -1683,9 +1683,10 @@ void Player::handle_input(double ms_from_start, double current_ms, std::optional
 
     for (const auto& input : input_checks) {
 
-        while (input.check_func(player_num)) {
+        float strength = 1.0f;
+        while (input.check_func(player_num, &strength)) {
             spawn_hit_effects(input.drum_type, input.side);
-            audio.play_sound(*input.sound, VolumePreset::HITSOUND);
+            audio.play_sound(*input.sound, VolumePreset::HITSOUND, strength);
             InputLogType log_type;
             if (input.drum_type == DrumType::DON) {
                 log_type = input.side == Side::LEFT ? InputLogType::DON_L : InputLogType::DON_R;

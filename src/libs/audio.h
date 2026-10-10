@@ -73,6 +73,7 @@ struct sound {
     bool loop = false;                  // Whether to loop the sound
 
     float volume = 1.0f;                // Volume multiplier (0.0 to 1.0+)
+    float playback_gain = 1.0f;
     float pan = 0.5f;                   // Stereo pan (0.0 = left, 0.5 = center, 1.0 = right)
     float pitch = 1.0f;                 // Pitch/speed multiplier (1.0 = normal)
 
@@ -131,7 +132,7 @@ public:
     void unload_sound(const std::string& name);
     void unload_all_sounds();
     void store_sound(const std::string& name, const sound& snd);
-    void play_sound(const std::string& name, VolumePreset volume_preset = VolumePreset::NONE);
+    void play_sound(const std::string& name, VolumePreset volume_preset = VolumePreset::NONE, float gain = 1.0f);
     bool has_sound(const std::string& name);
     void stop_sound(const std::string& name);
     void set_sound_loop(const std::string& name, bool loop);
