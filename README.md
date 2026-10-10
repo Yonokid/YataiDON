@@ -70,6 +70,15 @@ Download the latest release for your operating system from the [releases page](h
 - [Android](https://github.com/Yonokid/YataiDON/wiki/Android)
 - [iOS](ios/README.md)
 
+### Linting
+
+With `clang-tidy` and `run-clang-tidy` installed, run this from the repository root
+after configuring a build in `build/` to generate `build/compile_commands.json`:
+
+```sh
+run-clang-tidy -p build "^$(pwd)/src/"
+```
+
 ## Profiling
 
 Build with `-DYATAIDON_PROFILER=ON` to compile in the [Tracy](https://github.com/wolfpld/tracy) client,
