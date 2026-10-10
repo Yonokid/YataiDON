@@ -238,6 +238,9 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE sndfile samplerate)
+
+target_link_libraries(${PROJECT_NAME} PRIVATE yataidon_ebur128)
+
 if(NOT ANDROID AND NOT IOS AND NOT EMSCRIPTEN)
   target_link_libraries(${PROJECT_NAME} PRIVATE rtaudio)
 endif()
