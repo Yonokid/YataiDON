@@ -54,7 +54,7 @@
 #include "scenes/song_select_practice.h"
 #include "scenes/title.h"
 
-void draw_outer_border(int screen_width, int screen_height, ray::Color last_color) {
+void draw_outer_border(      int screen_width, int screen_height, ray::Color last_color) {
     DrawRectangle(-screen_width, 0, screen_width, screen_height, last_color);
     DrawRectangle(screen_width, 0, screen_width, screen_height, last_color);
     DrawRectangle(0, -screen_height, screen_width, screen_height, last_color);
