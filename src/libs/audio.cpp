@@ -1,5 +1,6 @@
 #include "audio.h"
 
+#include "loudness.h"
 #include "profiler.h"
 #include "spdlog/spdlog.h"
 #ifdef YATAIDON_PLATFORM_IOS
@@ -380,7 +381,8 @@ void AudioEngine::mix(float* out, unsigned int framesPerBuffer, AudioEngine* eng
         }
 
         const float volume = std::atomic_ref<float>(snd.volume).load(std::memory_order_relaxed) *
-                             std::atomic_ref<float>(snd.playback_gain).load(std::memory_order_relaxed);
+                             std::atomic_ref<float>(snd.playback_gain).load(std::memory_order_relaxed) *
+                             snd.normalization_gain;
 
         const float pan = std::atomic_ref<float>(snd.pan).load(std::memory_order_relaxed);
         unsigned int frame = aref_frame.load(std::memory_order_relaxed);
@@ -452,7 +454,8 @@ void AudioEngine::mix(float* out, unsigned int framesPerBuffer, AudioEngine* eng
         }
 
         std::atomic_ref<unsigned long long> aref_frame(mus.current_frame);
-        const float volume = std::atomic_ref<float>(mus.volume).load(std::memory_order_relaxed);
+        const float volume =
+            std::atomic_ref<float>(mus.volume).load(std::memory_order_relaxed) * mus.normalization_gain;
         const float pan = std::atomic_ref<float>(mus.pan).load(std::memory_order_relaxed);
 
         unsigned long frames_to_process = framesPerBuffer;
@@ -856,6 +859,9 @@ bool AudioEngine::init_audio_device(const fs::path& sounds_path, const AudioConf
     this->device_name = audio_config.device;
     this->channel_offsets = audio_config.asio_channel.empty() ? std::vector<int>{0} : audio_config.asio_channel;
     this->volume_presets = volume_presets;
+
+    loudness_scanner = std::make_unique<song_loudness::Scanner>("cache/loudness");
+
     this->is_ready = false;
     this->master_volume = 1.0f;
     try {
@@ -899,6 +905,8 @@ bool AudioEngine::init_audio_device(const fs::path& sounds_path, const AudioConf
 }
 
 void AudioEngine::close_audio_device() {
+    loudness_scanner.reset();
+
     if (!is_ready) {
         return;
     }
@@ -1005,8 +1013,28 @@ void AudioEngine::store_sound(const std::string& name, const sound& snd) {
     sounds[name] = snd;
 }
 
+void AudioEngine::queue_song_loudness(const fs::path& file_path, bool priority) {
+    if (loudness_scanner) {
+        loudness_scanner->enqueue(file_path, priority);
+    }
+}
+
+float AudioEngine::loaded_sound_gain(const fs::path& file_path, const std::string& name) {
+    if (name != "song") {
+        return song_loudness::skin_gain();
+    }
+    return loaded_song_gain(file_path);
+}
+
+float AudioEngine::loaded_song_gain(const fs::path& file_path) {
+    return loudness_scanner ? loudness_scanner->gain_for(file_path) : song_loudness::fallback_gain();
+}
+
 std::string AudioEngine::load_sound(const fs::path& file_path, const std::string& name) {
     try {
+        if (name == "song") {
+            queue_song_loudness(file_path, true);
+        }
 #ifdef SUPPORT_FUMEN
         if (is_bank_file(file_path)) {
             gen4::DecodedAudio decoded;
@@ -1026,6 +1054,7 @@ std::string AudioEngine::load_sound(const fs::path& file_path, const std::string
             snd.frame_count = frames;
             snd.sample_rate = rate;
             snd.channels = decoded.channels;
+            snd.normalization_gain = loaded_sound_gain(file_path, name);
             store_sound(name, snd);
             spdlog::info("Loaded sound (G.719): {} ({} frames, {} Hz, {} ch)", name, frames, rate, snd.channels);
             return name;
@@ -1083,6 +1112,7 @@ std::string AudioEngine::load_sound(const fs::path& file_path, const std::string
                 snd.frame_count = sd.output_frames_gen;
                 snd.sample_rate = (unsigned int)target_sample_rate;
             }
+            snd.normalization_gain = loaded_sound_gain(file_path, name);
             store_sound(name, snd);
             spdlog::debug("Loaded sound (ffmpeg): {} ({} frames, {} Hz, {} ch)", name, snd.frame_count, snd.sample_rate,
                           snd.channels);
@@ -1142,6 +1172,7 @@ std::string AudioEngine::load_sound(const fs::path& file_path, const std::string
             snd.sample_rate = target_sample_rate;
         }
 
+        snd.normalization_gain = loaded_sound_gain(file_path, name);
         store_sound(name, snd);
 
         spdlog::debug("Loaded sound: {} ({} frames, {} Hz, {} channels)", name, snd.frame_count, snd.sample_rate,
@@ -1480,6 +1511,7 @@ std::string AudioEngine::load_music_stream_prepared(PreparedPCM&& pcm, const std
     mus.file_info.channels = pcm.channels;
     mus.file_info.samplerate = (int)pcm.rate;
     mus.file_path = pcm.source_path;
+    mus.normalization_gain = name == "preview" ? loaded_song_gain(pcm.source_path) : 1.0f;
     mus.pcm_data = pcm.data.release();
     mus.pcm_total_frames = pcm.frames;
     mus.buffer_size = 4096;
@@ -1557,6 +1589,7 @@ std::string AudioEngine::load_music_stream(const fs::path& file_path, const std:
             mus.file_info.channels = (int)ff_ch;
             mus.file_info.samplerate = (int)ff_rate;
             mus.file_path = file_path.string();
+            mus.normalization_gain = name == "preview" ? loaded_song_gain(file_path) : 1.0f;
             mus.pcm_data = ff_data;
             mus.pcm_total_frames = ff_frames;
             mus.buffer_size = 4096;
@@ -1579,6 +1612,7 @@ std::string AudioEngine::load_music_stream(const fs::path& file_path, const std:
         mus.file_handle = file;
         mus.file_info = file_info;
         mus.file_path = file_path.string();
+        mus.normalization_gain = name == "preview" ? loaded_song_gain(file_path) : 1.0f;
 
         mus.buffer_size = 4096; // arbitrary buffer size?
         mus.stream_buffer = new float[mus.buffer_size * file_info.channels];

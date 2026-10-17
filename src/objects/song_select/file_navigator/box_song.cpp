@@ -43,6 +43,7 @@ SongBox::SongBox(const fs::path& path, const BoxDef& box_def, SongParser parser)
     auto& subtitles = parser.metadata.subtitle;
     text_subtitle = localized_text(subtitles, lang, LocalizedTextFallback::ENGLISH_OR_FIRST);
 
+    audio.queue_song_loudness(parser.metadata.wave);
     this->parser = std::move(parser);
 
     is_favorite = false;
@@ -146,6 +147,7 @@ void SongBox::update(double current_time) {
     // update() runs every frame for every box of the list: the audio file is looked at once,
     // when this box is first opened, instead of building paths / stat-ing it every frame
     if (yellow_box_active && wave_kind == WaveKind::UNKNOWN) {
+        audio.queue_song_loudness(parser.metadata.wave, true);
         const auto wave_ext = parser.metadata.wave.extension();
         const bool bank = wave_ext == ".nus3bank" || wave_ext == ".nub";
         std::error_code ec;
