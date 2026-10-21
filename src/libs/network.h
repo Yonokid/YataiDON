@@ -2,7 +2,7 @@
 
 #include "scores.h"
 
-#if defined(NETWORK_URL) && defined(NETWORK_AUTH_KEY)
+#if defined(NETWORK_URL)
 #define NETWORK_ENABLED 1
 #ifdef _WIN32
 #define CloseWindow CloseWindow_WinAPI
