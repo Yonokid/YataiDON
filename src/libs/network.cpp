@@ -115,6 +115,10 @@ namespace {
     };
 
     std::string secret_key() {
+        if (global_data.config && !global_data.config->network.api_key.empty()) {
+            return global_data.config->network.api_key;
+        }
+
         static constexpr ObfuscatedString obfuscated_key(NETWORK_AUTH_KEY);
         static const std::string key = obfuscated_key.decode();
         return key;
