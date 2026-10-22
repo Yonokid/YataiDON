@@ -83,8 +83,8 @@ struct CameraEvent {
 };
 
 struct TimelineObject {
-    double start_time;
-    double end_time;
+    double start_time = 0.0;
+    double end_time = 0.0;
 
     std::optional<double> bpm;
     std::optional<std::string> branch_params;
