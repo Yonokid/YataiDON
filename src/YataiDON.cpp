@@ -77,8 +77,11 @@ static void draw_skin_update_status() {
     const float x = static_cast<float>(size);
     float y = static_cast<float>(size) * 2.0f;
 
-    const std::string skin_line =
+    std::string skin_line =
         st.current_skin.empty() ? "Checking for skin updates..." : "Updating skin: " + st.current_skin;
+    if (!st.current_skin.empty() && st.files_total > 0) {
+        skin_line += " (" + std::to_string(st.files_done) + " / " + std::to_string(st.files_total) + " files)";
+    }
     ray::Font skin_font = font_manager.get_font(skin_line, size);
     draw_text_ex(skin_font, skin_line.c_str(), ray::Vector2{x, y}, static_cast<float>(size), 1.0f, Color::YELLOW);
 

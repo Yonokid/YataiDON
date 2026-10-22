@@ -16,6 +16,8 @@ public:
         std::string current_skin;        // skin being processed ("" between skins)
         std::string current_file;        // file being downloaded ("" while scanning)
         int files_updated = 0;           // running total of files written this pass
+        int files_done = 0;              // files of current_skin downloaded (or failed) so far
+        int files_total = 0;             // files of current_skin to download; 0 while checking
         std::vector<std::string> failed; // skins the last download() could not fully fetch
     };
 
@@ -47,6 +49,8 @@ private:
     void set_current_skin(const std::string& name);
     void set_current_file(const std::string& file);
     void note_file_updated();
+    void set_progress(int done, int total);
+    void note_file_done();
 
     std::atomic<bool> started_{false};
     std::atomic<bool> running_{false};
@@ -56,6 +60,8 @@ private:
     std::string current_skin_;
     std::string current_file_;
     int files_updated_ = 0;
+    int files_done_ = 0;
+    int files_total_ = 0;
     std::vector<std::string> failed_;
 
     std::thread thread_;

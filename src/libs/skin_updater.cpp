@@ -4,6 +4,7 @@
 #include <cctype>
 #include <cstdint>
 #include <fstream>
+#include <memory>
 #include <spdlog/spdlog.h>
 #include <sstream>
 #include <unordered_map>
@@ -157,12 +158,96 @@ namespace {
         return r.status_code == 200 && r.error.code == cpr::ErrorCode::OK;
     }
 
+    // Sessions kept for a whole pass: curl keeps each one's connection open, so the skins and files
+    // of a server reuse it instead of making a new TLS handshake per skin and per download thread.
+    class SessionPool {
+    public:
+        std::unique_ptr<cpr::Session> take() {
+            {
+                std::scoped_lock lock(mutex_);
+                if (!free_.empty()) {
+                    std::unique_ptr<cpr::Session> s = std::move(free_.back());
+                    free_.pop_back();
+                    return s;
+                }
+            }
+            auto s = std::make_unique<cpr::Session>();
+            init_session(*s);
+            return s;
+        }
+
+        void give_back(std::unique_ptr<cpr::Session> s) {
+            std::scoped_lock lock(mutex_);
+            free_.push_back(std::move(s));
+        }
+
+        // at the end of a pass: closes the connections
+        void clear() {
+            std::scoped_lock lock(mutex_);
+            free_.clear();
+        }
+
+    private:
+        std::mutex mutex_;
+        std::vector<std::unique_ptr<cpr::Session>> free_;
+    };
+
+    SessionPool session_pool;
+
+    // a session from the pool, returned to it when this goes out of scope
+    struct PooledSession {
+        std::unique_ptr<cpr::Session> session = session_pool.take();
+        PooledSession() = default;
+        PooledSession(const PooledSession&) = delete;
+        PooledSession& operator=(const PooledSession&) = delete;
+        ~PooledSession() { session_pool.give_back(std::move(session)); }
+        cpr::Session& operator*() const { return *session; }
+    };
+
+    // Downloads are written to a file in <skin>/.skin-update-tmp and renamed over the target only
+    // once complete, so a pass cut short (the game killed, a full disk) leaves the old file, never a
+    // half-written one. The folder is emptied at the start and end of each skin's pass.
+    constexpr const char* kTempDirName = ".skin-update-tmp";
+
+    fs::path temp_dir(const fs::path& skin_dir) {
+        return skin_dir / kTempDirName;
+    }
+
+    // Writes `body` to `tmp`, then renames it over `target` (std::filesystem::rename replaces an
+    // existing file, on Windows too). On failure the temp file is removed and `target` is untouched.
+    bool write_atomically(const fs::path& tmp, const fs::path& target, const std::string& body) {
+        std::error_code ec;
+        fs::create_directories(tmp.parent_path(), ec);
+        {
+            std::ofstream out(tmp, std::ios::binary | std::ios::trunc);
+            if (!out) {
+                return false;
+            }
+            out << body;
+            out.close();
+            if (!out) {
+                fs::remove(tmp, ec);
+                return false;
+            }
+        }
+        fs::create_directories(target.parent_path(), ec);
+        fs::rename(tmp, target, ec);
+        if (ec) {
+            std::error_code rm_ec;
+            fs::remove(tmp, rm_ec);
+            return false;
+        }
+        return true;
+    }
+
 } // namespace
 
 void SkinUpdater::set_current_skin(const std::string& name) {
     std::scoped_lock lock(status_mutex_);
     current_skin_ = name;
     current_file_.clear();
+    files_done_ = 0;
+    files_total_ = 0;
 }
 
 void SkinUpdater::set_current_file(const std::string& file) {
@@ -175,12 +260,24 @@ void SkinUpdater::note_file_updated() {
     ++files_updated_;
 }
 
+void SkinUpdater::set_progress(int done, int total) {
+    std::scoped_lock lock(status_mutex_);
+    files_done_ = done;
+    files_total_ = total;
+}
+
+void SkinUpdater::note_file_done() {
+    std::scoped_lock lock(status_mutex_);
+    ++files_done_;
+}
+
 bool SkinUpdater::update_one_skin(const std::filesystem::path& skin_dir, const std::string& repo_url,
                                   const std::string& branch) {
     set_current_skin(skin_dir.filename().string());
+    std::error_code tmp_ec;
+    fs::remove_all(temp_dir(skin_dir), tmp_ec); // left by a pass that was cut short
 
-    cpr::Session session;
-    init_session(session);
+    PooledSession session;
 
     auto raw_url = [&](const std::string& rel_path) { return repo_url + "/raw/branch/" + branch + "/" + rel_path; };
 
@@ -188,7 +285,7 @@ bool SkinUpdater::update_one_skin(const std::filesystem::path& skin_dir, const s
 
     // a whole manifest or nothing: files it doesn't list get removed below, so a truncated
     // one would delete everything past the cut (and the last line must be complete)
-    cpr::Response checksums = get_url(session, raw_url("checksums.sha256"), 60000, 5000);
+    cpr::Response checksums = get_url(*session, raw_url("checksums.sha256"), 60000, 5000);
     if (!fetched(checksums) || checksums.text.empty() || checksums.text.back() != '\n') {
         spdlog::warn("Skin update ({}): could not fetch a complete checksums.sha256 (HTTP {}, curl error {}: {})",
                      skin_dir.filename().string(), checksums.status_code, static_cast<int>(checksums.error.code),
@@ -219,7 +316,7 @@ bool SkinUpdater::update_one_skin(const std::filesystem::path& skin_dir, const s
 
         fs::path local_file = (skin_dir / rel_path).lexically_normal();
         const fs::path local_rel = local_file.lexically_relative(skin_dir);
-        if (local_rel.empty() || *local_rel.begin() == "..") {
+        if (local_rel.empty() || *local_rel.begin() == ".." || *local_rel.begin() == kTempDirName) {
             spdlog::warn("Skin update ({}): skipping unsafe manifest path {}", skin_dir.filename().string(), rel_path);
             continue;
         }
@@ -249,11 +346,11 @@ bool SkinUpdater::update_one_skin(const std::filesystem::path& skin_dir, const s
         jobs.push_back({rel_path, hash, std::move(local_file), key});
     }
 
+    set_progress(0, static_cast<int>(jobs.size()));
     std::mutex result_mutex;
     std::atomic<size_t> next_job{0};
     auto worker = [&] {
-        cpr::Session job_session;
-        init_session(job_session);
+        PooledSession job_session;
         for (size_t i = next_job.fetch_add(1); i < jobs.size(); i = next_job.fetch_add(1)) {
             const Job& job = jobs[i];
             set_current_file(job.rel_path);
@@ -261,7 +358,7 @@ bool SkinUpdater::update_one_skin(const std::filesystem::path& skin_dir, const s
             std::string body;
             bool got = false;
             for (const std::string& url : {media_url(job.rel_path), raw_url(job.rel_path)}) {
-                cpr::Response resp = get_url(job_session, url, 60000, 5000);
+                cpr::Response resp = get_url(*job_session, url, 60000, 5000);
 
                 if (fetched(resp) && crypto::to_hex(crypto::sha256(resp.text)) == job.hash) {
                     body = std::move(resp.text);
@@ -275,25 +372,24 @@ bool SkinUpdater::update_one_skin(const std::filesystem::path& skin_dir, const s
                     skin_dir.filename().string(), job.rel_path);
                 std::scoped_lock lock(result_mutex);
                 complete = false;
+                note_file_done();
                 continue;
             }
 
-            std::error_code mkdir_ec;
-            fs::create_directories(job.local_file.parent_path(), mkdir_ec);
-            std::ofstream out(job.local_file, std::ios::binary | std::ios::trunc);
-            if (!out) {
-                spdlog::warn("Skin update ({}): failed to write {}", skin_dir.filename().string(), job.rel_path);
+            const fs::path tmp = temp_dir(skin_dir) / (std::to_string(i) + ".tmp");
+            if (!write_atomically(tmp, job.local_file, body)) {
+                spdlog::warn("Skin update ({}): failed to write {}; keeping the old file", skin_dir.filename().string(),
+                             job.rel_path);
                 std::scoped_lock lock(result_mutex);
                 complete = false;
+                note_file_done();
                 continue;
             }
-            out << body;
-            out.close();
             uintmax_t size = 0;
             int64_t mtime = 0;
             {
                 std::scoped_lock lock(result_mutex);
-                if (out && file_stamp(job.local_file, size, mtime)) {
+                if (file_stamp(job.local_file, size, mtime)) {
                     seen[job.key] = HashCacheEntry{job.hash, size, mtime};
                 } else {
                     seen.erase(job.key);
@@ -301,6 +397,7 @@ bool SkinUpdater::update_one_skin(const std::filesystem::path& skin_dir, const s
                 ++updated;
             }
             note_file_updated();
+            note_file_done();
         }
     };
     {
@@ -348,6 +445,7 @@ bool SkinUpdater::update_one_skin(const std::filesystem::path& skin_dir, const s
     }
 
     save_hash_cache(skin_dir, seen);
+    fs::remove_all(temp_dir(skin_dir), tmp_ec);
     spdlog::info("Skin update ({}): {} file(s) updated, {} removed", skin_dir.filename().string(), updated, removed);
     return complete;
 }
@@ -380,6 +478,7 @@ void SkinUpdater::scan_skins() {
 
         update_one_skin(entry.path(), strip_dot_git(repo_url), branch);
     }
+    session_pool.clear();
 }
 
 void SkinUpdater::start() {
@@ -401,6 +500,8 @@ void SkinUpdater::start() {
         std::scoped_lock lock(status_mutex_);
         current_skin_.clear();
         current_file_.clear();
+        files_done_ = 0;
+        files_total_ = 0;
     });
 }
 
@@ -433,10 +534,13 @@ void SkinUpdater::download(std::vector<Request> requests) {
                 failed_.push_back(r.name);
             }
         }
+        session_pool.clear();
         running_ = false;
         std::scoped_lock lock(status_mutex_);
         current_skin_.clear();
         current_file_.clear();
+        files_done_ = 0;
+        files_total_ = 0;
     });
 }
 
@@ -465,6 +569,8 @@ SkinUpdater::Status SkinUpdater::snapshot() {
     s.current_skin = current_skin_;
     s.current_file = current_file_;
     s.files_updated = files_updated_;
+    s.files_done = files_done_;
+    s.files_total = files_total_;
     s.failed = failed_;
     return s;
 }
