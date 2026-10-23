@@ -8,6 +8,7 @@
 #include "libs/camera_utils.h"
 #include "libs/filesystem.h"
 #include "libs/global_data.h"
+#include "libs/ime_ui.h"
 #include "libs/input.h"
 #include "libs/logging.h"
 #include "libs/network.h"
@@ -512,6 +513,7 @@ static void run_frame() {
 
         debug_menu.draw();
     }
+    ime_ui_draw(L.camera);
 
     draw_outer_border(tex.screen_width, tex.screen_height, L.last_color);
 
@@ -586,7 +588,9 @@ int main(int argc, char* argv[]) {
     quiet_raylib_log();
     setup_logging(global_data.config->general.log_level);
 
+    ime_ui_set_hint();
     init_window(1280, 720, "YataiDON");
+    ime_ui_install();
     try {
         load_skin();
     } catch (const std::exception& e) {

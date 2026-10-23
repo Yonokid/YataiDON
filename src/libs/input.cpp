@@ -13,6 +13,7 @@
 #include <unordered_set>
 
 #include "animation.h"
+#include "ime_ui.h"
 #include "profiler.h"
 #include "spdlog/spdlog.h"
 #include "texture.h"
@@ -979,6 +980,7 @@ void sync_text_input() {
                 SDL_StopTextInput(windows[0]);
             }
             text_input_active = text_input_wanted;
+            ime_ui_text_input_changed(text_input_active);
         }
         SDL_free(windows);
     }

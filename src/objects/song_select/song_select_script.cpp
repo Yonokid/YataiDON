@@ -1,5 +1,6 @@
 #include "song_select_script.h"
 
+#include "../../libs/ime_ui.h"
 #include "diff_sort.h"
 #include "file_navigator/box_back.h"
 #include "file_navigator/box_folder.h"
@@ -216,6 +217,25 @@ bool SongSelectScript::draw_search_box(const std::string& search, double bg_resi
     box["search"] = search;
     box["bg_resize"] = bg_resize;
     box["fade_in"] = fade_in;
+    { // the IME overlay anchors to the text box player_ui.draw_search_box draws (skin's search_box_layout)
+        const float S = tex.screen_scale;
+        float lx = 0;
+        float ly = 0;
+        float lw = 400 * S;
+        float lh = 60 * S;
+        if (lua_object.valid()) {
+            sol::optional<sol::table> layout = lua_object["search_box_layout"];
+            if (layout) {
+                lx = layout->get_or<float>("x", lx);
+                ly = layout->get_or<float>("y", ly);
+                lw = layout->get_or<float>("width", lw);
+                lh = layout->get_or<float>("height", lh);
+            }
+        }
+        const float cx = tex.screen_width / 2.0f;
+        const float cy = tex.screen_height / 2.0f;
+        ime_ui_set_field({cx - lw / 2 + lx, cy - lh / 2 + ly, lw, lh});
+    }
     if (fn_draw_search_box.valid() && call_handled(fn_draw_search_box, "SongSelect:draw_search_box", box)) {
         return true;
     }
