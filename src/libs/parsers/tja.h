@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstddef>
 #include <deque>
@@ -259,6 +260,9 @@ struct NoteList {
 struct CourseData {
     double level = 0;
     std::vector<int> balloon;
+    // BALLOONNOR / BALLOONEXP / BALLOONMAS: the balloons of one branch's route through the chart,
+    // in order (the parts before and after the branches included); empty: BALLOON is used
+    std::array<std::vector<int>, 3> branch_balloon;
     std::vector<int> scoreinit;
     double scorediff = 0;
     bool is_branching = false;
@@ -300,6 +304,9 @@ struct ParserState {
     size_t balloon_cursor = 0;
     double balloon_index = 0;
     size_t branch_balloon_cursor = 0;
+    std::array<std::vector<int>, 3> branch_balloons; // normal, expert, master
+    std::array<size_t, 3> branch_balloon_route_cursor{};
+    int branch = -1; // 0 #N, 1 #E, 2 #M; -1 outside the branches
     bool barline_added = false;
     double sudden_appear = 0.0f;
     double sudden_moving = 0.0f;
