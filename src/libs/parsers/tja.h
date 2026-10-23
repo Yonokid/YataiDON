@@ -379,6 +379,13 @@ private:
     static std::string trim(const std::string& str);
     static std::vector<int> parse_balloon_data(const std::string& data);
 
+    // The lines of the chart this player plays in a course: #START at start - 1, #END at end
+    struct ChartRange {
+        int start = -1;
+        int end = -1;
+        ScrollType scroll_type = ScrollType::NMSCROLL;
+    };
+    ChartRange find_chart(int diff);
     std::vector<std::vector<std::string>> data_to_notes(int diff);
 
     Note* get_note_ptr(Note& variant);

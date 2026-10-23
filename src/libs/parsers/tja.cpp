@@ -204,8 +204,24 @@ void TJAParser::get_metadata() {
     };
 
     int current_diff = -1;
+    // A course can hold one chart per STYLE (Single / Double), each with its own BALLOON,
+    // SCOREINIT and SCOREDIFF. A chart uses the values in effect at its #START, where a STYLE
+    // section starts again from the course's values before the first STYLE line.
+    struct StartValues {
+        int diff;
+        std::vector<int> balloon;
+        std::vector<int> scoreinit;
+        double scorediff;
+    };
+    std::map<size_t, StartValues> start_values;
+    std::map<int, CourseData> style_base;
 
-    for (const auto& item : data) {
+    for (size_t i = 0; i < data.size(); i++) {
+        const std::string& item = data[i];
+        if (item.starts_with("#START") && current_diff != -1) {
+            const CourseData& cd = metadata.course_data[current_diff];
+            start_values[i] = {current_diff, cd.balloon, cd.scoreinit, cd.scorediff};
+        }
         if (item.starts_with("#BRANCH") && current_diff != -1) {
             metadata.course_data[current_diff].is_branching = true;
         } else if (item[0] == '#' || std::isdigit(static_cast<unsigned char>(item[0]))) {
@@ -296,6 +312,7 @@ void TJAParser::get_metadata() {
 
             if (current_diff != -1) {
                 metadata.course_data[current_diff] = CourseData();
+                style_base.erase(current_diff);
             }
         } else if (current_diff != -1) {
             if (item.starts_with("LEVEL")) {
@@ -310,6 +327,12 @@ void TJAParser::get_metadata() {
                         metadata.course_data[current_diff].level = 0;
                     }
                 }
+            } else if (item.starts_with("STYLE")) {
+                CourseData& cd = metadata.course_data[current_diff];
+                const CourseData& base = style_base.try_emplace(current_diff, cd).first->second;
+                cd.balloon = base.balloon;
+                cd.scoreinit = base.scoreinit;
+                cd.scorediff = base.scorediff;
             } else if (item.starts_with("BALLOON")) {
                 struct BalloonRule {
                     std::string_view keyword;
@@ -367,6 +390,18 @@ void TJAParser::get_metadata() {
                     }
                 }
             }
+        }
+    }
+
+    // The values of the chart this player plays, not of a later STYLE section or of header
+    // lines between its notes
+    for (auto& [diff, cd] : metadata.course_data) {
+        const int start = find_chart(diff).start;
+        auto it = start > 0 ? start_values.find(static_cast<size_t>(start - 1)) : start_values.end();
+        if (it != start_values.end() && it->second.diff == diff) {
+            cd.balloon = it->second.balloon;
+            cd.scoreinit = it->second.scoreinit;
+            cd.scorediff = it->second.scorediff;
         }
     }
 
@@ -570,7 +605,7 @@ std::vector<int> TJAParser::parse_balloon_data(const std::string& data) {
     return result;
 }
 
-std::vector<std::vector<std::string>> TJAParser::data_to_notes(int diff) {
+TJAParser::ChartRange TJAParser::find_chart(int diff) {
     std::string diff_name;
     auto it = DIFFS.find(diff);
     if (it != DIFFS.end()) {
@@ -663,6 +698,17 @@ std::vector<std::vector<std::string>> TJAParser::data_to_notes(int diff) {
     if (note_start == -1 || note_end == -1) {
         return {};
     }
+    return {note_start, note_end, scroll_type};
+}
+
+std::vector<std::vector<std::string>> TJAParser::data_to_notes(int diff) {
+    const ChartRange range = find_chart(diff);
+    if (range.start == -1 || range.end == -1) {
+        return {};
+    }
+    const int note_start = range.start;
+    const int note_end = range.end;
+    const ScrollType scroll_type = range.scroll_type;
 
     std::vector<std::vector<std::string>> notes;
     std::vector<std::string> bar;
