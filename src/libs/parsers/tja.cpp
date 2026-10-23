@@ -593,7 +593,9 @@ std::vector<std::vector<std::string>> TJAParser::data_to_notes(int diff) {
             bool is_digit = !course_value.empty() &&
                             std::ranges::all_of(course_value, [](unsigned char c) { return std::isdigit(c) != 0; });
 
-            target_found = (is_digit && std::stoi(course_value) == diff) || course_value == diff_name;
+            // get_metadata also accepts COURSE:Ura for the Edit course
+            target_found = (is_digit && std::stoi(course_value) == diff) || course_value == diff_name ||
+                           (course_value == "ura" && diff_name == "edit");
         } else if (target_found) {
             if (note_start == -1) {
                 if (line == "#START") {
