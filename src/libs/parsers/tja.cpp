@@ -588,6 +588,10 @@ std::vector<std::vector<std::string>> TJAParser::data_to_notes(int diff) {
         const std::string& line = data[i];
 
         if (line.starts_with("COURSE:")) {
+            // P1/P2 charts may follow the Single chart, so keep looking until the course ends
+            if (target_found && note_start != -1) {
+                break;
+            }
             std::string course_value = to_lower(trim(line.substr(7)));
 
             bool is_digit = !course_value.empty() &&
@@ -595,18 +599,12 @@ std::vector<std::vector<std::string>> TJAParser::data_to_notes(int diff) {
 
             target_found = (is_digit && std::stoi(course_value) == diff) || course_value == diff_name;
         } else if (target_found) {
-            if (note_start == -1) {
-                if (line == "#START") {
-                    note_start = i + 1;
-                } else if (line == "#START P1" && p1_start == -1) {
-                    p1_start = i + 1;
-                } else if (line == "#START P2" && p2_start == -1) {
-                    p2_start = i + 1;
-                }
-            }
-            if (line == "#END" && note_start != -1) {
-                note_end = i;
-                break;
+            if (line == "#START" && note_start == -1) {
+                note_start = i + 1;
+            } else if (line == "#START P1" && p1_start == -1) {
+                p1_start = i + 1;
+            } else if (line == "#START P2" && p2_start == -1) {
+                p2_start = i + 1;
             }
             // Like Taiko-san Jiro, the scroll mode only counts before #START
             bool started = note_start != -1 || p1_start != -1 || p2_start != -1;
