@@ -40,6 +40,7 @@ struct CardReaderConfig {
 };
 
 struct NetworkConfig {
+    std::string api_key;
     std::string access_code_1;
     std::string access_code_2;
     bool online_play = false;

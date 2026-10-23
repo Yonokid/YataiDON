@@ -115,9 +115,17 @@ namespace {
     };
 
     std::string secret_key() {
+        if (global_data.config && !global_data.config->network.api_key.empty()) {
+            return global_data.config->network.api_key;
+        }
+
+#if defined(NETWORK_AUTH_KEY)
         static constexpr ObfuscatedString obfuscated_key(NETWORK_AUTH_KEY);
         static const std::string key = obfuscated_key.decode();
         return key;
+#else
+        return {};
+#endif
     }
 
     std::string random_nonce() {
@@ -188,7 +196,7 @@ namespace {
 } // namespace
 
 static bool network_enabled() {
-    return global_data.config && global_data.config->network.online_play;
+    return global_data.config && global_data.config->network.online_play && !secret_key().empty();
 }
 
 static std::string network_url(const std::string& endpoint) {

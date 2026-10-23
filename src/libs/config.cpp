@@ -342,6 +342,7 @@ Config get_config() {
     config.network.sync_scores =
         config_file["network"]["sync_scores"].value_or(config_file["general"]["sync_scores_on_launch"].value_or(false));
     config.network.auto_login = config_file["network"]["auto_login"].value_or(true);
+    config.network.api_key = config_file["network"]["api_key"].value_or("");
 
     config.card_reader.enabled = config_file["card_reader"]["enabled"].value_or(false);
 
@@ -467,7 +468,8 @@ void save_config(const Config& config) {
                                                                                    : config.network.access_code_2},
                                     {"online_play", config.network.online_play},
                                     {"sync_scores", config.network.sync_scores},
-                                    {"auto_login", config.network.auto_login}});
+                                    {"auto_login", config.network.auto_login},
+                                    {"api_key", config.network.api_key}});
 
     config_table.insert("card_reader", toml::table{{"enabled", config.card_reader.enabled}});
 
