@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ray.h"
+#include "gfx_native.h"
 
 // In-game IME UI: the game draws the IME composition string and candidate list itself (SDL is told
 // so with SDL_HINT_IME_IMPLEMENTED_UI), since the OS windows are hidden behind a fullscreen or
