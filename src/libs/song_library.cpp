@@ -111,38 +111,47 @@ static std::string normalize_title(std::string s) {
     return s;
 }
 
-void SongLibrary::clear_unlocked() {
-    song_files.clear();
-    song_search_text.clear();
-    song_levels.clear();
-    title_subtitle_index.clear();
-    title_only_index.clear();
-    normalized_titles.clear();
-    title_index_dirty = true;
-}
-
 bool SongLibrary::begin_loading() {
     std::scoped_lock lock(mutex);
     if (is_loading() || is_loaded()) {
         return false;
     }
 
-    clear_unlocked();
+    building = std::make_shared<SongIndex>();
     load_state = LoadState::LOADING;
     return true;
 }
 
 void SongLibrary::finish_loading() {
+    std::shared_ptr<SongIndex> index;
+
+    {
+        std::scoped_lock lock(mutex);
+
+        if (load_state != LoadState::LOADING) {
+            return;
+        }
+
+        index = building;
+        load_state = LoadState::FINALIZING;
+    }
+
+    index->build_title_index();
+
     std::scoped_lock lock(mutex);
-    if (is_loading()) {
+
+    if (load_state == LoadState::FINALIZING && building == index) {
+        published = std::move(index);
+        building.reset();
         load_state = LoadState::READY;
     }
 }
 
 void SongLibrary::fail_loading() {
     std::scoped_lock lock(mutex);
+
     if (is_loading()) {
-        clear_unlocked();
+        building.reset();
         load_state = LoadState::FAILED;
     }
 }
@@ -170,30 +179,31 @@ void SongLibrary::add(const fs::path& path, const SongMetadata& metadata) {
     }
 
     std::scoped_lock lock(mutex);
-    song_files[{metadata.title, metadata.subtitle}] = path;
-    song_search_text[path.string()] = search_fold(text);
-    song_levels[path.string()] = metadata.levels;
-    title_index_dirty = true;
+
+    if (load_state != LoadState::LOADING) {
+        return;
+    }
+
+    building->song_files[{metadata.title, metadata.subtitle}] = path;
+    building->song_search_text[path.string()] = search_fold(text);
+    building->song_levels[path.string()] = metadata.levels;
 }
 
-size_t SongLibrary::song_file_count() const {
-    std::scoped_lock lock(mutex);
+size_t SongIndex::song_file_count() const {
     return song_files.size();
 }
 
-std::optional<fs::path> SongLibrary::find_exact_title(const std::string& title, const std::string& subtitle) const {
-    std::scoped_lock lock(mutex);
+std::optional<fs::path> SongIndex::find_exact_title(const std::string& title, const std::string& subtitle) const {
     auto it = song_files.find({title, subtitle});
     return it == song_files.end() ? std::nullopt : std::optional<fs::path>(it->second);
 }
 
-std::vector<fs::path> SongLibrary::search(const std::string& query, const std::atomic<bool>* cancel) const {
+std::vector<fs::path> SongIndex::search(const std::string& query, const std::atomic<bool>* cancel) const {
     if (query.empty()) {
         return {};
     }
 
     const std::string folded = search_fold(query);
-    std::scoped_lock lock(mutex);
     std::vector<fs::path> hits;
     for (const auto& [key, path] : song_files) {
         if (cancel && cancel->load()) {
@@ -210,12 +220,11 @@ std::vector<fs::path> SongLibrary::search(const std::string& query, const std::a
     return hits;
 }
 
-std::vector<fs::path> SongLibrary::filter_difficulty(int course, int level, const std::atomic<bool>* cancel) const {
+std::vector<fs::path> SongIndex::filter_difficulty(int course, int level, const std::atomic<bool>* cancel) const {
     if (course < 0 || course > 4) {
         return {};
     }
 
-    std::scoped_lock lock(mutex);
     std::vector<fs::path> hits;
     for (const auto& [path, levels] : song_levels) {
         if (cancel && cancel->load()) {
@@ -230,8 +239,7 @@ std::vector<fs::path> SongLibrary::filter_difficulty(int course, int level, cons
     return hits;
 }
 
-std::vector<fs::path> SongLibrary::songs_by_title(const std::atomic<bool>* cancel) const {
-    std::scoped_lock lock(mutex);
+std::vector<fs::path> SongIndex::songs_by_title(const std::atomic<bool>* cancel) const {
     std::vector<fs::path> paths;
     paths.reserve(song_files.size());
     for (const auto& [key, path] : song_files) {
@@ -245,8 +253,7 @@ std::vector<fs::path> SongLibrary::songs_by_title(const std::atomic<bool>* cance
     return paths;
 }
 
-std::vector<fs::path> SongLibrary::song_paths_under(const fs::path& root, const std::atomic<bool>* cancel) const {
-    std::scoped_lock lock(mutex);
+std::vector<fs::path> SongIndex::song_paths_under(const fs::path& root, const std::atomic<bool>* cancel) const {
     std::vector<fs::path> paths;
     for (const auto& [path_str, levels] : song_levels) {
         if (cancel && cancel->load()) {
@@ -264,8 +271,7 @@ std::vector<fs::path> SongLibrary::song_paths_under(const fs::path& root, const 
 }
 
 std::vector<std::pair<fs::path, std::array<int, 5>>>
-SongLibrary::course_levels_in_subfolders(const fs::path& root, const std::atomic<bool>* cancel) const {
-    std::scoped_lock lock(mutex);
+SongIndex::course_levels_in_subfolders(const fs::path& root, const std::atomic<bool>* cancel) const {
     std::vector<std::pair<fs::path, std::array<int, 5>>> songs;
     for (const auto& [path_str, levels] : song_levels) {
         if (cancel && cancel->load()) {
@@ -284,27 +290,25 @@ SongLibrary::course_levels_in_subfolders(const fs::path& root, const std::atomic
     return songs;
 }
 
-std::optional<fs::path> SongLibrary::find_song_by_title(const std::string& title, const std::string& subtitle) const {
+void SongIndex::build_title_index() {
+    // First match in song_files order wins, as with the linear scans this replaced
+    title_subtitle_index.clear();
+    title_only_index.clear();
+    normalized_titles.clear();
+    normalized_titles.reserve(song_files.size());
+    for (auto& [key, path] : song_files) {
+        std::string t = normalize_title(key.first);
+        title_subtitle_index.emplace(t + '\x1f' + normalize_title(key.second), path);
+        title_only_index.emplace(t, path);
+        normalized_titles.emplace_back(std::move(t), path);
+    }
+}
+
+std::optional<fs::path> SongIndex::find_song_by_title(const std::string& title, const std::string& subtitle) const {
     std::string norm_title = normalize_title(title);
     std::string norm_subtitle = normalize_title(subtitle);
     if (norm_title.empty()) {
         return std::nullopt; // nothing to match on
-    }
-
-    std::scoped_lock lock(mutex);
-    if (title_index_dirty) {
-        // First match in song_files order wins, as with the linear scans this replaced
-        title_subtitle_index.clear();
-        title_only_index.clear();
-        normalized_titles.clear();
-        normalized_titles.reserve(song_files.size());
-        for (auto& [key, path] : song_files) {
-            std::string t = normalize_title(key.first);
-            title_subtitle_index.emplace(t + '\x1f' + normalize_title(key.second), path);
-            title_only_index.emplace(t, path);
-            normalized_titles.emplace_back(std::move(t), path);
-        }
-        title_index_dirty = false;
     }
 
     if (auto it = title_subtitle_index.find(norm_title + '\x1f' + norm_subtitle); it != title_subtitle_index.end()) {
@@ -336,4 +340,95 @@ std::optional<fs::path> SongLibrary::find_song_by_title(const std::string& title
 SongLibrary& get_song_library() {
     static SongLibrary library;
     return library;
+}
+
+std::shared_ptr<const SongIndex> SongLibrary::snapshot() const {
+    std::scoped_lock lock(mutex);
+    return published;
+}
+
+size_t SongLibrary::song_file_count() const {
+    auto index = snapshot();
+
+    if (!index) {
+        return {};
+    }
+
+    return index->song_file_count();
+}
+
+std::optional<std::filesystem::path> SongLibrary::find_exact_title(const std::string& title,
+                                                                   const std::string& subtitle) const {
+    auto index = snapshot();
+
+    if (!index) {
+        return {};
+    }
+
+    return index->find_exact_title(title, subtitle);
+}
+
+std::optional<std::filesystem::path> SongLibrary::find_song_by_title(const std::string& title,
+                                                                     const std::string& subtitle) const {
+    auto index = snapshot();
+
+    if (!index) {
+        return {};
+    }
+
+    return index->find_song_by_title(title, subtitle);
+}
+
+std::vector<std::filesystem::path> SongLibrary::search(const std::string& query,
+                                                       const std::atomic<bool>* cancel) const {
+    auto index = snapshot();
+
+    if (!index) {
+        return {};
+    }
+
+    return index->search(query, cancel);
+}
+
+std::vector<std::filesystem::path> SongLibrary::filter_difficulty(int course, int level,
+                                                                  const std::atomic<bool>* cancel) const {
+    auto index = snapshot();
+
+    if (!index) {
+        return {};
+    }
+
+    return index->filter_difficulty(course, level, cancel);
+}
+
+std::vector<std::filesystem::path> SongLibrary::songs_by_title(const std::atomic<bool>* cancel) const {
+    auto index = snapshot();
+
+    if (!index) {
+        return {};
+    }
+
+    return index->songs_by_title(cancel);
+}
+
+std::vector<std::filesystem::path> SongLibrary::song_paths_under(const std::filesystem::path& root,
+                                                                 const std::atomic<bool>* cancel) const {
+    auto index = snapshot();
+
+    if (!index) {
+        return {};
+    }
+
+    return index->song_paths_under(root, cancel);
+}
+
+std::vector<std::pair<std::filesystem::path, std::array<int, 5>>>
+SongLibrary::course_levels_in_subfolders(const std::filesystem::path& root, const std::atomic<bool>* cancel) const {
+    auto index = snapshot();
+
+    if (!index) {
+        return {};
+    }
+
+    return index->course_levels_in_subfolders(root, cancel);
 }
