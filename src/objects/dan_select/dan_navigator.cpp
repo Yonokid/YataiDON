@@ -217,9 +217,15 @@ std::optional<DanSongEntry> DanNavigator::load_song_entry(const rapidjson::Value
                 path_opt = scores_manager.get_path_by_hash(hash);
             }
         }
+
         if (!path_opt) {
-            path_opt = get_song_library().find_song_by_title(chart_title, str("subtitle"));
+            auto index = memo_ ? memo_->index : get_song_library().snapshot();
+
+            if (index) {
+                path_opt = index->find_song_by_title(chart_title, str("subtitle"));
+            }
         }
+
         if (!path_opt) {
             spdlog::warn("DanNavigator: song '{}' not found", chart_title);
             return std::nullopt;
@@ -414,6 +420,7 @@ void DanNavigator::collect_dan_jsons(const fs::path& root_path, std::vector<fs::
 // Loads the courses on a few worker threads, in the order given
 std::vector<DanBoxData> DanNavigator::load_dan_jsons(const std::vector<fs::path>& jsons) {
     ScanMemo memo;
+    memo.index = get_song_library().snapshot();
     memo_ = &memo;
     std::vector<std::optional<DanBoxData>> loaded(jsons.size());
     std::atomic<size_t> cursor{0};
@@ -452,6 +459,10 @@ std::vector<DanBoxData> DanNavigator::load_dan_jsons(const std::vector<fs::path>
 // The scan result for the same dan.json files (paths and modification times) over the same song
 // library is reused for the rest of the session: re-entering the dojo re-read every course
 std::vector<DanBoxData> DanNavigator::scan_roots(const std::vector<fs::path>& roots) {
+    if (!get_song_library().wait(scan_abort)) {
+        return {};
+    }
+
     struct Cached {
         std::vector<std::pair<fs::path, fs::file_time_type>> signature;
         size_t library_size = 0;
@@ -513,10 +524,6 @@ int DanNavigator::scan_root(const fs::path& root_path) {
 }
 
 std::vector<DanBoxData> DanNavigator::scan_all_data(const std::vector<fs::path>& song_paths) {
-    if (!get_song_library().wait(scan_abort)) {
-        return {};
-    }
-
     std::vector<DanBoxData> data = scan_roots(song_paths);
 
     if (data.empty() && global_data.config && !scan_abort.load()) {

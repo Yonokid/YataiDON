@@ -97,6 +97,7 @@ private:
     // Chart reads shared by the scan's worker threads: a song sits in many courses, and every
     // course used to re-read it twice (metadata, then notes)
     struct ScanMemo {
+        std::shared_ptr<const class SongIndex> index;
         std::mutex mutex;
         std::map<fs::path, std::shared_ptr<const TJAMetadata>> metadata;
         std::map<std::pair<fs::path, int>, int> note_counts;

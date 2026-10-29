@@ -33,9 +33,19 @@ void SongSelectScreen::on_screen_start() {
     navigator.is_2p = is_2p_screen();
     navigator.init(global_data.config->paths.tja_path);
 #ifndef __EMSCRIPTEN__
+    stats_stop.request_stop();
+
+    if (stats_future.valid()) {
+        stats_future.wait();
+    }
+
+    stats_stop = std::stop_source{};
+
     if (!global_data.config->paths.tja_path.empty()) {
         stats_future = std::async(std::launch::async,
-                                  [this] { return navigator.get_statistics(global_data.config->paths.tja_path[0]); });
+                                  [path = global_data.config->paths.tja_path[0], stop = stats_stop.get_token()] {
+                                      return navigator.get_statistics(path, stop);
+                                  });
     }
 #endif
     navigator.refresh_scores();
@@ -401,10 +411,13 @@ Screens SongSelectScreen::on_screen_end(Screens next_screen) {
     if (search_box) {
         set_keyboard_visible(false);
     }
+    stats_stop.request_stop();
+
     if (stats_future.valid()) {
         stats_future.wait();
     }
-    navigator.join_loader();
+
+    navigator.cancel_loading();
     unload_shader(shader);
     return Screen::on_screen_end(next_screen);
 }

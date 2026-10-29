@@ -23,10 +23,5 @@ public:
     void enter_box() override;
     void exit_box() override;
 
-    void refresh_scores();
-    static void run_deferred_scans(std::atomic<bool>& abort_flag);
-    bool scan_pending = false;
-    static void invalidate_scan_cache();
-
     const char* lua_kind() const override { return "folder"; }
 };

@@ -450,58 +450,6 @@ rapidjson::Document read_json_file(const fs::path& file_path) {
     return doc;
 }
 
-std::vector<SongListEntry> read_song_list(const fs::path& path) {
-    std::vector<SongListEntry> entries;
-    std::ifstream file(path);
-    if (!file) {
-        return entries;
-    }
-
-    std::string line;
-    while (std::getline(file, line)) {
-        if (!line.empty() && line.back() == '\r') {
-            line.pop_back();
-        }
-
-        std::vector<std::string> fields;
-        std::stringstream ss(line);
-        std::string field;
-        while (std::getline(ss, field, '|')) {
-            fields.push_back(field);
-        }
-        if (!line.empty() && line.back() == '|') {
-            fields.emplace_back("");
-        }
-
-        if (fields.size() < 3) {
-            continue;
-        }
-
-        std::string hash = fields[0];
-        if (hash.starts_with("\xEF\xBB\xBF")) {
-            hash = hash.substr(3);
-        }
-
-        entries.push_back({std::move(hash), std::move(fields[1]), std::move(fields[2])});
-    }
-    return entries;
-}
-
-void write_song_list(const fs::path& path, const std::vector<SongListEntry>& entries) {
-    std::ofstream out(path, std::ios::trunc);
-    if (!out) {
-        spdlog::error("write_song_list: failed to open {}", path.string());
-        return;
-    }
-    for (const auto& e : entries) {
-        out << e.hash << "|" << e.title << "|" << e.subtitle << "\n";
-    }
-    out.flush();
-    if (!out) {
-        spdlog::error("write_song_list: failed to write {}", path.string());
-    }
-}
-
 namespace {
     fs::path g_skin_graphics_path;
     fs::path g_parent_skin_graphics_path;
