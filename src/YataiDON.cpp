@@ -1,5 +1,7 @@
 #include <algorithm>
 #include <cstdlib>
+#include <cstring>
+#include <ctime>
 #include <iostream>
 
 #include "libs/asset_cache.h"
@@ -544,7 +546,6 @@ static void run_frame() {
     }
 
     if (key_pressed(SDL_SCANCODE_F12)) {
-        static int screenshot_counter = 0;
         Image image = load_image_from_screen();
         if (L.current_screen == Screens::RESULT && tex.options[SCO::CROP_RESULT_SCREENSHOT]) {
             const auto image_width = static_cast<float>(image.width);
@@ -553,10 +554,23 @@ static void run_frame() {
             unload_image(image);
             image = top;
         }
-        export_image(image, text_format("screenshot%03i.png", screenshot_counter));
+        const PlayerNum p = global_data.player_num == PlayerNum::P2 ? PlayerNum::P2 : PlayerNum::P1;
+        const SessionData& sd = global_data.session_data[static_cast<int>(p)];
+        const std::time_t now = std::time(nullptr);
+        char date[32];
+        std::strftime(date, sizeof(date), "%Y-%m-%d_%H-%M-%S", std::localtime(&now));
+        std::string name = std::string(date) + "_" + sd.song_title + "_" + std::to_string(sd.selected_difficulty);
+        for (char& c : name) {
+            if (c == ' ' || std::strchr("/\\:*?\"<>|", c)) c = '_';
+        }
+        fs::create_directories("Screenshots");
+        const std::string path = "Screenshots/" + name + ".png";
+        if (export_image(image, path.c_str())) {
+            spdlog::info("Screenshot saved: {}", path);
+        } else {
+            spdlog::error("Screenshot failed: {}", path);
+        }
         unload_image(image);
-        screenshot_counter++;
-        spdlog::info("Screenshot saved");
     }
 
 #if !defined(__EMSCRIPTEN__) && !defined(YATAIDON_PLATFORM_IOS)

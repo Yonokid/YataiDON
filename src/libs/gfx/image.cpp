@@ -22,6 +22,7 @@
 
 #define STB_IMAGE_WRITE_STATIC
 #define STB_IMAGE_WRITE_IMPLEMENTATION
+#define STBIW_WINDOWS_UTF8 // screenshot names carry song titles
 #include <stb_image_write.h>
 
 const char* text_format(const char* fmt, ...) {
