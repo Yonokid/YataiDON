@@ -57,6 +57,7 @@ private:
     std::unique_ptr<Chara3D> chara;
     std::unique_ptr<Chara3D> wait_chara[2]; // wait panels, P1 / P2
     bool announce_played = false;
+    double wait_idle_since_ = 0; // WAITING: time of the last input, for the AFK popup
     std::vector<std::unique_ptr<EntryPlayer>> players;
 
 #ifdef CARD_READER_ENABLED
