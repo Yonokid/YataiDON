@@ -171,7 +171,7 @@ static std::vector<int> parseKeyArray(const toml::array& arr) {
 std::vector<int> parseIntArray(const toml::array& arr) {
     std::vector<int> result;
     for (const auto& elem : arr) {
-        if (auto val = elem.as_integer()) {
+        if (const auto* val = elem.as_integer()) {
             result.push_back(static_cast<int>(val->get()));
         } else {
             spdlog::warn("Skipping non-integer gamepad binding element");
@@ -211,7 +211,7 @@ static constexpr bool kDefaultVsync = false;
 
 static std::vector<int> parseKeyArrayOrDefault(const toml::table& t, const char* section, const char* key,
                                                std::vector<int> def) {
-    if (auto arr = t[section][key].as_array()) {
+    if (const auto* arr = t[section][key].as_array()) {
         return parseKeyArray(*arr);
     }
     return def;
@@ -219,7 +219,7 @@ static std::vector<int> parseKeyArrayOrDefault(const toml::table& t, const char*
 
 static std::vector<int> parseIntArrayOrDefault(const toml::table* section, const char* key, std::vector<int> def) {
     if (section) {
-        if (auto arr = (*section)[key].as_array()) {
+        if (const auto* arr = (*section)[key].as_array()) {
             return parseIntArray(*arr);
         }
     }
@@ -228,7 +228,7 @@ static std::vector<int> parseIntArrayOrDefault(const toml::table* section, const
 
 static std::vector<fs::path> parsePathArrayOrDefault(const toml::table& t, const char* section, const char* key,
                                                      std::vector<fs::path> def) {
-    if (auto arr = t[section][key].as_array()) {
+    if (const auto* arr = t[section][key].as_array()) {
         return parsePathArray(*arr);
     }
     return def;
@@ -402,7 +402,7 @@ Config get_config() {
     config.audio.device = config_file["audio"]["device"].value_or("");
     config.audio.sample_rate = config_file["audio"]["sample_rate"].value_or(44100);
     config.audio.buffer_size = config_file["audio"]["buffer_size"].value_or(128);
-    if (auto asio_channel = config_file["audio"]["asio_channel"].as_array()) {
+    if (auto* asio_channel = config_file["audio"]["asio_channel"].as_array()) {
         config.audio.asio_channel = parseIntArray(*asio_channel);
     }
     if (config.audio.asio_channel.empty()) {

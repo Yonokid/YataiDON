@@ -140,13 +140,13 @@ Exam DanNavigator::parse_exam(const rapidjson::Value& e) {
     if (e.HasMember("value") && e["value"].IsArray()) {
         const auto& v = e["value"];
         bool per_song = false;
-        for (auto& x : v.GetArray()) {
+        for (const auto& x : v.GetArray()) {
             per_song |= x.IsArray() || x.IsNull();
         }
         if (per_song) {
             // per-song borders: [[red, gold], null, [red, gold]] (gold optional; null = no border,
             // kept as a 0 placeholder so the song indices stay aligned)
-            for (auto& pair : v.GetArray()) {
+            for (const auto& pair : v.GetArray()) {
                 int red = 0, gold = Exam::GOLD_FULL;
                 if (pair.IsArray() && pair.Size() >= 1 && pair[0].IsInt()) {
                     red = pair[0].GetInt();

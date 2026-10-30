@@ -41,13 +41,13 @@
 namespace song_loudness {
 
     float fallback_gain() {
-        static const float multiplier = static_cast<float>(std::pow(10.0, fallback_gain_db / 20.0));
+        static const auto multiplier = static_cast<float>(std::pow(10.0, fallback_gain_db / 20.0));
         return multiplier;
     }
 
     float skin_gain() {
         // Short skin cues cannot all provide meaningful integrated loudness measurements.
-        static const float multiplier = static_cast<float>(std::pow(10.0, skin_gain_db / 20.0));
+        static const auto multiplier = static_cast<float>(std::pow(10.0, skin_gain_db / 20.0));
         return multiplier;
     }
 

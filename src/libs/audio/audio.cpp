@@ -152,7 +152,7 @@ static bool ffmpeg_decode_float(const char* path, float** out_data, sf_count_t* 
             if (conversion.size() < static_cast<size_t>(n) * out_ch) {
                 conversion.resize(static_cast<size_t>(n) * out_ch);
             }
-            uint8_t* op = reinterpret_cast<uint8_t*>(conversion.data());
+            auto* op = reinterpret_cast<uint8_t*>(conversion.data());
             int got = swr_convert(swr, &op, static_cast<int>(n), const_cast<const uint8_t**>(frm->extended_data),
                                   frm->nb_samples);
 
@@ -181,7 +181,7 @@ static bool ffmpeg_decode_float(const char* path, float** out_data, sf_count_t* 
     // A rate conversion retains a short filter tail after the decoder drains.
     conversion.resize(4096 * out_ch);
     for (;;) {
-        uint8_t* output = reinterpret_cast<uint8_t*>(conversion.data());
+        auto* output = reinterpret_cast<uint8_t*>(conversion.data());
         int got = swr_convert(swr, &output, 4096, nullptr, 0);
         if (got <= 0) {
             break;
@@ -218,7 +218,7 @@ static sf_count_t vf_get_filelen(void* user_data) {
 
 static sf_count_t vf_seek(sf_count_t offset, int whence, void* user_data) {
     auto* vf = static_cast<VirtualFile*>(user_data);
-    sf_count_t size = static_cast<sf_count_t>(vf->data->size());
+    auto size = static_cast<sf_count_t>(vf->data->size());
 
     switch (whence) {
     case SEEK_SET:
@@ -316,7 +316,7 @@ static const RtAudioBackend* find_rtaudio_backend(int device_type) {
         {7, RtAudio::WINDOWS_WASAPI, "WASAPI"}, {8, RtAudio::WINDOWS_ASIO, "ASIO"},
     };
 
-    const auto backend = std::ranges::find(backends, device_type, &RtAudioBackend::device_type);
+    const auto* const backend = std::ranges::find(backends, device_type, &RtAudioBackend::device_type);
     return backend != std::end(backends) ? backend : nullptr;
 }
 #endif
@@ -427,7 +427,7 @@ void AudioEngine::mix(float* out, unsigned int framesPerBuffer, AudioEngine* eng
             static_cast<double>(frame) + yd::atomic_ref<float>(snd.frame_frac).load(std::memory_order_relaxed);
 
         while (frames_to_process > 0 && still_playing) {
-            unsigned long src_frame = static_cast<unsigned long>(frame_f);
+            auto src_frame = static_cast<unsigned long>(frame_f);
             if (src_frame >= sample.frame_count) {
                 if (yd::atomic_ref<bool>(snd.loop).load(std::memory_order_relaxed) && sample.frame_count > 0) {
                     frame_f = 0.0;
@@ -587,7 +587,7 @@ void AudioEngine::mix(float* out, unsigned int framesPerBuffer, AudioEngine* eng
                         }
                     }
 
-                    unsigned int ch = static_cast<unsigned int>(mus.file_info.channels);
+                    auto ch = static_cast<unsigned int>(mus.file_info.channels);
                     std::memcpy(mus.stream_buffer, mus.pcm_data + frame_pos * ch,
                                 static_cast<size_t>(to_fill) * ch * sizeof(float));
                     mus.frames_in_buffer = static_cast<unsigned int>(to_fill);
@@ -646,7 +646,7 @@ void AudioEngine::mix(float* out, unsigned int framesPerBuffer, AudioEngine* eng
 
 void AudioEngine::sdl_audio_callback(void* userdata, SDL_AudioStream* stream, int additional_amount,
                                      int /*total_amount*/) {
-    AudioEngine* engine = static_cast<AudioEngine*>(userdata);
+    auto* engine = static_cast<AudioEngine*>(userdata);
     if (!engine || additional_amount <= 0) {
         return;
     }
@@ -670,8 +670,8 @@ void AudioEngine::sdl_audio_callback(void* userdata, SDL_AudioStream* stream, in
 #if defined(YATAIDON_HAS_RTAUDIO)
 int AudioEngine::rt_audio_callback(void* outputBuffer, void* /*inputBuffer*/, unsigned int framesPerBuffer,
                                    double /*streamTime*/, unsigned int /*status*/, void* userData) {
-    AudioEngine* engine = static_cast<AudioEngine*>(userData);
-    float* out = static_cast<float*>(outputBuffer);
+    auto* engine = static_cast<AudioEngine*>(userData);
+    auto* out = static_cast<float*>(outputBuffer);
     const unsigned int total_channels = engine->rt_total_channels;
     std::memset(out, 0, static_cast<size_t>(framesPerBuffer) * total_channels * sizeof(float));
 
@@ -758,7 +758,7 @@ bool AudioEngine::init_rtaudio_device(RtAudio::Api api, const char* label) {
         }
     }
 
-    unsigned int bufferFrames = static_cast<unsigned int>(buffer_size);
+    auto bufferFrames = static_cast<unsigned int>(buffer_size);
 
     RtAudio::StreamOptions options;
     options.flags = RTAUDIO_MINIMIZE_LATENCY | RTAUDIO_SCHEDULE_REALTIME;
@@ -1007,7 +1007,7 @@ std::string AudioEngine::path_to_string(const fs::path& path) const {
 // updated in place.
 static float* adopt_decoded_pcm(std::vector<float>& samples, int channels, unsigned int& frames, unsigned int& rate,
                                 double target_rate, int converter = SRC_SINC_FASTEST) {
-    float* data = new float[samples.size()];
+    auto* data = new float[samples.size()];
     std::memcpy(data, samples.data(), samples.size() * sizeof(float));
 
     if (rate == target_rate) {
@@ -1016,7 +1016,7 @@ static float* adopt_decoded_pcm(std::vector<float>& samples, int channels, unsig
 
     double ratio = target_rate / rate;
     long out_frames = static_cast<long>(frames * ratio) + 1;
-    float* resampled = new float[static_cast<size_t>(out_frames) * channels];
+    auto* resampled = new float[static_cast<size_t>(out_frames) * channels];
     SRC_DATA sd{};
     sd.data_in = data;
     sd.input_frames = frames;
@@ -1169,7 +1169,7 @@ std::string AudioEngine::load_sound(const fs::path& file_path, const std::string
             if (ff_rate != target_sample_rate) {
                 double ratio = target_sample_rate / ff_rate;
                 long out_frames = static_cast<long>(ff_frames * ratio) + 1;
-                float* rs = new float[out_frames * ff_ch];
+                auto* rs = new float[out_frames * ff_ch];
                 SRC_DATA sd;
                 sd.data_in = ff_data;
                 sd.input_frames = ff_frames;
@@ -1200,13 +1200,13 @@ std::string AudioEngine::load_sound(const fs::path& file_path, const std::string
         }
 
         const sf_count_t total_frames_sf = file_info.frames;
-        const unsigned int channels = static_cast<unsigned int>(file_info.channels);
+        const auto channels = static_cast<unsigned int>(file_info.channels);
         if (total_frames_sf <= 0 || channels == 0) {
             sf_close(file);
             return "";
         }
-        unsigned int total_frames = static_cast<unsigned int>(total_frames_sf);
-        float* data = new float[static_cast<size_t>(total_frames_sf) * channels];
+        auto total_frames = static_cast<unsigned int>(total_frames_sf);
+        auto* data = new float[static_cast<size_t>(total_frames_sf) * channels];
 
         sf_count_t frames_read = sf_readf_float(file, data, total_frames);
         sf_close(file);
@@ -1224,7 +1224,7 @@ std::string AudioEngine::load_sound(const fs::path& file_path, const std::string
         if (snd.sample_rate != target_sample_rate) {
             double ratio = target_sample_rate / snd.sample_rate;
             long output_frames = static_cast<long>(frames_read * ratio) + 1;
-            float* resampled_data = new float[output_frames * channels];
+            auto* resampled_data = new float[output_frames * channels];
 
             SRC_DATA src_data;
             src_data.data_in = data;
@@ -1442,7 +1442,7 @@ static float get_preset_volume(const VolumeConfig& volumes, VolumePreset preset)
         {VolumePreset::ATTRACT_MODE, &VolumeConfig::attract_mode},
     };
 
-    const auto match = std::ranges::find(presets, preset, &PresetVolume::preset);
+    const auto* const match = std::ranges::find(presets, preset, &PresetVolume::preset);
     return match != std::end(presets) ? volumes.*(match->member) : 1.0f;
 }
 
@@ -1778,7 +1778,7 @@ std::string AudioEngine::load_music_stream(const fs::path& file_path, const std:
             if (ff_rate != target_sample_rate) {
                 double ratio = target_sample_rate / ff_rate;
                 long out_frames = static_cast<long>(ff_frames * ratio) + 1;
-                float* rs = new float[out_frames * ff_ch];
+                auto* rs = new float[out_frames * ff_ch];
                 SRC_DATA sd{};
                 sd.data_in = ff_data;
                 sd.input_frames = ff_frames;
@@ -2059,7 +2059,7 @@ void AudioEngine::seek_music_stream(const std::string& name, float position) {
         music& mus = it->second;
 
         if (mus.file_handle) {
-            sf_count_t frame_position = static_cast<sf_count_t>(position * mus.file_info.samplerate);
+            auto frame_position = static_cast<sf_count_t>(position * mus.file_info.samplerate);
 
             frame_position = std::max<sf_count_t>(frame_position, 0);
             if (frame_position >= mus.file_info.frames) {

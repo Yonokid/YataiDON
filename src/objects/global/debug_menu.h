@@ -1211,7 +1211,7 @@ private:
         if (!obj) {
             return nullptr;
         }
-        size_t idx = static_cast<size_t>(selected_tex_index);
+        auto idx = static_cast<size_t>(selected_tex_index);
         switch (field_idx) {
         case 0:
             return idx < obj->x.size() ? &obj->x[idx] : nullptr;

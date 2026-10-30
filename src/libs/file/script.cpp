@@ -793,7 +793,7 @@ void ScriptManager::register_lua_bindings() {
                          info["height"] = tex_obj->height;
 
                          int frame_count = 1;
-                         if (auto framed = dynamic_cast<FramedTexture*>(tex_obj.get())) {
+                         if (auto* framed = dynamic_cast<FramedTexture*>(tex_obj.get())) {
                              frame_count = static_cast<int>(framed->textures.size());
                          }
                          if (tex_obj->crop_data.has_value()) {
@@ -980,7 +980,7 @@ void ScriptManager::register_lua_bindings() {
 
         VolumePreset preset = VolumePreset::NONE;
         if (preset_str) {
-            const auto match = std::ranges::find(presets, preset_str.value(), &NamedPreset::name);
+            const auto* const match = std::ranges::find(presets, preset_str.value(), &NamedPreset::name);
             if (match != std::end(presets)) {
                 preset = match->preset;
             }

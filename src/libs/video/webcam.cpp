@@ -151,7 +151,7 @@ void WebCamera::update() {
     if (rgba->pitch != rgba->w * 4) {
         const auto row_bytes = static_cast<size_t>(rgba->w) * 4;
         packed.resize(row_bytes * rgba->h);
-        const uint8_t* src = static_cast<const uint8_t*>(rgba->pixels);
+        const auto* src = static_cast<const uint8_t*>(rgba->pixels);
         for (int y = 0; y < rgba->h; y++) {
             const auto row = static_cast<size_t>(y);
             memcpy(packed.data() + row * row_bytes, src + row * rgba->pitch, row_bytes);

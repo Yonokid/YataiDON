@@ -385,7 +385,7 @@ bool EntryScreen::arcade_credit() const {
 }
 
 bool EntryScreen::seat_joined(PlayerNum player_num) const {
-    for (auto& player : players) {
+    for (const auto& player : players) {
         if (player && player->player_num == player_num) {
             return true;
         }

@@ -55,7 +55,7 @@ static void read_text_entries(const fs::path& file, float scale) {
                 continue;
             }
             std::map<std::string, std::string> labels;
-            for (auto& t : v["text"].GetObject()) {
+            for (const auto& t : v["text"].GetObject()) {
                 if (t.value.IsString()) {
                     labels[t.name.GetString()] = t.value.GetString();
                 }
@@ -477,7 +477,7 @@ static void stamp_outline(Image* dst, const Font& font, const char* text, Vec2 p
                 unsigned char* orow = &out[(y + dy + r) * OW + x];
                 const unsigned char* wrow = &wt[row * D];
                 for (int k = lo[row]; k <= hi[row]; k++) {
-                    const unsigned char c = static_cast<unsigned char>((v * wrow[k] + 127) / 255);
+                    const auto c = static_cast<unsigned char>((v * wrow[k] + 127) / 255);
                     unsigned char& o = orow[k]; // ox = x + (k - r) + r = x + k
                     o = std::max(o, c);
                 }
@@ -1036,7 +1036,7 @@ bool is_valid_utf8(std::string_view text) {
     size_t i = 0;
     const size_t n = text.size();
     while (i < n) {
-        const unsigned char c = static_cast<unsigned char>(text[i]);
+        const auto c = static_cast<unsigned char>(text[i]);
         if (c < 0x80) {
             i++;
             continue;
@@ -1059,7 +1059,7 @@ bool is_valid_utf8(std::string_view text) {
             return false;
         }
         for (int k = 1; k <= extra; k++) {
-            const unsigned char cc = static_cast<unsigned char>(text[i + k]);
+            const auto cc = static_cast<unsigned char>(text[i + k]);
             if ((cc & 0xC0) != 0x80) {
                 return false;
             }

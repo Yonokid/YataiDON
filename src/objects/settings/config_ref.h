@@ -16,34 +16,34 @@ struct ConfigRef {
     ConfigRef(fs::path* p) : ptr(p) {}
 
     bool get_bool() const {
-        if (auto* p = std::get_if<bool*>(&ptr)) {
+        if (const auto* p = std::get_if<bool*>(&ptr)) {
             return **p;
         }
         throw std::runtime_error("ConfigRef: not a bool");
     }
     int get_int() const {
-        if (auto* p = std::get_if<int*>(&ptr)) {
+        if (const auto* p = std::get_if<int*>(&ptr)) {
             return **p;
         }
         throw std::runtime_error("ConfigRef: not an int");
     }
     float get_float() const {
-        if (auto* p = std::get_if<float*>(&ptr)) {
+        if (const auto* p = std::get_if<float*>(&ptr)) {
             return **p;
         }
         throw std::runtime_error("ConfigRef: not a float");
     }
     std::vector<int> get_vec() const {
-        if (auto* p = std::get_if<std::vector<int>*>(&ptr)) {
+        if (const auto* p = std::get_if<std::vector<int>*>(&ptr)) {
             return **p;
         }
         throw std::runtime_error("ConfigRef: not a vector<int>");
     }
     std::string get_str() const {
-        if (auto* p = std::get_if<fs::path*>(&ptr)) {
+        if (const auto* p = std::get_if<fs::path*>(&ptr)) {
             return (*p)->string();
         }
-        if (auto* p = std::get_if<std::string*>(&ptr)) {
+        if (const auto* p = std::get_if<std::string*>(&ptr)) {
             return **p;
         }
         throw std::runtime_error("ConfigRef: not a string/path");

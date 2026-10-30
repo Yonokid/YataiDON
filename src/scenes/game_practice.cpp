@@ -640,11 +640,11 @@ std::optional<Screens> PracticeGameScreen::global_keys_practice() {
                 if (p1_don) {
                     audio.play_sound("don", VolumePreset::SOUND);
                     mark_action_anim->start();
-                    auto marked = std::ranges::find(jump_bars, scrobble_index);
+                    auto* marked = std::ranges::find(jump_bars, scrobble_index);
                     if (marked != jump_bars.end()) {
                         *marked = -1; // already marked here: remove it
                     } else {
-                        auto free_slot = std::ranges::find(jump_bars, -1);
+                        auto* free_slot = std::ranges::find(jump_bars, -1);
                         if (free_slot != jump_bars.end()) {
                             *free_slot = scrobble_index; // append
                             jump_arrow_bar = scrobble_index;
@@ -841,9 +841,9 @@ void PracticeGameScreen::draw_bar_scrobble(const Note& bar, double current_ms) c
         return;
     }
     float x = get_scrobble_position_x(bar, current_ms);
-    float y_off = static_cast<float>((bar.hit_ms - current_ms) *
-                                     (bar.bpm / 240000.0f * bar.scroll_y *
-                                      ((tex.screen_width - JudgePos::X) / tex.screen_width) * tex.screen_width));
+    auto y_off = static_cast<float>((bar.hit_ms - current_ms) *
+                                    (bar.bpm / 240000.0f * bar.scroll_y *
+                                     ((tex.screen_width - JudgePos::X) / tex.screen_width) * tex.screen_width));
     float angle = (y_off != 0) ? std::atan2(bar.scroll_y, bar.scroll_x) * 180.0f / std::numbers::pi_v<float> : 0.0f;
     tex.draw_texture(t_notes_0, {.frame = bar.is_branch_start,
                                  .x = x + tex.get_skin_config(SC::GAME_MOJI_DRUMROLL)->x - t_notes_9->width / 2.0f,

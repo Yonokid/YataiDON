@@ -490,7 +490,7 @@ std::string OsuParser::get_diff_hash(int /*difficulty*/) {
     std::vector<unsigned char> buffer;
     for (const Note& n : notes.notes) {
         auto h = n.hash();
-        const unsigned char* bytes = reinterpret_cast<const unsigned char*>(&h);
+        const auto* bytes = reinterpret_cast<const unsigned char*>(&h);
         buffer.insert(buffer.end(), bytes, bytes + sizeof(h));
     }
     return md5_hexdigest(buffer);

@@ -319,7 +319,7 @@ namespace av {
 
                     int64_t out_samples = swr_get_out_samples(swr, frame->nb_samples);
                     std::vector<int16_t> tmp(out_samples * 2);
-                    uint8_t* out_ptr = reinterpret_cast<uint8_t*>(tmp.data());
+                    auto* out_ptr = reinterpret_cast<uint8_t*>(tmp.data());
 
                     int converted = swr_convert(swr, &out_ptr, out_samples, frame->extended_data, frame->nb_samples);
                     if (converted > 0) {
@@ -343,7 +343,7 @@ namespace av {
             // Drain any remaining samples from swr
             while (true) {
                 std::vector<int16_t> tmp(4096 * 2);
-                uint8_t* out_ptr = reinterpret_cast<uint8_t*>(tmp.data());
+                auto* out_ptr = reinterpret_cast<uint8_t*>(tmp.data());
                 int converted = swr_convert(swr, &out_ptr, 4096, nullptr, 0);
                 if (converted <= 0) {
                     break;
@@ -403,7 +403,7 @@ namespace av {
             write_u32(data_size);
 
             // Append PCM samples (already little-endian on x86/ARM)
-            const uint8_t* bytes = reinterpret_cast<const uint8_t*>(pcm.data());
+            const auto* bytes = reinterpret_cast<const uint8_t*>(pcm.data());
             wav.insert(wav.end(), bytes, bytes + data_size);
 
             return wav;
@@ -419,7 +419,7 @@ namespace av {
             constexpr uint16_t block_align = channels * (bits / 8); // 4 bytes/frame
             constexpr uint32_t byte_rate = sample_rate * block_align;
 
-            const uint32_t num_samples = static_cast<uint32_t>(sample_rate * duration_seconds);
+            const auto num_samples = static_cast<uint32_t>(sample_rate * duration_seconds);
             const uint32_t data_size = num_samples * block_align;
             const uint32_t chunk_size = 36 + data_size;
 
@@ -542,7 +542,7 @@ namespace av {
 
         // Seek to a position in seconds (0 = beginning).
         void seek(double seconds) {
-            int64_t ts = static_cast<int64_t>(seconds * AV_TIME_BASE);
+            auto ts = static_cast<int64_t>(seconds * AV_TIME_BASE);
             check(av_seek_frame(fmt_ctx_, -1, ts, seconds == 0.0 ? AVSEEK_FLAG_BACKWARD : 0), "av_seek_frame");
         }
 

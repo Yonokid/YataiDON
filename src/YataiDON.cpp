@@ -72,7 +72,7 @@ static void draw_skin_update_status() {
     }
 
     const int size = static_cast<int>(20.0f * global_tex.screen_scale);
-    const float x = static_cast<float>(size);
+    const auto x = static_cast<float>(size);
     float y = static_cast<float>(size) * 2.0f;
 
     std::string skin_line =
@@ -497,7 +497,7 @@ static void run_frame() {
         if (t >= 1.0) {
             L.screen_fade_start = 0.0;
         } else {
-            const float a = static_cast<float>(1.0 - (t < 0.0 ? 0.0 : t));
+            const auto a = static_cast<float>(1.0 - (t < 0.0 ? 0.0 : t));
             draw_rectangle(0, 0, tex.screen_width, tex.screen_height, fade(Color::BLACK, a));
         }
     }

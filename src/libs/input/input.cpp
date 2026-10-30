@@ -165,14 +165,14 @@ public:
             if (slot(id) >= 0) {
                 continue;
             }
-            auto empty = std::ranges::find(ids, -1);
+            auto* empty = std::ranges::find(ids, -1);
             if (empty != ids.end()) {
                 *empty = id;
             }
         }
     }
     int slot(int id) const {
-        auto found = id < 0 ? ids.end() : std::ranges::find(ids, id);
+        const auto* found = id < 0 ? ids.end() : std::ranges::find(ids, id);
         return found == ids.end() ? -1 : static_cast<int>(found - ids.begin());
     }
     int device(int slot) const { return ids[slot]; }
@@ -504,7 +504,7 @@ static bool handle_linux_text_input(SDL_Event* event) {
     const auto* key_state = SDL_GetKeyboardState(nullptr);
     std::scoped_lock lock(input_mutex);
     for (const char* p = event->text.text; *p; p++) {
-        unsigned char c = static_cast<unsigned char>(*p);
+        auto c = static_cast<unsigned char>(*p);
         int key = char_to_raylib_key(c);
         if (!key) {
             continue;

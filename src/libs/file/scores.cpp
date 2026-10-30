@@ -978,7 +978,7 @@ std::optional<PlayerData> ScoresManager::get_player_data(const std::string& play
     }
 
     auto col_str = [&](int i) -> std::string {
-        auto* p = reinterpret_cast<const char*>(sqlite3_column_text(stmt, i));
+        const auto* p = reinterpret_cast<const char*>(sqlite3_column_text(stmt, i));
         return p ? p : "";
     };
 

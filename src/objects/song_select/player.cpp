@@ -107,7 +107,7 @@ void SongSelectPlayer::init_diff_cursor() {
         is_ura = false;
     }
     ura_toggle = 0;
-    if (SongBox* song = dynamic_cast<SongBox*>(navigator.get_current_item())) {
+    if (auto* song = dynamic_cast<SongBox*>(navigator.get_current_item())) {
         song->is_ura = is_ura;
     }
 
@@ -198,7 +198,7 @@ SongSelectState SongSelectPlayer::select_song() {
     }
 
     if (navigator.is_song(item)) {
-        SongBox* song_item = dynamic_cast<SongBox*>(item);
+        auto* song_item = dynamic_cast<SongBox*>(item);
         curr_diffs = song_item->get_diffs();
         if (curr_diffs.empty()) {
             return SongSelectState::BROWSING;
@@ -318,7 +318,7 @@ std::optional<std::pair<int, int>> SongSelectPlayer::handle_input_diff_sort(Diff
 // Strip leading / trailing blanks: ASCII whitespace and the ideographic space U+3000.
 static std::string trim_search(std::string s) {
     auto blank_at = [&](size_t i, size_t& len) {
-        unsigned char b = static_cast<unsigned char>(s[i]);
+        auto b = static_cast<unsigned char>(s[i]);
         if (b == ' ' || b == '\t' || b == '\r' || b == '\n') {
             len = 1;
             return true;
@@ -547,7 +547,7 @@ void SongSelectPlayer::toggle_ura_mode() {
     selected_difficulty = Difficulty(7 - static_cast<int>(selected_difficulty));
     ura_switch.emplace();
     ura_switch->start(is_ura);
-    SongBox* song = dynamic_cast<SongBox*>(navigator.get_current_item());
+    auto* song = dynamic_cast<SongBox*>(navigator.get_current_item());
     if (song) {
         song->is_ura = is_ura;
     }

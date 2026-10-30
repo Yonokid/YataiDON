@@ -256,7 +256,7 @@ void TJAParser::get_metadata() {
                 region_code = to_lower(item.substr(5, 2));
             }
             metadata.title[region_code] = join_after_colon(item);
-        } else if (const auto field = std::ranges::find_if(
+        } else if (const auto* const field = std::ranges::find_if(
                        numeric_fields, [&](const NumericField& field) { return item.starts_with(field.keyword); });
                    field != std::end(numeric_fields)) {
             std::string data_str = split_after_colon(item);
@@ -306,7 +306,7 @@ void TJAParser::get_metadata() {
                 {"4", 4}, {"edit", 4}, {"ura", 4}, {"5", 5},      {"tower", 5}, {"6", 6},    {"dan", 6},
             };
 
-            const auto alias = std::ranges::find(course_aliases, course, &CourseAlias::name);
+            const auto* const alias = std::ranges::find(course_aliases, course, &CourseAlias::name);
             current_diff = alias != std::end(course_aliases) ? alias->difficulty : -1;
 
             if (current_diff == -1) {
@@ -351,7 +351,7 @@ void TJAParser::get_metadata() {
                     {.keyword = "BALLOON", .branch = -1, .clear_without_colon = true},
                 };
 
-                const auto rule = std::ranges::find_if(
+                const auto* const rule = std::ranges::find_if(
                     rules, [&](const BalloonRule& rule) { return item.starts_with(rule.keyword); });
 
                 CourseData& cd = metadata.course_data[current_diff];
@@ -1627,7 +1627,7 @@ std::vector<std::pair<int, int>> find_streams(const std::deque<Note>& modded_not
 std::string TJAParser::get_song_hash() {
     std::vector<unsigned char> buffer;
     auto absorb = [&](const void* data, size_t size) {
-        const unsigned char* bytes = static_cast<const unsigned char*>(data);
+        const auto* bytes = static_cast<const unsigned char*>(data);
         buffer.insert(buffer.end(), bytes, bytes + size);
     };
 
@@ -1680,7 +1680,7 @@ std::string TJAParser::get_diff_hash(int difficulty) {
 
     std::vector<unsigned char> buffer;
     auto absorb = [&](const void* data, size_t size) {
-        const unsigned char* bytes = static_cast<const unsigned char*>(data);
+        const auto* bytes = static_cast<const unsigned char*>(data);
         buffer.insert(buffer.end(), bytes, bytes + size);
     };
 

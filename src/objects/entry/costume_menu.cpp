@@ -56,7 +56,7 @@ void CostumeMenu::load_costume_icons(const std::string& subdir, const std::strin
     }
 
     std::vector<std::pair<int, fs::path>> entries;
-    for (auto& e : fs::directory_iterator(dir)) {
+    for (const auto& e : fs::directory_iterator(dir)) {
         if (e.path().extension() == ".png") {
             try {
                 entries.emplace_back(std::stoi(e.path().stem().string()), e.path());
@@ -108,7 +108,7 @@ void CostumeMenu::load_preset_data() {
 
     fs::path dir = tex.resolve_skin_path(fs::path("Models") / "costume_icon");
     if (fs::exists(dir)) {
-        for (auto& e : fs::directory_iterator(dir)) {
+        for (const auto& e : fs::directory_iterator(dir)) {
             if (e.path().extension() != ".png") {
                 continue;
             }
@@ -132,7 +132,7 @@ void CostumeMenu::load_preset_data() {
     if (fs::exists(presets_path)) {
         try {
             auto doc = read_json_file(presets_path);
-            for (auto& [name, item] : KEYS) {
+            for (const auto& [name, item] : KEYS) {
                 if (!doc.HasMember(name) || !doc[name].IsArray()) {
                     continue;
                 }

@@ -21,7 +21,7 @@ static bool PlayerData::* find_bool_modifier(std::string_view name) {
         {"skip", &PlayerData::modifier_skip},
     };
 
-    const auto modifier = std::ranges::find(modifiers, name, &BoolModifier::name);
+    const auto* const modifier = std::ranges::find(modifiers, name, &BoolModifier::name);
     return modifier != std::end(modifiers) ? modifier->member : nullptr;
 }
 

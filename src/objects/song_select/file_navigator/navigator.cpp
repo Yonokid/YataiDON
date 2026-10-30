@@ -584,7 +584,7 @@ void Navigator::request_folder_summaries() {
 
 void Navigator::refresh_scores() {
     invalidate_folder_summaries();
-    SongBox* curr_item = dynamic_cast<SongBox*>(get_current_item());
+    auto* curr_item = dynamic_cast<SongBox*>(get_current_item());
     if (curr_item) {
         curr_item->refresh_scores();
     }
@@ -772,8 +772,8 @@ void Navigator::add_to_recent(const SongBox* song) {
     invalidate_folder_summaries(); // song_list.txt counts change
     fs::path song_list_path = *recent_folder_path / "song_list.txt";
 
-    auto& titles = song->parser.metadata.title;
-    auto& subtitles = song->parser.metadata.subtitle;
+    const auto& titles = song->parser.metadata.title;
+    const auto& subtitles = song->parser.metadata.subtitle;
     std::string title = titles.contains("en") ? titles.at("en") : titles.begin()->second;
     std::string subtitle = subtitles.contains("en") ? subtitles.at("en") : subtitles.begin()->second;
     std::string hash = scores_manager.get_single_hash(song->parser.file_path);
@@ -1100,7 +1100,7 @@ bool Navigator::jump_to_song_path(const fs::path& song_path) {
         items[open_index]->expand_box();
         items[open_index]->enter_box();
 
-        FolderBox* folder_box = static_cast<FolderBox*>(items[open_index].get());
+        auto* folder_box = static_cast<FolderBox*>(items[open_index].get());
         for (auto& item : items) {
             if (item && item->position > folder_box->position) {
                 item->move_box(tex.screen_width + 150, 600);
@@ -1456,7 +1456,7 @@ void Navigator::update(double current_ms) {
 }
 
 float Navigator::get_diff_fade_in() {
-    SongBox* current_item = dynamic_cast<SongBox*>(get_current_item());
+    auto* current_item = dynamic_cast<SongBox*>(get_current_item());
     if (!current_item || !current_item->diff_fade_in) {
         return 0.0f;
     }

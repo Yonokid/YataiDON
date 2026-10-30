@@ -542,7 +542,7 @@ void Chara3D::load_face_textures(fs::path& face_dir) {
         return;
     }
     std::vector<fs::path> paths;
-    for (auto& e : fs::directory_iterator(face_dir)) {
+    for (const auto& e : fs::directory_iterator(face_dir)) {
         if (e.path().extension() == ".png") {
             paths.push_back(e.path());
         }

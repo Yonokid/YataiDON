@@ -113,12 +113,12 @@ void TextureWrapper::init(const fs::path& skin_path) {
 
         std::map<std::string, std::string> text_map;
         if (v.HasMember("text") && v["text"].IsObject()) {
-            for (auto& t : v["text"].GetObject()) {
+            for (const auto& t : v["text"].GetObject()) {
                 text_map[t.name.GetString()] = t.value.GetString();
             }
         }
 
-        float outline = static_cast<float>(json_member(v, "outline", -1.0));
+        auto outline = static_cast<float>(json_member(v, "outline", -1.0));
 
         SkinInfo info(x, y, font_size, width, height, text_map, outline);
 
@@ -135,7 +135,7 @@ void TextureWrapper::init(const fs::path& skin_path) {
     // "song_select_1p", ...). Positions are scaled like the other skin_config values.
     auto load_chara = [this](const Value& cfg, float scale) {
         if (cfg.HasMember("nameplate") && cfg["nameplate"].IsObject()) {
-            for (auto& m : cfg["nameplate"].GetObject()) {
+            for (const auto& m : cfg["nameplate"].GetObject()) {
                 if (m.value.IsArray() && m.value.Size() >= 2 && m.value[0].IsNumber() && m.value[1].IsNumber()) {
                     nameplate_positions[m.name.GetString()] = {m.value[0].GetFloat() * scale,
                                                                m.value[1].GetFloat() * scale};
@@ -145,7 +145,7 @@ void TextureWrapper::init(const fs::path& skin_path) {
         if (!cfg.HasMember("chara_3d") || !cfg["chara_3d"].IsObject()) {
             return;
         }
-        for (auto& m : cfg["chara_3d"].GetObject()) {
+        for (const auto& m : cfg["chara_3d"].GetObject()) {
             std::string name = m.name.GetString();
             if (m.value.IsNumber()) {
                 struct CharaField {
@@ -160,7 +160,7 @@ void TextureWrapper::init(const fs::path& skin_path) {
                     {"rot_z", &Chara3DConfig::rot_z},
                 };
 
-                const auto field = std::ranges::find(fields, name, &CharaField::name);
+                const auto* const field = std::ranges::find(fields, name, &CharaField::name);
                 if (field != std::end(fields)) {
                     chara_3d_config.*(field->member) = m.value.GetFloat();
                 }
@@ -214,7 +214,7 @@ void TextureWrapper::init(const fs::path& skin_path) {
     if (skin_config_file.HasMember("screen") && skin_config_file["screen"].HasMember("options")) {
         const Value& opts = skin_config_file["screen"]["options"];
         if (opts.IsObject()) {
-            for (auto& opt : opts.GetObject()) {
+            for (const auto& opt : opts.GetObject()) {
                 if (opt.value.IsBool()) {
                     auto it = screen_options_map.find(opt.name.GetString());
                     if (it != screen_options_map.end()) {
@@ -1305,8 +1305,8 @@ void TextureWrapper::draw_texture(TextureObject* tex_obj, const DrawTextureParam
             throw;
         }
     } else {
-        const float width = static_cast<float>(tex_obj->width);
-        const float height = static_cast<float>(tex_obj->height);
+        const auto width = static_cast<float>(tex_obj->width);
+        const auto height = static_cast<float>(tex_obj->height);
         source_rect = Rect{0, 0, width * mirror_x, height * mirror_y};
     }
 

@@ -33,7 +33,7 @@ static std::string search_fold(const std::string& s) {
     out.reserve(s.size());
     size_t i = 0;
     while (i < s.size()) {
-        unsigned char b = static_cast<unsigned char>(s[i]);
+        auto b = static_cast<unsigned char>(s[i]);
         int len = b < 0x80 ? 1 : (b >> 5) == 0x6 ? 2 : (b >> 4) == 0xE ? 3 : (b >> 3) == 0x1E ? 4 : 0;
         if (len == 0 || i + len > s.size()) {
             out += static_cast<char>(b);
@@ -43,7 +43,7 @@ static std::string search_fold(const std::string& s) {
         uint32_t cp = len == 1 ? b : len == 2 ? (b & 0x1F) : len == 3 ? (b & 0x0F) : (b & 0x07);
         bool ok = true;
         for (int k = 1; k < len; k++) {
-            unsigned char cb = static_cast<unsigned char>(s[i + k]);
+            auto cb = static_cast<unsigned char>(s[i + k]);
             if ((cb & 0xC0) != 0x80) {
                 ok = false;
                 break;
@@ -320,7 +320,7 @@ std::optional<fs::path> SongIndex::find_song_by_title(const std::string& title, 
         return it->second;
     }
 
-    for (auto& [indexed_title, path] : normalized_titles) {
+    for (const auto& [indexed_title, path] : normalized_titles) {
 
         // Check if norm_title is inside indexed_title or vice-versa
         if (indexed_title.contains(norm_title) || norm_title.contains(indexed_title)) {

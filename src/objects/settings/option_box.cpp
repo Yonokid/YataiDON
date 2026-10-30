@@ -99,7 +99,7 @@ IntOptionBox::IntOptionBox(const std::string& name, const std::string& descripti
     : BaseOptionBox(name, description, path), value(config_ref.get_int()), value_text(nullptr),
       flicker_fade(make_flicker()) {
     if (!values.empty()) {
-        for (auto& [k, v] : values) {
+        for (const auto& [k, v] : values) {
             try {
                 value_list.emplace_back(std::stoi(k), v);
             } catch (const std::exception&) {
@@ -195,7 +195,7 @@ StrOptionBox::StrOptionBox(const std::string& name, const std::string& descripti
     : BaseOptionBox(name, description, path), value(config_ref.get_str()), input_string(value), value_text(nullptr),
       flicker_fade(make_flicker()) {
     if (!values.empty()) {
-        for (auto& [k, v] : values) {
+        for (const auto& [k, v] : values) {
             value_list.emplace_back(k, v);
         }
         bool matched = false;

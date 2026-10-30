@@ -209,7 +209,7 @@ void DanSelectScreen::handle_input_browsing(double current_ms) {
     }
 
     if (wheel_locked) {
-        long long tick = static_cast<long long>((current_ms - wheel_tick_epoch) / 100.0);
+        auto tick = static_cast<long long>((current_ms - wheel_tick_epoch) / 100.0);
         if (tick > wheel_tick_seen) {
             wheel_locked = false;
             wheel_tick_seen = tick;

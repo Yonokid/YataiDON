@@ -394,7 +394,7 @@ namespace card_reader {
             return false;
         }
 
-        uint8_t payload_len = static_cast<uint8_t>(payload.size());
+        auto payload_len = static_cast<uint8_t>(payload.size());
         uint8_t packet_len = 5 + payload_len;
 
         uint8_t expected_sequence = sequence_;
@@ -464,7 +464,7 @@ namespace card_reader {
             return false;
         }
 
-        uint8_t payload_len = static_cast<uint8_t>(payload.size());
+        auto payload_len = static_cast<uint8_t>(payload.size());
         uint8_t packet_len = 5 + payload_len;
 
         uint8_t expected_sequence = sequence_;
