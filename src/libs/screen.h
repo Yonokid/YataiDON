@@ -10,6 +10,7 @@
 #include "audio/audio.h"
 #include "gfx/texture.h"
 #include "global_data.h"
+#include "time.h"
 
 inline int virtual_to_screen_x(float virtual_x) {
     if (tex.screen_width <= 0 || tex.screen_height <= 0) {
@@ -140,6 +141,7 @@ protected:
             screen_init = true;
             try {
                 on_screen_start();
+                g_frame_ms = get_current_ms();
                 spdlog::info("{} initialized", screen_name);
             } catch (const std::exception& e) {
                 spdlog::critical("{} failed to initialize: {}", screen_name, e.what());

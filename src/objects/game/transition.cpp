@@ -87,18 +87,12 @@ void Transition::draw_dan_rainbow(float total_offset) {
     global_tex.draw_texture(t_rainbow_bg, {.y = y});
 }
 
-// start() is called while the next screen loads; starting the animations then would put them ahead of
-// the script's own frame-driven timing by the load time, cutting the transition short
 void Transition::start() {
-    start_pending = true;
+    call(fn_start, "SongTransition:start");
+    dan_start_ms = get_current_ms();
 }
 
 void Transition::update(double current_ms) {
-    if (start_pending) {
-        start_pending = false;
-        call(fn_start, "SongTransition:start");
-        dan_start_ms = get_current_ms();
-    }
     // dan course with neither loading art nor a rainbow backdrop: no transition at all
     if (dan_color >= 0 && !global_tex.has_texture("loading_dan/night") && !t_rainbow_bg) {
         finished = true;

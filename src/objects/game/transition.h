@@ -8,7 +8,6 @@ private:
     sol::protected_function fn_update, fn_draw_bg, fn_draw_info, fn_state, fn_start;
     double cur_rainbow = 0, cur_fade = 0, cur_fade_out = 0;
     bool finished = false;
-    bool start_pending = false;
 
     int dan_color = -1;
     double dan_start_ms = 0.0;
