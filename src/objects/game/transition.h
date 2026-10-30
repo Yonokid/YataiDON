@@ -8,11 +8,13 @@ private:
     sol::protected_function fn_update, fn_draw_bg, fn_draw_info, fn_state, fn_start;
     double cur_rainbow = 0, cur_fade = 0, cur_fade_out = 0;
     bool finished = false;
+    bool start_pending = false;
 
     int dan_color = -1;
     double dan_start_ms = 0.0;
     std::unique_ptr<OutlinedText> dan_rank_text;
     void draw_dan(float total_offset);
+    void draw_dan_rainbow(float total_offset);
 
     bool is_second;
     std::unique_ptr<OutlinedText> title;
@@ -23,6 +25,9 @@ private:
     TextureObject* t_rainbow_text_bg = nullptr;
     TextureObject* t_loading_dan_night = nullptr;
     TextureObject* t_loading_dan_plaque = nullptr;
+    TextureObject* t_rainbow_bg_bottom = nullptr;
+    TextureObject* t_rainbow_bg_top = nullptr;
+    TextureObject* t_rainbow_bg = nullptr;
 
 public:
     Transition(const std::string& title, const std::string& subtitle, bool is_second);
