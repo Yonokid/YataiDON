@@ -54,7 +54,8 @@ public:
     std::vector<BranchDifficulty> branch_history;
 
     Player(std::optional<SongParser>& parser_ref, PlayerNum player_num_param, int difficulty_param, bool is_2p_param,
-           const Modifiers& modifiers_param);
+           const Modifiers& modifiers_param,
+           const std::string& score_method_param = global_data.config->general.score_method);
 
     virtual ~Player() = default;
 

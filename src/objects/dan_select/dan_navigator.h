@@ -22,6 +22,7 @@ struct DanBoxData {
     int rank = -1;
     int dan_index = -1;
     bool gaiden = false;
+    bool gen3 = false; // "gen3": true forces gen3 scoring for this course
     std::vector<DanSongEntry> songs;
     std::vector<Exam> exams;
     int total_notes = 0;

@@ -355,6 +355,7 @@ std::optional<DanBoxData> DanNavigator::load_dan_box_data(const fs::path& json_p
     d.exams = std::move(exams);
     d.total_notes = total_notes_for(songs);
     d.gaiden = doc.HasMember("gaiden") && doc["gaiden"].IsBool() && doc["gaiden"].GetBool();
+    d.gen3 = doc.HasMember("gen3") && doc["gen3"].IsBool() && doc["gen3"].GetBool();
     return d;
 }
 
@@ -363,6 +364,7 @@ std::unique_ptr<DanBox> DanNavigator::make_box(const DanBoxData& d) {
     box->dan_rank = d.rank;
     box->dan_index = d.dan_index;
     box->gaiden = d.gaiden;
+    box->gen3 = d.gen3;
     box->song_titles = d.song_titles;
     return box;
 }

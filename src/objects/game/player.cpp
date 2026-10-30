@@ -14,9 +14,9 @@
 #include "../../libs/input/input.h"
 
 Player::Player(std::optional<SongParser>& parser_ref, PlayerNum player_num_param, int difficulty_param,
-               bool is_2p_param, const Modifiers& modifiers_param)
+               bool is_2p_param, const Modifiers& modifiers_param, const std::string& score_method_param)
     : is_2p(is_2p_param), player_num(player_num_param), difficulty(difficulty_param),
-      visual_offset(global_data.config->general.visual_offset), score_method(global_data.config->general.score_method),
+      visual_offset(global_data.config->general.visual_offset), score_method(score_method_param),
       modifiers(modifiers_param), parser(parser_ref), combo_display(combo, 0), score_counter(is_2p, player_num) {
     PlayerSoundScope audio_owner(player_num);
     init_player_textures();

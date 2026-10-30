@@ -93,7 +93,8 @@ void DanGameScreen::init_dan() {
 
     players.clear();
     players.push_back(std::make_unique<Player>(parser, global_data.player_num, first.difficulty, false,
-                                               get_player_modifiers(global_data.player_num)));
+                                               get_player_modifiers(global_data.player_num),
+                                               sd.dan_gen3 ? ScoreMethod::GEN3 : global_data.config->general.score_method));
     players[0]->set_is_dan(true);
     players[0]->gauge.reset();
     players[0]->dan_gauge = &dan_gauge.value();
@@ -440,7 +441,7 @@ void DanGameScreen::save_song_score(DanResultSong& song_res) {
     const std::string modifiers_json = modifiers_to_json(players[0]->get_modifiers());
     scores_manager.save_score(hash, entry.difficulty, player_id, score, played_at, modifiers_json, &song_res.score_id);
 
-    if (global_data.config->general.score_method != ScoreMethod::GEN3) {
+    if (global_data.config->general.score_method != ScoreMethod::GEN3 && !sd.dan_gen3) {
         std::string access_code;
         if (player_id == scores_manager.player_1) {
             access_code = global_data.config->network.access_code_1;
