@@ -159,6 +159,7 @@ class NavigationLoad {
     void load_from_song_list(const fs::path& path, const BoxDef& box_def, bool mark_favorite);
     void load_collection_recommended(const fs::path& path, const BoxDef& box_def);
     void load_collection_search(const fs::path& path, const BoxDef& box_def);
+    void load_collection_play_count(const fs::path& path, const BoxDef& box_def);
     void scan_song_tree(const fs::path& path, std::vector<fs::path>& song_paths,
                         std::unordered_map<std::string, std::vector<std::pair<bool, fs::path>>>& plan);
     void load_songs_inline_async(const fs::path& path, const BoxDef& box_def);
@@ -701,16 +702,48 @@ void NavigationLoad::load_collection_search(const fs::path& path, const BoxDef& 
     }
 }
 
+void NavigationLoad::load_collection_play_count(const fs::path& path, const BoxDef& box_def) {
+    std::unordered_map<fs::path, int> plays;
+    for (const auto& [hash, count] : scores_manager.get_play_counts(player_1)) {
+        if (auto song_path = scores_manager.get_path_by_diff_hash(hash)) {
+            plays[*song_path] += count;
+        }
+    }
+    std::vector<std::pair<fs::path, int>> hits(plays.begin(), plays.end());
+    std::ranges::sort(hits, [](const auto& a, const auto& b) {
+        return a.second != b.second ? a.second > b.second : a.first < b.first;
+    });
+
+    std::vector<fs::path> hit_paths;
+    hit_paths.reserve(hits.size());
+    for (const auto& h : hits) {
+        hit_paths.push_back(h.first);
+    }
+    auto preparsed = parse_songs_parallel(hit_paths, cancellation_token);
+
+    int songs_added = 0;
+    for (const fs::path& song_path : hit_paths) {
+        if (abort_loading) {
+            break;
+        }
+        if (songs_added > 0 && songs_added % 10 == 0) {
+            enqueue_inline_box(make_back_box(path.parent_path(), &inline_back_def));
+        }
+        auto song = make_song_box(song_path, box_def, take_parser(preparsed, song_path));
+        song->preserve_order = true;
+        fs::path genre_folder = navigation_scan::find_box_def_folder(song_path);
+        if (!genre_folder.empty()) {
+            apply_song_genre(song.get(), parse_box_def(genre_folder));
+        }
+        song->fade_in(266);
+        enqueue_inline_box(std::move(song));
+        songs_added++;
+    }
+}
+
 void NavigationLoad::scan_song_tree(const fs::path& path, std::vector<fs::path>& song_paths,
                                     std::unordered_map<std::string, std::vector<std::pair<bool, fs::path>>>& plan) {
-    // Collect the song files with ONE pass per directory, reading the type off the
-    // directory entry itself (the listing already carries it) instead of stat()ing every
-    // path again, and deciding "osu folder" from the same listing instead of re-listing
-    // each folder through navigation_scan::is_osu_song_folder().  On a 600-song genre the old walk cost
-    // ~4 stats per file plus one extra enumeration per folder -- most of the open time.
     std::error_code ec;
-    // plan[top-level dir] = what sits under it, in walk order: {false, song file} or {true, osu folder}.
-    // The second pass below replays this instead of walking the tree again.
     std::vector<std::pair<fs::path, std::string>> work; // (dir to list, top-level key)
     auto scan_dir = [&](const fs::path& dir, const std::string& key) {
         std::vector<fs::path> here, subdirs;
@@ -847,6 +880,16 @@ void NavigationLoad::load_songs_inline_async(const fs::path& path, const BoxDef&
             load_collection_search(path, box_def);
         } catch (const std::exception& e) {
             spdlog::error("Error loading search collection {}: {}", path.string(), e.what());
+            throw;
+        }
+        return;
+    }
+
+    if (box_def.collection == "PLAY_COUNT") {
+        try {
+            load_collection_play_count(path, box_def);
+        } catch (const std::exception& e) {
+            spdlog::error("Error loading play count collection {}: {}", path.string(), e.what());
             throw;
         }
         return;

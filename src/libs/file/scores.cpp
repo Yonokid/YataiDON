@@ -301,6 +301,7 @@ ScoresManager::~ScoresManager() {
 void ScoresManager::load_score_cache() {
     std::scoped_lock lock(maps_mutex);
     score_cache.clear();
+    play_count_cache.clear();
 
     sqlite3_stmt* stmt;
     const char* query = "SELECT player_id, hash, difficulty, score, good, ok, bad, drumroll, max_combo, crown, rank "
@@ -319,6 +320,7 @@ void ScoresManager::load_score_cache() {
         int difficulty = sqlite3_column_int(stmt, 2);
 
         // Rows are ordered best-first, so the first row seen for a key is the best one.
+        play_count_cache[{hash, player_id}]++;
         auto key = std::make_tuple(hash, difficulty, player_id);
         if (score_cache.contains(key)) {
             continue;
@@ -588,6 +590,17 @@ std::optional<Score> ScoresManager::get_score(const std::string& hash, int diffi
     return std::nullopt;
 }
 
+std::unordered_map<std::string, int> ScoresManager::get_play_counts(const std::string& player_id) {
+    std::scoped_lock lock(maps_mutex);
+    std::unordered_map<std::string, int> counts;
+    for (const auto& [key, count] : play_count_cache) {
+        if (key.second == player_id) {
+            counts[key.first] += count;
+        }
+    }
+    return counts;
+}
+
 Score ScoresManager::save_score(const std::string& hash, int difficulty, const std::string& player_id, Score score,
                                 int64_t played_at, const std::string& modifiers_json, int64_t* out_score_id) {
     if (out_score_id) {
@@ -630,6 +643,7 @@ Score ScoresManager::save_score(const std::string& hash, int difficulty, const s
 
     auto key = std::make_tuple(hash, difficulty, player_id);
     std::scoped_lock lock(maps_mutex);
+    play_count_cache[{hash, player_id}]++;
     auto it = score_cache.find(key);
     bool is_better = it == score_cache.end() || score.crown > it->second.crown ||
                      (score.crown == it->second.crown && score.score > it->second.score);

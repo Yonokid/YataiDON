@@ -109,6 +109,7 @@ private:
     std::unordered_map<std::string, fs::path> single_hash_to_path;
     std::unordered_map<std::string, fs::path> diff_hash_to_path;
     std::map<std::tuple<std::string, int, std::string>, Score> score_cache;
+    std::map<std::pair<std::string, std::string>, int> play_count_cache; // (diff hash, player_id) -> plays
     void load_score_cache();
 
 public:
@@ -125,6 +126,8 @@ public:
 
     int apply_remote_scores(const std::vector<RemoteScore>& scores, const std::string& player_id);
     std::optional<Score> get_score(const std::string& hash, int difficulty, const std::string& player_id);
+    // diff hash -> number of saved plays for player_id
+    std::unordered_map<std::string, int> get_play_counts(const std::string& player_id);
     // out_score_id (optional) receives the new scores row id, or -1 if the insert failed.
     Score save_score(const std::string& hash, int difficulty, const std::string& player_id, Score score,
                      int64_t played_at, const std::string& modifiers_json, int64_t* out_score_id = nullptr);

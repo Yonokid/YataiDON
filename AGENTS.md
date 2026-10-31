@@ -39,6 +39,8 @@ Useful CMake options:
 `DATATABLE_SEED`, `FUMEN_SEED`. Without them, networking / Fumen support are compiled out.
 Android Gradle must forward the network values as CMake args, or linking fails.
 
+Do not compile using cmake/ninja yourself. Always use the provided shell scripts.
+
 ## Checks
 
 There is no unit test suite. Before finishing a change:
