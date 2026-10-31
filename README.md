@@ -8,8 +8,6 @@ A TJA player and Taiko simulator written in C++ using the [raylib](https://www.r
 [![Discord Members](https://img.shields.io/discord/722513061419810946.svg?label=Discord&logo=discord)](https://discord.gg/XHcVYKW)
 [![Builds](https://github.com/Yonokid/YataiDON/actions/workflows/build-desktop.yml/badge.svg)](https://github.com/Yonokid/YataiDON/actions/workflows/build-desktop.yml)
 
-Experimental PS5 homebrew build: [build instructions and current limitations](ps5/README.md).
-
 ## Features
 
 - Cross-platform compatibility (Windows, Linux, macOS, Android, iOS)
