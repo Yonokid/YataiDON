@@ -138,6 +138,9 @@ inline ConfigRef get_config_ref(const std::string& path) {
     if (path == "general/touch_input") {
         return &c->general.touch_input;
     }
+    if (path == "general/touch_drum_size") {
+        return &c->general.touch_drum_size;
+    }
     // limits
     if (path == "limits/timer_frozen") {
         return &c->limits.timer_frozen;

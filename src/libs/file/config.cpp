@@ -280,6 +280,7 @@ Config get_config() {
     config.general.display_bpm = config_file["general"]["display_bpm"].value_or(false);
     config.general.webcam_number = config_file["general"]["webcam_number"].value_or(-1);
     config.general.touch_input = config_file["general"]["touch_input"].value_or(kDefaultTouchInput);
+    config.general.touch_drum_size = config_file["general"]["touch_drum_size"].value_or(1.0f);
     config.general.skin_updater = config_file["general"]["skin_updater"].value_or(true);
     config.general.fast_transitions = config_file["general"]["fast_transitions"].value_or(false);
 
@@ -454,6 +455,7 @@ void save_config(const Config& config) {
                                                {"display_bpm", config.general.display_bpm},
                                                {"webcam_number", config.general.webcam_number},
                                                {"touch_input", config.general.touch_input},
+                                               {"touch_drum_size", config.general.touch_drum_size},
                                                {"skin_updater", config.general.skin_updater},
                                                {"fast_transitions", config.general.fast_transitions}});
 

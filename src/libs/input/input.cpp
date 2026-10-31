@@ -453,6 +453,10 @@ bool is_r_kat_pressed(PlayerNum player_num, float* strength) {
     return is_input_key_pressed(keys, gamepad_buttons, strength) || check_key_pressed(TOUCH_R_KAT, strength);
 }
 
+static float touch_drum_size() {
+    return std::clamp(global_data.config->general.touch_drum_size, 0.25f, 2.0f);
+}
+
 static int touch_quadrant_vkey(Vec2 pos, int sw, int sh) {
     bool left = pos.x < sw / 2.0f;
     bool top = pos.y < sh / 2.0f;
@@ -465,8 +469,8 @@ static int touch_quadrant_vkey(Vec2 pos, int sw, int sh) {
     float cx = sw * 0.5f;
     float cy = sh * 0.5f + tex.screen_height * render_scale * 0.5f;
 
-    float rx = tex.screen_width * 0.262f * render_scale;
-    float ry = tex.screen_width * 0.242f * render_scale;
+    float rx = tex.screen_width * 0.262f * render_scale * touch_drum_size();
+    float ry = tex.screen_width * 0.242f * render_scale * touch_drum_size();
 
     float dx = pos.x - cx;
     float dy = pos.y - cy;
@@ -599,7 +603,7 @@ bool draw_touch_drum() {
         touch_drum_resize->restart();
     }
     touch_drum_resize->update(get_current_ms());
-    const float scale = touch_drum_resize->attribute;
+    const float scale = touch_drum_resize->attribute * touch_drum_size();
     float y_fix = 0.0f;
     auto drum_it = global_tex.textures.find("overlay/touch_drum");
     if (drum_it != global_tex.textures.end()) {
