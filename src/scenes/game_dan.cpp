@@ -92,9 +92,9 @@ void DanGameScreen::init_dan() {
     load_song_audio(AudioLoadMode::Sync);
 
     players.clear();
-    players.push_back(std::make_unique<Player>(parser, global_data.player_num, first.difficulty, false,
-                                               get_player_modifiers(global_data.player_num),
-                                               sd.dan_gen3 ? ScoreMethod::GEN3 : global_data.config->general.score_method));
+    players.push_back(std::make_unique<Player>(
+        parser, global_data.player_num, first.difficulty, false, get_player_modifiers(global_data.player_num),
+        sd.dan_gen3 ? ScoreMethod::GEN3 : global_data.config->general.score_method));
     players[0]->set_is_dan(true);
     players[0]->gauge.reset();
     players[0]->dan_gauge = &dan_gauge.value();

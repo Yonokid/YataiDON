@@ -561,7 +561,9 @@ static void run_frame() {
         std::strftime(date, sizeof(date), "%Y-%m-%d_%H-%M-%S", std::localtime(&now));
         std::string name = std::string(date) + "_" + sd.song_title + "_" + std::to_string(sd.selected_difficulty);
         for (char& c : name) {
-            if (c == ' ' || std::strchr("/\\:*?\"<>|", c)) c = '_';
+            if (c == ' ' || std::strchr("/\\:*?\"<>|", c)) {
+                c = '_';
+            }
         }
         fs::create_directories("Screenshots");
         const std::string path = "Screenshots/" + name + ".png";

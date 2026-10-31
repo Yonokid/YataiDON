@@ -463,7 +463,6 @@ NoteList& OsuParser::get_notes() {
         }
     }
 
-
     double last_ms = 0.0;
     for (const Note& n : cached_notes.notes) {
         last_ms = std::max(last_ms, n.hit_ms);
