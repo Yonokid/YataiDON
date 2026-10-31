@@ -203,6 +203,7 @@ struct SessionData {
     fs::path selected_song;
     std::string song_hash;
     fs::path selected_dan_folder;
+    fs::path selected_tutorial;
     std::vector<DanSongEntry> selected_dan;
     std::vector<Exam> selected_dan_exam;
     int dan_color = 0;

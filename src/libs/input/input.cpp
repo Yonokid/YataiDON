@@ -185,7 +185,7 @@ static std::atomic<int> slotted_gamepads{0}; // controller_slots.count(), for th
 
 static bool is_gameplay_screen(std::string_view screen) {
     return screen == "GAME" || screen == "GAME_2P" || screen == "GAME_DAN" || screen == "GAME_PRACTICE" ||
-           screen == "AI_GAME" || screen == "INPUT_TEST" || screen == "INPUT_CALI";
+           screen == "AI_GAME" || screen == "INPUT_TEST" || screen == "INPUT_CALI" || screen == "TUTORIAL";
 }
 
 // With two pads in 2P, pad 1 plays P1 and pad 2 plays P2 even when their bindings overlap.

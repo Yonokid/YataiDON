@@ -430,6 +430,9 @@ void NavigationLoad::load_current_directory_async(const fs::path& path) {
                     if (hide_dan && entry_box_def.genre_index == GenreIndex::DAN) {
                         continue;
                     }
+                    if (entry_box_def.genre_index == GenreIndex::TUTORIAL && !fs::exists(curr_path / TUTORIAL_CHART)) {
+                        continue; // the tutorial folder only shows while its chart is there
+                    }
                     auto folder = std::make_unique<PreparedFolder>(curr_path, entry_box_def);
                     if (entry_box_def.collection == "RECOMMENDED") {
                         folder->tja_count = 10;

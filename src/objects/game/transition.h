@@ -10,6 +10,8 @@ private:
     bool finished = false;
 
     int dan_color = -1;
+    bool rainbow_only = false;
+    void load_rainbow_bg();
     double dan_start_ms = 0.0;
     std::unique_ptr<OutlinedText> dan_rank_text;
     void draw_dan(float total_offset);
@@ -34,6 +36,8 @@ public:
     void start();
     void add_loading_graphic(const std::string& path);
     void set_dan(int color, const std::string& rank_name);
+    // Rainbow backdrop only, no title or characters (tutorial)
+    void set_rainbow_only();
     void update(double current_ms);
     void draw();
 

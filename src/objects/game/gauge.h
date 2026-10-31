@@ -16,6 +16,7 @@ public:
     void add_good();
     void add_ok();
     void add_bad();
+    void set_fraction(double fraction) { apply_points_clamped(fraction * max_points - points); }
     void update(double current_ms);
     void draw(float y = 0.0f);
 

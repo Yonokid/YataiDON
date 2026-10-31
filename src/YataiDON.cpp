@@ -55,6 +55,7 @@
 #include "scenes/song_select_2p.h"
 #include "scenes/song_select_practice.h"
 #include "scenes/title.h"
+#include "scenes/tutorial.h"
 
 void draw_outer_border(int screen_width, int screen_height, Color last_color) {
     draw_rectangle(-screen_width, 0, screen_width, screen_height, last_color);
@@ -279,6 +280,7 @@ static bool screen_fade_applies(Screens from, Screens to) {
     case Screens::GAME:
     case Screens::GAME_2P:
     case Screens::GAME_DAN:
+    case Screens::TUTORIAL:
     case Screens::GAME_PRACTICE:
     case Screens::AI_GAME:
     case Screens::RESULT:
@@ -364,6 +366,9 @@ static void populate_screens(std::unordered_map<Screens, std::unique_ptr<Screen>
     }
     if (except != Screens::ONBOARDING) {
         screens[Screens::ONBOARDING] = std::make_unique<OnboardingScreen>();
+    }
+    if (except != Screens::TUTORIAL) {
+        screens[Screens::TUTORIAL] = std::make_unique<TutorialScreen>();
     }
 }
 

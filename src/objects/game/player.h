@@ -333,9 +333,8 @@ private:
 
     void kusudama_counter_manager(double current_ms);
 
-    virtual void spawn_hit_effects(DrumType drum_type, Side side);
-
 protected:
+    virtual void spawn_hit_effects(DrumType drum_type, Side side);
     virtual void handle_input(double ms_from_start, double current_ms, std::optional<Background>& background);
 
 private:

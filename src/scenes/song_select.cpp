@@ -400,6 +400,8 @@ std::optional<Screens> SongSelectScreen::update() {
         } else if (state == SongSelectState::DAN_SELECTED) {
             dan_transition.emplace();
             dan_transition->start();
+        } else if (state == SongSelectState::TUTORIAL_SELECTED) {
+            return on_screen_end(Screens::TUTORIAL);
         }
     }
 
