@@ -23,8 +23,8 @@ public:
 
 private:
     double slider_multiplier = 1.4;
-    // Each timing point: {time_ms, beat_length}
-    std::vector<std::array<double, 2>> timing_points;
+    // Each timing point: {time_ms, beat_length, meter, effects}
+    std::vector<std::array<double, 4>> timing_points;
     // Each hit object: comma-separated fields, kept as strings (positional)
     std::vector<std::vector<std::string>> hit_objects_data;
 
