@@ -143,6 +143,8 @@ public:
 protected:
     std::optional<LaneHitEffect> lane_hit_effect;
     std::vector<std::unique_ptr<DrumHitEffect>> draw_drum_hit_list;
+    TextureObject* lane_mark = nullptr; // drawn instead of the difficulty mark (tutorial wakaba)
+    bool show_lane_name = true;         // auto icon / nameplate
 
 private:
     bool is_2p;

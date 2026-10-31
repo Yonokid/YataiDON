@@ -11,7 +11,12 @@ namespace {
     public:
         TutorialPlayer(std::optional<SongParser>& parser, PlayerNum player_num, const Modifiers& modifiers,
                        std::vector<TutorialScreen::Hit>& hits)
-            : Player(parser, player_num, static_cast<int>(Difficulty::EASY), false, modifiers), hits(hits) {}
+            : Player(parser, player_num, static_cast<int>(Difficulty::EASY), false, modifiers), hits(hits) {
+            if (tex.has_texture("tutorial/wakaba")) {
+                lane_mark = tex.get_texture("tutorial/wakaba");
+            }
+            show_lane_name = false;
+        }
 
         void spawn_hit_effects(DrumType drum_type, Side side) override {
             Player::spawn_hit_effects(drum_type, side);
