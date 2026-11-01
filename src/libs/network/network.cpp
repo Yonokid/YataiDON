@@ -443,6 +443,10 @@ std::optional<RemoteUser> NetworkClient::fetch_user(const std::string& access_co
         user.costume = RemoteUser::Costume{doc["chara_head_index"].GetInt(), doc["chara_body_index"].GetInt(),
                                            doc["chara_cos_index"].GetInt(), doc["chara_is_costume"].GetBool()};
     }
+    // null = none equipped; acce 0 is the empty sheet
+    if (doc.HasMember("puchichara")) {
+        user.acce_index = doc["puchichara"].IsInt() ? doc["puchichara"].GetInt() : 0;
+    }
     user.import_requested =
         doc.HasMember("import_requested") && doc["import_requested"].IsBool() && doc["import_requested"].GetBool();
     return user;

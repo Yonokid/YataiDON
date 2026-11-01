@@ -151,6 +151,15 @@ private:
     bool screen_bounds(float x, float y, const Camera3D& cam3d, float zoom, int rw, int rh, float& x0, float& y0,
                        float& x1, float& y1);
     void ensure_render_targets(int rw, int rh);
+    void draw_body(float x, float y);
+    void draw_puchi(float x, float y);
+
+    Texture puchi_tex;
+    Texture puchi_silhouette;
+    Color tint_color;
+    float tint_amount = 0.0f;
+    int puchi_index = 0;
+    double puchi_ms = 0;
     void prewarm_render_targets();
 
 public:
@@ -162,6 +171,7 @@ public:
     void apply_face(int face_index);
     void set_body_texture(fs::path& texture_path);
     void set_face_rim_texture(fs::path& texture_path);
+    void set_puchi(int index);
 
     void set_don_colors(Color body, Color face, Color rim);
 

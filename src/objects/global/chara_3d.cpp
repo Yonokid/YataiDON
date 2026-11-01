@@ -500,6 +500,40 @@ Chara3D::~Chara3D() {
     for (auto& tex : face_textures) {
         unload_texture(tex);
     }
+    if (puchi_tex.id != 0) {
+        unload_texture(puchi_tex);
+        unload_texture(puchi_silhouette);
+    }
+}
+
+void Chara3D::set_puchi(int index) {
+    if (index == puchi_index) {
+        return;
+    }
+    puchi_index = index;
+    if (puchi_tex.id != 0) {
+        unload_texture(puchi_tex);
+        unload_texture(puchi_silhouette);
+        puchi_tex = {};
+        puchi_silhouette = {};
+    }
+    if (index <= 0) {
+        return;
+    }
+    fs::path path = resolve_skin_path(fs::path("Models/acce") / (std::to_string(index) + ".png"));
+    if (fs::exists(path)) {
+        Image img = load_image(path.string().c_str());
+        image_format(&img, pixel_format::RGBA8);
+        puchi_tex = load_texture_from_image(img);
+        auto* px = static_cast<unsigned char*>(img.data);
+        for (int i = 0; i < img.width * img.height; i++) {
+            px[4 * i] = px[4 * i + 1] = px[4 * i + 2] = 255;
+        }
+        puchi_silhouette = load_texture_from_image(img);
+        unload_image(img);
+        set_texture_filter(puchi_tex, texture_filter::BILINEAR);
+        set_texture_filter(puchi_silhouette, texture_filter::BILINEAR);
+    }
 }
 
 void Chara3D::set_texture(fs::path& texture_path, int part_index, int material_index) {
@@ -725,6 +759,8 @@ std::string Chara3D::get_anim_name(int idx) {
 }
 
 void Chara3D::set_tint(Color color, float amount) {
+    tint_color = color;
+    tint_amount = amount;
     if (outline_fxaa_shader.id == 0) {
         return;
     }
@@ -787,6 +823,7 @@ int Chara3D::get_anim_count() const {
 }
 
 void Chara3D::update(double current_ms) {
+    puchi_ms = current_ms;
     if (frozen) {
         return;
     }
@@ -954,6 +991,39 @@ void Chara3D::draw(float x, float y, float scale_mul) {
     if (tex.options[SCO::DISABLE_CHARA_3D]) {
         return;
     }
+    draw_body(x, y);
+    draw_puchi(x, y);
+}
+
+void Chara3D::draw_puchi(float x, float y) {
+    if (puchi_tex.id == 0) {
+        return;
+    }
+
+    constexpr double FRAME_MS = 850.0;
+    constexpr float PUCHI_X = 90.0f;
+    constexpr float PUCHI_Y = -120.0f;
+    constexpr float PUCHI_SIZE = 150.0f;
+    constexpr float PUCHI_BOB = 6.0f;
+    const float s = tex.screen_scale;
+    const float fw = static_cast<float>(puchi_tex.width);
+    const float fh = static_cast<float>(puchi_tex.height) / 2.0f;
+    const int frame = static_cast<int>(puchi_ms / FRAME_MS) % 2;
+    const float bob =
+        std::sin(static_cast<float>(puchi_ms / (FRAME_MS * 2.0) * 2.0 * std::numbers::pi)) * PUCHI_BOB * s;
+    const float size = PUCHI_SIZE * s;
+    const float px = x + (mirror ? PUCHI_X : -PUCHI_X) * s - size / 2.0f;
+    const float py = y + PUCHI_Y * s - size / 2.0f + bob;
+    const Rect src{0, frame * fh, mirror ? -fw : fw, fh};
+    draw_texture_pro(puchi_tex, src, {px, py, size, size}, {0, 0}, 0.0f, Color::WHITE);
+    if (tint_amount > 0.0f) {
+        Color overlay = tint_color;
+        overlay.a = static_cast<unsigned char>(std::clamp(tint_amount, 0.0f, 1.0f) * 255.0f);
+        draw_texture_pro(puchi_silhouette, src, {px, py, size, size}, {0, 0}, 0.0f, overlay);
+    }
+}
+
+void Chara3D::draw_body(float x, float y) {
 
     int rw = get_render_width();
     int rh = get_render_height();
@@ -1137,8 +1207,14 @@ std::unique_ptr<Chara3D> make_chara_from_player_data(const PlayerData* pd, bool 
     if (pd && !pd->chara_is_costume) {
         std::string head_name = std::to_string(pd->chara_head_index);
         std::string body_name = std::to_string(pd->chara_body_index);
-        return std::make_unique<Chara3D>(head_name, body_name, mirror, use_skin_config);
+        auto chara = std::make_unique<Chara3D>(head_name, body_name, mirror, use_skin_config);
+        chara->set_puchi(pd->chara_acce_index);
+        return chara;
     }
     std::string costume_name = pd ? std::to_string(pd->chara_cos_index) : "0";
-    return std::make_unique<Chara3D>(costume_name, mirror, use_skin_config);
+    auto chara = std::make_unique<Chara3D>(costume_name, mirror, use_skin_config);
+    if (pd) {
+        chara->set_puchi(pd->chara_acce_index);
+    }
+    return chara;
 }

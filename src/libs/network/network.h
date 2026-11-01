@@ -51,6 +51,7 @@ struct RemoteUser {
         bool is_costume;
     };
     std::optional<Costume> costume;
+    std::optional<int> acce_index;
     bool import_requested = false;
 };
 

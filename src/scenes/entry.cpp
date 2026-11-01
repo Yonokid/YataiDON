@@ -205,6 +205,9 @@ void EntryScreen::finish_login(RemoteLogin remote) {
             pd.chara_cos_index = u.costume->cos_index;
             pd.chara_is_costume = u.costume->is_costume;
         }
+        if (u.acce_index) {
+            pd.chara_acce_index = *u.acce_index;
+        }
         if (u.import_requested) {
             scores_manager.export_to_hiroba(code, code);
             network.clear_import_flag(code);
