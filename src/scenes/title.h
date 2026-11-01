@@ -11,14 +11,17 @@
 #include "../objects/global/allnet_indicator.h"
 #include "../objects/global/coin_overlay.h"
 #include "../objects/global/entry_overlay.h"
+#include "../objects/global/network_msg.h"
 #include "../objects/title/attract_scene.h"
+#include "../objects/title/tournament_attract.h"
 #include "../objects/title/warning_screen.h"
 
 enum class TitleState {
     OP_VIDEO,
     WARNING,
     ATTRACT_VIDEO,
-    ATTRACT_CAMERA
+    ATTRACT_CAMERA,
+    TOURNAMENT
 };
 
 class TitleScreen : public Screen {
@@ -32,10 +35,18 @@ private:
     std::optional<VideoPlayer> attract_video;
     std::optional<WarningScreen> warning_board;
     std::optional<AttractScene> attract_scene;
+    std::optional<TournamentAttract> tournament;
+    TextureObject* t_caution = nullptr;
 
     AllNetIcon allnet_indicator;
     CoinOverlay coin_overlay;
     EntryOverlay entry_overlay;
+    NetworkMsg network_msg;
+
+    bool gacha_busy = false;
+    bool gacha_waiting = false;
+    std::optional<int> gacha_puchichara;
+    double msg_until_ms = 0.0;
 
     std::unique_ptr<OutlinedText> hit_taiko_text;
 
@@ -44,6 +55,9 @@ private:
 
     void scene_manager(double current_ms);
     void reset_attract_objects();
+
+    bool update_gacha(double current_ms);
+    void start_entry();
 
 public:
     TitleScreen() : Screen("title") {}

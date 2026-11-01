@@ -777,6 +777,23 @@ void NetworkClient::poll_song_jump(const std::string& access_code) {
                                       cpr::Parameters{{"access_code", access_code}}, cpr::Timeout{5000} NETWORK_CA_OPT);
 }
 
+void NetworkClient::spin_gacha(const std::string& access_code) {
+    if (pending_gacha.has_value()) {
+        return;
+    }
+    if (!network_enabled() || !online) {
+        gacha_result = GachaResult{.error = "offline_gacha"};
+        return;
+    }
+    pending_gacha = cpr::PostAsync(cpr::Url{network_url("/gacha")},
+                                   signed_headers("POST", "/gacha", {{"access_code", access_code}}),
+                                   cpr::Parameters{{"access_code", access_code}}, cpr::Timeout{5000} NETWORK_CA_OPT);
+}
+
+std::optional<GachaResult> NetworkClient::take_gacha_result() {
+    return std::exchange(gacha_result, std::nullopt);
+}
+
 std::optional<std::string> NetworkClient::take_song_jump_result() {
     if (!song_jump_result.has_value()) {
         return std::nullopt;
@@ -899,7 +916,28 @@ void NetworkClient::update(double current_ms) {
                 doc["min_client_version"].IsString()) {
                 outdated = version_less(CLIENT_VERSION, doc["min_client_version"].GetString());
             }
+            tournament = !doc.HasParseError() && doc.IsObject() && doc.HasMember("tournament") &&
+                         doc["tournament"].IsBool() && doc["tournament"].GetBool();
         }
+    }
+
+    if (pending_gacha.has_value() && pending_gacha->wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+        cpr::Response response = pending_gacha->get();
+        pending_gacha.reset();
+        GachaResult result{.error = "offline_gacha"};
+        rapidjson::Document doc;
+        if (!doc.Parse(response.text.c_str()).HasParseError() && doc.IsObject()) {
+            if (response.status_code == 200 && doc.HasMember("puchichara") && doc["puchichara"].IsInt()) {
+                result = {.puchichara = doc["puchichara"].GetInt()};
+            } else if (doc.HasMember("detail") && doc["detail"].IsString()) {
+                std::string detail = doc["detail"].GetString();
+                result.error = detail == "not_tournament" ? "end_gacha" : detail;
+            }
+        }
+        if (result.puchichara < 0) {
+            spdlog::warn("Gacha failed: HTTP {} - {}", response.status_code, response.text);
+        }
+        gacha_result = result;
     }
 
     if (pending_song_jump.has_value() &&
@@ -954,6 +992,10 @@ void NetworkClient::shutdown() {
     if (pending_song_jump.has_value()) {
         pending_song_jump->wait();
         pending_song_jump.reset();
+    }
+    if (pending_gacha.has_value()) {
+        pending_gacha->wait();
+        pending_gacha.reset();
     }
     if (pending_replay_jump.has_value()) {
         pending_replay_jump->wait();
@@ -1024,6 +1066,12 @@ std::vector<RemoteScore> NetworkClient::fetch_scores(const std::string&) {
 void NetworkClient::poll_song_jump(const std::string&) {}
 std::optional<std::string> NetworkClient::take_song_jump_result() {
     return std::nullopt;
+}
+void NetworkClient::spin_gacha(const std::string&) {
+    gacha_result = GachaResult{.error = "offline_gacha"};
+}
+std::optional<GachaResult> NetworkClient::take_gacha_result() {
+    return std::exchange(gacha_result, std::nullopt);
 }
 void NetworkClient::poll_replay_jump(const std::string&) {}
 std::optional<int> NetworkClient::take_replay_jump_result() {
