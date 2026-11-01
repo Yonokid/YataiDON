@@ -473,11 +473,13 @@ void Player::update(double ms_from_start, double current_ms, std::optional<Backg
 
     // A stalled frame (e.g. the window being dragged on Windows blocks the loop while the song plays on) jumps the
     // chart past notes and rolls. Autoplay walks the gap in small steps so it still hits every note on time and keeps
-    // its roll speed; the hit sounds of the gap are skipped.
+    // its roll speed; the hit sounds of the gap are skipped. Only a real stall: an ordinary frame (33 ms at 30 fps)
+    // is played as before, with its hit sounds.
     if (modifiers.auto_play) {
         constexpr double step_ms = 4.0;
+        constexpr double stall_ms = 50.0;
         const double gap = ms_from_start - autoplay_last_ms;
-        if (gap > 2 * step_ms && gap < 120000.0) {
+        if (gap > stall_ms && gap < 120000.0) {
             autoplay_catching_up = true;
             for (double t = autoplay_last_ms + step_ms; t < ms_from_start - step_ms / 2; t += step_ms) {
                 note_manager(t, background);
