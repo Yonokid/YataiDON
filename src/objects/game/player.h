@@ -234,6 +234,9 @@ private:
     std::string branch_condition;
 
     double resume_filter_ms = -1e18;
+    // autoplay: chart time of the last update, and true while a stalled gap is replayed
+    double autoplay_last_ms = -1e18;
+    bool autoplay_catching_up = false;
 
     std::string don_hitsound;
     std::string kat_hitsound;

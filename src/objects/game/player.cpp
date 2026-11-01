@@ -295,7 +295,9 @@ void Player::autoplay_manager(double ms_from_start, double current_ms, std::opti
             hit_type = DrumType::DON;
             autoplay_hit_side = autoplay_hit_side == Side::LEFT ? Side::RIGHT : Side::LEFT;
             spawn_hit_effects(hit_type, autoplay_hit_side);
-            audio.play_player_sound(don_hitsound, player_num, VolumePreset::HITSOUND);
+            if (!autoplay_catching_up) {
+                audio.play_player_sound(don_hitsound, player_num, VolumePreset::HITSOUND);
+            }
             check_note(ms_from_start, hit_type, current_ms, background);
         }
     } else {
@@ -318,7 +320,9 @@ void Player::autoplay_manager(double ms_from_start, double current_ms, std::opti
             const size_t remaining = don_notes.size();
             hit_type = DrumType::DON;
             autoplay_hit(hit_type, don_notes.front().type == NoteType::DON_L);
-            audio.play_player_sound(don_hitsound, player_num, VolumePreset::HITSOUND);
+            if (!autoplay_catching_up) {
+                audio.play_player_sound(don_hitsound, player_num, VolumePreset::HITSOUND);
+            }
             check_note(ms_from_start, hit_type, current_ms, background);
             last_note_hit = current_ms;
             if (don_notes.size() == remaining) {
@@ -333,7 +337,9 @@ void Player::autoplay_manager(double ms_from_start, double current_ms, std::opti
             const size_t remaining = kat_notes.size();
             hit_type = DrumType::KAT;
             autoplay_hit(hit_type, kat_notes.front().type == NoteType::KAT_L);
-            audio.play_player_sound(kat_hitsound, player_num, VolumePreset::HITSOUND);
+            if (!autoplay_catching_up) {
+                audio.play_player_sound(kat_hitsound, player_num, VolumePreset::HITSOUND);
+            }
             check_note(ms_from_start, hit_type, current_ms, background);
             if (kat_notes.size() == remaining) {
                 break;
@@ -464,6 +470,27 @@ void Player::evaluate_branch(double current_ms) {
 void Player::update(double ms_from_start, double current_ms, std::optional<Background>& background) {
     PlayerSoundScope audio_owner(player_num);
     bg_hook = background.has_value() ? &background.value() : nullptr;
+
+    // A stalled frame (e.g. the window being dragged on Windows blocks the loop while the song plays on) jumps the
+    // chart past notes and rolls. Autoplay walks the gap in small steps so it still hits every note on time and keeps
+    // its roll speed; the hit sounds of the gap are skipped.
+    if (modifiers.auto_play) {
+        constexpr double step_ms = 4.0;
+        const double gap = ms_from_start - autoplay_last_ms;
+        if (gap > 2 * step_ms && gap < 120000.0) {
+            autoplay_catching_up = true;
+            for (double t = autoplay_last_ms + step_ms; t < ms_from_start - step_ms / 2; t += step_ms) {
+                note_manager(t, background);
+                handle_timeline(t);
+                autoplay_manager(t, current_ms, background);
+                if (is_branch) {
+                    evaluate_branch(t);
+                }
+            }
+            autoplay_catching_up = false;
+        }
+    }
+    autoplay_last_ms = ms_from_start;
 
     note_manager(ms_from_start, background);
     combo_display.update(current_ms, combo);
@@ -2281,6 +2308,7 @@ void Player::seek_to(double resume_time) {
 
     reset_chart();
     resume_filter_ms = resume_time;
+    autoplay_last_ms = -1e18;
 
     while (!timeline.empty() && timeline.front().start_time <= resume_time) {
         TimelineObject entry = timeline.front();
