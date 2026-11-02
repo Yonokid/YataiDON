@@ -20,6 +20,9 @@ public:
     double last_moved;
     double hold_start = 0, next_repeat = 0;
     int hold_dir = 0;
+    double pending_select_ms = -1; // a don pressed while the wheel still scrolls, taken once it settles
+    double last_browse_ms = 0;
+    int open_frames = 0; // frames the current box has been open (drawn open by the skin)
     bool selected_song;
     bool is_ready;
     bool is_ura;
