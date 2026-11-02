@@ -59,7 +59,6 @@ android {
     def gameDataOutDir = layout.buildDirectory.dir('generated/game_data_assets')
 
     task copyGameDataAssets(type: Copy) {
-        from(rootProject.file('../Skins')) { into 'Skins' }
         from(rootProject.file('../Songs')) { into 'Songs' }
         into gameDataOutDir
     }
@@ -78,15 +77,6 @@ android {
     lint {
         abortOnError false
         checkReleaseBuilds false
-    }
-
-    // The skin updater is driven by hidden ".skin-repo" files that must ship in
-    // the APK assets. aapt2's default ignoreAssetsPattern includes ".*", which
-    // strips ALL dotfiles from the APK — so .skin-repo never reached the device
-    // and skin updates silently never ran. Drop ".*" but keep the VCS/excluded
-    // entries (e.g. .git) so nothing unwanted is packaged.
-    androidResources {
-        ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:<dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~'
     }
 
     compileOptions {
