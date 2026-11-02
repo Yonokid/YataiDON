@@ -62,14 +62,9 @@ FolderSummary scan_folder(const fs::path& path, const std::string& player_1_id, 
         }
     };
 
-    // Errors are stepped over rather than thrown: one unreadable entry deep in
-    // a tree should not take the folder box down with it.
-    std::error_code scan_ec;
-    auto scan = fs::recursive_directory_iterator(path, fs::directory_options::skip_permission_denied, scan_ec);
-    while (scan != fs::end(scan) && !stop.stop_requested()) {
-        const fs::directory_entry& entry = *scan;
-        if (entry.path().filename() == "song_list.txt") {
-            auto entries = read_song_list(entry.path());
+    auto add_entry = [&](const fs::path& file) {
+        if (file.filename() == "song_list.txt") {
+            auto entries = read_song_list(file);
             tja_count += static_cast<int>(entries.size());
             for (const auto& e : entries) {
                 if (stop.stop_requested()) {
@@ -81,22 +76,33 @@ FolderSummary scan_folder(const fs::path& path, const std::string& player_1_id, 
                     update_crown(*found, player_2_id, crown_p2, disqualified_p2);
                 }
             }
+            return;
+        }
+        auto ext = file.extension();
+        if (ext == ".tja" || ext == ".osu") {
+            tja_count++;
+            update_crown(file, player_1_id, crown, disqualified_p1);
+            update_crown(file, player_2_id, crown_p2, disqualified_p2);
+        }
+    };
+
+    if (auto entries = get_scanned_song_entries(path)) {
+        for (const auto& file : *entries) {
+            if (stop.stop_requested()) {
+                break;
+            }
+            add_entry(file);
+        }
+    } else {
+        // A folder outside the completed library scan still needs a disk walk.
+        std::error_code scan_ec;
+        auto scan = fs::recursive_directory_iterator(path, fs::directory_options::skip_permission_denied, scan_ec);
+        while (scan != fs::end(scan) && !stop.stop_requested()) {
+            add_entry(scan->path());
             scan.increment(scan_ec);
             if (scan_ec) {
                 break;
             }
-            continue;
-        }
-        auto ext = entry.path().extension();
-        if (ext == ".tja" || ext == ".osu") {
-            tja_count++;
-            update_crown(entry.path(), player_1_id, crown, disqualified_p1);
-            update_crown(entry.path(), player_2_id, crown_p2, disqualified_p2);
-        }
-
-        scan.increment(scan_ec);
-        if (scan_ec) {
-            break;
         }
     }
 

@@ -1,6 +1,6 @@
 # YataiDON for PS5 / prospero
 
-Experimental native folder app `PPSA99329`. 
+Experimental native folder app `PPSA99329`.
 
 ## Controls
 

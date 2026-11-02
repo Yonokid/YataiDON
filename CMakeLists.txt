@@ -10,8 +10,13 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_SUPPRESS_DEVELOPER_WARNINGS ON CACHE INTERNAL "")
 
-# The public PS5 SDK supplies PS5 through its cross-compilation toolchain.
+# Console SDK toolchains select their platform projects.
 # Keep console dependencies out of desktop/mobile configuration.
+if(SWITCH OR CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
+  add_subdirectory(switch)
+  return()
+endif()
+
 if(PS5)
   add_subdirectory(ps5)
   return()
@@ -248,6 +253,10 @@ else()
       AS_HEADERS
       OUT_FILES_VAR _shader_headers
     )
+    foreach(_shader_header IN LISTS _shader_headers)
+      add_custom_command(OUTPUT ${_shader_header} APPEND
+        DEPENDS ${_shader_dir}/skin.sh ${_shader_dir}/color_transform.sh)
+    endforeach()
     target_sources(${PROJECT_NAME} PRIVATE ${_shader_headers})
   endforeach()
 endif()

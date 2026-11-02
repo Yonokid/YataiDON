@@ -90,6 +90,8 @@ private:
     int current_face_index = -1;
 
     int anim_frame = 0;
+    int applied_anim = -1;
+    int applied_frame = -1;
     AnimIndex anim_index = AnimIndex::DON_NORMAL;
 
     float bpm = 100;

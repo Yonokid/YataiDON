@@ -13,6 +13,7 @@
 #include "../libs/song_library_loader.h"
 #include "../objects/song_select/file_navigator/navigator.h"
 #include "../objects/song_select/song_select_script.h"
+#include "../platform/platform.h"
 
 void LoadingScreen::on_screen_start() {
     init_visuals();
@@ -77,7 +78,7 @@ void LoadingScreen::load_song_hashes(bool populate_library) {
         // Listed here, not in on_screen_start: the screen keeps drawing while a large library is walked
         songs = get_song_files(global_data.config->paths.tja_path);
         std::atomic<int> songs_loaded = 0;
-        const int thread_count = std::max(1u, std::thread::hardware_concurrency());
+        const unsigned thread_count = std::clamp(std::thread::hardware_concurrency(), 2u, 8u);
         std::vector<std::jthread> threads;
         std::mutex scores_mutex;
 
@@ -87,61 +88,50 @@ void LoadingScreen::load_song_hashes(bool populate_library) {
         std::vector<std::pair<std::string, SongCacheEntry>> fresh;
         std::atomic<int> cache_hits = 0;
 
-        auto worker = [&](int start, int end) {
-            for (int i = start; i < end; i++) {
+        std::atomic<size_t> next_song = 0;
+        auto worker = [&] {
+            for (size_t i; (i = next_song.fetch_add(1)) < songs.size();) {
                 auto u8 = songs[i].u8string();
                 const std::string path(u8.begin(), u8.end());
 
                 std::error_code ec;
-                const auto mtime = std::filesystem::last_write_time(songs[i], ec);
-                if (ec) {
-                    spdlog::error("Could not stat {}: {}", path, ec.message());
-                    continue;
-                }
-                const auto size = std::filesystem::file_size(songs[i], ec);
                 SongCacheEntry stamp;
-                stamp.mtime = static_cast<int64_t>(mtime.time_since_epoch().count());
-                stamp.size = ec ? -1 : static_cast<int64_t>(size);
-
-                std::array<std::string, 5> hashes;
-                std::string title, subtitle;
-                SongCacheEntry meta;
+                if (!platform_file_stamp(songs[i], stamp.mtime, stamp.size)) {
+                    const auto mtime = std::filesystem::last_write_time(songs[i], ec);
+                    if (ec) {
+                        spdlog::error("Could not stat {}: {}", path, ec.message());
+                        continue;
+                    }
+                    const auto size = std::filesystem::file_size(songs[i], ec);
+                    stamp.mtime = static_cast<int64_t>(mtime.time_since_epoch().count());
+                    stamp.size = ec ? -1 : static_cast<int64_t>(size);
+                }
 
                 auto cached = cache.find(path);
                 const bool from_cache =
                     cached != cache.end() && cached->second.mtime == stamp.mtime && cached->second.size == stamp.size;
                 if (from_cache) {
-                    hashes = cached->second.hashes;
-                    title = cached->second.title;
-                    subtitle = cached->second.subtitle;
-                    meta = cached->second;
                     cache_hits++;
                 } else {
                     try {
                         SongParser parser(songs[i]);
                         spdlog::debug("Parsing song: {}", path);
                         if (songs[i].extension() == ".osu") {
-                            hashes[0] = parser.get_diff_hash(0);
+                            stamp.hashes[0] = parser.get_diff_hash(0);
                         } else {
                             for (const auto& [course, course_data] : parser.metadata.course_data) {
-                                if (course < 0 || course >= static_cast<int>(hashes.size())) {
+                                if (course < 0 || course >= static_cast<int>(stamp.hashes.size())) {
                                     continue;
                                 }
-                                hashes[course] = parser.get_diff_hash(course);
+                                stamp.hashes[course] = parser.get_diff_hash(course);
                             }
                         }
                         auto metadata = song_metadata_from(parser.metadata);
-                        title = metadata.title;
-                        subtitle = metadata.subtitle;
-                        stamp.hashes = hashes;
-                        stamp.title = title;
-                        stamp.subtitle = subtitle;
+                        stamp.title = std::move(metadata.title);
+                        stamp.subtitle = std::move(metadata.subtitle);
                         stamp.titles = std::move(metadata.titles);
                         stamp.subtitles = std::move(metadata.subtitles);
                         stamp.levels = metadata.levels;
-                        meta = stamp;
-                        std::scoped_lock lock(scores_mutex);
-                        fresh.emplace_back(path, std::move(stamp));
                     } catch (const std::exception& e) {
                         spdlog::error("Failed to parse song {}: {}", path, e.what());
                         continue;
@@ -150,14 +140,18 @@ void LoadingScreen::load_song_hashes(bool populate_library) {
 
                 try {
                     std::scoped_lock lock(scores_mutex);
+                    const SongCacheEntry& meta = from_cache ? cached->second : stamp;
                     // a cached file's songs row was written when it was parsed
                     if (!from_cache) {
-                        scores_manager.add_song(hashes, title, subtitle);
+                        scores_manager.add_song(meta.hashes, meta.title, meta.subtitle);
                     }
-                    scores_manager.add_path_binding(songs[i], hashes);
+                    scores_manager.add_path_binding(songs[i], meta.hashes);
                     if (populate_library && is_library_song_file(songs[i])) {
                         get_song_library().add(songs[i], SongMetadata{meta.title, meta.subtitle, meta.titles,
                                                                       meta.subtitles, meta.levels});
+                    }
+                    if (!from_cache) {
+                        fresh.emplace_back(path, std::move(stamp));
                     }
 
                     progress = static_cast<float>(++songs_loaded) / songs.size();
@@ -168,11 +162,8 @@ void LoadingScreen::load_song_hashes(bool populate_library) {
         };
 
         scores_manager.begin_transaction();
-        int chunk = songs.size() / thread_count;
-        for (int i = 0; i < thread_count; i++) {
-            int start = i * chunk;
-            int end = (i == thread_count - 1) ? songs.size() : start + chunk;
-            threads.emplace_back(worker, start, end);
+        for (unsigned i = 0; i < thread_count && i < songs.size(); i++) {
+            threads.emplace_back(worker);
         }
         for (auto& t : threads) {
             t.join();

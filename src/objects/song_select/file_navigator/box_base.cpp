@@ -116,6 +116,16 @@ void BaseBox::fade_out() {
 }
 
 void BaseBox::update(double current_time) {
+    const auto settled = [](const auto& animation) { return !animation->is_started || animation->is_finished; };
+    if (!yellow_box_active && settled(open_anim) && settled(open_fade) && settled(fade) && move->is_finished) {
+        position = target_position;
+        cross_pos = cross_target;
+        cross_lead = 0;
+        left_bound = position;
+        right_bound = position + folder_texture_left_width + folder_texture_right_width +
+                      tex.get_skin_config(SC::SONG_SELECT_BOX_BG)->width;
+        return;
+    }
     open_anim->update(current_time);
     open_fade->update(current_time);
     fade->update(current_time);

@@ -16,6 +16,7 @@
 #include <string_view>
 #include <utility>
 
+#include "../../platform/platform.h"
 #include "../gfx/sdl_compat.h"
 #include "../gfx/text.h"
 #include "../math/md5.h"
@@ -118,19 +119,26 @@ inline std::filesystem::path get_proper_path(const std::string& path, const std:
 // open is most of the cost of reading a chart's metadata. Same result as those two: the encoding
 // from the BOM, lines split like std::getline on '\n' (a UTF-8 BOM is skipped).
 static std::vector<std::string> read_lines_once(const std::filesystem::path& path, std::string& encoding) {
-    std::ifstream file(path, std::ios::binary);
-    if (!file.is_open()) {
-        encoding = "";
-        throw std::runtime_error("Could not open file: " + path.string());
+    std::string raw;
+    std::vector<unsigned char> bytes;
+    const auto utf8_path = path.u8string();
+    if (platform_read_file(reinterpret_cast<const char*>(utf8_path.c_str()), bytes)) {
+        raw.assign(bytes.begin(), bytes.end());
+    } else {
+        std::ifstream file(path, std::ios::binary);
+        if (!file.is_open()) {
+            encoding = "";
+            throw std::runtime_error("Could not open file: " + path.string());
+        }
+        file.seekg(0, std::ios::end);
+        const std::streamoff size = file.tellg();
+        file.seekg(0, std::ios::beg);
+        raw.resize(size > 0 ? static_cast<size_t>(size) : 0);
+        if (!raw.empty()) {
+            file.read(raw.data(), static_cast<std::streamsize>(raw.size()));
+        }
+        raw.resize(static_cast<size_t>(file.gcount() > 0 ? file.gcount() : 0));
     }
-    file.seekg(0, std::ios::end);
-    const std::streamoff size = file.tellg();
-    file.seekg(0, std::ios::beg);
-    std::string raw(size > 0 ? static_cast<size_t>(size) : 0, '\0');
-    if (!raw.empty()) {
-        file.read(raw.data(), static_cast<std::streamsize>(raw.size()));
-    }
-    raw.resize(static_cast<size_t>(file.gcount() > 0 ? file.gcount() : 0));
 
     const auto byte = [&](size_t i) { return i < raw.size() ? static_cast<unsigned char>(raw[i]) : 0u; };
     if (byte(0) == 0xEF && byte(1) == 0xBB && byte(2) == 0xBF) {

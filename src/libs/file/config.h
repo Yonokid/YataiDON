@@ -107,6 +107,7 @@ struct AudioConfig {
     int sample_rate = 44100;
     int buffer_size = 512;
     std::vector<int> asio_channel;
+    bool operator==(const AudioConfig&) const = default;
 };
 
 struct VolumeConfig {
@@ -116,6 +117,7 @@ struct VolumeConfig {
     float voice = 1.0f;
     float hitsound = 1.0f;
     float attract_mode = 1.0f;
+    bool operator==(const VolumeConfig&) const = default;
 };
 
 struct VideoConfig {

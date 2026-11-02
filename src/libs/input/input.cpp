@@ -150,6 +150,26 @@ static constexpr int pad_slot_key(int slot, int button) {
     return PAD_SLOT_VKEY_BASE + slot * 100 + button;
 }
 
+// A shared key and its per-slot key report one press: consuming either consumes both.
+static void consume_pad_alias(int key) {
+    if (key > GAMEPAD_VKEY_BASE && key <= GAMEPAD_VKEY_BASE + 18) {
+        for (int slot = 0; slot < 4; ++slot) {
+            if (auto alias = pressed_keys.find(pad_slot_key(slot, key - GAMEPAD_VKEY_BASE));
+                alias != pressed_keys.end()) {
+                pressed_keys.erase(alias);
+                return;
+            }
+        }
+    } else if (key >= PAD_SLOT_VKEY_BASE && key < pad_slot_key(4, 0)) {
+        const int button = (key - PAD_SLOT_VKEY_BASE) % 100;
+        if (button >= 1 && button <= 18) {
+            if (auto alias = pressed_keys.find(GAMEPAD_VKEY_BASE + button); alias != pressed_keys.end()) {
+                pressed_keys.erase(alias);
+            }
+        }
+    }
+}
+
 // Pads keep the slot they were first seen in, so P1/P2 don't swap when another reconnects.
 class ControllerSlots {
     std::array<int, 4> ids{-1, -1, -1, -1};
@@ -235,9 +255,6 @@ static bool menu_layout_pressed(MenuAction action, PlayerNum player, float* stre
     for (int slot = first_slot; slot < end_slot; ++slot) {
         for (int button = 1; button <= 18; ++button) {
             if (menu_action(button) == action && check_key_pressed(pad_slot_key(slot, button), strength)) {
-                // Consume the shared alias too, so a join press cannot also
-                // confirm another menu action in the same frame.
-                check_key_pressed(GAMEPAD_VKEY_BASE + button);
                 return true;
             }
         }
@@ -1089,6 +1106,7 @@ bool check_key_pressed(int key, float* strength) {
             *strength = it->second;
         }
         pressed_keys.erase(it);
+        consume_pad_alias(key);
         return true;
     }
     return false;

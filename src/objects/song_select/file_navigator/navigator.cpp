@@ -485,8 +485,6 @@ void Navigator::apply_entry(PreparedEntry prepared, bool inline_mode) {
                     box->fade_in(*entry.fade_delay);
                 }
 
-                box->preregister_text();
-
                 if (inline_mode && inline_state) {
                     int insert_pos = inline_state->first_song_index + inline_state->songs_count;
                     items.insert(items.begin() + insert_pos, std::move(box));

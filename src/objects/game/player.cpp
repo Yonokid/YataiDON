@@ -2052,6 +2052,12 @@ void Player::draw_notes(double current_ms, float y) {
         return std::make_pair(x_position + judge_x, y_position + judge_y + y);
     };
 
+    struct VisibleNote {
+        Note* note;
+        std::pair<float, float> position;
+    };
+    static thread_local std::vector<VisibleNote> visible_notes;
+    visible_notes.clear();
     for (auto& note : std::views::reverse(draw_note_buffer)) {
         if (skip_note(note)) {
             continue;
@@ -2060,6 +2066,12 @@ void Player::draw_notes(double current_ms, float y) {
         if (!pos) {
             continue;
         }
+        visible_notes.push_back({&note, *pos});
+    }
+
+    for (const auto& visible : visible_notes) {
+        const Note& note = *visible.note;
+        const auto* pos = &visible.position;
         if (note.color.has_value()) {
             draw_drumroll(current_ms, y, note, current_eighth, false);
         } else if (note.type == NoteType::BALLOON_HEAD) {
@@ -2073,14 +2085,9 @@ void Player::draw_notes(double current_ms, float y) {
         }
     }
 
-    for (auto& note : std::views::reverse(draw_note_buffer)) {
-        if (skip_note(note)) {
-            continue;
-        }
-        auto pos = note_position(note);
-        if (!pos) {
-            continue;
-        }
+    for (const auto& visible : visible_notes) {
+        const Note& note = *visible.note;
+        const auto* pos = &visible.position;
 
         if (note.color.has_value()) {
             draw_drumroll(current_ms, y, note, current_eighth, true);

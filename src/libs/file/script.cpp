@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstring>
 #include <iterator>
+#include <span>
 #include <spdlog/spdlog.h>
 #include <string_view>
 
@@ -19,6 +20,66 @@
 #include "../screen.h"
 #include "../video/webcam.h"
 #include "filesystem.h"
+
+namespace {
+    namespace lua_metadata {
+        void number(lua_State* state, const char* key, lua_Number value) {
+            lua_pushnumber(state, value);
+            lua_setfield(state, -2, key);
+        }
+
+        void integer(lua_State* state, const char* key, lua_Integer value) {
+            lua_pushinteger(state, value);
+            lua_setfield(state, -2, key);
+        }
+
+        void array(lua_State* state, const char* key, std::span<const int> values) {
+            lua_createtable(state, static_cast<int>(values.size()), 0);
+            for (size_t i = 0; i < values.size(); ++i) {
+                lua_pushinteger(state, values[i]);
+                lua_rawseti(state, -2, static_cast<lua_Integer>(i + 1));
+            }
+            lua_setfield(state, -2, key);
+        }
+
+        struct TextureInfo {
+            std::string_view name;
+            std::span<const int> x, y, x2, y2;
+            int width, height, frames;
+        };
+
+        // Each call still returns independent writable Lua tables and coordinate
+        // arrays; only the C++ proxy/conversion overhead is removed.
+        void push_texture(lua_State* state, const TextureInfo& info) {
+            lua_createtable(state, 0, 8);
+            lua_pushlstring(state, info.name.data(), info.name.size());
+            lua_setfield(state, -2, "name");
+            array(state, "x", info.x);
+            array(state, "y", info.y);
+            array(state, "x2", info.x2);
+            array(state, "y2", info.y2);
+            integer(state, "width", info.width);
+            integer(state, "height", info.height);
+            integer(state, "frame_count", info.frames);
+        }
+
+        struct SkinInfo {
+            float x, y;
+            int font_size;
+            float width, height, outline;
+        };
+
+        void push_skin(lua_State* state, const SkinInfo& info) {
+            lua_createtable(state, 0, 6);
+            number(state, "x", info.x);
+            number(state, "y", info.y);
+            integer(state, "font_size", info.font_size);
+            number(state, "width", info.width);
+            number(state, "height", info.height);
+            number(state, "outline", info.outline);
+        }
+    } // namespace lua_metadata
+} // namespace
 
 namespace {
     constexpr int LUA_SITE_MAX_LEVELS = 8;
@@ -176,16 +237,15 @@ static bool lua_is_table_like(lua_State* L, int idx) {
 // instead of looking up all ~17 names through sol proxies: draw_texture is called a few hundred
 // times per frame by Lua skins and the lookups were most of its cost. A table with a metatable
 // (fields could come from __index) or a userdata goes through the legacy path.
-static DrawTextureParams parse_draw_params(const sol::optional<sol::table>& params_table) {
-    if (!params_table) {
+static DrawTextureParams parse_draw_params(lua_State* L, int index) {
+    if (index == 0 || lua_isnoneornil(L, index)) {
         return DrawTextureParams{};
     }
-    lua_State* L = params_table->lua_state();
-    params_table->push();
-    const int t = lua_gettop(L);
+    LuaStackGuard guard(L);
+    const int t = lua_absindex(L, index);
     if (lua_type(L, t) != LUA_TTABLE || lua_getmetatable(L, t)) {
-        lua_settop(L, t - 1);
-        return parse_draw_params_legacy(params_table);
+        lua_settop(L, guard.top);
+        return parse_draw_params_legacy(sol::stack::get<sol::optional<sol::table>>(L, t));
     }
 
     DrawTextureParams params;
@@ -248,8 +308,39 @@ static DrawTextureParams parse_draw_params(const sol::optional<sol::table>& para
         }
         lua_pop(L, 1);
     }
-    lua_settop(L, t - 1);
     return params;
+}
+
+static void push_texture_userdata(lua_State* L, const std::shared_ptr<TextureObject>& texture) {
+    LuaStackGuard guard(L);
+    if (!texture) {
+        lua_pushnil(L);
+        ++guard.top;
+        return;
+    }
+    static const char cache_key = 0;
+    // Reuse wrappers without keeping an unloaded texture alive through the cache.
+    lua_rawgetp(L, LUA_REGISTRYINDEX, &cache_key);
+    if (!lua_istable(L, -1)) {
+        lua_pop(L, 1);
+        lua_createtable(L, 0, 64);
+        lua_newtable(L);
+        lua_pushliteral(L, "v");
+        lua_setfield(L, -2, "__mode");
+        lua_setmetatable(L, -2);
+        lua_pushvalue(L, -1);
+        lua_rawsetp(L, LUA_REGISTRYINDEX, &cache_key);
+    }
+    const int cache = lua_gettop(L);
+    lua_rawgetp(L, cache, texture.get());
+    if (lua_isnil(L, -1)) {
+        lua_pop(L, 1);
+        sol::stack::push(L, texture);
+        lua_pushvalue(L, -1);
+        lua_rawsetp(L, cache, texture.get());
+    }
+    lua_remove(L, cache);
+    ++guard.top;
 }
 
 // Index every script under one Scripts folder. Names already present are
@@ -364,6 +455,8 @@ void ScriptManager::init(const fs::path& script_path) {
     // load_skin() just before ScriptManager::init is called.
 
     register_lua_bindings();
+    // Draw parameters are short-lived; most skin modules and cached userdata live much longer.
+    lua_gc(lua->lua_state(), LUA_GCGEN, 0, 0);
 }
 
 bool ScriptManager::has_lua_script(const std::string& script_name) const {
@@ -726,27 +819,20 @@ void ScriptManager::register_lua_bindings() {
 
     tex.set_function("end_scissor", [] { end_scissor_mode(); });
 
-    tex.set_function("get_skin_config", [](const std::string& config_key) -> sol::optional<sol::table> {
+    tex.set_function("get_skin_config", [](const std::string& config_key, sol::this_state state) -> sol::stack_count {
         const SkinInfo* skin_ptr = font_manager.get_text_info(config_key);
         if (!skin_ptr) {
             auto config_it = script_manager.tex.skin_config_by_name.find(config_key);
             if (config_it == script_manager.tex.skin_config_by_name.end()) {
-                return sol::nullopt;
+                lua_pushnil(state);
+                return 1;
             }
             skin_ptr = &config_it->second;
         }
 
-        const auto& skin_info = *skin_ptr;
-
-        sol::table info = script_manager.lua->create_table();
-        info["x"] = skin_info.x;
-        info["y"] = skin_info.y;
-        info["font_size"] = skin_info.font_size;
-        info["width"] = skin_info.width;
-        info["height"] = skin_info.height;
-        info["outline"] = skin_info.outline;
-
-        return info;
+        lua_metadata::push_skin(state, {skin_ptr->x, skin_ptr->y, skin_ptr->font_size, skin_ptr->width,
+                                        skin_ptr->height, skin_ptr->outline});
+        return 1;
     });
 
     tex.set_function("get_option", [](const std::string& name) -> bool {
@@ -758,57 +844,51 @@ void ScriptManager::register_lua_bindings() {
         return o != script_manager.tex.options.end() && o->second;
     });
 
-    tex.set_function("get_texture_keys", [](const std::string& subset) -> sol::optional<sol::table> {
+    tex.set_function("get_texture_keys", [](const std::string& subset, sol::this_state state) -> sol::stack_count {
         std::string prefix = subset + "/";
-        sol::table keys = script_manager.lua->create_table();
+        lua_newtable(state);
         int index = 1;
         for (const auto& [path, obj] : script_manager.tex.textures) {
             if (path.size() > prefix.size() && path.starts_with(prefix)) {
-                keys[index] = path.substr(prefix.size());
+                lua_pushlstring(state, path.data() + prefix.size(), path.size() - prefix.size());
+                lua_rawseti(state, -2, index);
                 ++index;
             }
         }
         if (index == 1) {
-            return sol::nullopt;
+            lua_pop(state, 1);
+            lua_pushnil(state);
         }
-        return keys;
+        return 1;
     });
 
-    tex.set_function("get_texture_info",
-                     [](const std::string& subset, const std::string& texture_name) -> sol::optional<sol::table> {
-                         auto tex_it = script_manager.tex.textures.find(subset + "/" + texture_name);
-                         if (tex_it == script_manager.tex.textures.end()) {
-                             return sol::nullopt;
-                         }
+    tex.set_function(
+        "get_texture_info",
+        [](const std::string& subset, const std::string& texture_name, sol::this_state state) -> sol::stack_count {
+            auto tex_it = script_manager.tex.textures.find(subset + "/" + texture_name);
+            if (tex_it == script_manager.tex.textures.end()) {
+                lua_pushnil(state);
+                return 1;
+            }
 
-                         const auto& tex_obj = tex_it->second;
+            const auto& tex_obj = tex_it->second;
 
-                         sol::table info = script_manager.lua->create_table();
-                         info["name"] = tex_obj->name;
-                         info["x"] = sol::as_table(tex_obj->x);
-                         info["y"] = sol::as_table(tex_obj->y);
-                         info["x2"] = sol::as_table(tex_obj->x2);
-                         info["y2"] = sol::as_table(tex_obj->y2);
-                         info["width"] = tex_obj->width;
-                         info["height"] = tex_obj->height;
+            int frame_count = 1;
+            if (auto framed = dynamic_cast<FramedTexture*>(tex_obj.get())) {
+                frame_count = static_cast<int>(framed->textures.size());
+            }
+            if (tex_obj->crop_data.has_value()) {
+                frame_count = std::max(frame_count, static_cast<int>(tex_obj->crop_data->size()));
+            }
+            lua_metadata::push_texture(state, {tex_obj->name, tex_obj->x, tex_obj->y, tex_obj->x2, tex_obj->y2,
+                                               tex_obj->width, tex_obj->height, frame_count});
+            return 1;
+        });
 
-                         int frame_count = 1;
-                         if (auto framed = dynamic_cast<FramedTexture*>(tex_obj.get())) {
-                             frame_count = static_cast<int>(framed->textures.size());
-                         }
-                         if (tex_obj->crop_data.has_value()) {
-                             frame_count = std::max(frame_count, static_cast<int>(tex_obj->crop_data->size()));
-                         }
-                         info["frame_count"] = frame_count;
-
-                         return info;
-                     });
-
-    tex.set_function("draw_texture", [](const std::shared_ptr<TextureObject>& id,
-                                        const sol::optional<sol::table>& params_table, sol::this_state state) {
+    tex.set_function("draw_texture", [](const std::shared_ptr<TextureObject>& id, sol::variadic_args args) {
         if (!id) {
             DrawLogEntry entry{"null_texture", {}};
-            log_lua_site(entry, state);
+            log_lua_site(entry, args.lua_state());
             if (entry.from_lua) {
                 spdlog::warn("draw_texture: null texture (called from {}:{} in {})", entry.lua_source, entry.lua_line,
                              entry.lua_function.empty() ? "?" : entry.lua_function);
@@ -817,10 +897,11 @@ void ScriptManager::register_lua_bindings() {
             }
             return;
         }
-        script_manager.tex.draw_texture(id.get(), parse_draw_params(params_table));
+        script_manager.tex.draw_texture(id.get(),
+                                        parse_draw_params(args.lua_state(), args.size() ? args.stack_index() : 0));
     });
 
-    tex.set_function("get_texture", [](const std::string& path) -> sol::optional<std::shared_ptr<TextureObject>> {
+    tex.set_function("get_texture", [](const std::string& path, sol::this_state state) -> sol::stack_count {
         TextureWrapper& w = script_manager.tex;
         const std::string& lang = global_data.config->general.language;
         if (w.lua_texture_lookup_lang != lang) {
@@ -828,15 +909,14 @@ void ScriptManager::register_lua_bindings() {
             w.lua_texture_lookup_lang = lang;
         }
         if (auto it = w.lua_texture_lookup.find(path); it != w.lua_texture_lookup.end()) {
-            if (it->second) {
-                return it->second;
-            }
-            return sol::nullopt;
+            push_texture_userdata(state, it->second);
+            return 1;
         }
         // resolve_lua_texture may load the folder, which empties the lookup: store afterwards
         sol::optional<std::shared_ptr<TextureObject>> found = resolve_lua_texture(path);
         w.lua_texture_lookup[path] = found ? *found : nullptr;
-        return found;
+        push_texture_userdata(state, found ? *found : nullptr);
+        return 1;
     });
 
     tex.set_function("language", [] { return global_data.config->general.language; });
@@ -863,8 +943,9 @@ void ScriptManager::register_lua_bindings() {
 
     lua.new_usertype<OutlinedText>("OutlinedText", "width", &OutlinedText::width, "height", &OutlinedText::height,
                                    "text", sol::property([](OutlinedText& self) { return self.get_text(); }), "draw",
-                                   [](OutlinedText& self, const sol::optional<sol::table>& params_table) {
-                                       DrawTextureParams params = parse_draw_params(params_table);
+                                   [](OutlinedText& self, sol::variadic_args args) {
+                                       DrawTextureParams params =
+                                           parse_draw_params(args.lua_state(), args.size() ? args.stack_index() : 0);
                                        self.draw(params);
                                    });
 
@@ -926,8 +1007,9 @@ void ScriptManager::register_lua_bindings() {
 
     lua["text"] = text;
 
-    tex.set_function("get_current_ms",
-                     [] -> double { return script_manager.current_ms_override.value_or(get_current_ms()); });
+    tex.set_function("get_current_ms", [] -> double {
+        return script_manager.current_ms_override ? *script_manager.current_ms_override : get_current_ms();
+    });
 
     tex.set_function("player_num", [] -> int { return static_cast<int>(global_data.player_num); });
 

@@ -36,14 +36,13 @@ void FolderBox::update(double current_time) {
     enter_fade->update(current_time);
     BaseBox::update(current_time);
 
-    std::string genre_voice_str = "genre_voice_" + std::to_string(static_cast<int>(genre_index));
     if (!is_open_prev && yellow_box_opened) {
         if (!audio.is_sound_playing("voice_enter")) {
-            audio.play_sound(genre_voice_str, VolumePreset::VOICE);
+            audio.play_sound("genre_voice_" + std::to_string(static_cast<int>(genre_index)), VolumePreset::VOICE);
             genre_voice_started = true;
         }
     } else if (!yellow_box_opened && genre_voice_started) {
-        audio.stop_sound(genre_voice_str);
+        audio.stop_sound("genre_voice_" + std::to_string(static_cast<int>(genre_index)));
         genre_voice_started = false;
     }
 }

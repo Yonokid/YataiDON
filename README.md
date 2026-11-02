@@ -32,20 +32,6 @@ A TJA player and Taiko simulator written in C++ using the [raylib](https://www.r
 - **Dan Dojo**: Challenge mode for back to back songs.
 - **Practice Mode**: Freely scrobble through a song and practice
 
-### Two-player audio
-
-In two-player mode, player-specific sound effects and Don-chan voice lines play
-through the left channel for P1 and the right channel for P2. Each player has
-independent playback, including when both trigger the same effect. Music and
-shared screen sounds keep their normal stereo output; single-player audio is
-unchanged. This applies to all audio backends.
-
-Skin callbacks belonging to a player inherit that player's audio routing.
-A shared Lua callback can identify the owner explicitly with
-`audio.play_sound(name, preset, loop, player)`, where `player` is `1` or `2`.
-Existing player-specific sound names ending in `_1p` or `_2p` are also routed
-automatically during two-player play.
-
 ## System Requirements
 
 - **Windows**: Windows 10 or higher
@@ -185,5 +171,3 @@ People (in no particular order):
 - Thonktheta (testing)
 - SomehowScarlet (nix os)
 - SunnyDeez (testing)
-
----

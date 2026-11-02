@@ -413,7 +413,9 @@ static void run_frame() {
     }
 
     g_frame_ms = get_current_ms();
+    L.fps_counter.update();
 
+    platform_poll_input();
     poll_input_events();
     if (platform_is_suspended()) {
         return;
@@ -527,7 +529,6 @@ static void run_frame() {
         draw_touch_drum();
 
         if (global_data.config->general.fps_counter) {
-            L.fps_counter.update();
             L.fps_counter.draw();
         }
 
@@ -581,7 +582,7 @@ static void run_frame() {
     }
 
 #if !defined(__EMSCRIPTEN__) && !defined(YATAIDON_PLATFORM_IOS)
-    if (L.target_duration.count() > 0) {
+    if (L.target_duration.count() > 0 && !platform_present_paces_frames()) {
         L.next_frame_time += L.target_duration;
         auto now = std::chrono::steady_clock::now();
         if (L.next_frame_time < now) {

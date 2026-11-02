@@ -3,6 +3,7 @@
 #include <cwchar>
 #include <vector>
 
+#include "../../../libs/file/filesystem.h"
 #include "../../../platform/platform_windows.h"
 #ifdef SUPPORT_FUMEN
 #include "../../../libs/optional/gen3.h"
@@ -106,6 +107,12 @@ namespace navigation_scan {
             return result;
         };
 
+#ifndef SUPPORT_FUMEN
+        if (auto scanned = get_scanned_folder_state(path)) {
+            return remember(scanned->has_definition);
+        }
+#endif
+
         std::error_code ec;
         if (fs::exists(path / "box.def", ec)) {
             return remember(true);
@@ -149,6 +156,11 @@ namespace navigation_scan {
     }
 
     bool FolderScanner::scan_child_folders(const fs::path& path) {
+#ifndef SUPPORT_FUMEN
+        if (auto scanned = get_scanned_folder_state(path)) {
+            return scanned->has_children;
+        }
+#endif
 #ifdef SUPPORT_FUMEN
         if (gen4::genre_of_path(path) >= 0) {
             return false;

@@ -116,7 +116,8 @@ void GameScreen::initialize_chart(const fs::path& song) {
 }
 
 void GameScreen::initialize_song_movie() {
-    if (fs::exists(parser->metadata.bgmovie)) {
+    movie.reset();
+    if (!parser->metadata.bgmovie.empty() && fs::is_regular_file(parser->metadata.bgmovie)) {
         movie.emplace(parser->metadata.bgmovie);
     }
 }

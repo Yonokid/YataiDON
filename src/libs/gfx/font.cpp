@@ -7,6 +7,7 @@
 #include <spdlog/spdlog.h>
 
 #include "../gfx.h"
+#include "glyph_lookup.h"
 
 #define STBTT_STATIC
 #define STB_TRUETYPE_IMPLEMENTATION
@@ -242,13 +243,14 @@ Vec2 measure_text_ex(const Font& font, const char* text, float font_size, float 
     const int size = static_cast<int>(std::strlen(text));
     int max_bytes = 0, bytes = 0;
     float width = 0.0f, max_width = 0.0f, height = font_size;
+    GlyphLookup glyph_lookup(font, text);
     for (int i = 0; i < size;) {
         bytes++;
         int n = 0;
         const int cp = get_codepoint_next(&text[i], &n);
-        const int gi = get_glyph_index(font, cp);
         i += n;
         if (cp != '\n') {
+            const int gi = glyph_lookup.index(cp);
             width +=
                 font.glyphs[gi].advanceX > 0 ? font.glyphs[gi].advanceX : font.recs[gi].width + font.glyphs[gi].offsetX;
         } else {
