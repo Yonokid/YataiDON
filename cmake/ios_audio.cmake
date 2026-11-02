@@ -1,6 +1,6 @@
 # SDL's AudioQueue backend queues at least twice its 15 ms minimum even when
 # the app requests 128 frames. Keep the change confined to this iOS target.
-# Investigation and device measurements: ios/LATENCY_FIX.md.
+# Investigation and device measurements: platform/ios/LATENCY_FIX.md.
 set(IOS_AUDIO_QUEUE_MIN_MS "4" CACHE STRING "iOS playback queue half-duration target in ms (15 restores SDL default)")
 if(NOT IOS_AUDIO_QUEUE_MIN_MS MATCHES "^[0-9]+$" OR
    IOS_AUDIO_QUEUE_MIN_MS LESS 1 OR IOS_AUDIO_QUEUE_MIN_MS GREATER 40)

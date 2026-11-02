@@ -27,8 +27,8 @@ android {
         externalNativeBuild {
             cmake {
                 arguments(
-                    "-DANDROID_FFMPEG_PREFIX=${rootProject.file('../.android-ffmpeg').absolutePath}",
-                    "-DANDROID_OPENSSL_PREFIX=${rootProject.file('../.android-openssl').absolutePath}",
+                    "-DANDROID_FFMPEG_PREFIX=${rootProject.file('../../.android-ffmpeg').absolutePath}",
+                    "-DANDROID_OPENSSL_PREFIX=${rootProject.file('../../.android-openssl').absolutePath}",
                     "-DANDROID_STL=c++_shared",
                     "-DANDROID_PLATFORM=android-31",
                     "-DNETWORK_URL=${System.getenv('NETWORK_URL') ?: ''}",
@@ -41,13 +41,13 @@ android {
 
     externalNativeBuild {
         cmake {
-            path '../../CMakeLists.txt'
+            path '../../../CMakeLists.txt'
             version findProperty('cmakeVersion') ?: '3.31.6'
         }
     }
 
     // Copy shader/es/ from repo root into APK assets as shader/es/
-    def shaderSrcDir = rootProject.file('../shader/es')
+    def shaderSrcDir = rootProject.file('../../shader/es')
     def shaderOutDir = layout.buildDirectory.dir('generated/shader_assets/shader/es')
 
     task copyShaderAssets(type: Copy) {
@@ -59,7 +59,7 @@ android {
     def gameDataOutDir = layout.buildDirectory.dir('generated/game_data_assets')
 
     task copyGameDataAssets(type: Copy) {
-        from(rootProject.file('../Songs')) { into 'Songs' }
+        from(rootProject.file('../../Songs')) { into 'Songs' }
         into gameDataOutDir
     }
 

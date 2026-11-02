@@ -3,7 +3,7 @@ import hashlib
 import json
 from pathlib import Path
 import zipfile
-root = Path('ps5/dist')
+root = Path('platform/ps5/dist')
 parser = argparse.ArgumentParser()
 parser.add_argument('--bundle', type=Path, default=root / 'YataiDON-PS5-experimental.zip')
 args = parser.parse_args()

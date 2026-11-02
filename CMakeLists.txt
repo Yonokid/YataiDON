@@ -13,12 +13,12 @@ set(CMAKE_SUPPRESS_DEVELOPER_WARNINGS ON CACHE INTERNAL "")
 # Console SDK toolchains select their platform projects.
 # Keep console dependencies out of desktop/mobile configuration.
 if(SWITCH OR CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
-  add_subdirectory(switch)
+  add_subdirectory(platform/switch)
   return()
 endif()
 
 if(PS5)
-  add_subdirectory(ps5)
+  add_subdirectory(platform/ps5)
   return()
 endif()
 
@@ -271,7 +271,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 )
 
 # Optional libraries: shared code checks these YATAIDON_HAS_* macros, never platform names.
-# (ps5/game.cmake builds without any of them.)
+# (platform/ps5/game.cmake builds without any of them.)
 if(NOT EMSCRIPTEN)
   target_link_libraries(${PROJECT_NAME} PRIVATE cpr::cpr)
   target_compile_definitions(${PROJECT_NAME} PRIVATE YATAIDON_HAS_HTTP)

@@ -16,11 +16,11 @@ YataiDON.exe
 /Skins/*
 /.claude
 .version
-/android/local.properties
-/android/keystore.properties
-/android/yataidon-release.jks
-/android/.gradle/
-/android/app/.cxx/
+/platform/android/local.properties
+/platform/android/keystore.properties
+/platform/android/yataidon-release.jks
+/platform/android/.gradle/
+/platform/android/app/.cxx/
 /build-android-arm64
 /.android-ffmpeg
 /.android-openssl
@@ -34,23 +34,23 @@ YataiDON.wasm
 /.ios-ffmpeg/
 /Songs/14 Favorites/song_list.txt
 /Songs/15 Recently Played/song_list.txt
-/ps5/vendor/
-/ps5/build/
-/ps5/build-game/
-/ps5/package/
-/ps5/dist/
-/ps5/*.log
-/ps5/downloaded-skins/
-/ps5/__pycache__/
-/ps5/console-*
-/ps5/system-module-names.txt
-/ps5/migration-files.json
-/ps5/**/__pycache__/
+/platform/ps5/vendor/
+/platform/ps5/build/
+/platform/ps5/build-game/
+/platform/ps5/package/
+/platform/ps5/dist/
+/platform/ps5/*.log
+/platform/ps5/downloaded-skins/
+/platform/ps5/__pycache__/
+/platform/ps5/console-*
+/platform/ps5/system-module-names.txt
+/platform/ps5/migration-files.json
+/platform/ps5/**/__pycache__/
 
-/ps5/build-vulkan/
-/ps5/build-host-bgfx/
+/platform/ps5/build-vulkan/
+/platform/ps5/build-host-bgfx/
 
-/switch/vendor/
-/switch/build*/
-/switch/dist/
-/switch/**/__pycache__/
+/platform/switch/vendor/
+/platform/switch/build*/
+/platform/switch/dist/
+/platform/switch/**/__pycache__/

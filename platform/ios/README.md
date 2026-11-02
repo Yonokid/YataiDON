@@ -54,7 +54,7 @@ appropriate signing, artwork, and rights to the assets you include.
 
 ## Build an unsigned IPA with GitHub Actions
 
-The existing [Release workflow](../.github/workflows/build-mobile.yml) includes a
+The existing [Release workflow](../../.github/workflows/build-mobile.yml) includes a
 `build-ios` job. In GitHub, open **Actions → Build YataiDON (Release) → Run workflow**
 and select the branch containing the iOS changes. This runs all platform builds.
 
@@ -171,7 +171,7 @@ codes. Existing configurations are preserved on upgrade (old `access_code` and
 `player_1_id`/`player_2_id` are migrated automatically), so rebuilding alone does
 not turn these switches on. Local gameplay/saves remain available offline.
 
-The [network integration checks](../tests/network/README.md) exercise the actual
+The [network integration checks](../../tests/network/README.md) exercise the actual
 client against an isolated fixture and test HTTPS trust on the Simulator. Real
 server credentials and physical-device sync still need end-to-end validation.
 Optional Fumen support still requires the same seeds as other platforms.

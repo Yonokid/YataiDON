@@ -107,7 +107,7 @@ def main():
                               ("avcodec", (b"ff_h264_decoder\0", b"ff_aac_decoder\0"))):
         symbols = (ffmpeg / f"lib/lib{library}.a").read_bytes()
         if any(symbol not in symbols for symbol in required):
-            raise RuntimeError("FFmpeg needs MP4/MOV, H.264 and AAC support; run ps5/build-ffmpeg.sh")
+            raise RuntimeError("FFmpeg needs MP4/MOV, H.264 and AAC support; run platform/ps5/build-ffmpeg.sh")
     # RADV needs libc operations absent from native title import libraries.
     # Bind only SDK-provided implementations; preserve this port's filesystem wrappers.
     symbols = subprocess.check_output([str(sdk / "bin/llvm-nm"), "--defined-only",
@@ -166,7 +166,7 @@ def main():
     for name in ("shader", "Songs", "Skins"):
         if args.skip_media and name != "shader":
             continue
-        source = ROOT.parent / name
+        source = ROOT.parents[1] / name
         if source.is_dir():
             shutil.copytree(source, data / name, dirs_exist_ok=True, ignore=shutil.ignore_patterns(".git"))
     run(host_tool, "self", "--inspect", "--file", app / "eboot.bin")

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
-root=$(cd "$(dirname "$0")/.." && pwd)
+root=$(cd "$(dirname "$0")/../.." && pwd)
 : "${DEVKITPRO:?Set DEVKITPRO to your devkitPro installation}"
 source "$DEVKITPRO/switchvars.sh"
 export CFLAGS="$ARCH -O3 -ffunction-sections -fdata-sections"
 export CXXFLAGS="$CFLAGS"
-prefix="${YATAIDON_MEDIA_WORKDIR:-$root/switch/build-o3-media}"
+prefix="${YATAIDON_MEDIA_WORKDIR:-$root/platform/switch/build-o3-media}"
 export YATAIDON_MEDIA_SOURCE_DIR="$prefix/sources"
-python3 "$root/switch/prepare-o3-media.py"
+python3 "$root/platform/switch/prepare-o3-media.py"
 mkdir -p "$prefix/lib" "$prefix/ffmpeg" "$prefix/iconv"
 sdk_version=$("$PORTLIBS_PREFIX/bin/aarch64-none-elf-pkg-config" --modversion libavcodec)
 if [ "$sdk_version" != 61.19.100 ]; then

@@ -4,7 +4,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ANDROID_DIR="$SCRIPT_DIR/android"
+ANDROID_DIR="$SCRIPT_DIR/platform/android"
 ADB="${ANDROID_SDK_ROOT:-$HOME/Android/Sdk}/platform-tools/adb"
 APK="$ANDROID_DIR/app/build/outputs/apk/release/app-release.apk"
 PACKAGE="com.yataidon.app"

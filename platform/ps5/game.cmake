@@ -1,4 +1,4 @@
-set(game_root "${CMAKE_CURRENT_SOURCE_DIR}/..")
+set(game_root "${CMAKE_CURRENT_SOURCE_DIR}/../..")
 set(vendor "${CMAKE_CURRENT_SOURCE_DIR}/vendor")
 set(PS5_FFMPEG_PREFIX "" CACHE PATH "PS5 FFmpeg prefix (include and lib)")
 if(NOT EXISTS "${PS5_FFMPEG_PREFIX}/lib/libavformat.a")

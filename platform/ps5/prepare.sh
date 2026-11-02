@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
-root=$(cd "$(dirname "$0")/.." && pwd)
-vendor="$root/ps5/vendor"
+root=$(cd "$(dirname "$0")/../.." && pwd)
+vendor="$root/platform/ps5/vendor"
 mkdir -p "$vendor"
 checkout() {
   local name=$1 url=$2 revision=$3
@@ -19,4 +19,4 @@ checkout() {
 }
 checkout raylib https://github.com/raysan5/raylib.git 02566453880e06bec97f5b8160fa6fe1e98397ca
 checkout SDL https://github.com/ps5-payload-dev/SDL.git 8c56053f13ca13a0c050de613706ff69eb615836
-python3 "$root/ps5/prepare-game.py"
+python3 "$root/platform/ps5/prepare-game.py"

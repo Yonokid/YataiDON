@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
-root=$(cd "$(dirname "$0")/.." && pwd)
+root=$(cd "$(dirname "$0")/../.." && pwd)
 : "${PS5_PAYLOAD_SDK:?Set PS5_PAYLOAD_SDK}"
 : "${FFMPEG_SOURCE:?Set FFMPEG_SOURCE to an unpacked FFmpeg 8.1.2 source tree}"
 : "${PS5_OPUS_PREFIX:?Set PS5_OPUS_PREFIX to the PS5 libopus installation}"
-prefix=${PS5_FFMPEG_PREFIX:-$root/ps5/vendor/ffmpeg-ps5}
-build=${FFMPEG_BUILD_DIR:-$root/ps5/build/ffmpeg}
+prefix=${PS5_FFMPEG_PREFIX:-$root/platform/ps5/vendor/ffmpeg-ps5}
+build=${FFMPEG_BUILD_DIR:-$root/platform/ps5/build/ffmpeg}
 mkdir -p "$prefix" "$build"
 export PKG_CONFIG_LIBDIR="$PS5_OPUS_PREFIX/lib/pkgconfig"
 export PKG_CONFIG_PATH="$PKG_CONFIG_LIBDIR"

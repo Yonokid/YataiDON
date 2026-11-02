@@ -82,7 +82,7 @@ jobs:
           path: |
             .ps5-deps/opus-ps5
             .ps5-deps/ffmpeg-ps5
-          key: ps5-ffmpeg-${{ env.FFMPEG_VERSION }}-opus-${{ env.OPUS_VERSION }}-${{ env.PS5_SDK_REV }}-${{ hashFiles('ps5/build-ffmpeg.sh', 'ps5/build-opus.sh') }}
+          key: ps5-ffmpeg-${{ env.FFMPEG_VERSION }}-opus-${{ env.OPUS_VERSION }}-${{ env.PS5_SDK_REV }}-${{ hashFiles('platform/ps5/build-ffmpeg.sh', 'platform/ps5/build-opus.sh') }}
 
       - name: Build Opus and FFmpeg
         if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
@@ -94,13 +94,13 @@ jobs:
           tar -xzf "opus-$OPUS_VERSION.tar.gz"
           tar -xJf "ffmpeg-$FFMPEG_VERSION.tar.xz"
           OPUS_SOURCE="$DEPS/opus-$OPUS_VERSION" OPUS_BUILD_DIR="$DEPS/build-opus" \
-            bash "$GITHUB_WORKSPACE/ps5/build-opus.sh"
+            bash "$GITHUB_WORKSPACE/platform/ps5/build-opus.sh"
           FFMPEG_SOURCE="$DEPS/ffmpeg-$FFMPEG_VERSION" FFMPEG_BUILD_DIR="$DEPS/build-ffmpeg" \
-            bash "$GITHUB_WORKSPACE/ps5/build-ffmpeg.sh"
+            bash "$GITHUB_WORKSPACE/platform/ps5/build-ffmpeg.sh"
 
       - name: Prepare native-app template
         run: |
-          t=ps5/vendor/native-template
+          t=platform/ps5/vendor/native-template
           git init -q "$t"
           git -C "$t" fetch -q --depth 1 https://github.com/drakmor/ps5-native-app-boilerplate.git "$NATIVE_TEMPLATE_REV"
           git -C "$t" checkout -q --detach FETCH_HEAD
@@ -108,14 +108,14 @@ jobs:
           bash "$t/tools/rebuild-libc.sh"
 
       - name: Build
-        run: bash ps5/build-game.sh
+        run: bash platform/ps5/build-game.sh
 
       - name: Package
         run: |
-          python3 ps5/package.py --skip-media
-          python3 ps5/tools/verify-bundle.py
+          python3 platform/ps5/package.py --skip-media
+          python3 platform/ps5/tools/verify-bundle.py
           mkdir -p release
-          cp ps5/dist/YataiDON-PS5-experimental.zip release/YataiDON-PS5.zip
+          cp platform/ps5/dist/YataiDON-PS5-experimental.zip release/YataiDON-PS5.zip
 
       - name: Upload PS5 package
         uses: actions/upload-artifact@v4

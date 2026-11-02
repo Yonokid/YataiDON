@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
-root=$(cd "$(dirname "$0")/.." && pwd)
+root=$(cd "$(dirname "$0")/../.." && pwd)
 : "${PS5_PAYLOAD_SDK:?Set PS5_PAYLOAD_SDK}"
 : "${OPUS_SOURCE:?Set OPUS_SOURCE to an unpacked Opus 1.5.2 source tree}"
-prefix=${PS5_OPUS_PREFIX:-$root/ps5/vendor/opus-ps5}
-build=${OPUS_BUILD_DIR:-$root/ps5/build/opus}
+prefix=${PS5_OPUS_PREFIX:-$root/platform/ps5/vendor/opus-ps5}
+build=${OPUS_BUILD_DIR:-$root/platform/ps5/build/opus}
 cmake -S "$OPUS_SOURCE" -B "$build" -G Ninja \
   -DCMAKE_TOOLCHAIN_FILE="$PS5_PAYLOAD_SDK/toolchain/prospero.cmake" \
   -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$prefix" -DCMAKE_INSTALL_LIBDIR=lib \

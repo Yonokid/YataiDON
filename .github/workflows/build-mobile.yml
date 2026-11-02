@@ -56,20 +56,20 @@ jobs:
 
       - name: Write local.properties
         run: |
-          echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
-          echo "cmake.dir=$ANDROID_SDK_ROOT/cmake/3.31.6" >> android/local.properties
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > platform/android/local.properties
+          echo "cmake.dir=$ANDROID_SDK_ROOT/cmake/3.31.6" >> platform/android/local.properties
 
       - name: Decode keystore
         run: |
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/yataidon-release.jks
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > platform/android/yataidon-release.jks
           printf 'storeFile=yataidon-release.jks\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
             "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" \
             "${{ secrets.ANDROID_KEY_ALIAS }}" \
             "${{ secrets.ANDROID_KEY_PASSWORD }}" \
-            > android/keystore.properties
+            > platform/android/keystore.properties
 
       - name: Build Release APK
-        working-directory: android
+        working-directory: platform/android
         env:
           NETWORK_URL: ${{ secrets.NETWORK_URL }}
           NETWORK_AUTH_KEY: ${{ secrets.NETWORK_AUTH_KEY }}
@@ -80,11 +80,11 @@ jobs:
         with:
           name: YataiDON-Android
           include-hidden-files: true
-          path: android/app/build/outputs/apk/release/app-release.apk
+          path: platform/android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
 
       - name: Build Release APK (update, no bundled assets)
-        working-directory: android
+        working-directory: platform/android
         env:
           NETWORK_URL: ${{ secrets.NETWORK_URL }}
           NETWORK_AUTH_KEY: ${{ secrets.NETWORK_AUTH_KEY }}
@@ -95,7 +95,7 @@ jobs:
         with:
           name: YataiDON-Android-Update
           include-hidden-files: true
-          path: android/app/build/outputs/apk/release/app-release.apk
+          path: platform/android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
 
   build-ios:

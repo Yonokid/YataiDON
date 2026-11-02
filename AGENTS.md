@@ -14,7 +14,7 @@ User-facing docs live in [README.md](../README.md); this file covers what an age
 | `src/libs/gfx.h` | Backend-neutral graphics facade; implemented by `gfx_raylib.cpp` or `gfx_bgfx.cpp` |
 | `src/platform/` | One implementation of `platform.h` per platform; CMake compiles exactly one |
 | `cmake/` | Dependencies (`deps.cmake`), platform selection, patches for third-party code |
-| `android/`, `ios/`, `ps5/` | Platform projects; see their READMEs |
+| `platform/` | Platform projects (`android/`, `ios/`, `ps5/`, `switch/`); see their READMEs |
 | `Skins/` | Gitignored. Each skin is its own git repo (URL in `Skins/<name>/.skin-repo`) |
 | `Songs/` | Local chart library, not source |
 
@@ -28,7 +28,7 @@ Desktop (Ninja, wipes `build/`, copies binary to `./YataiDON`):
 ```
 
 Incremental rebuild without wiping: `build_re.sh`.
-Other targets: `build_android.sh`, `build_ios.sh`, `build_web.sh`, `ps5/build-game.sh`.
+Other targets: `build_android.sh`, `build_ios.sh`, `build_web.sh`, `platform/ps5/build-game.sh`.
 
 Useful CMake options:
 

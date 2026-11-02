@@ -29,7 +29,7 @@ dependencies matched to that driver revision.
 Provide a **host** `shaderc` built from bgfx.cmake **v1.167.9590-598**, the same
 release used by the other bgfx targets. The preparation script verifies the
 release archive checksum and applies the bgfx and SDL adaptations only to the
-expected sources. Dependency checkouts remain under `switch/vendor/`.
+expected sources. Dependency checkouts remain under `platform/switch/vendor/`.
 
 ```sh
 export DEVKITPRO=/opt/devkitpro
@@ -38,10 +38,10 @@ export YATAIDON_SHADERC=/path/to/host/shaderc
 export SWITCH_MESA_PREFIX=/path/to/mesa-switch-sdk
 # Optional: use an optimized archive from a matching Mesa build directly:
 export YATAIDON_MESA_LIBRARY=/path/to/mesa-build/src/nouveau/vulkan/libvulkan.a
-bash switch/build-game.sh
+bash platform/switch/build-game.sh
 ```
 
-The intended output is `switch/build/YataiDON.nro`. The root CMake project also
+The intended output is `platform/switch/build/YataiDON.nro`. The root CMake project also
 selects this platform when configured with devkitPro's Switch toolchain.
 The build compiles shaders on the host and embeds SPIR-V and the default font.
 Switch Release builds use `-O3` for the game and all C/C++ dependencies built by
@@ -56,12 +56,12 @@ libraries and the compiler/system runtime remain supplied by devkitPro.
 ```sh
 # Optional: place the dependency work on a native Linux filesystem.
 export YATAIDON_MEDIA_WORKDIR=/path/to/o3-media
-bash switch/build-o3-media.sh
+bash platform/switch/build-o3-media.sh
 export YATAIDON_MEDIA_LIBRARY_DIR="$YATAIDON_MEDIA_WORKDIR/lib"
-bash switch/build-game.sh
+bash platform/switch/build-game.sh
 ```
 
-Without `YATAIDON_MEDIA_WORKDIR`, the helper uses `switch/build-o3-media`.
+Without `YATAIDON_MEDIA_WORKDIR`, the helper uses `platform/switch/build-o3-media`.
 Only matching rebuilt archives found in `YATAIDON_MEDIA_LIBRARY_DIR` replace
 the corresponding SDK libraries; headers continue coming from the installed SDK.
 
@@ -109,7 +109,7 @@ memory use with large skins/libraries. A sustained 60 FPS is not yet verified.
 the platform and graphics stack. Existing dependency licenses remain in their
 source distributions. [GNU libiconv](https://www.gnu.org/software/libiconv/)
 provides Japanese chart text conversion. Platform hooks live in
-`src/platform/platform_switch.cpp`; dependencies and build rules in `switch/`.
+`src/platform/platform_switch.cpp`; dependencies and build rules in `platform/switch/`.
 
 ## Logging
 

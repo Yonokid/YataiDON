@@ -262,11 +262,11 @@ The full list of Homebrew packages CI installs is in the `build-macos` job of `.
 
 # <a name="android"></a>Android
 
-The Android project lives in `android/` and builds the game through Gradle and the NDK (CMake is invoked by Gradle). Only `arm64-v8a` is built.
+The Android project lives in `platform/android/` and builds the game through Gradle and the NDK (CMake is invoked by Gradle). Only `arm64-v8a` is built.
 
-1. Install the Android SDK and the NDK version listed as `ndkVersion` in `android/app/build.gradle`.
-2. Copy `android/local.properties.template` to `android/local.properties` and set `sdk.dir`, `ndk.dir`, and, if your system CMake is 3.30 or newer, `cmake.dir`. Never commit `local.properties`.
-3. For release builds, create `android/keystore.properties` with `storeFile`, `storePassword`, `keyAlias`, and `keyPassword`. Never commit it or the keystore.
+1. Install the Android SDK and the NDK version listed as `ndkVersion` in `platform/android/app/build.gradle`.
+2. Copy `platform/android/local.properties.template` to `platform/android/local.properties` and set `sdk.dir`, `ndk.dir`, and, if your system CMake is 3.30 or newer, `cmake.dir`. Never commit `local.properties`.
+3. For release builds, create `platform/android/keystore.properties` with `storeFile`, `storePassword`, `keyAlias`, and `keyPassword`. Never commit it or the keystore.
 4. Build, install, and launch on a USB-connected device:
 
 ```sh
@@ -283,7 +283,7 @@ Notes:
 
 # <a name="ios"></a>iOS
 
-See [ios/README.md](ios/README.md) for full instructions. In short, on a Mac with Xcode and CMake 3.24 or newer:
+See [platform/ios/README.md](platform/ios/README.md) for full instructions. In short, on a Mac with Xcode and CMake 3.24 or newer:
 
 ```sh
 ./build_ios.sh simulator   # unsigned Simulator build
