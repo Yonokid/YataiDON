@@ -2196,7 +2196,9 @@ void Player::draw_overlays(float y) {
     if (combo_announce.has_value()) {
         combo_announce->draw(y + (tex.get_skin_config(SC::GAME_COMBO_ANNOUNCE_P2_Y_OFFSET)->y * is_2p));
     }
-    tex.draw_texture(lane_icon_tex_id, {.y = y, .index = is_2p});
+    if (show_lane_badges) {
+        tex.draw_texture(lane_icon_tex_id, {.y = y, .index = is_2p});
+    }
     int frame = is_dan ? 6 : difficulty;
     int index = is_dan ? 0 : is_2p;
     if (lane_mark) {
@@ -2204,7 +2206,9 @@ void Player::draw_overlays(float y) {
     } else {
         tex.draw_texture(t_lane_difficulty, {.frame = frame, .y = y, .index = index});
     }
-    draw_modifiers(y);
+    if (show_lane_badges) {
+        draw_modifiers(y);
+    }
     if (judge_counter.has_value()) {
         judge_counter->draw();
     }

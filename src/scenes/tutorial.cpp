@@ -16,6 +16,7 @@ namespace {
                 lane_mark = tex.get_texture("tutorial/wakaba");
             }
             show_lane_name = false;
+            show_lane_badges = false;
         }
 
         void spawn_hit_effects(DrumType drum_type, Side side) override {
