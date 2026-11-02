@@ -284,6 +284,9 @@ jobs:
           export YATAIDON_SHADERC="$GITHUB_WORKSPACE/build-host-bgfx/cmake/bgfx/shaderc"
           export SWITCH_MESA_PREFIX="$DEPS/mesa-sdk"
           export YATAIDON_MEDIA_LIBRARY_DIR="$DEPS/media/lib"
+          # Mesa merges libvulkan.a with host ar, whose LLVM 15 plugin cannot read
+          # Rust's newer bitcode, so Rust std members are left out of the index.
+          "$DEVKITPRO/devkitA64/bin/aarch64-none-elf-ranlib" "$SWITCH_MESA_PREFIX/lib/libvulkan.a"
           # The game finds GNU libiconv through portlibs; the image ships none.
           cp "$DEPS/media/lib/libiconv.a" "$DEVKITPRO/portlibs/switch/lib/"
           cp "$DEPS/media/iconv/include/iconv.h" "$DEVKITPRO/portlibs/switch/include/"
