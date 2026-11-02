@@ -116,7 +116,6 @@ jobs:
           python3 ps5/tools/verify-bundle.py
           mkdir -p release
           cp ps5/dist/YataiDON-PS5-experimental.zip release/YataiDON-PS5.zip
-          (cd release && sha256sum YataiDON-PS5.zip > checksums-ps5.sha256)
 
       - name: Upload PS5 package
         uses: actions/upload-artifact@v4
@@ -142,7 +141,6 @@ jobs:
         with:
           files: |
             ps5-out/YataiDON-PS5.zip
-            ps5-out/checksums-ps5.sha256
           name: "YataiDON [Latest Release]"
           tag_name: "latest"
           make_latest: true
