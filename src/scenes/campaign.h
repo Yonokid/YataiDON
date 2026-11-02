@@ -3,13 +3,13 @@
 #include <memory>
 
 #include "../libs/screen.h"
-#include "../objects/campaign/mac_photo.h"
+#include "../objects/campaign/campaign_event.h"
 #include "../objects/global/allnet_indicator.h"
 #include "../objects/global/coin_overlay.h"
 
 class CampaignScreen : public Screen {
 private:
-    std::unique_ptr<MacPhoto> mac_photo;
+    std::unique_ptr<CampaignEvent> event;
     AllNetIcon allnet_indicator;
     CoinOverlay coin_overlay;
 

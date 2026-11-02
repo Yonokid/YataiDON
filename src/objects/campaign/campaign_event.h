@@ -1,13 +1,15 @@
 #pragma once
 
+#include <string>
+
 #include "../../libs/file/script.h"
 
-class MacPhoto : public LuaScript {
+class CampaignEvent : public LuaScript {
 public:
-    MacPhoto();
-    ~MacPhoto() override;
-    MacPhoto(const MacPhoto&) = delete;
-    MacPhoto& operator=(const MacPhoto&) = delete;
+    explicit CampaignEvent(const std::string& campaign_id);
+    ~CampaignEvent() override;
+    CampaignEvent(const CampaignEvent&) = delete;
+    CampaignEvent& operator=(const CampaignEvent&) = delete;
 
     bool unavailable() const { return !fn_input.valid(); }
     void update(double current_ms);

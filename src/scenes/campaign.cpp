@@ -6,21 +6,17 @@
 
 void CampaignScreen::on_screen_start() {
     Screen::on_screen_start();
-    mac_photo.reset();
-    if (global_data.campaign == "mac") {
-        mac_photo = std::make_unique<MacPhoto>();
-        if (mac_photo->unavailable()) {
-            mac_photo.reset();
+    event.reset();
+    if (!global_data.campaign.empty()) {
+        event = std::make_unique<CampaignEvent>(global_data.campaign);
+        if (event->unavailable()) {
+            event.reset();
         }
-    }
-    if (mac_photo && audio.has_sound("bgm")) {
-        audio.play_sound("bgm", VolumePreset::MUSIC);
     }
 }
 
 Screens CampaignScreen::on_screen_end(Screens next_screen) {
-    audio.stop_sound("bgm");
-    mac_photo.reset();
+    event.reset();
     return Screen::on_screen_end(next_screen);
 }
 
@@ -44,15 +40,15 @@ std::optional<Screens> CampaignScreen::update() {
     }
     const double now = get_current_ms();
     allnet_indicator.update(now);
-    if (!mac_photo) {
+    if (!event) {
         return on_screen_end(next());
     }
-    mac_photo->update(now);
-    if (menu_confirm_pressed() && mac_photo->input_decide()) {
+    event->update(now);
+    if (menu_confirm_pressed() && event->input_decide()) {
         audio.play_sound("don", VolumePreset::SOUND);
     }
-    if (mac_photo->is_done()) {
-        if (const int cos = mac_photo->get_reward(); cos >= 0) {
+    if (event->is_done()) {
+        if (const int cos = event->get_reward(); cos >= 0) {
             give_reward(cos);
         }
         return on_screen_end(next());
@@ -61,8 +57,8 @@ std::optional<Screens> CampaignScreen::update() {
 }
 
 void CampaignScreen::draw() {
-    if (mac_photo) {
-        mac_photo->draw();
+    if (event) {
+        event->draw();
     }
     coin_overlay.draw();
     allnet_indicator.draw();
