@@ -14,7 +14,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $Repo        = "yonokid/YataiDON"
-$ApiUrl      = "https://api.github.com/repos/$Repo/releases/latest"
+$ApiUrl      = "https://api.github.com/repos/$Repo/releases/tags/updater"
 $InstallDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
 $VersionFile = Join-Path $InstallDir ".version"
 $TmpDir      = Join-Path $env:TEMP "YataiDON-update-$([System.IO.Path]::GetRandomFileName())"

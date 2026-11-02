@@ -61,7 +61,7 @@ and select the branch containing the iOS changes. This runs all platform builds.
 The iOS job uses a `macos-15` runner and `./build_ios.sh device` to build an ARM64
 Release app for iOS 16.3 or later, with Bundle ID `com.yataidon.app` and code signing
 disabled. It packages the app as `Payload/YataiDON.app` inside
-`YataiDON-iOS-unsigned.ipa`, alongside `checksums-ios.sha256`. No Apple certificate,
+`YataiDON-iOS-unsigned.ipa`; its `checksums-ios.sha256` is published to the `updater` release. No Apple certificate,
 provisioning profile, or App Store Connect credentials are required. There is no
 TestFlight or App Store upload step. Sign the downloaded IPA with your own signing
 tool and credentials before installing it on an iPhone or iPad.

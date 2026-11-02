@@ -169,49 +169,15 @@ def main():
         source = ROOT.parent / name
         if source.is_dir():
             shutil.copytree(source, data / name, dirs_exist_ok=True, ignore=shutil.ignore_patterns(".git"))
-    (ROOT / "dist/INSTALL.txt").write_text(
-        "YataiDON PS5 - experimental, not hardware tested\n\n"
-        "Install/register PPSA99329 using your native homebrew folder-app workflow.\n"
-        "Copy data/YataiDON to /data/YataiDON on the console.\n"
-        "This build uses bgfx/Vulkan with upstream 3D model and animation support.\n"
-        "Add a complete\n"
-        "skin and its parent dependencies under /data/YataiDON/Skins before playing.\n"
-        "Configuration, scores and logs are written under /data/YataiDON.\n"
-        "Online services, automatic skin downloads, MIDI and webcam are disabled.\n"
-        "Audio uses 48 kHz stereo native AudioOut; calibrate latency on hardware.\n")
     run(host_tool, "self", "--inspect", "--file", app / "eboot.bin")
-    receipt = {"hardware_tested": False, "title_id": "PPSA99329",
-               "runtime_sha256": digest(runtime),
-               "graphics_backend": "bgfx-vulkan",
-                "vulkan_archive_sha256": digest(prefix / "lib/libvulkan_radeon.ps5.a"),
-               "game_archive_sha256": digest(build / "libyataidon_ps5_game.a"),
-               "ffmpeg_sha256": {name: digest(ffmpeg / f"lib/lib{name}.a")
-                                  for name in ("avformat", "avcodec", "swscale", "swresample", "avutil", "opus")},
-               "files": {p.relative_to(app).as_posix(): digest(p) for p in sorted(app.rglob("*")) if p.is_file()}}
-    (ROOT / "dist/build-receipt.json").write_text(json.dumps(receipt, indent=2) + "\n")
-    licenses = ROOT / "dist/LICENSES"
-    licenses.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(ROOT.parent / "LICENSE", licenses / "YataiDON-GPL-3.0.txt")
-    shutil.copy2(ROOT.parent / "LICENSE", licenses / "Runtime-GPL-3.0.txt")
-    for dependency in (ROOT / "vendor").iterdir():
-        if dependency.is_dir():
-            for license_file in dependency.iterdir():
-                if license_file.is_file() and license_file.name.upper().startswith(("LICENSE", "COPYING")):
-                    shutil.copy2(license_file, licenses / f"{dependency.name}-{license_file.name}")
-    shutil.copytree(ROOT / "runtime/licenses", licenses, dirs_exist_ok=True)
-    for dependency in ("bgfx", "bx", "bimg"):
-        shutil.copy2(ROOT / "vendor/bgfx.cmake" / dependency / "LICENSE",
-                     licenses / f"{dependency}-LICENSE")
     bundle = args.output if args.output else ROOT / "dist/YataiDON-PS5-experimental.zip"
     bundle.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(bundle, "w", compression=zipfile.ZIP_DEFLATED) as output:
-        directories = (app, data / "shader", licenses) if args.skip_media else (app, data, licenses)
+        directories = (app, data / "shader") if args.skip_media else (app, data)
         for directory in directories:
             for path in sorted(directory.rglob("*")):
                 if path.is_file():
                     output.write(path, path.relative_to(ROOT / "dist").as_posix())
-        for name in ("INSTALL.txt", "build-receipt.json"):
-            output.write(ROOT / "dist" / name, name)
     print(f"Native folder: {app}\neboot SHA-256: {digest(app / 'eboot.bin')}")
 
 
