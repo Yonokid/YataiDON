@@ -35,6 +35,7 @@
 
 #include "objects/global/debug_menu.h"
 #include "objects/global/fps_counter.h"
+#include "scenes/campaign.h"
 #include "scenes/dan_result.h"
 #include "scenes/dan_select.h"
 #include "scenes/entry.h"
@@ -369,6 +370,9 @@ static void populate_screens(std::unordered_map<Screens, std::unique_ptr<Screen>
     }
     if (except != Screens::TUTORIAL) {
         screens[Screens::TUTORIAL] = std::make_unique<TutorialScreen>();
+    }
+    if (except != Screens::CAMPAIGN) {
+        screens[Screens::CAMPAIGN] = std::make_unique<CampaignScreen>();
     }
 }
 

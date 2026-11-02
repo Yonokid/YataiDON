@@ -95,7 +95,8 @@ public:
         Screens::TITLE,      Screens::ENTRY,           Screens::SONG_SELECT,    Screens::GAME,       Screens::GAME_2P,
         Screens::RESULT,     Screens::RESULT_2P,       Screens::SONG_SELECT_2P, Screens::DAN_SELECT, Screens::GAME_DAN,
         Screens::DAN_RESULT, Screens::PRACTICE_SELECT, Screens::GAME_PRACTICE,  Screens::SETTINGS,   Screens::LOADING,
-        Screens::INPUT_CALI, Screens::GAME_OVER,       Screens::INPUT_TEST,     Screens::RETRY_GAME, Screens::TUTORIAL};
+        Screens::INPUT_CALI, Screens::GAME_OVER,       Screens::INPUT_TEST,     Screens::RETRY_GAME, Screens::TUTORIAL,
+        Screens::CAMPAIGN};
 
     void clear_selection() {
         commit_edit();

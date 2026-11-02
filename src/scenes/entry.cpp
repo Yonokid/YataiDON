@@ -27,7 +27,13 @@ void EntryScreen::on_screen_start() {
     login_ready_ = false;
     name_pending_ = -1;
     name_entry_.reset();
-    // Non-blocking: an unreachable server held the screen for the 1.5 s timeout. Logins wait for it.
+    campaign_menu_.reset();
+    const bool resuming = global_data.entry_join_pending || global_data.entry_campaign_resume;
+    campaign_shown_ = resuming;
+    if (!resuming) {
+        global_data.campaign.clear();
+    }
+
     if (online) {
         network.start_probe();
     }
@@ -78,20 +84,37 @@ void EntryScreen::on_screen_start() {
     audio.play_sound("bgm", VolumePreset::MUSIC);
 
     // Online: auto_login shows side select right away, otherwise wait for Enter/Don
-    if (online && !global_data.config->network.auto_login && !global_data.entry_join_pending) {
+    if (online && !global_data.config->network.auto_login && !resuming) {
         state = EntryState::WAITING;
     }
 
     if (global_data.entry_join_pending) {
         global_data.entry_join_pending = false;
         start_second_player_join();
+    } else if (global_data.entry_campaign_resume) {
+        global_data.entry_campaign_resume = false;
+        resume_from_campaign();
     }
 }
 
-// Resolve + load the account for the next free login slot (1st login -> access_code_1, 2nd -> access_code_2).
-// card_hex empty: key/auto login. Returns false if login impossible. Offline the login finishes and
-// then() runs before this returns; online the network part runs on a worker thread, update() applies
-// it and then runs then(), and a card that cannot be registered never runs it.
+void EntryScreen::resume_from_campaign() {
+    int n = 0;
+    for (const PlayerNum seat : global_data.entry_resume_seats) {
+        if (seat == PlayerNum::ALL) {
+            continue;
+        }
+        global_data.player_num = seat;
+        players[n] = std::make_unique<EntryPlayer>(seat, seat == PlayerNum::P1 ? 0 : 2, box_manager.get());
+        players[n]->start_animations();
+        n++;
+    }
+    is_2p = n == 2;
+    audio.set_two_player_mode(is_2p);
+    global_data.player_num = is_2p ? PlayerNum::P1 : global_data.entry_resume_seats[0];
+    side = 1;
+    state = EntryState::SELECT_MODE;
+}
+
 bool EntryScreen::login_slot(const std::string& card_hex, std::function<void()> then) {
     if (login_pending()) {
         return false;
@@ -465,6 +488,16 @@ std::optional<Screens> EntryScreen::handle_input() {
         }
         return std::nullopt;
     }
+    if (state == EntryState::CAMPAIGN) {
+        if (menu_left_pressed() && campaign_menu_->input(CampaignMenu::LEFT)) {
+            audio.play_sound("kat", VolumePreset::SOUND);
+        } else if (menu_right_pressed() && campaign_menu_->input(CampaignMenu::RIGHT)) {
+            audio.play_sound("kat", VolumePreset::SOUND);
+        } else if (menu_confirm_pressed() && campaign_menu_->input(CampaignMenu::DECIDE)) {
+            audio.play_sound("don", VolumePreset::SOUND);
+        }
+        return std::nullopt;
+    }
     if (state == EntryState::WAITING) {
         const bool enter = key_pressed(SDL_SCANCODE_RETURN);
         const bool don = is_l_don_pressed() || is_r_don_pressed();
@@ -623,7 +656,7 @@ std::optional<Screens> EntryScreen::update() {
     }
     // Case 6: any card while a seat is free (P1 first, then P2)
     if (card_reader_ && card_reader_->is_polling() && !login_ready_ && !login_pending() && !network.probing() &&
-        state != EntryState::SELECT_COSTUME && state != EntryState::NAME_ENTRY &&
+        state != EntryState::SELECT_COSTUME && state != EntryState::NAME_ENTRY && state != EntryState::CAMPAIGN &&
         !(seat_joined(PlayerNum::P1) && seat_joined(PlayerNum::P2))) {
         if (current_time - last_card_poll_ms_ >= global_data.config->card_reader.poll_interval_ms) {
             last_card_poll_ms_ = current_time;
@@ -652,7 +685,7 @@ std::optional<Screens> EntryScreen::update() {
         name_entry_->update(current_time);
     }
     box_manager->update(current_time, is_2p);
-    if (state != EntryState::WAITING && state != EntryState::NAME_ENTRY &&
+    if (state != EntryState::WAITING && state != EntryState::NAME_ENTRY && state != EntryState::CAMPAIGN &&
         !(arcade_credit() && state == EntryState::SELECT_SIDE) && !login_pending()) {
         timer->update(current_time);
     }
@@ -669,6 +702,9 @@ std::optional<Screens> EntryScreen::update() {
         if (player) {
             player->update(current_time);
         }
+    }
+    if (update_campaign(current_time)) {
+        return on_screen_end(Screens::CAMPAIGN);
     }
     if (box_manager->costume_menu_open) {
         box_manager->costume_menu_open = false;
@@ -697,12 +733,51 @@ std::optional<Screens> EntryScreen::update() {
     for (auto& player : players) {
         if (player && player->is_cloud_animation_finished() &&
             !audio.is_sound_playing("entry_start_" + std::to_string(static_cast<int>(global_data.player_num)) + "p") &&
-            !announce_played && state != EntryState::NAME_ENTRY) {
+            !announce_played && state != EntryState::NAME_ENTRY && state != EntryState::CAMPAIGN) {
             audio.play_sound("select_mode", VolumePreset::VOICE);
             announce_played = true;
         }
     }
     return handle_input();
+}
+
+bool EntryScreen::update_campaign(double current_ms) {
+    if (state == EntryState::SELECT_MODE && !campaign_shown_ && players[0] && !login_pending() && !network.probing() &&
+        mode_select_ready()) {
+        campaign_shown_ = true;
+        const std::vector<std::string> campaigns = network.active_campaigns();
+        if (campaigns.empty()) {
+            return false;
+        }
+        campaign_menu_ = std::make_unique<CampaignMenu>(campaigns);
+        if (campaign_menu_->unavailable()) { // skin without the menu: no campaigns
+            campaign_menu_.reset();
+            return false;
+        }
+        state = EntryState::CAMPAIGN;
+    }
+    if (state != EntryState::CAMPAIGN) {
+        return false;
+    }
+    campaign_menu_->update(current_ms);
+    if (campaign_menu_->is_done()) {
+        const std::string choice = campaign_menu_->get_choice();
+        global_data.campaign = choice == "skip" ? "" : choice;
+        spdlog::info("[entry] campaign: {}", global_data.campaign.empty() ? "none" : global_data.campaign);
+        campaign_menu_.reset();
+        state = EntryState::SELECT_MODE;
+
+        if (!global_data.campaign.empty()) {
+            global_data.campaign_next = static_cast<int>(Screens::ENTRY);
+            global_data.entry_campaign_resume = true;
+            int n = 0;
+            for (const auto& player : players) {
+                global_data.entry_resume_seats[n++] = player ? player->player_num : PlayerNum::ALL;
+            }
+            return true;
+        }
+    }
+    return false;
 }
 
 void EntryScreen::draw_background() {
@@ -770,6 +845,8 @@ void EntryScreen::draw() {
         draw_side_select(lua_entry->get_side_select_fade());
     } else if (state == EntryState::SELECT_MODE) {
         draw_mode_select();
+    } else if (state == EntryState::CAMPAIGN) {
+        campaign_menu_->draw();
     } else if (state == EntryState::SELECT_COSTUME) {
         for (auto& player : players) {
             if (player) {

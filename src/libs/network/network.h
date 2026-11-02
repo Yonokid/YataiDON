@@ -79,6 +79,8 @@ public:
     bool is_tournament() const { return online && tournament; }
     bool tournament_offline() const { return !online && tournament; }
 
+    std::vector<std::string> active_campaigns() const { return online ? campaigns : std::vector<std::string>{}; }
+
     std::string register_user(const std::string& username, const std::string& idm = "");
     std::string map_to_json(const std::map<double, InputLogType>& my_map);
     void submit_score(const std::string& hash, int difficulty, const std::string& access_code, const Score& score,
@@ -131,6 +133,7 @@ private:
     bool online = false;
     bool outdated = false;
     bool tournament = false;
+    std::vector<std::string> campaigns;
     std::optional<GachaResult> gacha_result;
     bool probing_ = false;
 #if defined(NETWORK_ENABLED)

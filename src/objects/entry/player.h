@@ -3,12 +3,15 @@
 #include <memory>
 #include <optional>
 
+#include "../../libs/file/scores.h"
 #include "../../libs/file/script.h"
 #include "../global/chara_3d.h"
 #include "../global/indicator.h"
 #include "../global/nameplate.h"
 #include "box_manager.h"
 #include "costume_menu.h"
+
+void save_player_costume(const PlayerData& pd);
 
 class EntryPlayer : public LuaScript {
 private:

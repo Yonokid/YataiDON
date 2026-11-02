@@ -4,6 +4,7 @@
 #include "../libs/network/network.h"
 #include "../libs/screen.h"
 #include "../objects/entry/box_manager.h"
+#include "../objects/entry/campaign_menu.h"
 #include "../objects/entry/entry_script.h"
 #include "../objects/entry/name_entry.h"
 #include "../objects/entry/player.h"
@@ -26,8 +27,9 @@ enum class EntryState {
     SELECT_SIDE = 0,
     SELECT_MODE = 1,
     SELECT_COSTUME = 2,
-    WAITING = 3,   // online, auto_login off: side select hidden until Enter (online) or Don (local)
-    NAME_ENTRY = 4 // a freshly registered account picks its name; resumes name_prev_state_
+    WAITING = 3,
+    NAME_ENTRY = 4,
+    CAMPAIGN = 5
 };
 
 struct RemoteLogin {
@@ -101,6 +103,11 @@ private:
     void begin_name_entry(int slot, std::function<void()> then);
     void end_name_entry();
     void on_card_login();
+
+    std::unique_ptr<CampaignMenu> campaign_menu_;
+    bool campaign_shown_ = false;
+    bool update_campaign(double current_ms);
+    void resume_from_campaign();
 
 public:
     EntryScreen() : Screen("entry") {}

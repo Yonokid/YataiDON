@@ -260,6 +260,10 @@ struct GlobalData {
     bool returned_from_result = false;
     bool entry_join_pending = false;
     PlayerNum entry_joined_seat = PlayerNum::P1;
+    std::string campaign;
+    int campaign_next = 0;
+    bool entry_campaign_resume = false;
+    PlayerNum entry_resume_seats[2] = {PlayerNum::ALL, PlayerNum::ALL};
     // Card reader
     std::string card_reader_card_id_hex; // 16-char hex card ID
     bool card_reader_card_valid = false;

@@ -922,6 +922,14 @@ void NetworkClient::update(double current_ms) {
             }
             tournament = !doc.HasParseError() && doc.IsObject() && doc.HasMember("tournament") &&
                          doc["tournament"].IsBool() && doc["tournament"].GetBool();
+            campaigns.clear();
+            if (!doc.HasParseError() && doc.IsObject() && doc.HasMember("campaigns") && doc["campaigns"].IsArray()) {
+                for (const auto& campaign : doc["campaigns"].GetArray()) {
+                    if (campaign.IsString()) {
+                        campaigns.emplace_back(campaign.GetString());
+                    }
+                }
+            }
         }
     }
 
