@@ -159,9 +159,9 @@ jobs:
         with:
           submodules: false
 
-      - name: Cache mesa-switch SDK
+      - name: Restore mesa-switch SDK
         id: cache-mesa
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: /opt/switch-deps/mesa-sdk
           key: switch-mesa-${{ env.MESA_SWITCH_REV }}-o3
@@ -242,9 +242,17 @@ jobs:
           cp -rn include/vulkan include/vk_video "$DEPS/mesa-sdk/include/"
           test -f "$DEPS/mesa-sdk/lib/libvulkan.a"
 
-      - name: Cache media libraries
+      # Saved immediately: actions/cache only saves on job success, and Mesa takes the longest.
+      - name: Save mesa-switch SDK
+        if: steps.cache-mesa.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: /opt/switch-deps/mesa-sdk
+          key: ${{ steps.cache-mesa.outputs.cache-primary-key }}
+
+      - name: Restore media libraries
         id: cache-media
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: |
             /opt/switch-deps/media/lib
@@ -254,6 +262,15 @@ jobs:
       - name: Build FFmpeg and libiconv
         if: steps.cache-media.outputs.cache-hit != 'true'
         run: YATAIDON_MEDIA_WORKDIR="$DEPS/media" bash platform/switch/build-o3-media.sh
+
+      - name: Save media libraries
+        if: steps.cache-media.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            /opt/switch-deps/media/lib
+            /opt/switch-deps/media/iconv/include/iconv.h
+          key: ${{ steps.cache-media.outputs.cache-primary-key }}
 
       - name: Build host shaderc
         run: |

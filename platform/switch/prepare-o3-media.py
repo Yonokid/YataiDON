@@ -6,6 +6,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import tarfile
+import time
 import urllib.request
 
 # Python < 3.11.4 (devkitPro image) lacks extraction filters.
@@ -41,8 +42,17 @@ def main():
             if cached != path and cached.exists():
                 shutil.copy2(cached, path)
             else:
-                print(f"Downloading {name}", flush=True)
-                urllib.request.urlretrieve(url, path)
+                for attempt in range(3):
+                    print(f"Downloading {name}", flush=True)
+                    try:
+                        urllib.request.urlretrieve(url, path)
+                        break
+                    except OSError:
+                        # ffmpeg.org resets connections often enough to break CI.
+                        path.unlink(missing_ok=True)
+                        if attempt == 2:
+                            raise
+                        time.sleep(10)
         with path.open("rb") as stream:
             actual = hashlib.file_digest(stream, "sha256").hexdigest()
         if actual != expected:

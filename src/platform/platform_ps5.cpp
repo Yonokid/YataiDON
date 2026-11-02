@@ -7,7 +7,7 @@
 #include <spdlog/spdlog.h>
 #include <stdexcept>
 
-#include "../../ps5/native-ime.h"
+#include "../../platform/ps5/native-ime.h"
 #include "../libs/file/config.h"
 #include "../libs/gfx.h"
 #include "../libs/gfx/sdl_compat.h"

@@ -16,10 +16,10 @@
 #include <unordered_map>
 #include <utility>
 
-#include "../../switch/controller-layout.h"
-#include "../../switch/input.h"
-#include "../../switch/keyboard.h"
-#include "../../switch/sqlite-vfs.h"
+#include "../../platform/switch/controller-layout.h"
+#include "../../platform/switch/input.h"
+#include "../../platform/switch/keyboard.h"
+#include "../../platform/switch/sqlite-vfs.h"
 #include "../libs/file/config.h"
 #include "../libs/gfx.h"
 #include "../libs/gfx/sdl_compat.h"
