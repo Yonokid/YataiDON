@@ -13,7 +13,7 @@
 set -euo pipefail
 
 REPO="yonokid/YataiDON"
-API_URL="https://api.github.com/repos/$REPO/releases/latest"
+API_URL="https://api.github.com/repos/$REPO/releases/tags/updater"
 INSTALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VERSION_FILE="$INSTALL_DIR/.version"
 TMP_DIR="$(mktemp -d)"

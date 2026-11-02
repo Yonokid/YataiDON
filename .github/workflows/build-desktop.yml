@@ -433,14 +433,25 @@ jobs:
             YataiDON-Linux.zip
             YataiDON-Windows.zip
             YataiDON-macOS.zip
+          name: "YataiDON [Latest Release]"
+          tag_name: "latest"
+          make_latest: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Separate channel so updater files don't clutter the main release.
+      - name: Upload updater files
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
             update-linux.tar.gz
             update-windows.tar.gz
             update-macos.tar.gz
             checksums-linux.sha256
             checksums-windows.sha256
             checksums-macos.sha256
-          name: "YataiDON [Latest Release]"
-          tag_name: "latest"
-          make_latest: true
+          name: "Updater channel"
+          tag_name: "updater"
+          prerelease: true
+          make_latest: false
           token: ${{ secrets.GITHUB_TOKEN }}
 

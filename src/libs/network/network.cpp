@@ -455,9 +455,9 @@ std::optional<RemoteUser> NetworkClient::fetch_user(const std::string& access_co
 #if defined(__ANDROID__)
 namespace {
     constexpr char kUpdateChecksumUrl[] =
-        "https://github.com/yonokid/YataiDON/releases/latest/download/checksums-android.sha256";
+        "https://github.com/yonokid/YataiDON/releases/download/updater/checksums-android.sha256";
     constexpr char kUpdateApkUrl[] =
-        "https://github.com/yonokid/YataiDON/releases/latest/download/YataiDON-Android.apk";
+        "https://github.com/yonokid/YataiDON/releases/download/updater/YataiDON-Android-Update.apk";
     constexpr char kUpdateMarkerPath[] = "update_apk.sha256";
     constexpr char kUpdateApkPath[] = "/sdcard/YataiDON/update.apk";
     constexpr char kUpdateApkTmpPath[] = "/sdcard/YataiDON/update.apk.part";
