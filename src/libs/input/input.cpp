@@ -22,7 +22,6 @@
 #include "../math/animation.h"
 #include "../profiler.h"
 #include "../time.h"
-#include "controller_events.h"
 #include "ime_ui.h"
 #include "spdlog/spdlog.h"
 
@@ -149,6 +148,26 @@ static std::atomic<bool> screen_keyboard_started{false};
 static constexpr int PAD_SLOT_VKEY_BASE = 50000;
 static constexpr int pad_slot_key(int slot, int button) {
     return PAD_SLOT_VKEY_BASE + slot * 100 + button;
+}
+
+// A shared key and its per-slot key report one press: consuming either consumes both.
+static void consume_pad_alias(int key) {
+    if (key > GAMEPAD_VKEY_BASE && key <= GAMEPAD_VKEY_BASE + 18) {
+        for (int slot = 0; slot < 4; ++slot) {
+            if (auto alias = pressed_keys.find(pad_slot_key(slot, key - GAMEPAD_VKEY_BASE));
+                alias != pressed_keys.end()) {
+                pressed_keys.erase(alias);
+                return;
+            }
+        }
+    } else if (key >= PAD_SLOT_VKEY_BASE && key < pad_slot_key(4, 0)) {
+        const int button = (key - PAD_SLOT_VKEY_BASE) % 100;
+        if (button >= 1 && button <= 18) {
+            if (auto alias = pressed_keys.find(GAMEPAD_VKEY_BASE + button); alias != pressed_keys.end()) {
+                pressed_keys.erase(alias);
+            }
+        }
+    }
 }
 
 // Pads keep the slot they were first seen in, so P1/P2 don't swap when another reconnects.
@@ -1087,7 +1106,7 @@ bool check_key_pressed(int key, float* strength) {
             *strength = it->second;
         }
         pressed_keys.erase(it);
-        controller_events::consume_alias(pressed_keys, key);
+        consume_pad_alias(key);
         return true;
     }
     return false;

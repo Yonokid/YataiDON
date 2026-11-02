@@ -9,8 +9,6 @@
 #include "../objects/song_select/file_navigator/navigator.h"
 
 void SettingsScreen::on_screen_start() {
-    spdlog::info("Opening settings for skin {}",
-                 global_data.config ? global_data.config->paths.skin.string() : "<none>");
     Screen::on_screen_start();
 
     if (!global_data.config) {

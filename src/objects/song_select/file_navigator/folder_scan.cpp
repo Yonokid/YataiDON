@@ -1,6 +1,5 @@
 #include "../../../libs/file/filesystem.h"
 #include "../../../libs/file/scores.h"
-#include "../../../libs/file/song_file_snapshot.h"
 #include "navigation_load.h"
 #ifdef SUPPORT_FUMEN
 #include "../../../libs/optional/gen3.h"

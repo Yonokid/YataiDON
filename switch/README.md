@@ -84,12 +84,7 @@ application logging uses `latest.log` unless disabled as described below.
 Supply skins and songs separately; they are not included in the NRO.
 Launch through homebrew with full application memory (title takeover).
 
-The Switch heap starts small and commits RAM as the allocator requests it. Large
-free blocks at the end of the heap can be returned to the system. Startup releases
-the unused part of hbloader's full-memory reservation, preserving the loaded NRO;
-the original reservation is restored before returning to hbmenu. A system memory
-overlay reports committed memory, including free allocator space and GPU resources,
-rather than just live game allocations.
+The heap commits RAM on demand and restores hbloader's reservation on exit.
 
 ## Platform behavior
 
@@ -104,18 +99,6 @@ rather than just live game allocations.
 - The bgfx adaptation uses the linked Mesa entry points and libnx's default
   `NWindow` for `VK_NN_vi_surface`; it does not use Nintendo's proprietary NVN SDK.
 
-The first successful cross-build was on 29 October 2026 using devkitA64 GCC
-15.2.0, SDL2 2.28.5, GNU libiconv 1.18 and mesa-switch commit
-`0ff52079ca9e9e837ed27eb95a8d239f439a1864` (Mesa 26.2.4). Mesa was built with
-NVK and the Switch platform enabled, without Gallium or optional libelf support.
-Its host tools used LLVM/Clang 19 and Rust 1.99.1 with the
-`aarch64-unknown-linux-gnu` standard library. The Meson 1.7 Rust probe needed
-`sanity.rs` added to the wrapper's native sanity-check filename patterns.
-
-Validation covered the AArch64 executable (no undefined symbols), NRO segment
-bounds/alignment, embedded icon and NACP title, platform-source lint, Python and
-shell syntax, and clang-format 23.1.3 for the new C/C++ headers and source.
-
 Further validation should cover suspend/resume, clean exit, docked output and
 memory use with large skins/libraries. A sustained 60 FPS is not yet verified.
 
@@ -125,14 +108,12 @@ memory use with large skins/libraries. A sustained 60 FPS is not yet verified.
 [devkitPro](https://devkitpro.org/), libnx, SDL, bgfx/bx/bimg and bgfx.cmake provide
 the platform and graphics stack. Existing dependency licenses remain in their
 source distributions. [GNU libiconv](https://www.gnu.org/software/libiconv/)
-provides Japanese chart text conversion. The project follows `docs/AGENTS.md`: the platform hooks
-live in `src/platform/platform_switch.cpp`, dependencies/build rules in `switch/`,
-and scenes continue using the shared graphics facade.
+provides Japanese chart text conversion. Platform hooks live in
+`src/platform/platform_switch.cpp`; dependencies and build rules in `switch/`.
 
 ## Logging
 
-Temporary boot/controller/performance diagnostics and stdout/stderr SD-file
-redirection have been removed. Standard YataiDON logging is controlled by
+Logging is controlled by
 `log_level` in the existing `[general]` section of `config.toml`:
 
 ```toml
@@ -159,91 +140,3 @@ no periodic log-flush worker. Other supported values are `debug`, `info`,
 The port polls handheld/Lite controls and Npad 1-8 through libnx. A one-time
 `[switch].controller_layout_version = 2` migration installs these bindings;
 subsequent user changes are retained.
-
-## Storage and rendering
-
-Native directory batches collect chart paths, sizes and timestamps together.
-Each scan refreshes that metadata, including timestamps for same-size edits.
-Song Select uses the shared song library and background navigation loader.
-Failed native walks fall back to the portable filesystem implementation.
-SQLite's SD VFS preserves transactions, rollback, EOF reads and metadata access
-for already-open writable databases.
-
-The shared asset caches retain skin resources between scenes. Settings reloads
-assets when skin, language, audio or volume changes require it. The bgfx render
-thread and VSync pace frames; character poses and inverse bind matrices are
-cached, and 2D draws share transient pages. Character meshes with up to 64 bones
-keep their bind vertices, joint indices and weights in GPU buffers. Mesh and
-outline vertex shaders apply the current bone palette; pose changes upload bone
-transforms instead of rebuilding and uploading every vertex. Cached per-joint
-boxes conservatively bound the animated mesh without reading vertices back.
-Repeated integer animation frames reuse a cached palette and animated bounds.
-Each model retains at most 4 MiB of pose samples for its current animation;
-animation replacement, model destruction or mesh edits invalidate those samples.
-Immutable cached palettes are referenced directly by mesh submissions rather than
-copied into the encoder for every mesh. Three frame slots keep those references
-alive until the threaded renderer has consumed them, including across cache eviction.
-Pose samples store normal rows without a duplicate normal-matrix array.
-Fractional frames and CPU-skinned models retain the normal calculation path.
-Unsupported meshes retain CPU skinning; large meshes split it between the game
-thread and one persistent worker, and small meshes run directly.
-The game thread prefers core 0 and the character worker prefers core 2 while
-keeping the process's allowed CPU mask, so the scheduler can still migrate them.
-Fallback vertex packing shares the skinning pass. Character render bounds
-transform eight corners of a local containing box rather than every vertex.
-Standard 2D sprites outside the render target and transparent alpha-blended
-sprites are rejected before submission. Unchanged shader uniforms keep the
-current sprite batch intact. Custom vertex shaders bypass the visibility check.
-Lua metadata calls return independent writable tables directly on the caller's
-Lua stack, avoiding temporary registry references and correctly supporting coroutines.
-Draw bindings read their parameter tables directly from the Lua stack, including
-text draws. Texture lookups reuse Lua userdata through a weak cache, so repeated
-lookups avoid allocating wrappers while unloaded textures remain collectible.
-Lua uses generational collection for short-lived draw tables, and song-time
-overrides skip the system-clock call. Switch release builds keep Lua's opcode
-dispatch branches separate rather than merging them through cross-jumping;
-this compiler setting applies only to the interpreter source file.
-
-The FPS counter displays only FPS and refreshes its text four times per second.
-Detailed per-draw timing, call counters and CPU-tick queries have been removed.
-Note and label passes reuse calculated positions, while uploaded outlined text
-skips its completed image-upload synchronization path. Setting an unchanged
-texture filter or wrap mode preserves the current batch.
-Standard 2D sprites use GPU instancing when the renderer provides the required
-instance attributes and eight texture samplers. One 64-byte record supplies rectangle,
-UV range, origin, rotation, tint and colour transform; packed colour and texture-index
-values reduce instance traffic by 20%. A fixed quad and vertex shader generate the corners. Custom
-shader draws and renderers without the required instance attributes keep the
-CPU-expanded path. Sprite order, blend modes, scissors and render targets are
-preserved. The output remains 720p and Don-chan renders at 100% resolution.
-Character passes calculate the shared world transform once and draw with local
-material overrides, avoiding temporary shader/transform arrays and model mutations.
-On renderers with eight texture samplers, each sprite batch can reference eight
-different textures. A per-sprite index selects the texture in the fragment shader,
-preserving input order without sorting. Real state changes, a full texture table,
-or mutation/unloading of any texture used by the batch submit the queued work
-before continuing.
-Plain filled rectangles join those sprite batches rather than breaking a batch
-to switch to CPU-generated geometry.
-The known colour-transform shader also joins these batches. Its HSV transform
-is calculated once when its colours change and carried with each sprite, so
-switching between differently coloured folders preserves sprite order without
-submitting a separate batch for each shader change.
-Finished animations retain their final state without recalculating it; loop and
-restart behavior is preserved. Inactive song boxes skip preview checks, and
-folder voice names are built only when opening or closing triggers playback.
-
-Long ASCII text uses a per-string glyph lookup instead of searching the whole
-font for every character. Outlined labels copy only their requested glyph
-bitmaps and fallback/line-height glyphs, with independent pixel ownership.
-These CPU-composited labels reuse the bitmap cache without packing or uploading
-an unused font atlas. GPU-drawn text still builds its atlas on demand.
-Rendered outlined labels share a 48 MiB bounded texture cache, keyed by font
-generation and every layout/colour parameter. Skin/font reloads invalidate old
-entries; visible labels retain their texture safely if a cache entry is evicted.
-Song Select rasterizes labels when they become visible. Folder summaries find each
-folder's chart range by binary search in the completed scan; loading reuses scan timestamps.
-TJA chart reads use the native whole-file reader, with the existing portable
-reader as fallback and the same encoding and line-splitting rules.
-Settled closed boxes skip finished animation updates; only active previews and
-focused songs advance the shared difficulty fade.

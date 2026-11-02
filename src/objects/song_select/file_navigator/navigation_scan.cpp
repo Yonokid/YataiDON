@@ -3,7 +3,7 @@
 #include <cwchar>
 #include <vector>
 
-#include "../../../libs/file/song_file_snapshot.h"
+#include "../../../libs/file/filesystem.h"
 #include "../../../platform/platform_windows.h"
 #ifdef SUPPORT_FUMEN
 #include "../../../libs/optional/gen3.h"

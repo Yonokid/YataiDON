@@ -518,6 +518,7 @@ namespace av {
             ::AVFormatContext* ctx = nullptr;
             try {
                 const auto input_path = std::filesystem::absolute(path);
+                // Explicit protocol: a device prefix such as "sdmc:" would otherwise parse as one.
                 const auto url = "file:" + input_path.string();
                 check(avformat_open_input(&ctx, url.c_str(), nullptr, nullptr), "avformat_open_input");
                 check(avformat_find_stream_info(ctx, nullptr), "avformat_find_stream_info");

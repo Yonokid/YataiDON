@@ -2,21 +2,24 @@
 #include <array>
 #include <charconv>
 #include <chrono>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
 #include <exception>
+#include <mutex>
 #include <stdexcept>
+#include <string>
 #include <switch.h>
 #include <unistd.h>
+#include <unordered_map>
+#include <utility>
 
-#include "../../switch/chart-index.h"
 #include "../../switch/controller-layout.h"
 #include "../../switch/input.h"
 #include "../../switch/keyboard.h"
 #include "../../switch/sqlite-vfs.h"
-#include "../../switch/timestamp-cache.h"
 #include "../libs/file/config.h"
 #include "../libs/gfx.h"
 #include "../libs/gfx/sdl_compat.h"
@@ -24,6 +27,57 @@
 #include "platform.h"
 
 namespace {
+    // A fresh scan owns this snapshot; timestamps are queried while the directory
+    // entries are hot in the filesystem cache, not after walking the entire SD tree.
+    class SwitchChartIndex {
+        struct Stamp {
+            int64_t mtime;
+            int64_t size;
+        };
+        std::mutex mutex;
+        std::unordered_map<std::string, Stamp> entries;
+
+    public:
+        void clear() {
+            std::scoped_lock lock(mutex);
+            entries.clear();
+        }
+
+        void put(std::string path, int64_t mtime, int64_t size) {
+            std::scoped_lock lock(mutex);
+            entries.insert_or_assign(std::move(path), Stamp{mtime, size});
+        }
+
+        bool get(const std::string& path, int64_t& mtime, int64_t& size) {
+            std::scoped_lock lock(mutex);
+            auto found = entries.find(path);
+            if (found == entries.end()) {
+                return false;
+            }
+            mtime = found->second.mtime;
+            size = found->second.size;
+            return true;
+        }
+    };
+
+    class SwitchTimestampCache {
+        std::mutex mutex;
+        std::unordered_map<int64_t, int64_t> values;
+
+    public:
+        template<class Convert>
+        int64_t get(int64_t timestamp, Convert&& convert) {
+            std::scoped_lock lock(mutex);
+            auto found = values.find(timestamp);
+            if (found != values.end()) {
+                return found->second;
+            }
+            const int64_t result = convert(timestamp);
+            values.emplace(timestamp, result);
+            return result;
+        }
+    };
+
     SwitchChartIndex chart_index;
     SwitchTimestampCache timestamp_cache;
 

@@ -1,18 +1,23 @@
 #include "gfx.h"
 
+#include <algorithm>
 #include <array>
 #include <bgfx/bgfx.h>
 #include <bx/math.h>
 #include <cmath>
 #include <condition_variable>
 #include <cstdarg>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <functional>
+#include <memory>
 #include <mutex>
+#include <optional>
+#include <span>
 #include <spdlog/spdlog.h>
 #include <string>
 #include <thread>
@@ -24,15 +29,9 @@
 #define CGLTF_IMPLEMENTATION
 #include <cgltf.h>
 
-#include "gfx/frame_keepalive.h"
 #include "gfx/glyph_lookup.h"
-#include "gfx/integer_pose_cache.h"
+#include "gfx/mesh_bounds.h"
 #include "gfx/sdl_compat.h"
-#include "gfx/skinning.h"
-#include "gfx/sprite_color.h"
-#include "gfx/sprite_instance.h"
-#include "gfx/sprite_textures.h"
-#include "gfx/transient_ranges.h"
 #include "shaders/spirv/fs_2d.sc.bin.h"
 #include "shaders/spirv/fs_colortransform.sc.bin.h"
 #include "shaders/spirv/fs_cutout.sc.bin.h"
@@ -47,6 +46,236 @@
 #include "shaders/spirv/vs_outline.sc.bin.h"
 #include "shaders/spirv/vs_outline_skin.sc.bin.h"
 #include "shaders/spirv/vs_sprite.sc.bin.h"
+
+namespace {
+
+    inline constexpr unsigned GPU_SKIN_BONES = 64;
+
+    inline std::array<std::array<float, 4>, 3> skin_matrix_rows(const Mat4& matrix) {
+        return {{{matrix.m0, matrix.m4, matrix.m8, matrix.m12},
+                 {matrix.m1, matrix.m5, matrix.m9, matrix.m13},
+                 {matrix.m2, matrix.m6, matrix.m10, matrix.m14}}};
+    }
+
+    class SkinningBounds {
+        std::vector<MeshBounds> joints;
+        float maximum_weight = 0;
+
+    public:
+        bool prepare(const Mesh& mesh) {
+            joints.clear();
+            maximum_weight = 0;
+            if (!mesh.vertices || !mesh.boneIndices || !mesh.boneWeights || mesh.boneCount <= 0 ||
+                mesh.boneCount > static_cast<int>(GPU_SKIN_BONES)) {
+                return false;
+            }
+            joints.resize(mesh.boneCount);
+            for (int vertex = 0; vertex < mesh.vertexCount; ++vertex) {
+                const Vec3 point{mesh.vertices[vertex * 3], mesh.vertices[vertex * 3 + 1],
+                                 mesh.vertices[vertex * 3 + 2]};
+                float total = 0;
+                for (int influence = 0; influence < 4; ++influence) {
+                    const unsigned joint = mesh.boneIndices[vertex * 4 + influence];
+                    const float weight = mesh.boneWeights[vertex * 4 + influence];
+                    if (!std::isfinite(weight) || weight < 0) {
+                        return false;
+                    }
+                    if (joint < joints.size() && weight > 0) {
+                        joints[joint].include(point);
+                        total += weight;
+                    }
+                }
+                if (!std::isfinite(total)) {
+                    return false;
+                }
+                maximum_weight = std::max(maximum_weight, total);
+            }
+            return maximum_weight > 0;
+        }
+
+        MeshBounds posed(std::span<const Mat4> matrices) const {
+            MeshBounds result;
+            result.include({0, 0, 0});
+            for (size_t joint = 0; joint < joints.size() && joint < matrices.size(); ++joint) {
+                if (joints[joint].valid) {
+                    for (unsigned corner = 0; corner < 8; ++corner) {
+                        result.include(vector3_transform(joints[joint].corner(corner), matrices[joint]));
+                    }
+                }
+            }
+            // A nonnegative weighted sum lies inside this box scaled by the largest weight sum.
+            result.lower.x *= maximum_weight;
+            result.lower.y *= maximum_weight;
+            result.lower.z *= maximum_weight;
+            result.upper.x *= maximum_weight;
+            result.upper.y *= maximum_weight;
+            result.upper.z *= maximum_weight;
+            return result;
+        }
+    };
+
+    struct CachedSkinPose {
+        std::vector<Transform> pose;
+        std::vector<Mat4> matrices;
+        std::vector<std::array<float, 4>> position_rows, normal_rows;
+        std::vector<MeshBounds> bounds;
+    };
+
+    class IntegerPoseCache {
+        const void* animation = nullptr;
+        size_t frame_count = 0, bone_count = 0, mesh_count = 0;
+        std::vector<std::shared_ptr<const CachedSkinPose>> frames;
+
+    public:
+        static constexpr size_t budget = 4u << 20;
+
+        bool select(const void* source, size_t count, size_t bones, size_t meshes) {
+            const size_t bytes = bones * (sizeof(Transform) + sizeof(Mat4) + 6 * sizeof(std::array<float, 4>)) +
+                                 meshes * sizeof(MeshBounds) + sizeof(CachedSkinPose) +
+                                 sizeof(std::shared_ptr<const CachedSkinPose>) + 2 * sizeof(void*);
+            if (animation != source || frame_count != count || bone_count != bones || mesh_count != meshes) {
+                clear();
+                animation = source;
+                frame_count = count;
+                bone_count = bones;
+                mesh_count = meshes;
+                if (source && count && bytes && count <= budget / bytes) {
+                    frames.resize(count);
+                }
+            }
+            return !frames.empty();
+        }
+
+        std::shared_ptr<const CachedSkinPose> get(size_t frame) const {
+            return frame < frames.size() ? frames[frame] : nullptr;
+        }
+
+        void put(size_t frame, std::shared_ptr<const CachedSkinPose> pose) {
+            if (frame < frames.size()) {
+                frames[frame] = std::move(pose);
+            }
+        }
+
+        void clear() {
+            decltype(frames){}.swap(frames);
+            animation = nullptr;
+            frame_count = bone_count = mesh_count = 0;
+        }
+    };
+
+    inline std::array<float, 3> sprite_rgb_to_hsv(const std::array<float, 4>& color) {
+        const float r = color[0], g = color[1], b = color[2];
+        const std::array<float, 4> p =
+            g >= b ? std::array{g, b, 0.0f, -1.0f / 3.0f} : std::array{b, g, -1.0f, 2.0f / 3.0f};
+        const std::array<float, 4> q = r >= p[0] ? std::array{r, p[1], p[2], p[0]} : std::array{p[0], p[1], p[3], r};
+        const float d = q[0] - std::min(q[3], q[1]);
+        constexpr float epsilon = 1.0e-10f;
+        return {std::abs(q[2] + (q[3] - q[1]) / (6.0f * d + epsilon)), d / (q[0] + epsilon), q[0]};
+    }
+
+    inline std::array<float, 4> sprite_color_transform(const std::array<float, 4>& source,
+                                                       const std::array<float, 4>& target) {
+        const auto from = sprite_rgb_to_hsv(source), to = sprite_rgb_to_hsv(target);
+        return {to[0] - from[0], from[1] > 0 ? to[1] / from[1] : 1.0f, from[2] > 0 ? to[2] / from[2] : 1.0f, 1.0f};
+    }
+
+    struct alignas(64) SpriteInstance {
+        std::array<float, 4> rectangle;
+        std::array<float, 4> uv;
+        std::array<float, 4> origin_rotation;
+        std::array<float, 4> color_transform;
+
+        static SpriteInstance make(Rect destination, std::array<float, 4> uv, Vec2 origin, float rotation, Color tint,
+                                   uint32_t texture_index, std::array<float, 4> transform) {
+            // Integer-valued floats preserve every packed bit without relying on NaN payloads.
+            const uint32_t rg =
+                tint.r | (uint32_t{tint.g} << 8) | (texture_index << 16) | (uint32_t{transform[3] > 0.5f} << 19);
+            transform[3] = static_cast<float>(tint.b | (uint32_t{tint.a} << 8));
+            return {{destination.x, destination.y, destination.width, destination.height},
+                    uv,
+                    {origin.x, origin.y, rotation, static_cast<float>(rg)},
+                    transform};
+        }
+    };
+
+    static_assert(sizeof(SpriteInstance) == 64);
+
+    class SpriteTextures {
+        std::array<unsigned, 8> textures{};
+        unsigned used = 0;
+
+    public:
+        static constexpr unsigned capacity = 8;
+        unsigned size() const { return used; }
+        unsigned operator[](unsigned index) const { return textures[index]; }
+        bool contains(unsigned texture) const {
+            return std::find(textures.begin(), textures.begin() + used, texture) != textures.begin() + used;
+        }
+        void clear() { used = 0; }
+
+        template<class Flush>
+        unsigned add(unsigned texture, Flush flush) {
+            for (unsigned i = 0; i < used; ++i) {
+                if (textures[i] == texture) {
+                    return i;
+                }
+            }
+            if (used == capacity) {
+                flush();
+                clear();
+            }
+            textures[used] = texture;
+            return used++;
+        }
+    };
+
+    // Keep adjacent submissions in one transient page; discard every range when
+    // bgfx advances its frame and recycles the underlying storage.
+    class TransientRanges {
+        uint32_t capacity = 0;
+        uint32_t used = 0;
+
+    public:
+        void reset() { capacity = used = 0; }
+
+        template<class Reserve>
+        std::optional<uint32_t> allocate(uint32_t count, Reserve reserve) {
+            if (capacity - used < count) {
+                const uint32_t available = reserve(std::max(count, 4096u));
+                capacity = available >= count ? available : 0;
+                used = 0;
+            }
+            if (capacity < count) {
+                return std::nullopt;
+            }
+            const uint32_t first = used;
+            used += count;
+            return first;
+        }
+    };
+
+    template<class T>
+    class FrameKeepAlive {
+        // bgfx uniform references must survive up to two frame calls with threaded rendering.
+        std::array<std::vector<std::shared_ptr<const T>>, 3> frames;
+        uint64_t frame = 0;
+
+    public:
+        uint64_t current_frame() const { return frame; }
+        void keep(const std::shared_ptr<const T>& value) { frames[frame % frames.size()].push_back(value); }
+        void advance() {
+            ++frame;
+            frames[frame % frames.size()].clear();
+        }
+        void clear() {
+            for (auto& entries : frames) {
+                entries.clear();
+            }
+            ++frame;
+        }
+    };
+
+} // namespace
 
 namespace {
 
@@ -291,7 +520,7 @@ namespace {
             bgfx::setVertexBuffer(0, sprite_quad);
             bgfx::setInstanceDataBuffer(&instance_page, *first, count);
         } else {
-            const auto n = (uint32_t)verts.size();
+            const auto n = static_cast<uint32_t>(verts.size());
             const auto first = vertex_ranges.allocate(n, [&](uint32_t requested) {
                 const uint32_t capacity = bgfx::getAvailTransientVertexBuffer(requested, layout);
                 if (capacity >= n) {
@@ -2218,14 +2447,14 @@ namespace {
               }) {}
         ~SkinWorker() {
             {
-                std::lock_guard lock(mutex);
+                std::scoped_lock lock(mutex);
                 stopping = true;
             }
             ready.notify_one();
             thread.join();
         }
         void start(std::function<void()> work) {
-            std::lock_guard lock(mutex);
+            std::scoped_lock lock(mutex);
             job = std::move(work);
             busy = true;
             ready.notify_one();

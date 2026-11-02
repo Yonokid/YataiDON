@@ -21,6 +21,8 @@ bool platform_resolve_file_path(const std::filesystem::path&, std::filesystem::p
     return false;
 }
 
+void platform_initialize_animation_worker() {}
+
 bool platform_present_paces_frames() {
     return false;
 }

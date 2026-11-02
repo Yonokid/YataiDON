@@ -534,18 +534,17 @@ static Font deep_copy_font(const Font& src, const std::string& text) {
             required.insert(codepoint);
             ptr += length;
         }
+        std::vector<int> kept;
         for (int i = 0; i < src.glyphCount; ++i) {
             if (i == 0 || required.contains(src.glyphs[i].value)) {
-                ++dst.glyphCount;
+                kept.push_back(i);
             }
         }
-        dst.glyphs = static_cast<GlyphInfo*>(std::malloc(dst.glyphCount * sizeof(GlyphInfo)));
-        dst.recs = static_cast<Rect*>(std::malloc(dst.glyphCount * sizeof(Rect)));
-        int copied = 0;
-        for (int i = 0; i < src.glyphCount; i++) {
-            if (i != 0 && !required.contains(src.glyphs[i].value)) {
-                continue;
-            }
+        dst.glyphCount = static_cast<int>(kept.size());
+        dst.glyphs = static_cast<GlyphInfo*>(std::malloc(kept.size() * sizeof(GlyphInfo)));
+        dst.recs = static_cast<Rect*>(std::malloc(kept.size() * sizeof(Rect)));
+        for (size_t copied = 0; copied < kept.size(); ++copied) {
+            const int i = kept[copied];
             dst.glyphs[copied] = src.glyphs[i];
             const Image& si = src.glyphs[i].image;
             dst.recs[copied] =
@@ -558,7 +557,6 @@ static Font deep_copy_font(const Font& src, const std::string& text) {
             } else {
                 di.data = nullptr;
             }
-            ++copied;
         }
     }
     return dst;
@@ -710,7 +708,8 @@ OutlinedText::OutlinedText(std::string text, int font_size, Color color, Color o
     auto& manager = named_font_manager(font_name);
     if (outlined_text_cache().enabled()) {
         const auto rgba = [](Color c) {
-            return uint32_t(c.r) | (uint32_t(c.g) << 8) | (uint32_t(c.b) << 16) | (uint32_t(c.a) << 24);
+            return static_cast<uint32_t>(c.r) | (static_cast<uint32_t>(c.g) << 8) | (static_cast<uint32_t>(c.b) << 16) |
+                   (static_cast<uint32_t>(c.a) << 24);
         };
         cache_key =
             std::format("{}/{}/{}/{}/{}/{}/{}/{}/{}", manager.cache_generation(), font_size, rgba(color),

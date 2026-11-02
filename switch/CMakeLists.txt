@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.24)
-project(YataiDONSwitch VERSION 1.0.5 LANGUAGES C CXX)
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/../CMakeLists.txt" _root_project REGEX "^project\\(YataiDON VERSION")
+string(REGEX MATCH "[0-9]+\\.[0-9]+\\.[0-9]+" _root_version "${_root_project}")
+project(YataiDONSwitch VERSION ${_root_version} LANGUAGES C CXX)
 if(NOT SWITCH AND NOT CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
   message(FATAL_ERROR "Use devkitPro's Switch.cmake toolchain")
 endif()
