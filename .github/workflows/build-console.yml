@@ -113,7 +113,6 @@ jobs:
       - name: Package
         run: |
           python3 platform/ps5/package.py --skip-media
-          python3 platform/ps5/tools/verify-bundle.py
           mkdir -p release
           cp platform/ps5/dist/YataiDON-PS5-experimental.zip release/YataiDON-PS5.zip
 

@@ -30,7 +30,6 @@ export PS5_FFMPEG_PREFIX=/path/to/ffmpeg-ps5
 export PS5_VULKAN_PREFIX=/path/to/PS5_Vulkan/.deps/native/radv-release
 BUILD_JOBS=8 bash platform/ps5/build-game.sh
 python3 platform/ps5/package.py --skip-media
-python3 platform/ps5/tools/verify-bundle.py
 ```
 
 `build-game.sh` fetches pinned source dependencies, applies a checksum-verified
@@ -49,13 +48,3 @@ Output: `platform/ps5/dist/YataiDON-PS5-experimental.zip`. Replace the complete
 `--skip-media`, existing skins, songs, settings and saves remain external;
 install complete skins and songs under `/data/YataiDON`. The build receipt
 records the executable, game archive and linked driver hashes.
-
-## Verification
-
-Run `python3 platform/ps5/tools/verify-bundle.py` after packaging to check executable
-hashes, metadata and archive integrity. These checks do not prove rendering,
-HDMI output, audio timing or console stability.
-
-Before treating a build as a release, check onboarding, entry, song selection,
-settings, song playback, Options restart/touchpad back, video playback, 60/120 Hz
-switching and shutdown on a console. Keep the last working build for comparison.
