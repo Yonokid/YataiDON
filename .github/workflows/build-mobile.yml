@@ -138,6 +138,15 @@ jobs:
           path: .ios-ffmpeg/iphoneos-arm64
           key: ios-ffmpeg-${{ runner.os }}-${{ runner.arch }}-iphoneos-arm64-${{ env.IOS_DEPLOYMENT_TARGET }}-${{ steps.toolchain.outputs.xcode }}-${{ hashFiles('tools/build_ffmpeg_ios.sh') }}
 
+      - name: Cache iOS CMake configure
+        uses: actions/cache@v4
+        with:
+          path: |
+            build-ios-device
+            !build-ios-device/**/*.build
+            !build-ios-device/**/Release-iphoneos
+          key: ios-cmake-${{ env.IOS_DEPLOYMENT_TARGET }}-${{ steps.toolchain.outputs.xcode }}-${{ hashFiles('CMakeLists.txt', 'cmake/**') }}
+
       - name: Build unsigned iOS app
         env:
           NETWORK_URL: ${{ secrets.NETWORK_URL }}
@@ -226,4 +235,3 @@ jobs:
           tag_name: "latest"
           make_latest: true
           token: ${{ secrets.GITHUB_TOKEN }}
-
