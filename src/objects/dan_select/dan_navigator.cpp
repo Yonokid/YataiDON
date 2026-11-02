@@ -16,9 +16,11 @@
 #include <iterator>
 
 #include "../../libs/file/filesystem.h"
+#include "../../libs/file/scores.h"
 #include "../../libs/file/script.h"
 #include "../../libs/input/input.h"
 #include "../../libs/parsers/song_parser.h"
+#include "../../libs/song_library.h"
 #include "../song_select/file_navigator/navigator.h"
 
 int DanNavigator::total_notes_for(const std::vector<DanSongEntry>& songs) {
@@ -215,9 +217,15 @@ std::optional<DanSongEntry> DanNavigator::load_song_entry(const rapidjson::Value
                 path_opt = scores_manager.get_path_by_hash(hash);
             }
         }
+
         if (!path_opt) {
-            path_opt = navigator.find_song_by_title(chart_title, str("subtitle"));
+            auto index = memo_ ? memo_->index : get_song_library().snapshot();
+
+            if (index) {
+                path_opt = index->find_song_by_title(chart_title, str("subtitle"));
+            }
         }
+
         if (!path_opt) {
             spdlog::warn("DanNavigator: song '{}' not found", chart_title);
             return std::nullopt;
@@ -347,6 +355,7 @@ std::optional<DanBoxData> DanNavigator::load_dan_box_data(const fs::path& json_p
     d.exams = std::move(exams);
     d.total_notes = total_notes_for(songs);
     d.gaiden = doc.HasMember("gaiden") && doc["gaiden"].IsBool() && doc["gaiden"].GetBool();
+    d.gen3 = doc.HasMember("gen3") && doc["gen3"].IsBool() && doc["gen3"].GetBool();
     return d;
 }
 
@@ -355,6 +364,7 @@ std::unique_ptr<DanBox> DanNavigator::make_box(const DanBoxData& d) {
     box->dan_rank = d.rank;
     box->dan_index = d.dan_index;
     box->gaiden = d.gaiden;
+    box->gen3 = d.gen3;
     box->song_titles = d.song_titles;
     return box;
 }
@@ -412,6 +422,7 @@ void DanNavigator::collect_dan_jsons(const fs::path& root_path, std::vector<fs::
 // Loads the courses on a few worker threads, in the order given
 std::vector<DanBoxData> DanNavigator::load_dan_jsons(const std::vector<fs::path>& jsons) {
     ScanMemo memo;
+    memo.index = get_song_library().snapshot();
     memo_ = &memo;
     std::vector<std::optional<DanBoxData>> loaded(jsons.size());
     std::atomic<size_t> cursor{0};
@@ -450,6 +461,10 @@ std::vector<DanBoxData> DanNavigator::load_dan_jsons(const std::vector<fs::path>
 // The scan result for the same dan.json files (paths and modification times) over the same song
 // library is reused for the rest of the session: re-entering the dojo re-read every course
 std::vector<DanBoxData> DanNavigator::scan_roots(const std::vector<fs::path>& roots) {
+    if (!get_song_library().wait(scan_abort)) {
+        return {};
+    }
+
     struct Cached {
         std::vector<std::pair<fs::path, fs::file_time_type>> signature;
         size_t library_size = 0;
@@ -472,7 +487,7 @@ std::vector<DanBoxData> DanNavigator::scan_roots(const std::vector<fs::path>& ro
         std::error_code ec;
         signature.emplace_back(json, fs::last_write_time(json, ec));
     }
-    const size_t library_size = navigator.song_file_count();
+    const size_t library_size = get_song_library().song_file_count();
     const std::string language = global_data.config ? global_data.config->general.language : std::string();
 
     {
@@ -511,13 +526,6 @@ int DanNavigator::scan_root(const fs::path& root_path) {
 }
 
 std::vector<DanBoxData> DanNavigator::scan_all_data(const std::vector<fs::path>& song_paths) {
-    while (!navigator.song_files_ready.load() && !scan_abort.load()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(4));
-    }
-    if (scan_abort.load()) {
-        return {};
-    }
-
     std::vector<DanBoxData> data = scan_roots(song_paths);
 
     if (data.empty() && global_data.config && !scan_abort.load()) {

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stop_token>
+
 #include "../libs/gfx/color_utils.h"
 #include "../libs/screen.h"
 #include "../objects/game/song_info.h"
@@ -31,6 +33,7 @@ protected:
     std::unique_ptr<Timer> diff_select_timer;
     std::unique_ptr<Indicator> indicator;
     Statistics cached_stats;
+    std::stop_source stats_stop;
     std::future<Statistics> stats_future;
 
     Shader shader;
@@ -81,6 +84,8 @@ public:
     SongSelectScreen() : Screen("song_select") {}
 
     explicit SongSelectScreen(const std::string& name) : Screen(name) {}
+
+    ~SongSelectScreen() override { stats_stop.request_stop(); }
 
     void on_screen_start() override;
     Screens on_screen_end(Screens next_screen) override;

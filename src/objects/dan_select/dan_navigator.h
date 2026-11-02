@@ -22,6 +22,7 @@ struct DanBoxData {
     int rank = -1;
     int dan_index = -1;
     bool gaiden = false;
+    bool gen3 = false; // "gen3": true forces gen3 scoring for this course
     std::vector<DanSongEntry> songs;
     std::vector<Exam> exams;
     int total_notes = 0;
@@ -97,6 +98,7 @@ private:
     // Chart reads shared by the scan's worker threads: a song sits in many courses, and every
     // course used to re-read it twice (metadata, then notes)
     struct ScanMemo {
+        std::shared_ptr<const class SongIndex> index;
         std::mutex mutex;
         std::map<fs::path, std::shared_ptr<const TJAMetadata>> metadata;
         std::map<std::pair<fs::path, int>, int> note_counts;

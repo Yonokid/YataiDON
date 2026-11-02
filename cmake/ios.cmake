@@ -50,15 +50,11 @@ endif()
 # works. Unsigned command-line checks disable signing for that build only.
 
 set(IOS_SONGS_DIR "${CMAKE_SOURCE_DIR}/Songs" CACHE PATH "Songs included in the iOS app")
-if(NOT EXISTS "${YATAIDON_SKINS_DIR}/PyTaikoGreen/Graphics/skin_config.json")
-  message(FATAL_ERROR "PyTaikoGreen assets are missing. Populate the skin submodule or set YATAIDON_SKINS_DIR to a complete Skins directory.")
-endif()
 # Use a resource directory, not thousands of individual Xcode file entries.
 # Refresh it on every build, including asset-only edits.
 add_custom_target(ios_assets
   COMMAND ${CMAKE_COMMAND}
     "-DSOURCE_DIR=${CMAKE_SOURCE_DIR}"
-    "-DSKINS_DIR=${YATAIDON_SKINS_DIR}"
     "-DSONGS_DIR=${IOS_SONGS_DIR}"
     "-DDEST_DIR=${CMAKE_BINARY_DIR}/ios-resources/GameData"
     -P "${CMAKE_SOURCE_DIR}/cmake/ios_assets.cmake"

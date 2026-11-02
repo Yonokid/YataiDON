@@ -1,0 +1,147 @@
+name: Build YataiDON Console (Release)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-ps5:
+    name: Build for PS5
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      PS5_VULKAN_REV: f410e67a0241b3e8edcdbcd2a9b285dfc4a412ed
+      PS5_MESA_REV: 1ba9874f478657ccf6da72ce55f0260164cc0bd0
+      PS5_SDK_REV: b83202be73e930050e00de0f1b4d9ec46c0391bf
+      NATIVE_TEMPLATE_REV: 470695e0c557f99ff2df0e36e4df713c5e636526
+      FFMPEG_VERSION: 8.1.2
+      FFMPEG_SHA256: 464beb5e7bf0c311e68b45ae2f04e9cc2af88851abb4082231742a74d97b524c
+      OPUS_VERSION: 1.5.2
+      OPUS_SHA256: 65c1d2f78b9f2fb20082c38cbe47c951ad5839345876e46941612ee87f9a7ce1
+      DEPS: ${{ github.workspace }}/.ps5-deps
+      BUILD_JOBS: 4
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Install dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            clang clang-19 lld-19 llvm-19-dev libclang-19-dev libclang-cpp19-dev libclc-19-dev \
+            libllvmspirvlib-19-dev spirv-tools glslang-tools \
+            ninja-build cmake pkg-config make rsync wget unzip xz-utils bison flex \
+            python3-mako python3-yaml python3-packaging \
+            libgl1-mesa-dev libx11-dev
+          pip install --user --break-system-packages 'meson>=1.4'
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          # Mesa's host OpenCL tools must find LLVM 19's llvm-config.
+          echo "/usr/lib/llvm-19/bin" >> "$GITHUB_PATH"
+
+      - name: Cache SDK and RADV
+        id: cache-radv
+        uses: actions/cache@v4
+        with:
+          path: |
+            .ps5-deps/PS5_Vulkan/.deps/native/ps5-payload-sdk
+            .ps5-deps/PS5_Vulkan/.deps/native/radv-release
+          key: ps5-radv-${{ env.PS5_VULKAN_REV }}-${{ env.PS5_MESA_REV }}-${{ env.PS5_SDK_REV }}
+
+      - name: Build PS5 payload SDK and RADV
+        if: steps.cache-radv.outputs.cache-hit != 'true'
+        run: |
+          fetch() {
+            git init -q "$DEPS/$1"
+            git -C "$DEPS/$1" fetch -q --depth 1 "https://github.com/mihawk-99/$1.git" "$2"
+            git -C "$DEPS/$1" checkout -q --detach FETCH_HEAD
+          }
+          fetch PS5_Vulkan "$PS5_VULKAN_REV"
+          fetch PS5_Mesa "$PS5_MESA_REV"
+          fetch PS5_PayloadSDK "$PS5_SDK_REV"
+          mkdir -p "$DEPS/PS5_Vulkan/.deps/native/zlib"
+          wget -q --tries=3 -O "$DEPS/PS5_Vulkan/.deps/native/zlib/zlib-1.3.2.tar.gz" \
+            https://github.com/madler/zlib/releases/download/v1.3.2/zlib-1.3.2.tar.gz
+          bash "$DEPS/PS5_Vulkan/tools/setup-native-dependencies.sh"
+          bash "$DEPS/PS5_Vulkan/tools/build-radv.sh" release
+
+      - name: Set PS5 paths
+        run: |
+          echo "PS5_PAYLOAD_SDK=$DEPS/PS5_Vulkan/.deps/native/ps5-payload-sdk" >> "$GITHUB_ENV"
+          echo "PS5_VULKAN_PREFIX=$DEPS/PS5_Vulkan/.deps/native/radv-release" >> "$GITHUB_ENV"
+          echo "PS5_OPUS_PREFIX=$DEPS/opus-ps5" >> "$GITHUB_ENV"
+          echo "PS5_FFMPEG_PREFIX=$DEPS/ffmpeg-ps5" >> "$GITHUB_ENV"
+
+      - name: Cache FFmpeg and Opus
+        id: cache-ffmpeg
+        uses: actions/cache@v4
+        with:
+          path: |
+            .ps5-deps/opus-ps5
+            .ps5-deps/ffmpeg-ps5
+          key: ps5-ffmpeg-${{ env.FFMPEG_VERSION }}-opus-${{ env.OPUS_VERSION }}-${{ env.PS5_SDK_REV }}-${{ hashFiles('ps5/build-ffmpeg.sh', 'ps5/build-opus.sh') }}
+
+      - name: Build Opus and FFmpeg
+        if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
+        run: |
+          cd "$DEPS"
+          wget -q "https://downloads.xiph.org/releases/opus/opus-$OPUS_VERSION.tar.gz"
+          wget -q "https://ffmpeg.org/releases/ffmpeg-$FFMPEG_VERSION.tar.xz"
+          printf '%s  %s\n' "$OPUS_SHA256" "opus-$OPUS_VERSION.tar.gz" "$FFMPEG_SHA256" "ffmpeg-$FFMPEG_VERSION.tar.xz" | sha256sum -c --strict
+          tar -xzf "opus-$OPUS_VERSION.tar.gz"
+          tar -xJf "ffmpeg-$FFMPEG_VERSION.tar.xz"
+          OPUS_SOURCE="$DEPS/opus-$OPUS_VERSION" OPUS_BUILD_DIR="$DEPS/build-opus" \
+            bash "$GITHUB_WORKSPACE/ps5/build-opus.sh"
+          FFMPEG_SOURCE="$DEPS/ffmpeg-$FFMPEG_VERSION" FFMPEG_BUILD_DIR="$DEPS/build-ffmpeg" \
+            bash "$GITHUB_WORKSPACE/ps5/build-ffmpeg.sh"
+
+      - name: Prepare native-app template
+        run: |
+          t=ps5/vendor/native-template
+          git init -q "$t"
+          git -C "$t" fetch -q --depth 1 https://github.com/drakmor/ps5-native-app-boilerplate.git "$NATIVE_TEMPLATE_REV"
+          git -C "$t" checkout -q --detach FETCH_HEAD
+          # Regenerates the clean-room libc.prx (checksum-verified) and host zlib.
+          bash "$t/tools/rebuild-libc.sh"
+
+      - name: Build
+        run: bash ps5/build-game.sh
+
+      - name: Package
+        run: |
+          python3 ps5/package.py --skip-media
+          python3 ps5/tools/verify-bundle.py
+          mkdir -p release
+          cp ps5/dist/YataiDON-PS5-experimental.zip release/YataiDON-PS5.zip
+
+      - name: Upload PS5 package
+        uses: actions/upload-artifact@v4
+        with:
+          name: YataiDON-PS5
+          path: release/
+          compression-level: 0
+          if-no-files-found: error
+
+  release:
+    needs: [build-ps5]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Download PS5 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: YataiDON-PS5
+          path: ps5-out/
+
+      - name: Upload Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ps5-out/YataiDON-PS5.zip
+          name: "YataiDON [Latest Release]"
+          tag_name: "latest"
+          make_latest: true
+          token: ${{ secrets.GITHUB_TOKEN }}

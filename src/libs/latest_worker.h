@@ -18,7 +18,7 @@ public:
         : worker([this] {
               std::unique_lock lock(mutex);
               for (;;) {
-                  cv.wait(lock, [this] { return stopping || bool(pending); });
+                  cv.wait(lock, [this] { return stopping || static_cast<bool>(pending); });
                   if (stopping) {
                       return;
                   }
@@ -32,7 +32,7 @@ public:
           }) {}
     ~LatestWorker() {
         {
-            std::lock_guard lock(mutex);
+            std::scoped_lock lock(mutex);
             stopping = true;
             pending = {};
         }
@@ -41,7 +41,7 @@ public:
     }
     void submit(std::function<void()> job) {
         {
-            std::lock_guard lock(mutex);
+            std::scoped_lock lock(mutex);
             pending = std::move(job);
         }
         cv.notify_one();

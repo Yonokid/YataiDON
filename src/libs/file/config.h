@@ -28,6 +28,7 @@ struct GeneralConfig {
     bool display_bpm = false;
     int webcam_number = -1;
     bool touch_input = false;
+    float touch_drum_size = 1.0f;
     bool skin_updater = true;
     bool fast_transitions = false;
 };

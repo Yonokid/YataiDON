@@ -9,6 +9,8 @@
 #include "../libs/input/input.h"
 #include "../libs/network/skin_updater.h"
 #include "../libs/parsers/song_parser.h"
+#include "../libs/song_library.h"
+#include "../libs/song_library_loader.h"
 #include "../objects/song_select/file_navigator/navigator.h"
 #include "../objects/song_select/song_select_script.h"
 #include "../platform/platform.h"
@@ -17,11 +19,16 @@ void LoadingScreen::on_screen_start() {
     init_visuals();
 
     start_ms = get_current_ms();
-#ifdef __EMSCRIPTEN__
-    load_song_hashes();
-#else
-    loading_thread = std::thread(&LoadingScreen::load_song_hashes, this);
-#endif
+    const bool populate_library = get_song_library().begin_loading();
+    try {
+        loading_thread = std::thread(&LoadingScreen::load_song_hashes, this, populate_library);
+    } catch (...) {
+        if (populate_library) {
+            get_song_library().fail_loading();
+        }
+
+        throw;
+    }
 }
 
 // Loads this screen's textures/sounds and (re)grabs the texture pointers and
@@ -60,13 +67,19 @@ void LoadingScreen::init_visuals() {
     has_countdown = countdown_ms > 0.0;
 }
 
-void LoadingScreen::load_song_hashes() {
+void LoadingScreen::load_song_hashes(bool populate_library) {
     try {
+        if (!populate_library) {
+            const std::atomic<bool> cancel{false};
+            get_song_library().wait(cancel);
+            populate_library = get_song_library().begin_loading();
+        }
+
         // Listed here, not in on_screen_start: the screen keeps drawing while a large library is walked
         songs = get_song_files(global_data.config->paths.tja_path);
         std::atomic<int> songs_loaded = 0;
         const unsigned thread_count = std::clamp(std::thread::hardware_concurrency(), 2u, 8u);
-        std::vector<std::thread> threads;
+        std::vector<std::jthread> threads;
         std::mutex scores_mutex;
 
         // Files whose size and modification time match the cache are not parsed again; the
@@ -113,20 +126,12 @@ void LoadingScreen::load_song_hashes() {
                                 stamp.hashes[course] = parser.get_diff_hash(course);
                             }
                         }
-                        stamp.title = parser.metadata.title.contains("en") ? parser.metadata.title.at("en") : "";
-                        stamp.subtitle =
-                            parser.metadata.subtitle.contains("en") ? parser.metadata.subtitle.at("en") : "";
-                        for (const auto& [lang, t] : parser.metadata.title) {
-                            stamp.titles.emplace_back(lang, t);
-                        }
-                        for (const auto& [lang, t] : parser.metadata.subtitle) {
-                            stamp.subtitles.emplace_back(lang, t);
-                        }
-                        for (const auto& [course, data] : parser.metadata.course_data) {
-                            if (course >= 0 && course <= 4) {
-                                stamp.levels[course] = static_cast<int>(data.level);
-                            }
-                        }
+                        auto metadata = song_metadata_from(parser.metadata);
+                        stamp.title = std::move(metadata.title);
+                        stamp.subtitle = std::move(metadata.subtitle);
+                        stamp.titles = std::move(metadata.titles);
+                        stamp.subtitles = std::move(metadata.subtitles);
+                        stamp.levels = metadata.levels;
                     } catch (const std::exception& e) {
                         spdlog::error("Failed to parse song {}: {}", path, e.what());
                         continue;
@@ -141,7 +146,10 @@ void LoadingScreen::load_song_hashes() {
                         scores_manager.add_song(meta.hashes, meta.title, meta.subtitle);
                     }
                     scores_manager.add_path_binding(songs[i], meta.hashes);
-                    scores_manager.set_song_meta(path, meta);
+                    if (populate_library && is_library_song_file(songs[i])) {
+                        get_song_library().add(songs[i], SongMetadata{meta.title, meta.subtitle, meta.titles,
+                                                                      meta.subtitles, meta.levels});
+                    }
                     if (!from_cache) {
                         fresh.emplace_back(path, std::move(stamp));
                     }
@@ -154,16 +162,13 @@ void LoadingScreen::load_song_hashes() {
         };
 
         scores_manager.begin_transaction();
-#ifdef __EMSCRIPTEN__
-        worker();
-#else
         for (unsigned i = 0; i < thread_count && i < songs.size(); i++) {
             threads.emplace_back(worker);
         }
         for (auto& t : threads) {
             t.join();
         }
-#endif
+
         for (const auto& [path, entry] : fresh) {
             scores_manager.store_song_cache(path, entry);
         }
@@ -189,15 +194,23 @@ void LoadingScreen::load_song_hashes() {
             fs::remove(fs::path("scores_pytaiko.db"));
         }
 
+        if (populate_library) {
+            get_song_library().finish_loading();
+        }
+
         load_navigator();
     } catch (const std::exception& e) {
+        if (populate_library) {
+            get_song_library().fail_loading();
+        }
+
         spdlog::error("Loading failed: {}", e.what());
     }
     loading_complete = true;
 }
 
 void LoadingScreen::load_navigator() {
-    navigator.preload(global_data.config->paths.tja_path, songs);
+    navigator.preload(global_data.config->paths.tja_path);
 }
 
 Screens LoadingScreen::on_screen_end(Screens next_screen) {

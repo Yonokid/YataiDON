@@ -15,7 +15,7 @@ public:
 
 protected:
     AssetCacheBase() {
-        std::lock_guard lock(registry_mutex());
+        std::scoped_lock lock(registry_mutex());
         registry().push_back(this);
     }
     ~AssetCacheBase() = default;
@@ -34,7 +34,7 @@ private:
 
 // Drops everything retained by every cache. Call while the GPU context is alive.
 inline void clear_asset_caches() {
-    std::lock_guard lock(AssetCacheBase::registry_mutex());
+    std::scoped_lock lock(AssetCacheBase::registry_mutex());
     for (AssetCacheBase* cache : AssetCacheBase::registry()) {
         cache->clear();
     }
@@ -61,10 +61,11 @@ class AssetCache : public AssetCacheBase {
     const size_t budget;
 
 public:
+    virtual ~AssetCache() = default;
     explicit AssetCache(size_t budget) : budget(budget) {}
     bool enabled() const { return budget > 0; }
     std::shared_ptr<T> get(const std::string& key) {
-        std::lock_guard lock(mutex);
+        std::scoped_lock lock(mutex);
         auto it = entries.find(key);
         if (it == entries.end()) {
             return {};
@@ -73,7 +74,7 @@ public:
         return it->second.value;
     }
     void put(const std::string& key, std::shared_ptr<T> value, size_t bytes) {
-        std::lock_guard lock(mutex);
+        std::scoped_lock lock(mutex);
         auto old = entries.find(key);
         if (old != entries.end()) {
             used -= old->second.bytes;
@@ -94,7 +95,7 @@ public:
         used += bytes;
     }
     void clear() override {
-        std::lock_guard lock(mutex);
+        std::scoped_lock lock(mutex);
         entries.clear();
         order.clear();
         used = 0;

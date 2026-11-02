@@ -45,7 +45,7 @@ public:
     GenreIndex song_genre_index = GenreIndex::DEFAULT;
     std::string song_genre_label;
 
-    SongBox(const fs::path& path, const BoxDef& box_def, SongParser parser);
+    SongBox(const fs::path& path, const BoxDef& box_def, SongParser parser, std::array<std::string, 5> prepared_hashes);
     ~SongBox() override {
         if (preview_load) {
             preview_load->cancelled.store(true, std::memory_order_relaxed);

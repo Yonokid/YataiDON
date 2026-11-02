@@ -14,8 +14,7 @@ public:
     std::unique_ptr<FadeAnimation> enter_fade;
     std::optional<Texture> box_texture;
 
-    FolderBox(const fs::path& path, const BoxDef& box_def,
-              std::map<std::pair<std::string, std::string>, fs::path>& song_files);
+    FolderBox(const fs::path& path, const BoxDef& box_def);
     ~FolderBox() override;
 
     void load_text() override;
@@ -23,11 +22,6 @@ public:
 
     void enter_box() override;
     void exit_box() override;
-
-    void refresh_scores(const std::map<std::pair<std::string, std::string>, fs::path>& song_files);
-    static void run_deferred_scans(std::atomic<bool>& abort_flag);
-    bool scan_pending = false;
-    static void invalidate_scan_cache();
 
     const char* lua_kind() const override { return "folder"; }
 };

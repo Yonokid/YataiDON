@@ -68,3 +68,6 @@ public:
         return result;
     }
 };
+
+// Chart and song_list.txt paths from the completed scan; nullopt outside its roots.
+std::optional<std::vector<std::filesystem::path>> get_scanned_song_entries(const std::filesystem::path& directory);

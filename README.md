@@ -8,8 +8,6 @@ A TJA player and Taiko simulator written in C++ using the [raylib](https://www.r
 [![Discord Members](https://img.shields.io/discord/722513061419810946.svg?label=Discord&logo=discord)](https://discord.gg/XHcVYKW)
 [![Builds](https://github.com/Yonokid/YataiDON/actions/workflows/build-desktop.yml/badge.svg)](https://github.com/Yonokid/YataiDON/actions/workflows/build-desktop.yml)
 
-Experimental PS5 homebrew build: [build instructions and current limitations](ps5/README.md).
-
 ## Features
 
 - Cross-platform compatibility (Windows, Linux, macOS, Android, iOS)
@@ -54,7 +52,7 @@ automatically during two-player play.
 - **macOS**: Built via CI, largely untested
 - **Linux**: Ubuntu 20.04 or higher (other distributions may work but are untested)
 - **Android**: Android 10 (API 29) or higher
-- **iOS**: iOS 16.3 or higher; build from source with Xcode (see [iOS guide](ios/README.md))
+- **iOS**: iOS 16.3 or higher; install via [TestFlight](https://testflight.apple.com/join/ZzrXBUsb) or build from source with Xcode (see [iOS guide](ios/README.md))
 
 ## FAQ
 
@@ -76,6 +74,10 @@ Download the latest release for your operating system from the [releases page](h
 
 #### Android
 1. Install `YataiDON-Android.apk` (enable "install from unknown sources" if needed)
+
+#### iOS
+1. Install [TestFlight](https://apps.apple.com/app/testflight/id899247664) from the App Store
+2. Join the beta: https://testflight.apple.com/join/ZzrXBUsb
 
 ## Building from Source
 

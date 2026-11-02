@@ -186,7 +186,7 @@ static std::atomic<int> slotted_gamepads{0}; // controller_slots.count(), for th
 
 static bool is_gameplay_screen(std::string_view screen) {
     return screen == "GAME" || screen == "GAME_2P" || screen == "GAME_DAN" || screen == "GAME_PRACTICE" ||
-           screen == "AI_GAME" || screen == "INPUT_TEST" || screen == "INPUT_CALI";
+           screen == "AI_GAME" || screen == "INPUT_TEST" || screen == "INPUT_CALI" || screen == "TUTORIAL";
 }
 
 // With two pads in 2P, pad 1 plays P1 and pad 2 plays P2 even when their bindings overlap.
@@ -451,6 +451,10 @@ bool is_r_kat_pressed(PlayerNum player_num, float* strength) {
     return is_input_key_pressed(keys, gamepad_buttons, strength) || check_key_pressed(TOUCH_R_KAT, strength);
 }
 
+static float touch_drum_size() {
+    return std::clamp(global_data.config->general.touch_drum_size, 0.25f, 2.0f);
+}
+
 static int touch_quadrant_vkey(Vec2 pos, int sw, int sh) {
     bool left = pos.x < sw / 2.0f;
     bool top = pos.y < sh / 2.0f;
@@ -463,8 +467,8 @@ static int touch_quadrant_vkey(Vec2 pos, int sw, int sh) {
     float cx = sw * 0.5f;
     float cy = sh * 0.5f + tex.screen_height * render_scale * 0.5f;
 
-    float rx = tex.screen_width * 0.262f * render_scale;
-    float ry = tex.screen_width * 0.242f * render_scale;
+    float rx = tex.screen_width * 0.262f * render_scale * touch_drum_size();
+    float ry = tex.screen_width * 0.242f * render_scale * touch_drum_size();
 
     float dx = pos.x - cx;
     float dy = pos.y - cy;
@@ -597,7 +601,7 @@ bool draw_touch_drum() {
         touch_drum_resize->restart();
     }
     touch_drum_resize->update(get_current_ms());
-    const float scale = touch_drum_resize->attribute;
+    const float scale = touch_drum_resize->attribute * touch_drum_size();
     float y_fix = 0.0f;
     auto drum_it = global_tex.textures.find("overlay/touch_drum");
     if (drum_it != global_tex.textures.end()) {
@@ -679,6 +683,7 @@ void poll_keyboard_once() {
     constexpr float TRIGGER_THRESHOLD = 0.1f;
 
     std::vector<int> connected;
+    connected.reserve(sdl_gamepads.size());
     for (const auto& [id, gp] : sdl_gamepads) {
         connected.push_back(static_cast<int>(id));
     }
@@ -765,9 +770,9 @@ void poll_keyboard_once() {
     // SDL's startup-added event can expose an already-open controller more
     // than once. One physical edge must not register twice.
     std::ranges::sort(local_pressed);
-    local_pressed.erase(std::unique(local_pressed.begin(), local_pressed.end()), local_pressed.end());
+    local_pressed.erase(std::ranges::unique(local_pressed).begin(), local_pressed.end());
     std::ranges::sort(local_released);
-    local_released.erase(std::unique(local_released.begin(), local_released.end()), local_released.end());
+    local_released.erase(std::ranges::unique(local_released).begin(), local_released.end());
 
     // Remember the newest controller press separately from pressed_keys so
     // the keybind screen can read it: the pressed_keys entry is consumed by

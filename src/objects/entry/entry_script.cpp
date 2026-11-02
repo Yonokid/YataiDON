@@ -42,8 +42,8 @@ void EntryScript::decide_side_select(int side) {
 void EntryScript::draw_footer(bool p1_joined, bool p2_joined) {
     call(fn_draw_footer, "Entry:draw_footer", p1_joined, p2_joined);
 }
-void EntryScript::draw_waiting() {
-    call(fn_draw_waiting, "Entry:draw_waiting");
+void EntryScript::draw_waiting(double idle_ms) {
+    call(fn_draw_waiting, "Entry:draw_waiting", idle_ms);
 }
 void EntryScript::draw_player_entry() {
     call(fn_draw_player_entry, "Entry:draw_player_entry");

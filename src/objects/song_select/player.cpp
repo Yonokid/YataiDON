@@ -196,6 +196,11 @@ SongSelectState SongSelectPlayer::select_song() {
         }
         return SongSelectState::DAN_SELECTED;
     }
+    if (navigator.is_directory(item) && item->genre_index == GenreIndex::TUTORIAL) {
+        // the tutorial genre folder plays the tutorial instead of opening (Lumen ジャンル決定（終了）)
+        global_data.session_data[static_cast<int>(player_num)].selected_tutorial = item->path / TUTORIAL_CHART;
+        return SongSelectState::TUTORIAL_SELECTED;
+    }
 
     if (navigator.is_song(item)) {
         SongBox* song_item = dynamic_cast<SongBox*>(item);

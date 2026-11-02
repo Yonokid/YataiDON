@@ -11,6 +11,7 @@ static void apply_pd_look(Chara3D& chara, PlayerData* pd, PlayerNum player_num) 
     if (pd) {
         chara.set_don_colors(pd->chara_color_1, pd->chara_color_2, pd->chara_color_3);
         chara.apply_face(pd->chara_face_index);
+        chara.set_puchi(pd->chara_acce_index);
     } else {
         chara.set_don_colors(chara_default_color_1(player_num), chara_default_color_2(player_num),
                              {249, 240, 225, 255});

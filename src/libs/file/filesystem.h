@@ -1,8 +1,9 @@
 #pragma once
 
+#include <cstdint>
 #include <filesystem>
-#include <optional>
 #include <rapidjson/istreamwrapper.h>
+#include <stop_token>
 #include <string>
 #include <vector>
 
@@ -20,20 +21,31 @@ std::vector<std::string> list_available_skins();
 
 std::vector<fs::path> get_song_files(const std::vector<fs::path>& root_path);
 
-// Chart and song_list.txt paths from the completed scan; nullopt outside its roots.
-std::optional<std::vector<fs::path>> get_scanned_song_entries(const fs::path& directory);
-
 rapidjson::Document read_json_file(const fs::path& file_path);
 
 struct SongListEntry {
     std::string hash;
     std::string title;
     std::string subtitle;
+    bool operator==(const SongListEntry&) const = default;
 };
+
+struct SongListSnapshot {
+    std::vector<SongListEntry> entries;
+    uint64_t revision;
+};
+
+SongListSnapshot read_song_list_snapshot(const fs::path& path);
+
+void normalize_song_list(const fs::path& path, SongListSnapshot expected, std::vector<SongListEntry> entries,
+                         std::stop_token cancellation);
+
+void init_song_list_writer();
+uint64_t song_list_write_revision();
 
 std::vector<SongListEntry> read_song_list(const fs::path& path);
 
-void write_song_list(const fs::path& path, const std::vector<SongListEntry>& entries);
+void queue_song_list_write(const fs::path& path, const std::vector<SongListEntry>& entries);
 
 fs::path resolve_parent_graphics_path(const fs::path& graphics_path);
 

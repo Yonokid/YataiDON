@@ -9,7 +9,9 @@ inline AssetCache<Shader>& color_shader_cache() {
 }
 
 inline std::shared_ptr<Shader> load_color_shader(Color color) {
-    const std::string key = std::to_string((unsigned(color.r) << 16) | (unsigned(color.g) << 8) | color.b);
+    const std::string key =
+        std::to_string((static_cast<unsigned>(color.r) << 16) | (static_cast<unsigned>(color.g) << 8) | color.b);
+
     if (auto shader = color_shader_cache().get(key)) {
         return shader;
     }

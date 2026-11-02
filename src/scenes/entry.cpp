@@ -66,6 +66,7 @@ void EntryScreen::on_screen_start() {
         }
     });
 
+    wait_idle_since_ = get_current_ms();
     lua_entry = std::make_unique<EntryScript>();
     lua_entry->start_side_select();
     reload_preview_chara(PlayerNum::P1);
@@ -203,6 +204,9 @@ void EntryScreen::finish_login(RemoteLogin remote) {
             pd.chara_body_index = u.costume->body_index;
             pd.chara_cos_index = u.costume->cos_index;
             pd.chara_is_costume = u.costume->is_costume;
+        }
+        if (u.acce_index) {
+            pd.chara_acce_index = *u.acce_index;
         }
         if (u.import_requested) {
             scores_manager.export_to_hiroba(code, code);
@@ -464,6 +468,9 @@ std::optional<Screens> EntryScreen::handle_input() {
     if (state == EntryState::WAITING) {
         const bool enter = key_pressed(SDL_SCANCODE_RETURN);
         const bool don = is_l_don_pressed() || is_r_don_pressed();
+        if (enter || don || menu_left_pressed() || menu_right_pressed()) {
+            wait_idle_since_ = get_current_ms();
+        }
         if (!enter && !don) {
             return std::nullopt;
         }
@@ -748,7 +755,7 @@ void EntryScreen::draw() {
     draw_player_drum();
 
     if (state == EntryState::WAITING) {
-        lua_entry->draw_waiting();
+        lua_entry->draw_waiting(login_pending() ? 0 : get_current_ms() - wait_idle_since_);
         for (int i = 0; i < 2; i++) {
             auto pos = lua_entry->wait_chara_pos(i == 1);
             if (!pos) {

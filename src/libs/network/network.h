@@ -22,6 +22,7 @@
 #include <optional>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #include "../gfx/color_utils.h"
@@ -50,6 +51,7 @@ struct RemoteUser {
         bool is_costume;
     };
     std::optional<Costume> costume;
+    std::optional<int> acce_index;
     bool import_requested = false;
 };
 
@@ -61,6 +63,11 @@ struct ReplayData {
     PlayerData player_data;
 };
 
+struct GachaResult {
+    int puchichara = -1;
+    std::string error;
+};
+
 std::string modifiers_to_json(const Modifiers& modifiers);
 
 class NetworkClient {
@@ -69,6 +76,8 @@ public:
 
     bool is_online() const { return online; }
     bool is_outdated() const { return outdated; }
+    bool is_tournament() const { return online && tournament; }
+    bool tournament_offline() const { return !online && tournament; }
 
     std::string register_user(const std::string& username, const std::string& idm = "");
     std::string map_to_json(const std::map<double, InputLogType>& my_map);
@@ -111,6 +120,9 @@ public:
     void request_replay(int score_id);
     std::optional<ReplayData> take_replay_result();
 
+    void spin_gacha(const std::string& access_code);
+    std::optional<GachaResult> take_gacha_result();
+
     void shutdown();
 
 private:
@@ -118,6 +130,8 @@ private:
 
     bool online = false;
     bool outdated = false;
+    bool tournament = false;
+    std::optional<GachaResult> gacha_result;
     bool probing_ = false;
 #if defined(NETWORK_ENABLED)
     std::optional<cpr::AsyncResponse> pending_heartbeat;
@@ -134,6 +148,8 @@ private:
     std::optional<ReplayData> replay_fetch_result;
 
     std::optional<cpr::AsyncResponse> pending_score_submit;
+
+    std::optional<cpr::AsyncResponse> pending_gacha;
 
 #if defined(__ANDROID__)
     std::optional<cpr::AsyncResponse> pending_update_checksum;

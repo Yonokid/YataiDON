@@ -32,7 +32,6 @@ static bool decode_bank(const fs::path& p, gen4::DecodedAudio& out) {
     return p.extension() == ".nub" ? gen3::decode_nub(p, out) : gen4::decode_nus3bank(p, out);
 }
 #endif
-#include <algorithm>
 #ifndef __EMSCRIPTEN__ // FFmpeg decodes what libsndfile cannot
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -67,7 +66,7 @@ static bool ffmpeg_decode_float(const char* path, float** out_data, sf_count_t* 
     int audio_idx = -1;
     for (unsigned i = 0; i < fmt->nb_streams; ++i) {
         if (fmt->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
-            audio_idx = (int)i;
+            audio_idx = static_cast<int>(i);
             break;
         }
     }
@@ -101,7 +100,7 @@ static bool ffmpeg_decode_float(const char* path, float** out_data, sf_count_t* 
         out_layout = AV_CHANNEL_LAYOUT_MONO;
     }
     int out_ch = out_layout.nb_channels;
-    const int output_rate = requested_rate ? int(requested_rate) : dec->sample_rate;
+    const int output_rate = requested_rate ? static_cast<int>(requested_rate) : dec->sample_rate;
     if (swr_alloc_set_opts2(&swr, &out_layout, AV_SAMPLE_FMT_FLT, output_rate, &dec->ch_layout, dec->sample_fmt,
                             dec->sample_rate, 0, nullptr) < 0 ||
         !swr) {
@@ -119,9 +118,9 @@ static bool ffmpeg_decode_float(const char* path, float** out_data, sf_count_t* 
 
     std::vector<float> pcm;
     if (fmt->duration > 0) {
-        const double estimate = double(fmt->duration) / AV_TIME_BASE * output_rate * out_ch;
+        const double estimate = static_cast<double>(fmt->duration) / AV_TIME_BASE * output_rate * out_ch;
         if (estimate > 0 && estimate < (32u << 20) / sizeof(float)) {
-            pcm.reserve(size_t(estimate));
+            pcm.reserve(static_cast<size_t>(estimate));
         }
     }
     std::vector<float> conversion;
@@ -136,7 +135,7 @@ static bool ffmpeg_decode_float(const char* path, float** out_data, sf_count_t* 
         return false;
     }
 
-    auto drain = [&]() {
+    auto drain = [&] {
         while (true) {
             int r = avcodec_receive_frame(dec, frm);
             if (r == AVERROR(EAGAIN) || r == AVERROR_EOF) {
@@ -150,11 +149,13 @@ static bool ffmpeg_decode_float(const char* path, float** out_data, sf_count_t* 
                 av_frame_unref(frm);
                 continue;
             }
-            if (conversion.size() < size_t(n) * out_ch) {
-                conversion.resize(size_t(n) * out_ch);
+            if (conversion.size() < static_cast<size_t>(n) * out_ch) {
+                conversion.resize(static_cast<size_t>(n) * out_ch);
             }
-            uint8_t* op = (uint8_t*)conversion.data();
-            int got = swr_convert(swr, &op, (int)n, (const uint8_t**)frm->extended_data, frm->nb_samples);
+            uint8_t* op = reinterpret_cast<uint8_t*>(conversion.data());
+            int got = swr_convert(swr, &op, static_cast<int>(n), const_cast<const uint8_t**>(frm->extended_data),
+                                  frm->nb_samples);
+
             if (got > 0) {
                 pcm.insert(pcm.end(), conversion.begin(), conversion.begin() + got * out_ch);
             } else if (got < 0) {
@@ -198,11 +199,11 @@ static bool ffmpeg_decode_float(const char* path, float** out_data, sf_count_t* 
         return false;
     }
 
-    *out_rate = (unsigned int)output_rate;
-    *out_channels = (unsigned int)out_ch;
-    *out_frames = (sf_count_t)(pcm.size() / out_ch);
+    *out_rate = static_cast<unsigned int>(output_rate);
+    *out_channels = static_cast<unsigned int>(out_ch);
+    *out_frames = static_cast<sf_count_t>(pcm.size() / out_ch);
     *out_data = new float[pcm.size()];
-    std::copy(pcm.begin(), pcm.end(), *out_data);
+    std::ranges::copy(pcm, *out_data);
 
     avcodec_free_context(&dec);
     avformat_close_input(&fmt);
@@ -1097,7 +1098,7 @@ std::string AudioEngine::load_sound(const fs::path& file_path, const std::string
             if (decoded_sound_cache().enabled()) {
                 // shared PCM: the cache and the loaded sound both keep it alive
                 snd.cached_data = std::shared_ptr<float[]>(snd.data);
-                const size_t bytes = size_t(snd.frame_count) * snd.channels * sizeof(float);
+                const size_t bytes = static_cast<size_t>(snd.frame_count) * snd.channels * sizeof(float);
                 decoded_sound_cache().put(cache_key, std::make_shared<sound>(snd), bytes);
             }
             store_sound(name, snd);
@@ -1157,7 +1158,7 @@ std::string AudioEngine::load_sound(const fs::path& file_path, const std::string
             if (!ffmpeg_decode_float(path_str2.c_str(), &ff_data, &ff_frames, &ff_rate, &ff_ch,
                                      static_cast<unsigned int>(target_sample_rate))) {
                 spdlog::error("Failed to open sound file: {} - {} (ffmpeg fallback also failed)", file_path.string(),
-                              sf_strerror(NULL));
+                              sf_strerror(nullptr));
                 return "";
             }
             sound snd{};
@@ -1167,7 +1168,7 @@ std::string AudioEngine::load_sound(const fs::path& file_path, const std::string
             snd.channels = ff_ch;
             if (ff_rate != target_sample_rate) {
                 double ratio = target_sample_rate / ff_rate;
-                long out_frames = (long)(ff_frames * ratio) + 1;
+                long out_frames = static_cast<long>(ff_frames * ratio) + 1;
                 float* rs = new float[out_frames * ff_ch];
                 SRC_DATA sd;
                 sd.data_in = ff_data;
@@ -1176,7 +1177,7 @@ std::string AudioEngine::load_sound(const fs::path& file_path, const std::string
                 sd.output_frames = out_frames;
                 sd.src_ratio = ratio;
                 sd.end_of_input = 1;
-                int err = src_simple(&sd, SRC_SINC_FASTEST, (int)ff_ch);
+                int err = src_simple(&sd, SRC_SINC_FASTEST, static_cast<int>(ff_ch));
                 if (err) {
                     delete[] ff_data;
                     delete[] rs;
@@ -1185,7 +1186,7 @@ std::string AudioEngine::load_sound(const fs::path& file_path, const std::string
                 delete[] ff_data;
                 snd.data = rs;
                 snd.frame_count = sd.output_frames_gen;
-                snd.sample_rate = (unsigned int)target_sample_rate;
+                snd.sample_rate = static_cast<unsigned int>(target_sample_rate);
             }
             snd.normalization_gain = loaded_sound_gain(file_path, name);
             install_sound(snd);
@@ -1559,12 +1560,9 @@ bool AudioEngine::is_sound_playing(const std::string& name) {
     std::shared_lock<std::shared_mutex> guard(rw_lock);
     auto it = sounds.find(name);
     if (it != sounds.end()) {
-        for (auto* voice : sound_playbacks(it->second, name)) {
-            if (voice && yd::atomic_ref<bool>(voice->is_playing).load(std::memory_order_relaxed)) {
-                return true;
-            }
-        }
-        return false;
+        return std::ranges::any_of(sound_playbacks(it->second, name), [](auto* voice) {
+            return voice && yd::atomic_ref<bool>(voice->is_playing).load(std::memory_order_relaxed);
+        });
     }
     spdlog::warn("Sound {} not found", name);
     return false;
@@ -1773,13 +1771,13 @@ std::string AudioEngine::load_music_stream(const fs::path& file_path, const std:
             if (!ffmpeg_decode_float(path_str2.c_str(), &ff_data, &ff_frames, &ff_rate, &ff_ch,
                                      static_cast<unsigned int>(target_sample_rate))) {
                 spdlog::error("Failed to open music file: {} - {} (ffmpeg fallback also failed)", file_path.string(),
-                              sf_strerror(NULL));
+                              sf_strerror(nullptr));
                 return "";
             }
 
             if (ff_rate != target_sample_rate) {
                 double ratio = target_sample_rate / ff_rate;
-                long out_frames = (long)(ff_frames * ratio) + 1;
+                long out_frames = static_cast<long>(ff_frames * ratio) + 1;
                 float* rs = new float[out_frames * ff_ch];
                 SRC_DATA sd{};
                 sd.data_in = ff_data;
@@ -1788,7 +1786,7 @@ std::string AudioEngine::load_music_stream(const fs::path& file_path, const std:
                 sd.output_frames = out_frames;
                 sd.src_ratio = ratio;
                 sd.end_of_input = 1;
-                int err = src_simple(&sd, SRC_SINC_FASTEST, (int)ff_ch);
+                int err = src_simple(&sd, SRC_SINC_FASTEST, static_cast<int>(ff_ch));
                 if (err) {
                     delete[] ff_data;
                     delete[] rs;
@@ -1797,12 +1795,12 @@ std::string AudioEngine::load_music_stream(const fs::path& file_path, const std:
                 delete[] ff_data;
                 ff_data = rs;
                 ff_frames = sd.output_frames_gen;
-                ff_rate = (unsigned int)target_sample_rate;
+                ff_rate = static_cast<unsigned int>(target_sample_rate);
             }
 
             music mus{};
-            mus.file_info.channels = (int)ff_ch;
-            mus.file_info.samplerate = (int)ff_rate;
+            mus.file_info.channels = static_cast<int>(ff_ch);
+            mus.file_info.samplerate = static_cast<int>(ff_rate);
             mus.file_path = file_path.string();
             mus.normalization_gain = name == "preview" ? loaded_song_gain(file_path) : 1.0f;
             mus.pcm_data = ff_data;

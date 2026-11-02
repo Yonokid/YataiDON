@@ -45,10 +45,24 @@ void Transition::set_dan(int color, const std::string& rank_name) {
     global_tex.load_folder("dan_loading", "loading_dan");
     t_loading_dan_night = global_tex.get_texture("loading_dan/night");
     t_loading_dan_plaque = global_tex.get_texture("loading_dan/plaque");
+    load_rainbow_bg();
     if (!rank_name.empty()) {
         dan_rank_text = std::make_unique<OutlinedText>(
             rank_name, global_tex.get_skin_config(SC::DAN_SELECT_TITLE)->font_size, Color::WHITE, Color::BLACK, true);
     }
+}
+
+void Transition::load_rainbow_bg() {
+    if (global_tex.has_texture("rainbow_transition/rainbow_bg")) {
+        t_rainbow_bg_bottom = global_tex.get_texture("rainbow_transition/rainbow_bg_bottom");
+        t_rainbow_bg_top = global_tex.get_texture("rainbow_transition/rainbow_bg_top");
+        t_rainbow_bg = global_tex.get_texture("rainbow_transition/rainbow_bg");
+    }
+}
+
+void Transition::set_rainbow_only() {
+    rainbow_only = true;
+    load_rainbow_bg();
 }
 
 void Transition::draw_dan(float total_offset) {
@@ -74,14 +88,23 @@ void Transition::draw_dan(float total_offset) {
     }
 }
 
+// dan course without loading art: the rainbow backdrop alone, no song info or characters
+void Transition::draw_dan_rainbow(float total_offset) {
+    const float y = -static_cast<float>(cur_rainbow) - total_offset;
+    global_tex.draw_texture(t_rainbow_bg_bottom, {.y = y});
+    global_tex.draw_texture(t_rainbow_bg_top, {.y = y});
+    global_tex.draw_texture(t_rainbow_bg, {.y = y});
+}
+
 void Transition::start() {
     call(fn_start, "SongTransition:start");
     dan_start_ms = get_current_ms();
 }
 
 void Transition::update(double current_ms) {
-    // dan course without loading art (e.g. PyTaikoGreen): no transition at all
-    if (dan_color >= 0 && !global_tex.has_texture("loading_dan/night")) {
+    // dan course with neither loading art nor a rainbow backdrop: no transition at all
+    if ((dan_color >= 0 && !global_tex.has_texture("loading_dan/night") && !t_rainbow_bg) ||
+        (rainbow_only && !t_rainbow_bg)) {
         finished = true;
         return;
     }
@@ -123,10 +146,18 @@ void Transition::draw() {
     if (is_second) {
         total_offset = global_tex.get_skin_config(SC::TRANSITION_OFFSET)->y;
     }
-    // the dan loading art (loading_dan/night, plaque) is optional: without it a dan course has no transition
+    // the dan loading art (loading_dan/night, plaque) is optional: without it a dan course shows only the rainbow
+    if (rainbow_only) {
+        if (t_rainbow_bg) {
+            draw_dan_rainbow(total_offset);
+        }
+        return;
+    }
     if (dan_color >= 0) {
         if (global_tex.has_texture("loading_dan/night")) {
             draw_dan(total_offset);
+        } else if (t_rainbow_bg) {
+            draw_dan_rainbow(total_offset);
         }
         return;
     }

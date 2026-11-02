@@ -10,9 +10,12 @@ private:
     bool finished = false;
 
     int dan_color = -1;
+    bool rainbow_only = false;
+    void load_rainbow_bg();
     double dan_start_ms = 0.0;
     std::unique_ptr<OutlinedText> dan_rank_text;
     void draw_dan(float total_offset);
+    void draw_dan_rainbow(float total_offset);
 
     bool is_second;
     std::unique_ptr<OutlinedText> title;
@@ -23,6 +26,9 @@ private:
     TextureObject* t_rainbow_text_bg = nullptr;
     TextureObject* t_loading_dan_night = nullptr;
     TextureObject* t_loading_dan_plaque = nullptr;
+    TextureObject* t_rainbow_bg_bottom = nullptr;
+    TextureObject* t_rainbow_bg_top = nullptr;
+    TextureObject* t_rainbow_bg = nullptr;
 
 public:
     Transition(const std::string& title, const std::string& subtitle, bool is_second);
@@ -30,6 +36,8 @@ public:
     void start();
     void add_loading_graphic(const std::string& path);
     void set_dan(int color, const std::string& rank_name);
+    // Rainbow backdrop only, no title or characters (tutorial)
+    void set_rainbow_only();
     void update(double current_ms);
     void draw();
 

@@ -14,9 +14,9 @@
 #include "../../libs/input/input.h"
 
 Player::Player(std::optional<SongParser>& parser_ref, PlayerNum player_num_param, int difficulty_param,
-               bool is_2p_param, const Modifiers& modifiers_param)
+               bool is_2p_param, const Modifiers& modifiers_param, const std::string& score_method_param)
     : is_2p(is_2p_param), player_num(player_num_param), difficulty(difficulty_param),
-      visual_offset(global_data.config->general.visual_offset), score_method(global_data.config->general.score_method),
+      visual_offset(global_data.config->general.visual_offset), score_method(score_method_param),
       modifiers(modifiers_param), parser(parser_ref), combo_display(combo, 0), score_counter(is_2p, player_num) {
     PlayerSoundScope audio_owner(player_num);
     init_player_textures();
@@ -2199,15 +2199,19 @@ void Player::draw_overlays(float y) {
     tex.draw_texture(lane_icon_tex_id, {.y = y, .index = is_2p});
     int frame = is_dan ? 6 : difficulty;
     int index = is_dan ? 0 : is_2p;
-    tex.draw_texture(t_lane_difficulty, {.frame = frame, .y = y, .index = index});
+    if (lane_mark) {
+        tex.draw_texture(lane_mark, {.y = y});
+    } else {
+        tex.draw_texture(t_lane_difficulty, {.frame = frame, .y = y, .index = index});
+    }
     draw_modifiers(y);
     if (judge_counter.has_value()) {
         judge_counter->draw();
     }
 
-    if (modifiers.auto_play) {
+    if (show_lane_name && modifiers.auto_play) {
         tex.draw_texture(t_auto_icon, {.y = y, .index = is_2p});
-    } else {
+    } else if (show_lane_name) {
         if (is_2p) {
             auto [nx, ny] = tex.nameplate_xy("game_p2");
             nameplate.draw(nx, y + ny);

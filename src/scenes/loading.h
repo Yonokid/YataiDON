@@ -38,7 +38,7 @@ private:
 
     void init_visuals();
 
-    void load_song_hashes();
+    void load_song_hashes(bool populate_library);
 
     void load_navigator();
 

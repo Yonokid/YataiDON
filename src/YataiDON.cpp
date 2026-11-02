@@ -1,5 +1,7 @@
 #include <algorithm>
 #include <cstdlib>
+#include <cstring>
+#include <ctime>
 #include <iostream>
 
 #include "libs/asset_cache.h"
@@ -19,6 +21,7 @@
 #include "libs/parsers/song_parser.h"
 #include "libs/profiler.h"
 #include "libs/screen.h"
+#include "libs/song_library_loader.h"
 #include "libs/video/webcam.h"
 #include "platform/platform.h"
 #include "platform/platform_emscripten.h"
@@ -52,6 +55,7 @@
 #include "scenes/song_select_2p.h"
 #include "scenes/song_select_practice.h"
 #include "scenes/title.h"
+#include "scenes/tutorial.h"
 
 void draw_outer_border(int screen_width, int screen_height, Color last_color) {
     draw_rectangle(-screen_width, 0, screen_width, screen_height, last_color);
@@ -276,6 +280,7 @@ static bool screen_fade_applies(Screens from, Screens to) {
     case Screens::GAME:
     case Screens::GAME_2P:
     case Screens::GAME_DAN:
+    case Screens::TUTORIAL:
     case Screens::GAME_PRACTICE:
     case Screens::AI_GAME:
     case Screens::RESULT:
@@ -361,6 +366,9 @@ static void populate_screens(std::unordered_map<Screens, std::unique_ptr<Screen>
     }
     if (except != Screens::ONBOARDING) {
         screens[Screens::ONBOARDING] = std::make_unique<OnboardingScreen>();
+    }
+    if (except != Screens::TUTORIAL) {
+        screens[Screens::TUTORIAL] = std::make_unique<TutorialScreen>();
     }
 }
 
@@ -544,7 +552,6 @@ static void run_frame() {
     }
 
     if (key_pressed(SDL_SCANCODE_F12)) {
-        static int screenshot_counter = 0;
         Image image = load_image_from_screen();
         if (L.current_screen == Screens::RESULT && tex.options[SCO::CROP_RESULT_SCREENSHOT]) {
             const auto image_width = static_cast<float>(image.width);
@@ -553,10 +560,25 @@ static void run_frame() {
             unload_image(image);
             image = top;
         }
-        export_image(image, text_format("screenshot%03i.png", screenshot_counter));
+        const PlayerNum p = global_data.player_num == PlayerNum::P2 ? PlayerNum::P2 : PlayerNum::P1;
+        const SessionData& sd = global_data.session_data[static_cast<int>(p)];
+        const std::time_t now = std::time(nullptr);
+        char date[32];
+        std::strftime(date, sizeof(date), "%Y-%m-%d_%H-%M-%S", std::localtime(&now));
+        std::string name = std::string(date) + "_" + sd.song_title + "_" + std::to_string(sd.selected_difficulty);
+        for (char& c : name) {
+            if (c == ' ' || std::strchr("/\\:*?\"<>|", c)) {
+                c = '_';
+            }
+        }
+        fs::create_directories("Screenshots");
+        const std::string path = "Screenshots/" + name + ".png";
+        if (export_image(image, path.c_str())) {
+            spdlog::info("Screenshot saved: {}", path);
+        } else {
+            spdlog::error("Screenshot failed: {}", path);
+        }
         unload_image(image);
-        screenshot_counter++;
-        spdlog::info("Screenshot saved");
     }
 
 #if !defined(__EMSCRIPTEN__) && !defined(YATAIDON_PLATFORM_IOS)
@@ -710,6 +732,7 @@ static int game_main(int argc, char* argv[]) {
     shutdown_sdl_joysticks();
     delete g_loop;
     g_loop = nullptr;
+    get_song_library_loader().stop();
     // Cleanup needs a live SDL/OpenGL context and config.
     webcam.close();
     unload_skin();

@@ -18,30 +18,6 @@ jobs:
         with:
           submodules: false
 
-      - name: Get skin heads
-        id: skins
-        run: |
-          for s in PyTaikoGreen YataiDONRed YataiDONNijiiro; do
-            echo "$s=$(git ls-remote https://ese.tjadataba.se/Yonokid/$s.git HEAD | cut -f1)" >> "$GITHUB_OUTPUT"
-          done
-
-      - name: Cache skins
-        id: cache-skins
-        uses: actions/cache@v4
-        with:
-          path: |
-            Skins/PyTaikoGreen
-            Skins/YataiDONRed
-            Skins/YataiDONNijiiro
-          key: skins-${{ steps.skins.outputs.PyTaikoGreen }}-${{ steps.skins.outputs.YataiDONRed }}-${{ steps.skins.outputs.YataiDONNijiiro }}
-
-      - name: Clone skins
-        if: steps.cache-skins.outputs.cache-hit != 'true'
-        run: |
-          for s in PyTaikoGreen YataiDONRed YataiDONNijiiro; do
-            git clone --depth 1 https://ese.tjadataba.se/Yonokid/$s.git Skins/$s
-          done
-
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -107,21 +83,6 @@ jobs:
           path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
 
-      - name: Build Release APK (update, no bundled assets)
-        working-directory: android
-        env:
-          NETWORK_URL: ${{ secrets.NETWORK_URL }}
-          NETWORK_AUTH_KEY: ${{ secrets.NETWORK_AUTH_KEY }}
-        run: ./gradlew assembleRelease --no-daemon -PbundleGameData=false
-
-      - name: Upload update APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: YataiDON-Android-Update
-          include-hidden-files: true
-          path: android/app/build/outputs/apk/release/app-release.apk
-          if-no-files-found: error
-
   build-ios:
     name: Build unsigned iOS IPA
     runs-on: macos-26
@@ -136,42 +97,10 @@ jobs:
       - name: Select Xcode 26.6
         run: sudo xcode-select --switch /Applications/Xcode_26.6.app/Contents/Developer
 
-      - name: Configure Git credentials
-        env:
-          GITEA_USER: ${{ secrets.GITEA_USER }}
-          GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
-        run: |
-          git config --global credential.helper ""
-          git config --global url."https://${GITEA_USER}:${GITEA_TOKEN}@ese.tjadataba.se/".insteadOf "https://ese.tjadataba.se/"
-
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: false
-
-      - name: Get skin heads
-        id: skins
-        run: |
-          for s in PyTaikoGreen YataiDONRed YataiDONNijiiro; do
-            echo "$s=$(git ls-remote https://ese.tjadataba.se/Yonokid/$s.git HEAD | cut -f1)" >> "$GITHUB_OUTPUT"
-          done
-
-      - name: Cache skins
-        id: cache-skins
-        uses: actions/cache@v4
-        with:
-          path: |
-            Skins/PyTaikoGreen
-            Skins/YataiDONRed
-            Skins/YataiDONNijiiro
-          key: skins-${{ steps.skins.outputs.PyTaikoGreen }}-${{ steps.skins.outputs.YataiDONRed }}-${{ steps.skins.outputs.YataiDONNijiiro }}
-
-      - name: Clone skins
-        if: steps.cache-skins.outputs.cache-hit != 'true'
-        run: |
-          for s in PyTaikoGreen YataiDONRed YataiDONNijiiro; do
-            git clone --depth 1 https://ese.tjadataba.se/Yonokid/$s.git Skins/$s
-          done
 
       - name: Install build tools
         run: |
@@ -193,6 +122,15 @@ jobs:
         with:
           path: .ios-ffmpeg/iphoneos-arm64
           key: ios-ffmpeg-${{ runner.os }}-${{ runner.arch }}-iphoneos-arm64-${{ env.IOS_DEPLOYMENT_TARGET }}-${{ steps.toolchain.outputs.xcode }}-${{ hashFiles('tools/build_ffmpeg_ios.sh') }}
+
+      - name: Cache iOS CMake configure
+        uses: actions/cache@v4
+        with:
+          path: |
+            build-ios-device
+            !build-ios-device/**/*.build
+            !build-ios-device/**/Release-iphoneos
+          key: ios-cmake-${{ env.IOS_DEPLOYMENT_TARGET }}-${{ steps.toolchain.outputs.xcode }}-${{ hashFiles('CMakeLists.txt', 'cmake/**') }}
 
       - name: Build unsigned iOS app
         env:
@@ -243,12 +181,6 @@ jobs:
           name: YataiDON-Android
           path: android-out/
 
-      - name: Download Android update artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: YataiDON-Android-Update
-          path: android-update-out/
-
       - name: Download iOS artifact
         uses: actions/download-artifact@v4
         with:
@@ -258,23 +190,18 @@ jobs:
       - name: Package release assets
         run: |
           cp android-out/app-release.apk YataiDON-Android.apk
-          cp android-update-out/app-release.apk YataiDON-Android-Update.apk
           cp ios-out/YataiDON-iOS-unsigned.ipa YataiDON-iOS-unsigned.ipa
           cp ios-out/checksums-ios.sha256 ./checksums-ios.sha256
 
           # Android in-app updater compares against this (the "latest" tag is a
           # fixed rolling release, so it can't tell apart which build is newer).
-          # It downloads YataiDON-Android-Update.apk (no bundled Skins/Songs --
-          # those are already on disk and kept current separately), so hash that
-          # one, not the full YataiDON-Android.apk.
-          sha256sum YataiDON-Android-Update.apk | awk '{print $1}' > checksums-android.sha256
+          sha256sum YataiDON-Android.apk | awk '{print $1}' > checksums-android.sha256
 
       - name: Upload Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             YataiDON-Android.apk
-            YataiDON-Android-Update.apk
             YataiDON-iOS-unsigned.ipa
             checksums-ios.sha256
             checksums-android.sha256
@@ -282,4 +209,3 @@ jobs:
           tag_name: "latest"
           make_latest: true
           token: ${{ secrets.GITHUB_TOKEN }}
-

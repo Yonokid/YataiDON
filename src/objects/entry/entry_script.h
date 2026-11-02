@@ -30,8 +30,7 @@ public:
     void draw_side_select_buttons(int side);
     void decide_side_select(int side);
     void draw_footer(bool p1_joined, bool p2_joined);
-    void draw_waiting();
-    // where the Chara3D of a wait panel stands; nullopt if the skin has no wait panels
+    void draw_waiting(double idle_ms);
     std::optional<std::pair<float, float>> wait_chara_pos(bool p2);
     void draw_player_entry();
 };

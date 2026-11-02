@@ -970,11 +970,13 @@ void TextureWrapper::load_folder(const std::string& screen_name, const std::stri
                                             has_border[fi] = true;
                                         }
                                         const size_t bytes =
-                                            (size_t(get_pixel_data_size(t.width, t.height, t.format)) + 65535u) &
-                                            ~size_t(65535u);
+                                            (static_cast<size_t>(get_pixel_data_size(t.width, t.height, t.format)) +
+                                             65535u) &
+                                            ~static_cast<size_t>(65535u);
+
                                         gpu_asset_cache().put(files[fi].string(),
                                                               std::make_shared<CachedGPUTexture>(CachedGPUTexture{
-                                                                  tex, borders[fi], bool(has_border[fi])}),
+                                                                  tex, borders[fi], static_cast<bool>(has_border[fi])}),
                                                               bytes);
                                     }
                                 }

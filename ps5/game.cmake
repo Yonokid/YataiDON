@@ -54,7 +54,8 @@ target_include_directories(yataidon_ps5_game PUBLIC
 target_compile_definitions(yataidon_ps5_game PUBLIC
   YATAIDON_PLATFORM_PS5 YATAIDON_USE_SDL2 SDL_MAIN_HANDLED
   YATAIDON_SNDFILE_PCM_ONLY # libsndfile without external codecs: FFmpeg decodes the rest
-  SOL_ALL_SAFETIES_ON=1 YATAIDON_GFX_BGFX=1)
+  SOL_ALL_SAFETIES_ON=1 YATAIDON_GFX_BGFX=1
+  _LIBCPP_ENABLE_EXPERIMENTAL) # SDK libc++ (<20) hides std::stop_token behind this; header-only, no extra lib
 target_compile_options(yataidon_ps5_game PRIVATE -O1 -ffunction-sections -fdata-sections)
 
 # Link descriptions only: the native title imports the console's firmware

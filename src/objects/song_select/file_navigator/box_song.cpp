@@ -40,7 +40,9 @@ void SongBox::service_bgm_resume(double current_ms) {
     audio.play_sound("bgm", VolumePreset::MUSIC);
 }
 
-SongBox::SongBox(const fs::path& path, const BoxDef& box_def, SongParser parser) : BaseBox(path, box_def) {
+SongBox::SongBox(const fs::path& path, const BoxDef& box_def, SongParser parser,
+                 std::array<std::string, 5> prepared_hashes)
+    : BaseBox(path, box_def), hashes(std::move(prepared_hashes)) {
     song_genre_index = genre_index;
     song_genre_label = box_def.genre_label;
 
@@ -57,30 +59,23 @@ SongBox::SongBox(const fs::path& path, const BoxDef& box_def, SongParser parser)
 
     is_favorite = false;
     diff_fade_in = dynamic_cast<FadeAnimation*>(tex.get_animation(12));
+
     refresh_scores();
 }
 
 void SongBox::refresh_scores() {
-    hashes = scores_manager.get_hashes(path);
-#ifdef SUPPORT_FUMEN
-    bool cheap_hash = !std::holds_alternative<FumenParser>(parser.impl);
-#else
-    bool cheap_hash = true;
-#endif
-    for (const auto& [course, course_data] : parser.metadata.course_data) {
-        if (course < 0 || course >= static_cast<int>(hashes.size())) {
-            continue;
+    auto cached_hashes = scores_manager.get_hashes(path);
+    const auto& config = global_data.config->network;
+
+    for (size_t i = 0; i < hashes.size(); ++i) {
+        if (!cached_hashes[i].empty()) {
+            hashes[i] = std::move(cached_hashes[i]);
         }
-        if (hashes[course].empty() && cheap_hash) {
-            hashes[course] = parser.get_diff_hash(course);
-        }
+
+        scores[i] = scores_manager.get_score(hashes[i], i, config.access_code_1);
+        scores_p2[i] = navigator.is_2p ? scores_manager.get_score(hashes[i], i, config.access_code_2) : std::nullopt;
     }
-    for (int i = 0; i < 5; i++) {
-        const std::string& p1_id = global_data.config->network.access_code_1;
-        const std::string& p2_id = global_data.config->network.access_code_2;
-        scores[i] = scores_manager.get_score(hashes[i], i, p1_id);
-        scores_p2[i] = navigator.is_2p ? scores_manager.get_score(hashes[i], i, p2_id) : std::nullopt;
-    }
+
     score_history.reset();
 }
 

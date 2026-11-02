@@ -196,6 +196,7 @@ Screens DanSelectScreen::on_screen_end(Screens next_screen) {
             sd.dan_index_max = std::max(sd.dan_index_max, b->dan_index);
         }
         sd.dan_gaiden = current->gaiden;
+        sd.dan_gen3 = current->gen3;
         if (!current->songs.empty()) {
             sd.selected_song = current->songs[0].song_path;
         }

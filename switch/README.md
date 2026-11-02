@@ -164,7 +164,7 @@ subsequent user changes are retained.
 
 Native directory batches collect chart paths, sizes and timestamps together.
 Each scan refreshes that metadata, including timestamps for same-size edits.
-Folder counts, crowns and search indexing reuse the completed chart list.
+Song Select uses the shared song library and background navigation loader.
 Failed native walks fall back to the portable filesystem implementation.
 SQLite's SD VFS preserves transactions, rollback, EOF reads and metadata access
 for already-open writable databases.
@@ -241,8 +241,8 @@ an unused font atlas. GPU-drawn text still builds its atlas on demand.
 Rendered outlined labels share a 48 MiB bounded texture cache, keyed by font
 generation and every layout/colour parameter. Skin/font reloads invalidate old
 entries; visible labels retain their texture safely if a cache entry is evicted.
-Song Select rasterizes labels when they become visible, reuses chart-scan timestamps,
-and finds each folder's chart range by binary search in the completed scan.
+Song Select rasterizes labels when they become visible. Folder summaries find each
+folder's chart range by binary search in the completed scan; loading reuses scan timestamps.
 TJA chart reads use the native whole-file reader, with the existing portable
 reader as fallback and the same encoding and line-splitting rules.
 Settled closed boxes skip finished animation updates; only active previews and

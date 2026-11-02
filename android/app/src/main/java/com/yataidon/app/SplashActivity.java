@@ -19,7 +19,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 // Real launcher entry point (see AndroidManifest.xml). Extracts the bundled
-// Skins/Songs (android/app/build.gradle's copyGameDataAssets task, mirroring
+// Songs (skins are downloaded by the onboarding screen) (android/app/build.gradle's copyGameDataAssets task, mirroring
 // the iOS GameData bundle -- see cmake/ios_assets.cmake) to /sdcard/YataiDON
 // on a background thread, then starts YataiDONActivity/SDL_main.
 //
@@ -62,12 +62,11 @@ public class SplashActivity extends Activity {
 
     private void extractGameData() {
         AssetManager assets = getAssets();
-        extractAssetDir(assets, "Skins", new File(GAME_DATA_DIR, "Skins"));
         extractAssetDir(assets, "Songs", new File(GAME_DATA_DIR, "Songs"));
     }
 
     // Skips files that already exist so later app updates don't clobber
-    // downloaded skin updates or the user's own Songs.
+    // the user's own Songs.
     private void extractAssetDir(AssetManager assets, String assetPath, File destDir) {
         String[] children;
         try {

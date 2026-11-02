@@ -89,8 +89,6 @@ struct SongCacheEntry {
     std::array<std::string, 5> hashes;
     std::string title;
     std::string subtitle;
-    // what Navigator::preload needs for search and the level filters: every language's title and
-    // subtitle (metadata order) and the level of courses 0..4 (-1 = none)
     std::vector<std::pair<std::string, std::string>> titles;
     std::vector<std::pair<std::string, std::string>> subtitles;
     std::array<int, 5> levels = {-1, -1, -1, -1, -1};
@@ -106,13 +104,12 @@ class ScoresManager {
 private:
     sqlite3* db_fsd;
     sqlite3_stmt* add_song_stmt = nullptr;
-    std::mutex song_meta_mutex;
-    std::unordered_map<std::string, SongCacheEntry> song_meta;
     mutable std::mutex maps_mutex;
     std::unordered_map<fs::path, std::array<std::string, 5>> path_to_hashes;
     std::unordered_map<std::string, fs::path> single_hash_to_path;
     std::unordered_map<std::string, fs::path> diff_hash_to_path;
     std::map<std::tuple<std::string, int, std::string>, Score> score_cache;
+    std::map<std::pair<std::string, std::string>, int> play_count_cache; // (diff hash, player_id) -> plays
     void load_score_cache();
 
 public:
@@ -129,6 +126,8 @@ public:
 
     int apply_remote_scores(const std::vector<RemoteScore>& scores, const std::string& player_id);
     std::optional<Score> get_score(const std::string& hash, int difficulty, const std::string& player_id);
+    // diff hash -> number of saved plays for player_id
+    std::unordered_map<std::string, int> get_play_counts(const std::string& player_id);
     // out_score_id (optional) receives the new scores row id, or -1 if the insert failed.
     Score save_score(const std::string& hash, int difficulty, const std::string& player_id, Score score,
                      int64_t played_at, const std::string& modifiers_json, int64_t* out_score_id = nullptr);
@@ -143,9 +142,6 @@ public:
     std::unordered_map<std::string, SongCacheEntry> load_song_cache();
     void store_song_cache(const std::string& path, const SongCacheEntry& entry);
     void remove_song_cache(const std::string& path);
-    // the loading screen's scan result per chart (key: UTF-8 path), for Navigator::preload
-    void set_song_meta(const std::string& path, const SongCacheEntry& entry);
-    std::optional<SongCacheEntry> get_song_meta(const std::string& path);
     // Best-of view over dan_scores for one course (course_id from dan_course_id).
     std::optional<DanRecord> get_dan_record(const std::string& player_id, const std::string& course_id);
     // Appends one attempt to dan_scores; each song links to its normal scores row (DanResultSong::score_id).

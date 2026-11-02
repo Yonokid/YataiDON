@@ -1474,7 +1474,7 @@ void modifier_random(NoteList& notes, int value) {
 
     std::vector<int> indices(notes.notes.size());
     std::iota(indices.begin(), indices.end(), 0);
-    std::shuffle(indices.begin(), indices.end(), gen);
+    std::ranges::shuffle(indices, gen);
 
     std::vector<int> selected_notes(indices.begin(), indices.begin() + percentage);
 

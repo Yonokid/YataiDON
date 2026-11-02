@@ -112,7 +112,6 @@ endif()
 message(STATUS "Graphics backend: ${YATAIDON_GFX_BACKEND}")
 
 include(cmake/deps.cmake)
-set(YATAIDON_SKINS_DIR "${CMAKE_SOURCE_DIR}/Skins" CACHE PATH "Skins used for iOS bundling")
 
 ### Source files
 
