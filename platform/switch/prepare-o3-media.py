@@ -8,6 +8,8 @@ import subprocess
 import tarfile
 import urllib.request
 
+# Python < 3.11.4 (devkitPro image) lacks extraction filters.
+SAFE_EXTRACT = {"filter": "data"} if hasattr(tarfile, "data_filter") else {}
 DEFAULT_VENDOR = Path(__file__).resolve().parent / "vendor"
 VENDOR = Path(os.environ.get("YATAIDON_MEDIA_SOURCE_DIR", DEFAULT_VENDOR))
 FILES = {
@@ -49,7 +51,7 @@ def main():
     for name, archive in (("ffmpeg-7.1", "ffmpeg-7.1.tar.xz"), ("libiconv-1.18", "libiconv-1.18.tar.gz")):
         if not (VENDOR / name).exists():
             with tarfile.open(VENDOR / archive) as source:
-                source.extractall(VENDOR, filter="data")
+                source.extractall(VENDOR, **SAFE_EXTRACT)
 
     ffmpeg = VENDOR / "ffmpeg-7.1"
     marker = ffmpeg / ".yataidon-portlibs-patches"

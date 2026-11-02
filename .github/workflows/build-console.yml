@@ -125,8 +125,170 @@ jobs:
           compression-level: 0
           if-no-files-found: error
 
+  build-switch:
+    name: Build for Switch
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    container:
+      image: devkitpro/devkita64:latest
+      options: --user root
+    env:
+      MESA_SWITCH_REV: 0ff52079ca9e9e837ed27eb95a8d239f439a1864
+      SPIRV_TAG: vulkan-sdk-1.3.290.0
+      DEPS: /opt/switch-deps
+      CARGO_HOME: /root/.cargo
+      RUSTUP_HOME: /root/.rustup
+      MESA_SWITCH_RUST_TARGET: aarch64-unknown-linux-gnu
+      BUILD_JOBS: 4
+
+    steps:
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            build-essential cmake ninja-build pkg-config patch zip \
+            flex bison curl ca-certificates git xz-utils \
+            clang libclang-dev llvm-15-dev libclang-15-dev libclang-common-15-dev \
+            libclc-15-dev libllvmspirvlib-15-dev \
+            python3-pip python3-setuptools python3-wheel \
+            libgl-dev libx11-dev
+          pip3 install --break-system-packages --no-cache-dir meson mako pyyaml packaging
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Cache mesa-switch SDK
+        id: cache-mesa
+        uses: actions/cache@v4
+        with:
+          path: /opt/switch-deps/mesa-sdk
+          key: switch-mesa-${{ env.MESA_SWITCH_REV }}-o3
+
+      # Mirrors mesa-switch's own CI (.github/workflows/build.yml) at the pinned revision.
+      - name: Build mesa-switch SDK
+        if: steps.cache-mesa.outputs.cache-hit != 'true'
+        run: |
+          mesa="$DEPS/mesa-switch"
+          git init -q "$mesa"
+          git -C "$mesa" fetch -q --depth 1 https://github.com/danfromtico/mesa-switch.git "$MESA_SWITCH_REV"
+          git -C "$mesa" checkout -q --detach FETCH_HEAD
+          cd "$mesa"
+
+          if dkp-pacman -Q switch-mesa >/dev/null 2>&1; then
+            dkp-pacman -Rdd --noconfirm switch-mesa
+          fi
+          dkp-pacman -S --noconfirm --needed switch-pkg-config switch-zlib switch-libzstd switch-libexpat switch-libdrm_nouveau
+
+          git clone -q --depth 1 --branch "$SPIRV_TAG" https://github.com/KhronosGroup/SPIRV-Tools.git /tmp/spirv
+          git clone -q --depth 1 --branch "$SPIRV_TAG" https://github.com/KhronosGroup/SPIRV-Headers.git /tmp/spirv/external/spirv-headers
+          cmake -S /tmp/spirv -B /tmp/spirv/build -G Ninja -DCMAKE_INSTALL_PREFIX=/opt/spirv-tools \
+            -DCMAKE_BUILD_TYPE=Release -DSPIRV_SKIP_TESTS=ON
+          cmake --build /tmp/spirv/build
+          cmake --install /tmp/spirv/build
+
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly --profile minimal
+          export PATH="$CARGO_HOME/bin:$PATH"
+          rustup component add rust-src
+          rustup target add "$MESA_SWITCH_RUST_TARGET"
+          cargo install bindgen-cli cbindgen
+
+          mkdir -p /usr/local/libexec
+          install -m 755 bindgen-switch-wrapper.sh /usr/local/libexec/bindgen
+          install -m 755 rustc-switch-wrapper.sh /usr/local/libexec/rustc
+          install -m 644 bindgen-atomic-shim.h /usr/local/libexec/bindgen-atomic-shim.h
+          install -m 644 src/nouveau/headers/nv_device_info.h "$DEVKITPRO/portlibs/switch/include/"
+
+          # Rust std links -lrt -ldl -lutil; Mesa's rust_switch_stubs.c provides the symbols.
+          lib="$DEVKITPRO/portlibs/switch/lib"
+          echo 'void __mesa_switch_stub_lib(void) {}' > /tmp/stub_posix.c
+          "$DEVKITPRO/devkitA64/bin/aarch64-none-elf-gcc" -c /tmp/stub_posix.c -o /tmp/stub_posix.o
+          for l in dl rt util; do
+            [ -f "$lib/lib$l.a" ] || "$DEVKITPRO/devkitA64/bin/aarch64-none-elf-ar" rcs "$lib/lib$l.a" /tmp/stub_posix.o
+          done
+
+          # Mesa looks up Clang's OpenCL headers by full and major LLVM version.
+          libdir="$(llvm-config-15 --libdir)"
+          version="$(llvm-config-15 --version)"
+          major="${version%%.*}"
+          [ -e "$libdir/clang/$version" ] || ln -sfn "$major" "$libdir/clang/$version"
+          [ -e "$libdir/clang/$major" ] || ln -sfn "$version" "$libdir/clang/$major"
+          printf "[binaries]\nllvm-config = '/usr/bin/llvm-config-15'\n" > llvm-native.txt
+
+          PKG_CONFIG_PATH=/opt/spirv-tools/lib/pkgconfig CMAKE_PREFIX_PATH=/opt/spirv-tools \
+          meson setup builddir-native --native-file llvm-native.txt --buildtype=release \
+            -Dvulkan-drivers= -Dgallium-drivers= -Dshader-cache=enabled -Dplatforms= \
+            -Dglx=disabled -Degl=disabled -Dopengl=false -Dgles1=disabled -Dgles2=disabled \
+            -Dtools=[] -Dllvm=enabled -Dmesa-clc=enabled -Dmesa-clc-bundle-headers=enabled \
+            -Dprecomp-compiler=enabled -Dinstall-mesa-clc=true
+          ninja -C builddir-native src/compiler/clc/mesa_clc src/compiler/spirv/vtn_bindgen2
+          export PATH="$PWD/builddir-native/src/compiler/clc:$PWD/builddir-native/src/compiler/spirv:$PATH"
+
+          # optimization=3: the game cannot raise the driver's optimization later.
+          meson setup builddir-switch --cross-file switch_cross_file.txt \
+            --default-library=static --prefix=/opt/devkitpro/portlibs/switch --libdir=lib \
+            --buildtype=release -Doptimization=3 -Db_lto=false -Db_ndebug=true \
+            -Dvulkan-drivers=nouveau -Dgallium-drivers=nouveau,zink -Dgallium-rusticl=false \
+            -Dplatforms=switch -Degl-native-platform=switch -Dglx=disabled -Degl=enabled \
+            -Dopengl=true -Dgles1=enabled -Dgles2=enabled -Dvideo-codecs= \
+            -Dshader-cache=enabled -Dxmlconfig=enabled -Dexpat=enabled -Dtools=[] \
+            -Dllvm=disabled -Dshared-glapi=disabled -Dshared-llvm=disabled \
+            -Dmesa-clc=system -Dprecomp-compiler=system -Dcpp_rtti=false \
+            -Dbuild-tests=false -Dnvk-build-id="$MESA_SWITCH_REV"
+          ninja -C builddir-switch
+          meson install -C builddir-switch --destdir "$DEPS/mesa-install"
+          mv "$DEPS/mesa-install/opt/devkitpro/portlibs/switch" "$DEPS/mesa-sdk"
+          cp -rn include/vulkan include/vk_video "$DEPS/mesa-sdk/include/"
+          test -f "$DEPS/mesa-sdk/lib/libvulkan.a"
+
+      - name: Cache media libraries
+        id: cache-media
+        uses: actions/cache@v4
+        with:
+          path: |
+            /opt/switch-deps/media/lib
+            /opt/switch-deps/media/iconv/include/iconv.h
+          key: switch-media-${{ hashFiles('platform/switch/build-o3-media.sh', 'platform/switch/prepare-o3-media.py') }}
+
+      - name: Build FFmpeg and libiconv
+        if: steps.cache-media.outputs.cache-hit != 'true'
+        run: YATAIDON_MEDIA_WORKDIR="$DEPS/media" bash platform/switch/build-o3-media.sh
+
+      - name: Build host shaderc
+        run: |
+          python3 platform/switch/prepare-game.py
+          cmake -S platform/switch/vendor/bgfx.cmake -B build-host-bgfx -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DBGFX_WITH_WAYLAND=OFF -DBGFX_BUILD_EXAMPLES=OFF -DBGFX_BUILD_TESTS=OFF -DBGFX_BUILD_TOOLS=ON \
+            -DBGFX_BUILD_TOOLS_TEXTURE=OFF -DBGFX_BUILD_TOOLS_GEOMETRY=OFF -DBGFX_BUILD_TOOLS_BIN2C=OFF
+          cmake --build build-host-bgfx --target shaderc --parallel "$BUILD_JOBS"
+
+      - name: Build
+        run: |
+          export YATAIDON_SHADERC="$GITHUB_WORKSPACE/build-host-bgfx/cmake/bgfx/shaderc"
+          export SWITCH_MESA_PREFIX="$DEPS/mesa-sdk"
+          export YATAIDON_MEDIA_LIBRARY_DIR="$DEPS/media/lib"
+          # The game finds GNU libiconv through portlibs; the image ships none.
+          cp "$DEPS/media/lib/libiconv.a" "$DEVKITPRO/portlibs/switch/lib/"
+          cp "$DEPS/media/iconv/include/iconv.h" "$DEVKITPRO/portlibs/switch/include/"
+          bash platform/switch/build-game.sh
+
+      - name: Package
+        run: |
+          mkdir -p release/stage/switch/YataiDON
+          cp platform/switch/build/YataiDON.nro release/stage/switch/YataiDON/
+          cd release/stage && zip -r ../YataiDON-Switch.zip switch
+
+      - name: Upload Switch package
+        uses: actions/upload-artifact@v4
+        with:
+          name: YataiDON-Switch
+          path: release/YataiDON-Switch.zip
+          compression-level: 0
+          if-no-files-found: error
+
   release:
-    needs: [build-ps5]
+    needs: [build-ps5, build-switch]
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch'
     steps:
@@ -136,11 +298,18 @@ jobs:
           name: YataiDON-PS5
           path: ps5-out/
 
+      - name: Download Switch artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: YataiDON-Switch
+          path: switch-out/
+
       - name: Upload Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             ps5-out/YataiDON-PS5.zip
+            switch-out/YataiDON-Switch.zip
           name: "YataiDON [Latest Release]"
           tag_name: "latest"
           make_latest: true

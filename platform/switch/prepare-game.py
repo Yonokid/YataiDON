@@ -8,6 +8,8 @@ import subprocess
 import urllib.request
 import zipfile
 
+# Python < 3.11.4 (devkitPro image) lacks extraction filters.
+SAFE_EXTRACT = {"filter": "data"} if hasattr(tarfile, "data_filter") else {}
 VENDOR = Path(__file__).resolve().parent / "vendor"
 DEPS = {
     "SDL": ("devkitPro/SDL", "0738d3c9f6993875e2f3dd0e8cc0bb4ae4440b4e"),
@@ -45,7 +47,7 @@ def main():
         if hashlib.sha256(archive.read_bytes()).hexdigest() != "a0cab59dc46776e0155ce8ad415e595fc6cc7d5b17fe66fd5c96f330540174df":
             raise RuntimeError("bgfx release checksum mismatch")
         with tarfile.open(archive) as source:
-            source.extractall(VENDOR, filter="data")
+            source.extractall(VENDOR, **SAFE_EXTRACT)
     subprocess.run([sys.executable, str(VENDOR.parent / "tools/patch-bgfx.py"), str(bgfx)], check=True)
     subprocess.run([sys.executable, str(VENDOR.parent / "tools/patch-sdl.py"), str(VENDOR / "SDL")], check=True)
     sqlite = VENDOR / "sqlite"

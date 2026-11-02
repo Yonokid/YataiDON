@@ -76,8 +76,10 @@ file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/native-archives.txt CONTENT
 "$<TARGET_FILE:yataidon_ps5_game>\n$<TARGET_FILE:bgfx>\n$<TARGET_FILE:bx>\n$<TARGET_FILE:bimg>\n$<TARGET_FILE:yataidon_vulkan>\n$<TARGET_FILE:yataidon_lua>\n$<TARGET_FILE:yataidon_sqlite>\n$<TARGET_FILE:sndfile>\n$<TARGET_FILE:samplerate>\n$<TARGET_FILE:miniz>\n$<TARGET_FILE:ebur128>\n$<TARGET_FILE:SDL2-static>\n")
 
 file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/generated/shaders/spirv")
-foreach(shader vs_2d fs_2d fs_colortransform vs_mesh vs_outline
-    fs_cutout fs_mesh fs_null fs_outline fs_outline_fxaa)
+file(GLOB shader_files CONFIGURE_DEPENDS "${game_root}/shader/bgfx/[fv]s_*.sc")
+file(GLOB shader_includes CONFIGURE_DEPENDS "${game_root}/shader/bgfx/*.sh")
+foreach(shader_file ${shader_files})
+  get_filename_component(shader "${shader_file}" NAME_WE)
   if(shader MATCHES "^vs_")
     set(type vertex)
   else()
@@ -85,10 +87,10 @@ foreach(shader vs_2d fs_2d fs_colortransform vs_mesh vs_outline
   endif()
   set(output "${CMAKE_BINARY_DIR}/generated/shaders/spirv/${shader}.sc.bin.h")
   add_custom_command(OUTPUT "${output}"
-    COMMAND "${YATAIDON_SHADERC}" -f "${game_root}/shader/bgfx/${shader}.sc" -o "${output}"
+    COMMAND "${YATAIDON_SHADERC}" -f "${shader_file}" -o "${output}"
       --type ${type} --platform linux -p spirv --bin2c ${shader}_spv
       --varyingdef "${game_root}/shader/bgfx/varying.def.sc" -i "${BGFX_SOURCE_DIR}/bgfx/src"
-    DEPENDS "${game_root}/shader/bgfx/${shader}.sc" "${game_root}/shader/bgfx/varying.def.sc" VERBATIM)
+    DEPENDS "${shader_file}" ${shader_includes} "${game_root}/shader/bgfx/varying.def.sc" VERBATIM)
   target_sources(yataidon_ps5_game PRIVATE "${output}")
 endforeach()
 set(font_output "${CMAKE_BINARY_DIR}/generated/default_font.cpp")

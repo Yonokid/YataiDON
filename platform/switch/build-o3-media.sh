@@ -39,6 +39,7 @@ cd "$prefix/iconv"
 LIBS= CPPFLAGS= LDFLAGS="$ARCH" "$YATAIDON_MEDIA_SOURCE_DIR/libiconv-1.18/configure" \
   --host=aarch64-none-elf --prefix="$prefix" --disable-shared --enable-static --disable-nls \
   CFLAGS="$ARCH -O3"
+make lib/localcharset.h
 make -C lib -j"${BUILD_JOBS:-4}"
 cp lib/.libs/libiconv.a "$prefix/lib/"
 echo "Optimized media archives: $prefix/lib"
