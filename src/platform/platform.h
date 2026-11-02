@@ -100,6 +100,10 @@ bool platform_list_directory(const std::filesystem::path& path, std::vector<Plat
 // "no native path", and the caller uses the portable reader.
 bool platform_read_file(const char* path, std::vector<unsigned char>& out);
 
+// Resolves native device paths that the portable filesystem cannot canonicalize.
+// False keeps portable symlink resolution in the caller.
+bool platform_resolve_file_path(const std::filesystem::path& path, std::filesystem::path& resolved);
+
 // Whether the settings screen offers an option (empty value) or one of its values,
 // e.g. no window-mode options on a console.
 bool platform_offers_setting(std::string_view path, std::string_view value);

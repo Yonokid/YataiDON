@@ -68,6 +68,10 @@ bool platform_read_file(const char*, std::vector<unsigned char>&) {
     return false;
 }
 
+bool platform_resolve_file_path(const std::filesystem::path&, std::filesystem::path&) {
+    return false;
+}
+
 bool platform_preload_song_previews() {
     return false;
 }

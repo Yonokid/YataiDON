@@ -17,6 +17,10 @@
 
 void platform_poll_input() {}
 
+bool platform_resolve_file_path(const std::filesystem::path&, std::filesystem::path&) {
+    return false;
+}
+
 bool platform_present_paces_frames() {
     return false;
 }

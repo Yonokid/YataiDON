@@ -8,6 +8,7 @@
 #include "../optional/gen4.h"
 #endif
 #include <algorithm>
+#include <cctype>
 #include <fstream>
 #include <memory>
 #include <mutex>
@@ -31,6 +32,15 @@ std::optional<std::vector<fs::path>> get_scanned_song_entries(const fs::path& di
         snapshot = song_file_snapshot;
     }
     return snapshot ? snapshot->under(directory) : std::nullopt;
+}
+
+std::optional<ScannedFolderState> get_scanned_folder_state(const fs::path& directory) {
+    std::shared_ptr<const SongFileSnapshot> snapshot;
+    {
+        std::scoped_lock lock(snapshot_mutex);
+        snapshot = song_file_snapshot;
+    }
+    return snapshot ? snapshot->folder_state(directory) : std::nullopt;
 }
 
 void set_working_directory_to_executable() {
@@ -219,6 +229,25 @@ std::vector<std::string> list_available_skins() {
     return names;
 }
 
+static void collect_navigation_file(const fs::path& path, std::vector<fs::path>& files) {
+    auto name = path.filename().string();
+    if (name == "song_list.txt" || name == "box.def") {
+        files.push_back(path);
+        return;
+    }
+    if (name.size() != 7) {
+        return;
+    }
+    std::ranges::transform(name, name.begin(), [](unsigned char c) { return std::tolower(c); });
+    if (name == "box.def") {
+        const auto definition = path.parent_path() / "box.def";
+        std::error_code ec;
+        if (fs::exists(definition, ec)) {
+            files.push_back(definition);
+        }
+    }
+}
+
 #ifdef _WIN32
 // Windows walk for collect_charts_from. recursive_directory_iterator stats every entry and
 // fs::canonical stats every component of every folder, which took seconds on a library of a few
@@ -250,9 +279,7 @@ struct ChartWalk {
         for (const Win32DirEntry& e : entries) {
             fs::path p = dir / e.name;
             if (!e.is_dir) {
-                if (p.filename() == "song_list.txt") {
-                    song_lists.push_back(p);
-                }
+                collect_navigation_file(p, song_lists);
                 add(p, p.extension(), under_fumen);
                 continue;
             }
@@ -298,9 +325,7 @@ static void collect_charts_from(const fs::path& path, std::vector<fs::path>& son
         native_listed ? walk_native_directories(std::move(native_entries), platform_list_directory) : std::nullopt;
     if (native_files) {
         for (const auto& entry : *native_files) {
-            if (entry.path.filename() == "song_list.txt") {
-                song_lists.push_back(entry.path);
-            }
+            collect_navigation_file(entry.path, song_lists);
             const auto ext = entry.path.extension();
             if (ext == ".tja" || ext == ".osu") {
                 songs.push_back(entry.path);
@@ -389,8 +414,8 @@ static void collect_charts_from(const fs::path& path, std::vector<fs::path>& son
         }
 #endif
 
-        if (!is_dir && entry.path().filename() == "song_list.txt") {
-            song_lists.push_back(entry.path());
+        if (!is_dir) {
+            collect_navigation_file(entry.path(), song_lists);
         }
         auto ext = entry.path().extension();
         if (ext == ".tja" || ext == ".osu") {

@@ -131,6 +131,24 @@ std::filesystem::path platform_get_working_directory() {
     return root;
 }
 
+bool platform_resolve_file_path(const std::filesystem::path& path, std::filesystem::path& resolved) {
+    FsFileSystem* device = nullptr;
+    char native_path[FS_MAX_PATH];
+    const auto source = path.string();
+    if (fsdevTranslatePath(source.c_str(), &device, native_path) != 0) {
+        return false;
+    }
+    const auto device_path = source.contains(':') ? source : std::filesystem::current_path().string();
+    const auto colon = device_path.find(':');
+    if (colon == std::string::npos) {
+        return false;
+    }
+    // fsdev mounts have no symlinks; retain the device prefix instead of using POSIX canonical().
+    const auto normalized = std::filesystem::path(native_path).lexically_normal();
+    resolved = std::filesystem::path(device_path.substr(0, colon + 1) + normalized.generic_string());
+    return true;
+}
+
 void platform_install_crash_handlers() {}
 
 int platform_run_main(int (*game_main)(int, char**), int argc, char** argv) {
