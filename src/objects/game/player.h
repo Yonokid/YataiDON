@@ -145,6 +145,7 @@ protected:
     std::vector<std::unique_ptr<DrumHitEffect>> draw_drum_hit_list;
     TextureObject* lane_mark = nullptr; // drawn instead of the difficulty mark (tutorial wakaba)
     bool show_lane_name = true;         // auto icon / nameplate
+    bool show_lane_badges = true;       // player icon (1P/2P) / modifier badges
 
 private:
     bool is_2p;
