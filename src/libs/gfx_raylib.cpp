@@ -4,6 +4,7 @@
 #include <cstdio>
 
 #include "gfx.h"
+#include "gfx/mesh_bounds.h"
 #include "gfx/sdl_compat.h" // before raylib.h: raylib.h must not be the first to pull in <stdarg.h>
 
 namespace ray {
@@ -363,6 +364,10 @@ void unload_model_animations(ModelAnimation* anims, int count) {
 
 void update_model_animation(Model model, ModelAnimation anim, float frame) {
     ray::UpdateModelAnimation(to<ray::Model>(model), to<ray::ModelAnimation>(anim), frame);
+}
+
+bool get_mesh_bounds(const Mesh& mesh, Vec3& lower, Vec3& upper) {
+    return cpu_mesh_bounds(mesh, lower, upper);
 }
 
 void draw_mesh(Mesh mesh, Material material, Mat4 transform) {

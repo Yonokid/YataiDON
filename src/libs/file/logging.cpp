@@ -4,6 +4,7 @@
 #include <print>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/dup_filter_sink.h>
+#include <spdlog/sinks/null_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
 #include <sstream>
@@ -60,6 +61,9 @@ static void install_crash_handlers() {
 }
 
 static spdlog::level::level_enum parse_log_level(const std::string& log_level_str) {
+    if (log_level_str == "off") {
+        return spdlog::level::off;
+    }
     if (log_level_str == "debug") {
         return spdlog::level::debug;
     }
@@ -99,6 +103,14 @@ static void setup_fallback_logging(const std::string& log_level_str) {
 }
 
 void setup_logging(const std::string& log_level_str) {
+    if (log_level_str == "off") {
+        auto logger = std::make_shared<spdlog::logger>("", std::make_shared<spdlog::sinks::null_sink_mt>());
+        logger->set_level(spdlog::level::off);
+        spdlog::set_default_logger(logger);
+        spdlog::flush_every(std::chrono::seconds(0));
+        install_crash_handlers();
+        return;
+    }
     try {
 #ifndef __ANDROID__
         auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();

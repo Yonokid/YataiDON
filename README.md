@@ -185,3 +185,7 @@ People (in no particular order):
 - SunnyDeez (testing)
 
 ---
+
+## Nintendo Switch homebrew (experimental)
+
+See [switch/README.md](switch/README.md) for the bgfx/Vulkan port, build requirements, and outstanding hardware validation.

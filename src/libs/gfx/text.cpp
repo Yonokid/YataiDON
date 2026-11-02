@@ -1,11 +1,15 @@
 #include "text.h"
 
+#include <atomic>
 #include <cmath>
 #include <cstdlib>
+#include <format>
 #include <spdlog/spdlog.h>
 #include <vector>
 
+#include "../../platform/platform.h"
 #include "../../platform/platform_windows.h"
+#include "../asset_cache.h"
 #include "../file/filesystem.h"
 #include "../file/script.h"
 #include "../gfx.h"
@@ -15,10 +19,30 @@
 #include <iconv.h>
 #endif
 
-FontManager::FontManager() = default;
+static std::atomic<uint64_t> next_font_generation{1};
+
+struct CachedOutlinedText {
+    Texture texture;
+    float width, height, x_offset, y_offset;
+    int top_extra;
+    ~CachedOutlinedText() { unload_texture(texture); }
+};
+
+static AssetCache<CachedOutlinedText>& outlined_text_cache() {
+    static AssetCache<CachedOutlinedText> cache(asset_cache_budget(48u << 20));
+    return cache;
+}
+
+FontManager::FontManager() : generation(next_font_generation.fetch_add(1, std::memory_order_relaxed)) {}
+
+uint64_t FontManager::cache_generation() const {
+    std::scoped_lock lock(font_mutex);
+    return generation;
+}
 
 void FontManager::init(const fs::path& font_path) {
     std::scoped_lock lock(font_mutex);
+    generation = next_font_generation.fetch_add(1, std::memory_order_relaxed);
     if (!exists(font_path)) {
         throw std::runtime_error("Failed to load font: " + font_path.string());
     }
@@ -111,6 +135,7 @@ std::string FontManager::get_text_label(const std::string& key) {
 
 void FontManager::unload() {
     std::scoped_lock lock(font_mutex);
+    generation = next_font_generation.fetch_add(1, std::memory_order_relaxed);
     for (auto& [size, entry] : fonts) {
         release_font(entry);
         release_cache(entry);
@@ -493,18 +518,39 @@ static void stamp_outline(Image* dst, const Font& font, const char* text, Vec2 p
     unload_image(o);
 }
 
-static Font deep_copy_font(const Font& src) {
+static Font deep_copy_font(const Font& src, const std::string& text) {
     Font dst = src;
     dst.glyphs = nullptr;
     dst.recs = nullptr;
     dst.glyphCount = 0;
-    if (src.glyphCount > 0 && src.glyphs && src.recs) {
-        dst.glyphCount = src.glyphCount;
-        dst.glyphs = static_cast<GlyphInfo*>(std::malloc(src.glyphCount * sizeof(GlyphInfo)));
-        memcpy(dst.glyphs, src.glyphs, src.glyphCount * sizeof(GlyphInfo));
+    if (src.glyphCount > 0 && src.glyphs) {
+        std::unordered_set<int> required{'A', '?', ' '};
+        for (const char* ptr = text.c_str(); *ptr;) {
+            int length = 0;
+            const int codepoint = get_codepoint_next(ptr, &length);
+            if (length <= 0) {
+                break;
+            }
+            required.insert(codepoint);
+            ptr += length;
+        }
+        for (int i = 0; i < src.glyphCount; ++i) {
+            if (i == 0 || required.contains(src.glyphs[i].value)) {
+                ++dst.glyphCount;
+            }
+        }
+        dst.glyphs = static_cast<GlyphInfo*>(std::malloc(dst.glyphCount * sizeof(GlyphInfo)));
+        dst.recs = static_cast<Rect*>(std::malloc(dst.glyphCount * sizeof(Rect)));
+        int copied = 0;
         for (int i = 0; i < src.glyphCount; i++) {
+            if (i != 0 && !required.contains(src.glyphs[i].value)) {
+                continue;
+            }
+            dst.glyphs[copied] = src.glyphs[i];
             const Image& si = src.glyphs[i].image;
-            Image& di = dst.glyphs[i].image;
+            dst.recs[copied] =
+                src.recs ? src.recs[i] : Rect{0, 0, static_cast<float>(si.width), static_cast<float>(si.height)};
+            Image& di = dst.glyphs[copied].image;
             if (si.data && si.width > 0 && si.height > 0) {
                 int dataSize = get_pixel_data_size(si.width, si.height, si.format);
                 di.data = std::malloc(dataSize);
@@ -512,9 +558,8 @@ static Font deep_copy_font(const Font& src) {
             } else {
                 di.data = nullptr;
             }
+            ++copied;
         }
-        dst.recs = static_cast<Rect*>(std::malloc(src.glyphCount * sizeof(Rect)));
-        memcpy(dst.recs, src.recs, src.glyphCount * sizeof(Rect));
     }
     return dst;
 }
@@ -528,8 +573,18 @@ Font FontManager::get_font(const std::string& text, int font_size) {
 
 Font FontManager::copy_font(const std::string& text, int font_size) {
     std::scoped_lock lock(font_mutex);
-    Font copy = deep_copy_font(acquire(text, font_size).font);
-    copy.texture = {}; // CPU-only: measured and composited, never drawn
+    font_size = std::max(font_size, 1);
+    auto& entry = fonts[font_size];
+    register_codepoints(entry, font_size, text);
+    // Outlined labels composite the cached bitmaps; packing/uploading an atlas would be unused work.
+    Font source;
+    source.baseSize = font_size;
+    source.glyphPadding = 4;
+    source.glyphCount = static_cast<int>(entry.cache.size());
+    source.glyphs = entry.cache.data();
+    Font copy = deep_copy_font(source, text);
+    entry.last_used = ++use_clock;
+    evict_lru(font_size);
     return copy;
 }
 
@@ -652,7 +707,26 @@ OutlinedText::OutlinedText(std::string text, int font_size, Color color, Color o
                            float outline_thickness, float spacing, float v_advance, const std::string& font_name)
     : text(std::move(text)), font_size(static_cast<float>(font_size)),
       outline_thickness(outline_thickness * global_tex.screen_scale), v_advance(v_advance) {
-    worker_font = named_font_manager(font_name).copy_font(this->text, font_size);
+    auto& manager = named_font_manager(font_name);
+    if (outlined_text_cache().enabled()) {
+        const auto rgba = [](Color c) {
+            return uint32_t(c.r) | (uint32_t(c.g) << 8) | (uint32_t(c.b) << 16) | (uint32_t(c.a) << 24);
+        };
+        cache_key =
+            std::format("{}/{}/{}/{}/{}/{}/{}/{}/{}", manager.cache_generation(), font_size, rgba(color),
+                        rgba(outline_color), is_vertical, this->outline_thickness, spacing, v_advance, this->text);
+        if (auto cached = outlined_text_cache().get(cache_key)) {
+            cached_texture = std::move(cached);
+            texture = cached_texture->texture;
+            width = cached_texture->width;
+            height = cached_texture->height;
+            x_offset = cached_texture->x_offset;
+            y_offset = cached_texture->y_offset;
+            top_extra = cached_texture->top_extra;
+            return;
+        }
+    }
+    worker_font = manager.copy_font(this->text, font_size);
 
     if (is_vertical) {
         float char_height = measure_text_ex(worker_font, "A", font_size, spacing).y;
@@ -696,6 +770,12 @@ OutlinedText::OutlinedText(std::string text, int font_size, Color color, Color o
         pending_image = std::move(data.img);
     }
 #else
+    if (!platform_async_text_build()) {
+        auto data = is_vertical ? build_vertical_text(color, outline_color, spacing)
+                                : build_horizontal_text(color, outline_color, spacing);
+        pending_image = data.img;
+        return;
+    }
     if (is_vertical) {
         build_future = std::async(std::launch::async, [this, color, outline_color, spacing] {
             auto data = build_vertical_text(color, outline_color, spacing);
@@ -727,7 +807,7 @@ OutlinedText::~OutlinedText() {
         worker_font.texture = {};
         unload_font(worker_font);
     }
-    if (texture.has_value()) {
+    if (texture.has_value() && !cached_texture) {
         unload_texture(texture.value());
     }
 }
@@ -946,6 +1026,16 @@ bool OutlinedText::upload_pending() {
     texture = tex;
     width = tex.width;
     height = static_cast<float>(tex.height) - top_extra;
+    if (!cache_key.empty() && tex.id != 0) {
+        cached_texture = std::make_shared<CachedOutlinedText>();
+        cached_texture->texture = tex;
+        cached_texture->width = width;
+        cached_texture->height = height;
+        cached_texture->x_offset = x_offset;
+        cached_texture->y_offset = y_offset;
+        cached_texture->top_extra = top_extra;
+        outlined_text_cache().put(cache_key, cached_texture, static_cast<size_t>(tex.width) * tex.height * 4);
+    }
     return true;
 }
 
@@ -957,7 +1047,9 @@ void OutlinedText::finish() {
 }
 
 void OutlinedText::draw(const DrawTextureParams& params) {
-    upload_pending();
+    if (!texture.has_value()) {
+        upload_pending();
+    }
 
     if (!texture.has_value()) {
         return;

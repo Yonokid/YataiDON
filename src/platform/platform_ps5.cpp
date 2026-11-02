@@ -15,6 +15,19 @@
 #include "platform.h"
 #include "ps5_video.h"
 
+void platform_poll_input() {}
+
+bool platform_present_paces_frames() {
+    return false;
+}
+bool platform_threaded_renderer() {
+    return false;
+}
+bool platform_list_directory(const std::filesystem::path&, std::vector<PlatformFileEntry>&) {
+    return false;
+}
+void platform_begin_file_scan() {}
+
 extern "C" int sceSystemServiceHideSplashScreen();
 extern "C" int sceKernelDebugOutText(int channel, const char* text);
 extern "C" void av_log_set_level(int level);
@@ -207,6 +220,14 @@ std::unique_ptr<PlatformVideoDecoder> platform_open_video_decoder(const std::fil
 
 bool platform_take_text_replacement() {
     return yataidon_ime_take_replacement() != 0;
+}
+
+bool platform_async_text_build() {
+    return true;
+}
+
+bool platform_file_stamp(const std::filesystem::path&, int64_t&, int64_t&) {
+    return false;
 }
 
 // 100% of the render output's pixel density: the cropped target saves unused space

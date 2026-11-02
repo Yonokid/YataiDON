@@ -150,6 +150,9 @@ void SongBox::load_text() {
 
 void SongBox::update(double current_time) {
     BaseBox::update(current_time);
+    if (!yellow_box_active && !preview_load && !music_playing) {
+        return;
+    }
     diff_fade_in->update(current_time);
 
     // update() runs every frame for every box of the list: the audio file is looked at once,

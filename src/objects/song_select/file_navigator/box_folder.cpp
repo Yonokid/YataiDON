@@ -63,14 +63,9 @@ namespace {
             }
         };
 
-        // Errors are stepped over rather than thrown: one unreadable entry deep in
-        // a tree should not take the folder box down with it.
-        std::error_code scan_ec;
-        auto scan = fs::recursive_directory_iterator(path, fs::directory_options::skip_permission_denied, scan_ec);
-        while (scan != fs::end(scan)) {
-            const fs::directory_entry& entry = *scan;
-            if (entry.path().filename() == "song_list.txt") {
-                auto entries = read_song_list(entry.path());
+        auto add_entry = [&](const fs::path& file) {
+            if (file.filename() == "song_list.txt") {
+                auto entries = read_song_list(file);
                 tja_count += static_cast<int>(entries.size());
                 for (const auto& e : entries) {
                     if (auto found = scores_manager.get_path_by_hash(e.hash)) {
@@ -78,22 +73,30 @@ namespace {
                         update_crown(*found, player_2_id, crown_p2, disqualified_p2);
                     }
                 }
+                return;
+            }
+            auto ext = file.extension();
+            if (ext == ".tja" || ext == ".osu") {
+                tja_count++;
+                update_crown(file, player_1_id, crown, disqualified_p1);
+                update_crown(file, player_2_id, crown_p2, disqualified_p2);
+            }
+        };
+
+        if (auto entries = get_scanned_song_entries(path)) {
+            for (const auto& file : *entries) {
+                add_entry(file);
+            }
+        } else {
+            // A folder outside the completed library scan still needs a disk walk.
+            std::error_code scan_ec;
+            auto scan = fs::recursive_directory_iterator(path, fs::directory_options::skip_permission_denied, scan_ec);
+            while (scan != fs::end(scan)) {
+                add_entry(scan->path());
                 scan.increment(scan_ec);
                 if (scan_ec) {
                     break;
                 }
-                continue;
-            }
-            auto ext = entry.path().extension();
-            if (ext == ".tja" || ext == ".osu") {
-                tja_count++;
-                update_crown(entry.path(), player_1_id, crown, disqualified_p1);
-                update_crown(entry.path(), player_2_id, crown_p2, disqualified_p2);
-            }
-
-            scan.increment(scan_ec);
-            if (scan_ec) {
-                break;
             }
         }
 
@@ -226,14 +229,13 @@ void FolderBox::update(double current_time) {
     enter_fade->update(current_time);
     BaseBox::update(current_time);
 
-    std::string genre_voice_str = "genre_voice_" + std::to_string(static_cast<int>(genre_index));
     if (!is_open_prev && yellow_box_opened) {
         if (!audio.is_sound_playing("voice_enter")) {
-            audio.play_sound(genre_voice_str, VolumePreset::VOICE);
+            audio.play_sound("genre_voice_" + std::to_string(static_cast<int>(genre_index)), VolumePreset::VOICE);
             genre_voice_started = true;
         }
     } else if (!yellow_box_opened && genre_voice_started) {
-        audio.stop_sound(genre_voice_str);
+        audio.stop_sound("genre_voice_" + std::to_string(static_cast<int>(genre_index)));
         genre_voice_started = false;
     }
 }

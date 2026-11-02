@@ -16,6 +16,7 @@
 class FontManager {
 private:
     fs::path font_path;
+    uint64_t generation;
 
     struct SizedFont {
         Font font{}; // texture + recs + glyph structs; glyph images are fresh crops, not aliases of `cache`
@@ -56,6 +57,7 @@ public:
     Font get_font(const std::string& text, int font_size);
     Font copy_font(const std::string& text, int font_size);
     void register_text(const std::string& text, int font_size);
+    uint64_t cache_generation() const;
 
     void load_text_config(const fs::path& skin_root);
 
@@ -95,6 +97,8 @@ inline std::string localized_text(const std::map<std::string, std::string>& valu
     return "";
 }
 
+struct CachedOutlinedText;
+
 class OutlinedText {
 private:
     std::string text;
@@ -108,6 +112,8 @@ private:
     mutable std::mutex pending_mutex;
 
     std::optional<Texture> texture;
+    std::shared_ptr<CachedOutlinedText> cached_texture;
+    std::string cache_key;
 
     std::future<void> build_future;
 

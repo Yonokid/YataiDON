@@ -1,7 +1,7 @@
 #include "fps_counter.h"
 
 #include <algorithm>
-#include <functional>
+#include <format>
 #include <numeric>
 
 #include "../../libs/gfx/text.h"
@@ -23,29 +23,20 @@ void FPSCounter::update() {
 
 float FPSCounter::get_fps() const {
     const float sum = std::accumulate(std::begin(frameTimes), std::end(frameTimes), 0.0f);
-    float avgFrameTime = sum / SAMPLE_SIZE;
-    if (!(avgFrameTime > 0.0f)) {
-        return 0.0f;
-    }
-    return 1000.0f / avgFrameTime;
+    const float avgFrameTime = sum / SAMPLE_SIZE;
+    return avgFrameTime > 0.0f ? 1000.0f / avgFrameTime : 0.0f;
 }
 
 void FPSCounter::draw() {
-    int curr_fps = get_fps();
-    int size = static_cast<int>(20.0f * global_tex.screen_scale);
-    float pos = size;
-
-    Color color;
-    std::string fps_text = std::to_string(curr_fps) + " FPS";
-    Font font = font_manager.get_font(fps_text, size);
-
-    if (curr_fps < 30) {
-        color = Color::RED;
-    } else if (curr_fps < 60) {
-        color = Color::YELLOW;
-    } else {
-        color = Color::LIME;
+    const double now = get_current_ms();
+    if (readout.empty() || now >= next_readout_ms) {
+        displayed_fps = static_cast<int>(get_fps());
+        readout = std::format("{} FPS", displayed_fps);
+        next_readout_ms = now + 250;
     }
-
-    draw_text_ex(font, text_format("%d FPS", curr_fps), Vec2{pos, pos}, pos, 1.0f, color);
+    const int size = static_cast<int>(20.0f * global_tex.screen_scale);
+    const float pos = size;
+    const Color color = displayed_fps < 30 ? Color::RED : displayed_fps < 60 ? Color::YELLOW : Color::LIME;
+    Font font = font_manager.get_font(readout, size);
+    draw_text_ex(font, readout.c_str(), {pos, pos}, pos, 1.0f, color);
 }

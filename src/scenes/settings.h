@@ -4,6 +4,7 @@
 #include "../objects/global/allnet_indicator.h"
 #include "../objects/global/coin_overlay.h"
 #include "../objects/global/indicator.h"
+#include "../objects/settings/reload_state.h"
 #include "../objects/settings/settings_box_manager.h"
 
 class SettingsScreen : public Screen {
@@ -13,6 +14,7 @@ private:
     std::optional<CoinOverlay> coin_overlay;
     std::optional<AllNetIcon> allnet_indicator;
     std::string username_on_entry;
+    std::optional<SettingsAssetState> assets_on_entry;
 
     TextureObject* t_background = nullptr;
     TextureObject* t_footer = nullptr;

@@ -49,3 +49,8 @@ YataiDON.wasm
 
 /ps5/build-vulkan/
 /ps5/build-host-bgfx/
+
+/switch/vendor/
+/switch/build*/
+/switch/dist/
+/switch/**/__pycache__/

@@ -23,6 +23,12 @@ void platform_close_window();
 // Runs once the window exists (e.g. hooking mobile app lifecycle events).
 void platform_initialize_after_window();
 
+// Polls native input on the main thread before SDL events are published.
+void platform_poll_input();
+
+// Gives a persistent animation worker a platform-appropriate scheduling preference.
+void platform_initialize_animation_worker();
+
 // Monotonic milliseconds since an arbitrary epoch, frozen while the app is
 // suspended (backgrounded on iOS/Android). Safe to call from any thread.
 double platform_game_time_ms();
@@ -47,6 +53,9 @@ void platform_init_window();
 // e.g. the output refresh a console display actually switched to.
 int platform_apply_target_fps(int fps);
 
+bool platform_present_paces_frames();
+bool platform_threaded_renderer();
+
 // A platform's own audio output, used in place of SDL/RtAudio where it has one. The mix
 // callback fills `frames` interleaved stereo floats. Returns null when the platform has none;
 // on success `sample_rate` and `frames` hold what the device actually runs at.
@@ -70,6 +79,22 @@ std::unique_ptr<PlatformVideoDecoder> platform_open_video_decoder(const std::fil
 // True once after a native on-screen keyboard dialog returned its finished text: the edited
 // field is replaced rather than appended to.
 bool platform_take_text_replacement();
+
+// False where a screen full of per-label worker threads exceeds native resources.
+bool platform_async_text_build();
+
+// Supplies a cache timestamp and size without repeated portable filesystem queries.
+bool platform_file_stamp(const std::filesystem::path& path, int64_t& mtime, int64_t& size);
+
+struct PlatformFileEntry {
+    std::filesystem::path path;
+    bool directory;
+    int64_t size;
+};
+// Discards native metadata from a previous chart scan before the next walk.
+void platform_begin_file_scan();
+// Entries have no symlinks. False leaves traversal to the portable implementation.
+bool platform_list_directory(const std::filesystem::path& path, std::vector<PlatformFileEntry>& entries);
 
 // Reads a whole file through a faster native path where the platform has one; false means
 // "no native path", and the caller uses the portable reader.

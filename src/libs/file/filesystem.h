@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <optional>
 #include <rapidjson/istreamwrapper.h>
 #include <string>
 #include <vector>
@@ -18,6 +19,9 @@ void ensure_skin_extracted(const std::string& skin_name);
 std::vector<std::string> list_available_skins();
 
 std::vector<fs::path> get_song_files(const std::vector<fs::path>& root_path);
+
+// Chart and song_list.txt paths from the completed scan; nullopt outside its roots.
+std::optional<std::vector<fs::path>> get_scanned_song_entries(const fs::path& directory);
 
 rapidjson::Document read_json_file(const fs::path& file_path);
 

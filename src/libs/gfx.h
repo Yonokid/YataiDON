@@ -168,6 +168,7 @@ void unload_model(Model model);
 ModelAnimation* load_model_animations(const char* path, int* count);
 void unload_model_animations(ModelAnimation* anims, int count);
 void update_model_animation(Model model, ModelAnimation anim, float frame);
+bool get_mesh_bounds(const Mesh& mesh, Vec3& lower, Vec3& upper);
 void draw_mesh(Mesh mesh, Material material, Mat4 transform);
 void update_mesh_buffer(Mesh mesh, int index, const void* data, int data_size, int offset);
 void set_material_texture(Material* material, int map_type, Texture texture);

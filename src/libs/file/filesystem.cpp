@@ -1,12 +1,15 @@
 #include "filesystem.h"
 
 #include "miniz.h" // IWYU pragma: keep
+#include "native_directory_walk.h"
+#include "song_file_snapshot.h"
 #ifdef SUPPORT_FUMEN
 #include "../optional/gen3.h"
 #include "../optional/gen4.h"
 #endif
 #include <algorithm>
 #include <fstream>
+#include <memory>
 #include <mutex>
 #include <spdlog/spdlog.h>
 #include <unordered_set>
@@ -15,6 +18,20 @@
 #include "../../platform/platform_windows.h"
 #include "../asset_cache.h"
 #include "../gfx.h"
+
+namespace {
+    std::mutex snapshot_mutex;
+    std::shared_ptr<const SongFileSnapshot> song_file_snapshot;
+} // namespace
+
+std::optional<std::vector<fs::path>> get_scanned_song_entries(const fs::path& directory) {
+    std::shared_ptr<const SongFileSnapshot> snapshot;
+    {
+        std::scoped_lock lock(snapshot_mutex);
+        snapshot = song_file_snapshot;
+    }
+    return snapshot ? snapshot->under(directory) : std::nullopt;
+}
 
 void set_working_directory_to_executable() {
     const std::filesystem::path exe_dir = platform_get_working_directory();
@@ -210,6 +227,7 @@ std::vector<std::string> list_available_skins() {
 struct ChartWalk {
     std::vector<fs::path>& songs;
     std::vector<fs::path>* osz_out;
+    std::vector<fs::path>& song_lists;
     // Resolved path of every folder entered: a link back to one of them is not followed again.
     // A plain folder resolves to its parent's resolved path plus its name, so only links are opened.
     std::unordered_set<std::wstring> visited_dirs;
@@ -232,6 +250,9 @@ struct ChartWalk {
         for (const Win32DirEntry& e : entries) {
             fs::path p = dir / e.name;
             if (!e.is_dir) {
+                if (p.filename() == "song_list.txt") {
+                    song_lists.push_back(p);
+                }
                 add(p, p.extension(), under_fumen);
                 continue;
             }
@@ -269,7 +290,37 @@ struct ChartWalk {
 };
 #endif
 
-static void collect_charts_from(const fs::path& path, std::vector<fs::path>& songs, std::vector<fs::path>* osz_out) {
+static void collect_charts_from(const fs::path& path, std::vector<fs::path>& songs, std::vector<fs::path>* osz_out,
+                                std::vector<fs::path>& song_lists) {
+    std::vector<PlatformFileEntry> native_entries;
+    const bool native_listed = platform_list_directory(path, native_entries);
+    auto native_files =
+        native_listed ? walk_native_directories(std::move(native_entries), platform_list_directory) : std::nullopt;
+    if (native_files) {
+        for (const auto& entry : *native_files) {
+            if (entry.path.filename() == "song_list.txt") {
+                song_lists.push_back(entry.path);
+            }
+            const auto ext = entry.path.extension();
+            if (ext == ".tja" || ext == ".osu") {
+                songs.push_back(entry.path);
+            } else if (ext == ".osz" && osz_out) {
+                osz_out->push_back(entry.path);
+            } else if (ext == ".bin") {
+                for (auto parent = entry.path.parent_path(); !parent.empty() && parent != parent.parent_path();
+                     parent = parent.parent_path()) {
+                    if (parent.filename() == "fumen") {
+                        songs.push_back(entry.path);
+                        break;
+                    }
+                }
+            }
+        }
+        return;
+    }
+    if (native_listed) {
+        spdlog::warn("Native chart walk failed for {}; retrying with the portable walker", path.string());
+    }
 #ifdef _WIN32
     std::vector<Win32DirEntry> entries;
     if (!win32_list_dir(path, entries)) {
@@ -283,7 +334,7 @@ static void collect_charts_from(const fs::path& path, std::vector<fs::path>& son
             break;
         }
     }
-    ChartWalk w{songs, osz_out, {}};
+    ChartWalk w{songs, osz_out, song_lists, {}};
     std::wstring root = win32_final_path(path);
     if (root.empty()) {
         root = fs::absolute(path).wstring();
@@ -338,6 +389,9 @@ static void collect_charts_from(const fs::path& path, std::vector<fs::path>& son
         }
 #endif
 
+        if (!is_dir && entry.path().filename() == "song_list.txt") {
+            song_lists.push_back(entry.path());
+        }
         auto ext = entry.path().extension();
         if (ext == ".tja" || ext == ".osu") {
             songs.push_back(entry.path());
@@ -363,7 +417,9 @@ static void collect_charts_from(const fs::path& path, std::vector<fs::path>& son
 }
 
 std::vector<fs::path> get_song_files(const std::vector<fs::path>& root_path) {
+    platform_begin_file_scan();
     std::vector<fs::path> songs;
+    std::vector<fs::path> song_lists, covered_roots;
     for (const fs::path& path : root_path) {
 #ifdef SUPPORT_FUMEN
         if (!gen4::find_data_root(path).empty() || !gen3::find_data_root(path).empty()) {
@@ -373,7 +429,8 @@ std::vector<fs::path> get_song_files(const std::vector<fs::path>& root_path) {
 
         std::vector<fs::path> osz_files;
         try {
-            collect_charts_from(path, songs, &osz_files);
+            collect_charts_from(path, songs, &osz_files, song_lists);
+            covered_roots.push_back(path);
         } catch (const std::filesystem::filesystem_error& e) {
             spdlog::error("Error scanning song directory: {}", e.what());
             continue;
@@ -390,7 +447,7 @@ std::vector<fs::path> get_song_files(const std::vector<fs::path>& root_path) {
                     continue;
                 }
                 try {
-                    collect_charts_from(out_dir, songs, nullptr);
+                    collect_charts_from(out_dir, songs, nullptr, song_lists);
                 } catch (const std::filesystem::filesystem_error& e) {
                     spdlog::error("Error scanning extracted archive {}: {}", out_dir.string(), e.what());
                 }
@@ -404,6 +461,13 @@ std::vector<fs::path> get_song_files(const std::vector<fs::path>& root_path) {
         if (seen.insert(p.string()).second) {
             deduped.push_back(std::move(p));
         }
+    }
+    auto snapshot_entries = deduped;
+    snapshot_entries.insert(snapshot_entries.end(), song_lists.begin(), song_lists.end());
+    auto snapshot = std::make_shared<SongFileSnapshot>(std::move(covered_roots), std::move(snapshot_entries));
+    {
+        std::scoped_lock lock(snapshot_mutex);
+        song_file_snapshot = std::move(snapshot);
     }
     return deduped;
 }

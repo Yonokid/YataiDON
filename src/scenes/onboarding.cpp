@@ -213,6 +213,22 @@ std::optional<Screens> OnboardingScreen::update() {
         row = (row + 1) % rows;
         return std::nullopt;
     }
+    if (global_data.config->keys.gamepad_menu_layout) {
+        if (check_key_pressed(global_data.config->keys.back_key)) {
+            if (!skinless_start) {
+                return on_screen_end(Screens::TITLE);
+            }
+        } else if (menu_confirm_pressed()) {
+            if (row == continue_row()) {
+                begin_download();
+            } else if (row < kSkinCount) {
+                toggle_skin(row);
+            } else if (row == online_row()) {
+                online = !online;
+            }
+        }
+        return std::nullopt;
+    }
     // drum-only: don moves down (starts the download on Continue), kat toggles the current row
     if (menu_confirm_pressed()) {
         if (row == continue_row()) {
@@ -277,5 +293,7 @@ void OnboardingScreen::draw() {
     if (!error.empty()) {
         draw_line(error, 565 * s, static_cast<int>(22 * s), Color::RED);
     }
-    draw_line("Don: next / continue    Ka: toggle    Up/Down: move", 650 * s, static_cast<int>(20 * s), Color::GRAY);
+    draw_line(global_data.config->keys.gamepad_menu_layout ? "D-pad: move    Confirm: toggle / continue"
+                                                           : "Don: next / continue    Ka: toggle    Up/Down: move",
+              650 * s, static_cast<int>(20 * s), Color::GRAY);
 }

@@ -405,7 +405,9 @@ static void run_frame() {
     }
 
     g_frame_ms = get_current_ms();
+    L.fps_counter.update();
 
+    platform_poll_input();
     poll_input_events();
     if (platform_is_suspended()) {
         return;
@@ -519,7 +521,6 @@ static void run_frame() {
         draw_touch_drum();
 
         if (global_data.config->general.fps_counter) {
-            L.fps_counter.update();
             L.fps_counter.draw();
         }
 
@@ -559,7 +560,7 @@ static void run_frame() {
     }
 
 #if !defined(__EMSCRIPTEN__) && !defined(YATAIDON_PLATFORM_IOS)
-    if (L.target_duration.count() > 0) {
+    if (L.target_duration.count() > 0 && !platform_present_paces_frames()) {
         L.next_frame_time += L.target_duration;
         auto now = std::chrono::steady_clock::now();
         if (L.next_frame_time < now) {
@@ -584,7 +585,9 @@ static void run_frame() {
 static int game_main(int argc, char* argv[]) {
     spdlog::info("Starting YataiDON");
     set_working_directory_to_executable();
-    const bool had_config = std::filesystem::exists("config.toml");
+    std::vector<unsigned char> config_bytes;
+    const bool had_config = (platform_read_file("config.toml", config_bytes) && !config_bytes.empty()) ||
+                            std::filesystem::exists("config.toml");
     global_data.config = new Config(get_config());
     const bool gen3 = global_data.config->general.score_method == ScoreMethod::GEN3;
     global_data.needs_onboarding = !had_config || !std::filesystem::exists(gen3 ? "scores_gen3.db" : "scores.db");

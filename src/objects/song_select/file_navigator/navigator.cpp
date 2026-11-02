@@ -324,7 +324,10 @@ void Navigator::preload(std::vector<fs::path> songs_paths, std::optional<std::ve
                         break;
                     }
                     const fs::path& file = files[i];
-                    if (!is_song_file(file)) {
+                    // Both sources are the completed chart walk, which already
+                    // classified files. Do not stat the entire library again.
+                    const auto extension = file.extension();
+                    if (extension != ".tja" && extension != ".osu") {
                         continue;
                     }
                     // the loading screen already read this chart (parsed or from its cache)
@@ -541,7 +544,10 @@ void Navigator::join_loader() {
 
 void Navigator::enqueue_box(std::unique_ptr<BaseBox> box) {
     std::error_code ec;
-    auto last_write = fs::last_write_time(box->path, ec);
+    const auto u8 = box->path.u8string();
+    const auto metadata = scores_manager.get_song_meta(std::string(u8.begin(), u8.end()));
+    const auto last_write = metadata ? fs::file_time_type(fs::file_time_type::duration(metadata->mtime))
+                                     : fs::last_write_time(box->path, ec);
     if (!ec) {
         auto last_write_sys = ch::system_clock::now() + std::chrono::duration_cast<ch::system_clock::duration>(
                                                             last_write - std::filesystem::file_time_type::clock::now());
@@ -550,8 +556,6 @@ void Navigator::enqueue_box(std::unique_ptr<BaseBox> box) {
             box->is_new = true;
         }
     }
-
-    box->preregister_text(); // glyphs for the whole batch land before the first load_text()
 
     std::scoped_lock lock(pending_mutex);
     if (auto* song = dynamic_cast<SongBox*>(box.get())) {

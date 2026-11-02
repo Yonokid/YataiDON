@@ -9,6 +9,8 @@
 #include "../objects/song_select/file_navigator/navigator.h"
 
 void SettingsScreen::on_screen_start() {
+    spdlog::info("Opening settings for skin {}",
+                 global_data.config ? global_data.config->paths.skin.string() : "<none>");
     Screen::on_screen_start();
 
     if (!global_data.config) {
@@ -39,6 +41,7 @@ void SettingsScreen::on_screen_start() {
     coin_overlay = CoinOverlay();
     allnet_indicator = AllNetIcon();
     username_on_entry = scores_manager.player_1_data.username;
+    assets_on_entry.emplace(*global_data.config);
 
     t_background = tex.get_texture("background/background");
     t_footer = tex.get_texture("background/footer");
@@ -70,6 +73,9 @@ Screens SettingsScreen::on_screen_end(Screens next_screen) {
     allnet_indicator.reset();
     t_background = nullptr;
     t_footer = nullptr;
+    if (assets_on_entry && !assets_on_entry->needs_reload(*global_data.config)) {
+        return Screen::on_screen_end(next_screen);
+    }
     drop_other_screens_for_skin_reload();
     // navigator is a global, not a Screen -- the rebuild above never
     // touches it, so it needs its own reset.

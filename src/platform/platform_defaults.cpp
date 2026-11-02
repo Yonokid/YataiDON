@@ -4,6 +4,21 @@
 #include "../libs/input/ime_ui.h"
 #include "platform.h"
 
+void platform_poll_input() {}
+
+void platform_initialize_animation_worker() {}
+
+bool platform_present_paces_frames() {
+    return false;
+}
+bool platform_threaded_renderer() {
+    return false;
+}
+bool platform_list_directory(const std::filesystem::path&, std::vector<PlatformFileEntry>&) {
+    return false;
+}
+void platform_begin_file_scan() {}
+
 int platform_run_main(int (*game_main)(int, char**), int argc, char** argv) {
     return game_main(argc, argv);
 }
@@ -38,6 +53,14 @@ std::unique_ptr<PlatformVideoDecoder> platform_open_video_decoder(const std::fil
 }
 
 bool platform_take_text_replacement() {
+    return false;
+}
+
+bool platform_async_text_build() {
+    return true;
+}
+
+bool platform_file_stamp(const std::filesystem::path&, int64_t&, int64_t&) {
     return false;
 }
 

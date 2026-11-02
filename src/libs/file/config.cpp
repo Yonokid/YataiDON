@@ -4,6 +4,7 @@
 #include <spdlog/spdlog.h>
 #include <string_view>
 
+#include "../../platform/platform.h"
 #include "../gfx.h"
 #include "../gfx/sdl_compat.h"
 #include "../global_data.h"
@@ -239,7 +240,13 @@ Config get_config() {
 
     toml::table config_file;
     try {
-        config_file = toml::parse_file(config_path.string());
+        std::vector<unsigned char> bytes;
+        if (platform_read_file(config_path.string().c_str(), bytes)) {
+            config_file = toml::parse(std::string_view(reinterpret_cast<const char*>(bytes.data()), bytes.size()),
+                                      config_path.string());
+        } else {
+            config_file = toml::parse_file(config_path.string());
+        }
     } catch (const toml::parse_error& err) {
         std::error_code ec;
         if (!fs::exists(config_path, ec)) {

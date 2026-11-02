@@ -17,11 +17,8 @@
 #include "../../libs/math/animation.h"
 #include "../../platform/platform.h"
 
-static void draw_model_face_last(Model& model, int face_material_index, const std::vector<int>& blend_materials,
-                                 const std::vector<int>& twosided_materials, Vec3 position, float scale) {
-    Mat4 matTransform =
-        matrix_multiply(matrix_scale(scale, scale, scale), matrix_translate(position.x, position.y, position.z));
-    Mat4 transform = matrix_multiply(model.transform, matTransform);
+static void draw_model_face_last(const Model& model, int face_material_index, const std::vector<int>& blend_materials,
+                                 const std::vector<int>& twosided_materials, const Mat4& transform) {
     auto is_blend = [&](int mat) { return std::ranges::contains(blend_materials, mat); };
     // _CULLNONE materials are drawn two-sided, as the name asks.
     auto draw = [&](int i) {
@@ -739,16 +736,24 @@ void Chara3D::set_tint(Color color, float amount) {
 
 void Chara3D::apply_pose() {
     const int ai = static_cast<int>(anim_index);
+    if (applied_anim == ai && applied_frame == anim_frame) {
+        return;
+    }
     for (size_t p = 0; p < parts.size(); p++) {
         if (ai < 0 || ai >= part_anim_count[p]) {
             continue;
         }
         update_model_animation(parts[p], part_anims[p][ai], anim_frame);
     }
+    applied_anim = ai;
+    applied_frame = anim_frame;
     render_dirty = true;
 }
 
 void Chara3D::set_frozen(bool value) {
+    if (frozen == value) {
+        return;
+    }
     frozen = value;
     if (frozen) {
         apply_pose();
@@ -772,6 +777,9 @@ void Chara3D::set_anim_progress(float progress) {
 }
 
 void Chara3D::set_rotation(float x, float y, float z) {
+    if (rot_x == x && rot_y == y && rot_z == z) {
+        return;
+    }
     rot_x = x;
     rot_y = y;
     rot_z = z;
@@ -819,13 +827,7 @@ void Chara3D::update(double current_ms) {
                     anim_frame = (anim_frame + 1) % loop_frames;
                     // UpdateModelAnimation CPU-skins and uploads position/normal
                     // buffers to the GPU itself; no manual UpdateMeshBuffer needed
-                    for (size_t p = 0; p < parts.size(); p++) {
-                        if (ai >= part_anim_count[p]) {
-                            continue;
-                        }
-                        update_model_animation(parts[p], part_anims[p][ai], anim_frame);
-                    }
-                    render_dirty = true;
+                    apply_pose();
 
                     if (!is_looping && anim_frame == loop_frames - 1) {
                         set_anim(prev_anim_idx);
@@ -846,26 +848,11 @@ void Chara3D::update(double current_ms) {
 }
 
 void Chara3D::draw_outline(float x, float y, int rt_w, int rt_h, float full_h) {
-    std::vector<std::vector<Shader>> saved(parts.size());
-    for (size_t p = 0; p < parts.size(); p++) {
-        saved[p].resize(parts[p].materialCount);
-        for (int i = 0; i < parts[p].materialCount; i++) {
-            saved[p][i] = parts[p].materials[i].shader;
-            bool is_face =
-                (part_face_material_index[p] != -1 && i == part_face_material_index[p] && null_shader.id != 0);
-            // additive glows (_AA_ADD) and alpha-blended sheets (_A_AB) have no silhouette to
-            // outline; a hull under them is a black box seen through the transparent texels
-            parts[p].materials[i].shader = is_face ? null_shader : outline_shader;
-        }
-    }
-
-    std::vector<Mat4> saved_transform(parts.size());
     float y_angle = mirror ? -rot_y : rot_y;
     Mat4 rot = rotation_xyz(rot_x * deg2rad, y_angle * deg2rad, rot_z * deg2rad);
-    for (size_t p = 0; p < parts.size(); p++) {
-        saved_transform[p] = parts[p].transform;
-        parts[p].transform = rot;
-    }
+    const float draw_size = scale * draw_scale * tex.screen_scale;
+    const Mat4 transform = matrix_multiply(
+        rot, matrix_multiply(matrix_scale(draw_size, draw_size, draw_size), matrix_translate(x, y, 400.0f)));
 
     {
         const float thickness_px = 2.5f * full_h / 720.0f;
@@ -879,46 +866,37 @@ void Chara3D::draw_outline(float x, float y, int rt_w, int rt_h, float full_h) {
         }
         set_shader_value(outline_shader, outline_param_loc, param, shader_uniform::VEC2);
         set_shader_value(outline_shader, outline_size_loc, size, shader_uniform::VEC2);
-        const float draw_size = scale * draw_scale * tex.screen_scale;
-
         set_cull_face(cull_face::FRONT);
-        for (auto& part : parts) {
-            draw_model(part, {x, y, 400.0f}, draw_size, Color::WHITE);
+        for (size_t p = 0; p < parts.size(); ++p) {
+            const auto& part = parts[p];
+            for (int mesh = 0; mesh < part.meshCount; ++mesh) {
+                const int material_index = part.meshMaterial[mesh];
+                Material material = part.materials[material_index];
+                const bool is_face = material_index == part_face_material_index[p] && null_shader.id != 0;
+                material.shader = is_face ? null_shader : outline_shader;
+                draw_mesh(part.meshes[mesh], material, transform);
+            }
         }
         set_cull_face(cull_face::BACK);
-    }
-
-    for (size_t p = 0; p < parts.size(); p++) {
-        parts[p].transform = saved_transform[p];
-        for (int i = 0; i < parts[p].materialCount; i++) {
-            parts[p].materials[i].shader = saved[p][i];
-        }
     }
 }
 
 void Chara3D::draw_3d(float x, float y) {
-    std::vector<Mat4> saved(parts.size());
     float y_angle = mirror ? -rot_y : rot_y;
     Mat4 rot = rotation_xyz(rot_x * deg2rad, y_angle * deg2rad, rot_z * deg2rad);
-    for (size_t p = 0; p < parts.size(); p++) {
-        saved[p] = parts[p].transform;
-        parts[p].transform = rot;
-    }
+    const float draw_size = scale * draw_scale * tex.screen_scale;
+    const Mat4 transform = matrix_multiply(
+        rot, matrix_multiply(matrix_scale(draw_size, draw_size, draw_size), matrix_translate(x, y, 400.0f)));
     for (size_t p = 0; p < parts.size(); p++) {
         draw_model_face_last(parts[p], part_face_material_index[p], part_blend_indices[p], part_twosided_indices[p],
-                             {x, y, 400.0f}, scale * draw_scale * tex.screen_scale);
-    }
-    for (size_t p = 0; p < parts.size(); p++) {
-        parts[p].transform = saved[p];
+                             transform);
     }
 }
 
 // Supersampling before the FXAA pass; rw/rh come from GetRenderWidth/Height.
 static const float SUPERSAMPLE = platform_supersample();
 
-// Screen rectangle (render pixels) of the posed model: the CPU-skinned vertices (animVertices,
-// see UpdateModelAnimation) through the same transform draw_3d uses, then the orthographic
-// camera of camera2d_to_3d (camera rotation 0).
+// Backend bounds include the current pose, including meshes deformed only on the GPU.
 bool Chara3D::screen_bounds(float x, float y, const Camera3D& cam3d, float zoom, int rw, int rh, float& x0, float& y0,
                             float& x1, float& y1) {
     float y_angle = mirror ? -rot_y : rot_y;
@@ -931,12 +909,15 @@ bool Chara3D::screen_bounds(float x, float y, const Camera3D& cam3d, float zoom,
     for (const auto& part : parts) {
         for (int m = 0; m < part.meshCount; m++) {
             const Mesh& mesh = part.meshes[m];
-            const float* v = mesh.animVertices ? mesh.animVertices : mesh.vertices;
-            if (!v) {
+            Vec3 lower, upper;
+            if (!get_mesh_bounds(mesh, lower, upper)) {
                 continue;
             }
-            for (int i = 0; i < mesh.vertexCount; i++) {
-                Vec3 w = vector3_transform({v[3 * i], v[3 * i + 1], v[3 * i + 2]}, transform);
+            // Transforming the local box's corners conservatively bounds every posed vertex.
+            for (int corner = 0; corner < 8; ++corner) {
+                Vec3 w = vector3_transform({(corner & 1) ? upper.x : lower.x, (corner & 2) ? upper.y : lower.y,
+                                            (corner & 4) ? upper.z : lower.z},
+                                           transform);
                 const float px = (w.x - cam3d.position.x) * zoom + rw * 0.5f;
                 const float py = (w.y - cam3d.position.y) * zoom + rh * 0.5f;
                 x0 = std::min(x0, px);
