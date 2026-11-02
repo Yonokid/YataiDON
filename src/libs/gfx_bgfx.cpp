@@ -35,6 +35,7 @@
 #include "shaders/spirv/fs_2d.sc.bin.h"
 #include "shaders/spirv/fs_colortransform.sc.bin.h"
 #include "shaders/spirv/fs_cutout.sc.bin.h"
+#include "shaders/spirv/fs_face.sc.bin.h"
 #include "shaders/spirv/fs_mesh.sc.bin.h"
 #include "shaders/spirv/fs_null.sc.bin.h"
 #include "shaders/spirv/fs_outline.sc.bin.h"
@@ -1449,6 +1450,8 @@ Shader load_shader(const char* vs_path, const char* fs_path) {
         PORT("colortransform.fs", vs_2d, fs_colortransform),
         PORT("outline_fxaa.fs", vs_2d, fs_outline_fxaa),
         {"cutout.fs", vs_mesh_spv, fs_cutout_spv, sizeof(vs_mesh_spv), sizeof(fs_cutout_spv), vs_mesh_skin_spv,
+         sizeof(vs_mesh_skin_spv)},
+        {"face.fs", vs_mesh_spv, fs_face_spv, sizeof(vs_mesh_spv), sizeof(fs_face_spv), vs_mesh_skin_spv,
          sizeof(vs_mesh_skin_spv)},
         {"null.fs", vs_mesh_spv, fs_null_spv, sizeof(vs_mesh_spv), sizeof(fs_null_spv), vs_mesh_skin_spv,
          sizeof(vs_mesh_skin_spv)},
