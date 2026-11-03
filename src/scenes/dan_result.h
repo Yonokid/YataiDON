@@ -58,7 +58,8 @@ private:
     bool congrats_due = false;
     bool congrats_showing = false;
     double congrats_start_ms = 0;
-    bool se_congrats = false;
+    bool se_congrats = false, se_staffroll = false;
+    bool has_staffroll = false;
     int prev_best_score = 0;
     bool best_score_show = false;
     int prev_arrival = 0;
