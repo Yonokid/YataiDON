@@ -137,6 +137,7 @@ void GameScreen::create_players() {
     players.push_back(std::make_unique<Player>(parser, global_data.player_num,
                                                global_data.session_data[player_index].selected_difficulty, false,
                                                get_player_modifiers(global_data.player_num)));
+    players.back()->allow_papamama();
 
     SessionData& replay_session_data = global_data.session_data[player_index];
     if (replay_session_data.replay_input_log.has_value()) {

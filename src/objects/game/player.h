@@ -48,10 +48,13 @@ public:
     double end_time;
     float bpm;
     PlayerNum player_num;
+    PlayerNum input_player; // whose drums play this lane: ALL for a solo #PAPAMAMA course
     double last_note_hit;
     std::map<double, InputLogType> input_log;
 
     std::vector<BranchDifficulty> branch_history;
+
+    void allow_papamama();
 
     Player(std::optional<SongParser>& parser_ref, PlayerNum player_num_param, int difficulty_param, bool is_2p_param,
            const Modifiers& modifiers_param,

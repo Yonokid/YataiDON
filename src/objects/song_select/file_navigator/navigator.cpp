@@ -1565,16 +1565,16 @@ Statistics Navigator::get_statistics(const fs::path& path, const std::stop_token
                 continue;
             }
 
-            auto score = scores_manager.get_score(hash, course, scores_manager.player_1);
-            if (!score.has_value()) {
+            if (auto score = scores_manager.get_score(hash, course, scores_manager.player_1)) {
+                cs.full_combos += score->crown >= Crown::FC;
+                cs.clears += score->crown >= Crown::CLEAR;
+            }
+            if (scores_manager.player_2.empty()) {
                 continue;
             }
-
-            if (score->crown >= Crown::FC) {
-                cs.full_combos++;
-            }
-            if (score->crown >= Crown::CLEAR) {
-                cs.clears++;
+            if (auto score = scores_manager.get_score(hash, course, scores_manager.player_2)) {
+                cs.full_combos_2p += score->crown >= Crown::FC;
+                cs.clears_2p += score->crown >= Crown::CLEAR;
             }
         }
     }

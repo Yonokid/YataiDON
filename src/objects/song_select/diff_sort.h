@@ -46,13 +46,20 @@ private:
     bool finished = false;
     std::optional<std::array<int, 3>> one_menu_sort_result;
 
+
+    bool which_dialog = false;
+    int which_index = 1;
+    int stats_player = 0;
+
+    void compute_sums();
+
     void one_menu_sort_refresh_song_num();
     bool one_menu_sort_input_locked() const;
     void one_menu_sort_change_param(int move);
 
 public:
     DiffSortSelect(const Statistics& statistics, int prev_diff, int prev_level, SongSelectScript* script = nullptr,
-                   int prev_order = 1);
+                   int prev_order = 1, bool two_players = false);
 
     void update(double current_ms);
     std::optional<std::pair<int, int>> input_select();
@@ -73,9 +80,18 @@ public:
     int lua_prev_diff() const { return prev_diff; }
     int lua_prev_level() const { return prev_level; }
     int lua_limit(int box) const { return (box >= 0 && box < std::ssize(limits)) ? limits[box] : 0; }
-    CourseStats lua_stats(int diff, int level) { return statistics[diff][level]; }
-    std::array<int, 3> lua_sums(int diff) { return diff_sort_sum_stat[diff]; } // total, clears, full combos
-    // the classic window's animations: bg_resize, diff_fade_in, box_flicker, bounce, arrow_fade, arrow_move
+    bool lua_which() const { return which_dialog; }
+    int lua_which_index() const { return which_index; }
+    int lua_stats_player() const { return stats_player + 1; }
+    CourseStats lua_stats(int diff, int level) {
+        CourseStats c = statistics[diff][level];
+        if (stats_player == 1) {
+            c.full_combos = c.full_combos_2p;
+            c.clears = c.clears_2p;
+        }
+        return c;
+    }
+    std::array<int, 3> lua_sums(int diff) { return diff_sort_sum_stat[diff]; }
     std::array<double, 6> lua_anim() const {
         return {bg_resize->attribute,           diff_fade_in->attribute,    box_flicker->attribute,
                 confirmation_bounce->attribute, blue_arrow_fade->attribute, blue_arrow_move->attribute};

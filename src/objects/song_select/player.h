@@ -52,6 +52,9 @@ public:
 
     bool option_panel_by_lua = false;
 
+    bool solo = true;
+    double oni_open_ms = -1.0;
+
     SongSelectPlayer(PlayerNum player_num);
 
     void update(double current_time);
@@ -74,6 +77,10 @@ public:
 
 private:
     bool voice_played;
+    bool oni_hidden = false;
+    int oni_command = 0;
+    void hide_oni();
+    void open_oni();
     void navigate_difficulty_left();
     void navigate_difficulty_right();
     void toggle_ura_mode();

@@ -9,6 +9,8 @@ void SongSelect2PScreen::on_screen_start() {
     SongSelectScreen::on_screen_start();
     player_2 = std::make_unique<SongSelectPlayer>(PlayerNum::P2);
     player_2->script = script.get();
+    player->solo = false;
+    player_2->solo = false;
 }
 
 static void init_player_diffs(SongSelectPlayer* p, SongBox* song) {

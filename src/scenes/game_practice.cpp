@@ -100,6 +100,7 @@ void PracticeGameScreen::create_players() {
                                                        global_data.session_data[player_index].selected_difficulty,
                                                        false, get_player_modifiers(global_data.player_num)));
 
+    players.back()->allow_papamama();
     practice_player = static_cast<PracticePlayer*>(players.back().get());
 }
 

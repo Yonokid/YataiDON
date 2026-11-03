@@ -17,6 +17,8 @@ struct CourseStats {
     int total = 0;
     int full_combos = 0;
     int clears = 0;
+    int full_combos_2p = 0;
+    int clears_2p = 0;
 };
 
 struct InlineState {

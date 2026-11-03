@@ -235,6 +235,8 @@ void TJAParser::get_metadata() {
         }
         if (item.starts_with("#BRANCH") && current_diff != -1) {
             metadata.course_data[current_diff].is_branching = true;
+        } else if (item.starts_with("#PAPAMAMA") && current_diff != -1) {
+            metadata.course_data[current_diff].papamama = true;
         } else if (item[0] == '#' || std::isdigit(static_cast<unsigned char>(item[0]))) {
             continue;
         } else if (item.starts_with("SUBTITLE")) {

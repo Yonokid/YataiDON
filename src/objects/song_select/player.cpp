@@ -97,7 +97,37 @@ bool SongSelectPlayer::is_voice_playing() {
     return audio.is_sound_playing("voice_start_song_" + std::to_string(static_cast<int>(player_num)) + "p");
 }
 
+// Lumen CourseSelect: with the oni course hidden, MANIA_COMMAND_NUM right kats on the last
+// course open it, behind an animation that holds the cursor.
+static constexpr int ONI_COMMAND_COUNT = 10;
+static constexpr double ONI_OPEN_MS = 2000.0;
+
+void SongSelectPlayer::hide_oni() {
+    oni_hidden = false;
+    oni_command = 0;
+    oni_open_ms = -1.0;
+    SongBox* song = dynamic_cast<SongBox*>(navigator.get_current_item());
+    if (!song) {
+        return;
+    }
+    song->oni_locked = false;
+    // the slot opens from the course left of it, so the chart needs one
+    if (!tex.options[SCO::HIDDEN_ONI] || !std::ranges::contains(curr_diffs, Difficulty::ONI) ||
+        curr_diffs.front() >= Difficulty::ONI) {
+        return;
+    }
+    std::erase_if(curr_diffs, [](Difficulty d) { return d >= Difficulty::ONI; });
+    song->oni_locked = true;
+    oni_hidden = true;
+}
+
+void SongSelectPlayer::open_oni() {
+    oni_open_ms = get_current_ms();
+    audio.play_player_sound("oni_open", player_num, VolumePreset::SOUND);
+}
+
 void SongSelectPlayer::init_diff_cursor() {
+    hide_oni();
     // Ura mode follows the song: a chart with only an ura course opens in ura mode (there is
     // no oni to toggle from), and a chart without one leaves it.
     const bool has_ura = std::ranges::contains(curr_diffs, Difficulty::URA);
@@ -433,6 +463,18 @@ SongSelectState SongSelectPlayer::handle_input_selecting() {
     if (voice_played) {
         return SongSelectState::SONG_SELECTED;
     }
+    if (oni_open_ms >= 0.0 && get_current_ms() - oni_open_ms < ONI_OPEN_MS) {
+        return SongSelectState::SONG_SELECTED;
+    }
+    // the slot appears once the open animation ends (here or on the other player's side)
+    if (oni_hidden) {
+        SongBox* song = dynamic_cast<SongBox*>(navigator.get_current_item());
+        if (song && (oni_open_ms >= 0.0 || !song->oni_locked)) {
+            song->oni_locked = false;
+            curr_diffs = song->get_diffs();
+            oni_hidden = false;
+        }
+    }
 
     if (l_kat) {
         if (modifier_selector.has_value()) {
@@ -529,6 +571,13 @@ void SongSelectPlayer::navigate_difficulty_left() {
 
 void SongSelectPlayer::navigate_difficulty_right() {
     diff_select_move_right = true;
+
+    if (oni_hidden && selected_difficulty == curr_diffs.back()) {
+        if (oni_open_ms < 0.0 && ++oni_command >= ONI_COMMAND_COUNT) {
+            open_oni();
+        }
+        return;
+    }
 
     bool has_ura = std::ranges::contains(curr_diffs, Difficulty::URA);
     bool has_oni = std::ranges::contains(curr_diffs, Difficulty::ONI);

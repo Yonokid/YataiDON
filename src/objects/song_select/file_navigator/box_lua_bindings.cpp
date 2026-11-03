@@ -91,15 +91,16 @@ void register_song_select_lua_bindings(sol::state& lua) {
     lua.new_usertype<SongBox>(
         "SongBox", sol::base_classes, sol::bases<BaseBox>(), "text_subtitle", &SongBox::text_subtitle, "subtitle",
         &SongBox::horizontal_subtitle, "subtitle_large", &SongBox::horizontal_subtitle_large, "bpm_text",
-        [](SongBox& self) { return self.bpm_text.get(); }, "is_ura", &SongBox::is_ura, "is_favorite",
-        &SongBox::is_favorite, "diff_fade_in", &SongBox::diff_fade_in, "has_ura", &SongBox::has_ura, "ex_data_flag",
-        &SongBox::ex_data_flag, "course_info",
+        [](SongBox& self) { return self.bpm_text.get(); }, "is_ura", &SongBox::is_ura, "oni_locked",
+        &SongBox::oni_locked, "is_favorite", &SongBox::is_favorite, "diff_fade_in", &SongBox::diff_fade_in, "has_ura",
+        &SongBox::has_ura, "ex_data_flag", &SongBox::ex_data_flag, "course_info",
         [](SongBox& self, double diff) {
             auto info = self.course_info(static_cast<int>(diff));
             sol::table t = script_manager.lua->create_table(0, 6);
             t["has_course"] = info.has_course;
             t["level"] = info.level;
             t["is_branching"] = info.is_branching;
+            t["is_papamama"] = info.is_papamama;
             t["crown"] = info.crown;
             t["rank"] = info.rank;
             t["has_score"] = (diff >= 0 && diff < std::ssize(self.scores) && self.scores[diff].has_value());
@@ -118,6 +119,7 @@ void register_song_select_lua_bindings(sol::state& lua) {
             t["has_course"] = info.has_course;
             t["level"] = info.level;
             t["is_branching"] = info.is_branching;
+            t["is_papamama"] = info.is_papamama;
             t["crown"] = info.crown;
             t["rank"] = info.rank;
             t["has_score"] = (diff >= 0 && diff < std::ssize(self.scores_p2) && self.scores_p2[diff].has_value());
@@ -287,7 +289,10 @@ void register_song_select_lua_bindings(sol::state& lua) {
         [](DiffSortSelect& s) { return s.lua_num_boxes(); }, "prev_diff",
         [](DiffSortSelect& s) { return s.lua_prev_diff(); }, "prev_level",
         [](DiffSortSelect& s) { return s.lua_prev_level(); }, "limit",
-        [](DiffSortSelect& s, double box) { return s.lua_limit(static_cast<int>(box)); },
+        [](DiffSortSelect& s, double box) { return s.lua_limit(static_cast<int>(box)); }, "which",
+        [](DiffSortSelect& s) { return s.lua_which(); }, "which_index",
+        [](DiffSortSelect& s) { return s.lua_which_index(); }, "stats_player",
+        [](DiffSortSelect& s) { return s.lua_stats_player(); },
         // total, clears, full combos of a course at one star level
         "stats",
         [](DiffSortSelect& s, double diff, double level) {
@@ -338,6 +343,9 @@ void register_song_select_lua_bindings(sol::state& lua) {
             t["move2"] = self.diff_selector_move_2->attribute;
             t["move2_done"] = self.diff_selector_move_2->is_finished;
             t["panel"] = self.neiro_selector.has_value() || self.modifier_selector.has_value();
+            auto* song = dynamic_cast<SongBox*>(navigator.get_current_item());
+            t["papamama"] = self.solo && song && self.selected_difficulty >= Difficulty::EASY &&
+                            song->course_info(static_cast<int>(self.selected_difficulty)).is_papamama;
             return t;
         },
         // state for the difficulty banner behind the wheel
@@ -352,6 +360,7 @@ void register_song_select_lua_bindings(sol::state& lua) {
                 self.selected_diff_highlight_fade->is_reversing || self.selected_diff_highlight_fade->is_finished;
             t["text_resize"] = self.selected_diff_text_resize->attribute;
             t["text_fade_in"] = self.selected_diff_text_fadein->attribute;
+            t["oni_open_ms"] = self.oni_open_ms; // when this player opened a hidden oni, -1 = never
             return t;
         },
         "neiro_active", [](SongSelectPlayer& self) { return self.neiro_selector.has_value(); }, "modifier_active",

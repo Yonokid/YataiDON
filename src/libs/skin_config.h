@@ -138,6 +138,7 @@ enum class SCO : unsigned int {
     CROP_RESULT_SCREENSHOT,
     LOADING_COUNTDOWN,
     DISABLE_RETRY_GAME,
+    HIDDEN_ONI,
 };
 
 namespace std {
@@ -159,4 +160,5 @@ const std::unordered_map<std::string, SCO> screen_options_map{
     {"crop_result_screenshot", SCO::CROP_RESULT_SCREENSHOT},
     {"loading_countdown", SCO::LOADING_COUNTDOWN},
     {"disable_retry_game", SCO::DISABLE_RETRY_GAME},
+    {"hidden_oni", SCO::HIDDEN_ONI},
 };

@@ -15,7 +15,7 @@
 
 Player::Player(std::optional<SongParser>& parser_ref, PlayerNum player_num_param, int difficulty_param,
                bool is_2p_param, const Modifiers& modifiers_param, const std::string& score_method_param)
-    : is_2p(is_2p_param), player_num(player_num_param), difficulty(difficulty_param),
+    : is_2p(is_2p_param), player_num(player_num_param), input_player(player_num_param), difficulty(difficulty_param),
       visual_offset(global_data.config->general.visual_offset), score_method(score_method_param),
       modifiers(modifiers_param), parser(parser_ref), combo_display(combo, 0), score_counter(is_2p, player_num) {
     PlayerSoundScope audio_owner(player_num);
@@ -1829,6 +1829,17 @@ void Player::spawn_hit_effects(DrumType drum_type, Side side) {
     }
 }
 
+void Player::allow_papamama() {
+    if (!parser.has_value()) {
+        return;
+    }
+    const auto& courses = parser->metadata.course_data;
+    auto it = courses.find(difficulty);
+    if (it != courses.end() && it->second.papamama) {
+        input_player = PlayerNum::ALL;
+    }
+}
+
 void Player::handle_input(double ms_from_start, double current_ms, std::optional<Background>& background) {
     PlayerSoundScope audio_owner(player_num);
     if (modifiers.auto_play) {
@@ -1865,7 +1876,7 @@ void Player::handle_input(double ms_from_start, double current_ms, std::optional
     for (const auto& input : input_checks) {
 
         float strength = 1.0f;
-        while (input.check_func(player_num, &strength)) {
+        while (input.check_func(input_player, &strength)) {
             spawn_hit_effects(input.drum_type, input.side);
             audio.play_player_sound(*input.sound, player_num, VolumePreset::HITSOUND, strength);
             InputLogType log_type;

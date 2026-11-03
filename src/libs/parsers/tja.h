@@ -266,6 +266,7 @@ struct CourseData {
     std::vector<int> scoreinit;
     double scorediff = 0;
     bool is_branching = false;
+    bool papamama = false;
 };
 
 struct TJAMetadata {
