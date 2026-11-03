@@ -51,6 +51,27 @@ void PracticeGameScreen::init_practice_textures() {
     t_multiplier = tex.get_texture("practice/multiplier");
     t_bar_label = tex.get_texture("practice/bar_label");
     t_paused = tex.get_texture("practice/paused");
+    t_tempo_rate = tex.get_texture("practice/tempo_rate");
+    t_tempo_dot = tex.get_texture("practice/tempo_dot");
+    t_tempo_dot_on = tex.get_texture("practice/tempo_dot_on");
+    t_skip_l_kat_off = tex.get_texture("practice/skip_l_kat_off");
+    t_skip_r_kat_off = tex.get_texture("practice/skip_r_kat_off");
+    t_menu_arrow = tex.get_texture("practice/menu_arrow");
+    t_menu_decide = tex.get_texture("practice/menu_decide");
+    t_menu_panel = tex.get_texture("practice/menu_panel");
+    t_gauge_max = tex.get_texture("practice/gauge_max");
+    t_jump_count = tex.get_texture("practice/jump_count");
+    t_jump_count_digits = tex.get_texture("practice/jump_count_digits");
+    t_seek_limit = tex.get_texture("practice/seek_limit");
+    t_review_panel = tex.get_texture("practice/review_panel");
+    t_renda_slash = tex.get_texture("practice/renda_slash");
+    t_renda_digits = tex.get_texture("practice/renda_digits");
+    t_renda_digits_small = tex.get_texture("practice/renda_digits_small");
+    for (int i = 0; i < 3; i++) {
+        t_jump_buttons[i] = tex.get_texture("practice/jump_" + std::to_string(i + 1));
+        t_review_cards[i] = tex.get_texture("practice/review_card_" + std::to_string(i + 1));
+        t_renda_bubbles[i] = tex.get_texture("practice/renda_bubble_" + std::to_string(i + 1));
+    }
 }
 
 void PracticeGameScreen::on_screen_start() {
@@ -79,6 +100,9 @@ Screens PracticeGameScreen::on_screen_end(Screens next_screen) {
     }
     scrobble_index = 0;
     scrobble_time = 0;
+    phase = Phase::PRACTICE;
+    tempo_change_ms = seek_limit_ms = review_start_ms = -1e9;
+    max_progress = 0;
     jump_bars.fill(-1);
     menu = PracticeMenu();
     scrobble_move = std::make_unique<MoveAnimation>(200.0, 0);
@@ -295,14 +319,15 @@ void PracticeGameScreen::open_practice_menu() {
 
 void PracticeGameScreen::change_practice_speed(bool down, bool up) {
     if (down) {
-        song_speed = std::max(1, song_speed - 1);
+        song_speed = std::max(MIN_SONG_SPEED, song_speed - 1);
         speed_l_kat_anim->start();
     }
 
     if (up) {
-        song_speed = std::min(99, song_speed + 1);
+        song_speed = std::min(MAX_SONG_SPEED, song_speed + 1);
         speed_r_kat_anim->start();
     }
+    tempo_change_ms = now_ms;
 
     if (song_music) {
         audio.set_sound_pitch(*song_music, song_speed / 10.0f);
@@ -312,6 +337,7 @@ void PracticeGameScreen::change_practice_speed(bool down, bool up) {
 void PracticeGameScreen::restart_practice() {
     restart_song();
     initialize_practice_chart();
+    max_progress = 0;
     hide_cursor();                // Hide cursor on restart
     set_touch_drum_enabled(true); // Re-enable touch drum (input + drawing) on restart
     menu.close();
@@ -320,6 +346,11 @@ void PracticeGameScreen::restart_practice() {
 std::optional<Screens> PracticeGameScreen::handle_menu_action(PracticeMenu::Action action) {
     switch (action) {
     case PracticeMenu::Action::END_GAME:
+        if (auto* session = PracticeTimer::active(); session && phase == Phase::PRACTICE && !session->is_up()) {
+            session->expire();
+            menu.close();
+            return std::nullopt;
+        }
         return on_screen_end(Screens::ENTRY);
     case PracticeMenu::Action::ANOTHER_SONG:
         return on_screen_end(Screens::PRACTICE_SELECT);
@@ -389,10 +420,60 @@ void PracticeGameScreen::scrobble_step_bar(bool right) {
             practice_player->spawn_scrobble_effect(DrumType::KAT, Side::LEFT, player_idx);
         }
     }
-    const auto bar_count = static_cast<int>(bars.size());
-    int new_index =
-        right ? (scrobble_index + 1) % bar_count : ((scrobble_index > 0) ? scrobble_index - 1 : bar_count - 1);
-    animate_scrobble_to(new_index);
+    if (right ? at_last_bar() : at_first_bar()) {
+        seek_limit_ms = now_ms;
+        return;
+    }
+    animate_scrobble_to(scrobble_index + (right ? 1 : -1));
+}
+
+void PracticeGameScreen::review_jump(int card) {
+    if (bars.empty()) {
+        return;
+    }
+    int target = 0;
+    if (card == 1) {
+        double middle = (bars.front().hit_ms + bars.back().hit_ms) / 2.0;
+        auto it = std::ranges::min_element(bars, {}, [&](const Note& b) { return std::abs(b.hit_ms - middle); });
+        target = static_cast<int>(std::distance(bars.begin(), it));
+    } else if (card == 2) {
+        target = static_cast<int>(bars.size()) - 1;
+    }
+    TextureResizeAnimation* anims[3] = {speed_l_kat_anim, menu_don_anim, speed_r_kat_anim};
+    anims[card]->start();
+    audio.play_sound(card == 1 ? "don" : "kat", VolumePreset::SOUND);
+    if (target != scrobble_index) {
+        animate_scrobble_to(target);
+    }
+}
+
+void PracticeGameScreen::start_last_play() {
+    phase = Phase::LAST_PLAY;
+    if (auto* session = PracticeTimer::active()) {
+        session->hidden = true;
+    }
+    restart_practice();
+}
+
+void PracticeGameScreen::start_review() {
+    phase = Phase::REVIEW;
+    pause_practice();
+    if (!bars.empty()) {
+        scrobble_index = 0;
+        scrobble_time = bars[0].hit_ms;
+        scrobble_move = std::make_unique<MoveAnimation>(200.0, 0);
+    }
+    review_start_ms = now_ms;
+    if (auto* session = PracticeTimer::active()) {
+        session->hidden = false;
+        session->start_review(REVIEW_SECONDS, now_ms);
+    }
+}
+
+static constexpr double REVIEW_PANEL_OPEN_MS = 83, REVIEW_PANEL_CLOSE_AT_MS = 1150, REVIEW_PANEL_CLOSE_MS = 67;
+
+bool PracticeGameScreen::review_panel_open() const {
+    return phase == Phase::REVIEW && now_ms - review_start_ms < REVIEW_PANEL_CLOSE_AT_MS + REVIEW_PANEL_CLOSE_MS;
 }
 
 // Check if a point is inside a rectangle
@@ -426,7 +507,7 @@ static Rect get_practice_button_rect(TextureObject* tex_obj, int index, float sc
 
 // Handle mouse/touch input for practice mode UI buttons
 std::optional<Screens> PracticeGameScreen::handle_mouse_input() {
-    if (!clock.is_paused()) {
+    if (!clock.is_paused() || (phase != Phase::PRACTICE && !menu.open)) {
         return std::nullopt;
     }
 
@@ -545,7 +626,7 @@ std::optional<Screens> PracticeGameScreen::handle_mouse_input() {
 }
 
 std::optional<Screens> PracticeGameScreen::global_keys_practice() {
-    if (check_key_pressed(global_data.config->keys.restart_key)) {
+    if (phase == Phase::PRACTICE && check_key_pressed(global_data.config->keys.restart_key)) {
         restart_practice();
         return std::nullopt;
     }
@@ -557,6 +638,29 @@ std::optional<Screens> PracticeGameScreen::global_keys_practice() {
     PlayerNum other_player = (global_data.player_num == PlayerNum::P1) ? PlayerNum::P2 : PlayerNum::P1;
     int other_idx = static_cast<int>(other_player) - 1;
     int player_idx = static_cast<int>(global_data.player_num) - 1;
+
+    if (phase == Phase::LAST_PLAY || review_panel_open()) {
+        return std::nullopt;
+    }
+    if (phase == Phase::REVIEW && !menu.open) {
+        bool step_l = is_l_kat_pressed(global_data.player_num);
+        bool step_r = is_r_kat_pressed(global_data.player_num);
+        if (step_l || step_r) {
+            scrobble_step_bar(!step_l && step_r);
+        }
+        if (is_l_don_pressed(global_data.player_num) || is_r_don_pressed(global_data.player_num)) {
+            audio.play_sound("don", VolumePreset::SOUND);
+            mark_finish_anim->start();
+            menu.open_review_end();
+        } else if (is_l_kat_pressed(other_player)) {
+            review_jump(0);
+        } else if (is_l_don_pressed(other_player) || is_r_don_pressed(other_player)) {
+            review_jump(1);
+        } else if (is_r_kat_pressed(other_player)) {
+            review_jump(2);
+        }
+        return std::nullopt;
+    }
 
     if (!clock.is_paused()) {
         bool other_don = is_l_don_pressed(other_player) || is_r_don_pressed(other_player);
@@ -721,6 +825,7 @@ std::optional<Screens> PracticeGameScreen::update() {
     }
 
     double current_ms = get_frame_ms();
+    now_ms = current_ms;
     transition->update(current_ms);
     clock.update(current_ms);
 
@@ -753,6 +858,13 @@ std::optional<Screens> PracticeGameScreen::update() {
         player->update(clock.position(), current_ms, background);
     }
     sync_branch_display();
+
+    if (!clock.is_paused() && !players.empty() && players[0]->end_time > 0) {
+        max_progress = std::max(max_progress, std::min(clock.position() / players[0]->end_time, 1.0));
+    }
+    if (phase == Phase::LAST_PLAY && !players.empty() && clock.position() >= players[0]->end_time + 1000) {
+        start_review();
+    }
 
     scrobble_move->update(current_ms);
     if (scrobble_move->is_started && scrobble_move->is_finished) {
@@ -797,9 +909,17 @@ std::optional<Screens> PracticeGameScreen::update() {
     }
 
     if (auto* session = PracticeTimer::active()) {
-        session->update(current_ms, !clock.is_paused());
+        bool running = false;
+        if (phase == Phase::PRACTICE) {
+            running = !clock.is_paused() || session->is_up();
+        } else if (phase == Phase::REVIEW) {
+            running = !review_panel_open() && !menu.open;
+        }
+        session->update(current_ms, running);
 
-        if (session->is_finished()) {
+        if (phase == Phase::PRACTICE && session->is_finished()) {
+            start_last_play();
+        } else if (phase == Phase::REVIEW && session->is_up()) {
             return on_screen_end(Screens::ENTRY);
         }
     }
@@ -854,19 +974,7 @@ void PracticeGameScreen::draw_bar_scrobble(const Note& bar, double current_ms) c
 
 void PracticeGameScreen::draw_drumroll_scrobble(const Note& head, double current_ms) const {
     float start_pos = get_scrobble_position_x(head, current_ms);
-    // Find corresponding TAIL
-    const Note* tail = nullptr;
-    for (const auto& n : scrobble_note_list) {
-        // Match by hit_ms, not index: scrobble_note_list is built by
-        // concatenating whichever branch section was chosen per checkpoint
-        // (each with its own locally-numbered indices) and then re-sorting
-        // by hit_ms, so index is not comparable across checkpoint/branch
-        // boundaries. hit_ms ordering is what the list is actually sorted by.
-        if (n.type == NoteType::TAIL && n.hit_ms > head.hit_ms) {
-            tail = &n;
-            break;
-        }
-    }
+    const Note* tail = find_tail(head);
     if (!tail) {
         return;
     }
@@ -900,13 +1008,7 @@ void PracticeGameScreen::draw_drumroll_scrobble(const Note& head, double current
 void PracticeGameScreen::draw_balloon_scrobble(const Note& head, double current_ms) const {
     float offset = tex.get_skin_config(SC::GAME_BALLOON_OFFSET)->x;
     float start_pos = get_scrobble_position_x(head, current_ms);
-    const Note* tail = nullptr;
-    for (const auto& n : scrobble_note_list) {
-        if (n.type == NoteType::TAIL && n.hit_ms > head.hit_ms) {
-            tail = &n;
-            break;
-        }
-    }
+    const Note* tail = find_tail(head);
     if (!tail) {
         return;
     }
@@ -967,6 +1069,32 @@ void PracticeGameScreen::draw_notes_scrobble(double current_ms) const {
         }
     }
 
+    if (practice_player) {
+        float note_cy = tex.get_skin_config(SC::GAME_NOTES)->y + y + t_notes_9->height / 2.0f;
+        for (const auto& note : scrobble_note_list) {
+            bool roll = note.type == NoteType::ROLL_HEAD || note.type == NoteType::ROLL_HEAD_L;
+            bool balloon = note.type == NoteType::BALLOON_HEAD;
+            if (!roll && !balloon) {
+                continue;
+            }
+            auto hits = practice_player->get_roll_hits(note.index);
+            if (!hits) {
+                continue;
+            }
+            float x = get_scrobble_position_x(note, current_ms);
+            if (balloon) { // follows the balloon: parked at the judge circle while it lasts
+                const Note* tail = find_tail(note);
+                if (tail && current_ms >= tail->hit_ms) {
+                    x = get_scrobble_position_x(*tail, current_ms);
+                } else if (current_ms >= note.hit_ms) {
+                    x = JudgePos::X;
+                }
+                x -= tex.get_skin_config(SC::GAME_BALLOON_OFFSET)->x;
+            }
+            draw_renda_marker(x, note_cy, *hits, balloon ? note.count.value_or(0) : 0);
+        }
+    }
+
     end_scissor_mode();
 
     if (!bars.empty() && scrobble_index < std::ssize(bars)) {
@@ -1017,66 +1145,50 @@ void PracticeGameScreen::draw() {
 
     int other_idx = (global_data.player_num == PlayerNum::P1) ? 1 : 0;
     int player_idx = (global_data.player_num == PlayerNum::P1) ? 0 : 1;
+    auto anim_scale = [](TextureResizeAnimation* anim) { return anim ? static_cast<float>(anim->attribute) : 1.0f; };
     if (!clock.is_paused()) {
-        tex.draw_texture(t_pause_don, {.scale = pause_don_anim ? static_cast<float>(pause_don_anim->attribute) : 1.0f,
-                                       .center = true,
-                                       .index = other_idx});
-        tex.draw_texture(t_pause_kat, {.scale = pause_kat_anim ? static_cast<float>(pause_kat_anim->attribute) : 1.0f,
-                                       .center = true,
-                                       .index = other_idx * 2});
-        tex.draw_texture(t_pause_kat, {.scale = pause_kat_anim ? static_cast<float>(pause_kat_anim->attribute) : 1.0f,
-                                       .center = true,
-                                       .index = other_idx * 2 + 1});
+        if (phase == Phase::PRACTICE) {
+            tex.draw_texture(t_pause_don, {.scale = anim_scale(pause_don_anim), .center = true, .index = other_idx});
+            tex.draw_texture(t_pause_kat,
+                             {.scale = anim_scale(pause_kat_anim), .center = true, .index = other_idx * 2});
+            tex.draw_texture(t_pause_kat,
+                             {.scale = anim_scale(pause_kat_anim), .center = true, .index = other_idx * 2 + 1});
+        }
+    } else if (phase == Phase::REVIEW) {
+        draw_skip_buttons(player_idx, true);
+        tex.draw_texture(t_finish, {.scale = anim_scale(mark_finish_anim), .center = true, .index = player_idx});
+        tex.draw_texture(t_jump_buttons[0],
+                         {.scale = anim_scale(speed_l_kat_anim), .center = true, .index = other_idx * 2});
+        tex.draw_texture(t_jump_buttons[1], {.scale = anim_scale(menu_don_anim), .center = true, .index = other_idx});
+        tex.draw_texture(t_jump_buttons[2],
+                         {.scale = anim_scale(speed_r_kat_anim), .center = true, .index = other_idx * 2 + 1});
     } else if (menu.editing_marks || menu.jumping_marks) {
-        tex.draw_texture(t_skip_l_kat,
-                         {.scale = skip_l_kat_anim ? static_cast<float>(skip_l_kat_anim->attribute) : 1.0f,
-                          .center = true,
-                          .index = player_idx * 2});
-        tex.draw_texture(t_skip_r_kat,
-                         {.scale = skip_r_kat_anim ? static_cast<float>(skip_r_kat_anim->attribute) : 1.0f,
-                          .center = true,
-                          .index = player_idx * 2 + 1});
+
+        draw_skip_buttons(player_idx, menu.editing_marks);
         if (menu.editing_marks) {
-            tex.draw_texture(t_finish,
-                             {.scale = mark_finish_anim ? static_cast<float>(mark_finish_anim->attribute) : 1.0f,
-                              .center = true,
-                              .index = other_idx});
+            tex.draw_texture(t_finish, {.scale = anim_scale(mark_finish_anim), .center = true, .index = other_idx});
             bool marked = std::ranges::contains(jump_bars, scrobble_index);
             tex.draw_texture(marked ? t_delete : t_confirm,
-                             {.scale = mark_action_anim ? static_cast<float>(mark_action_anim->attribute) : 1.0f,
-                              .center = true,
-                              .index = player_idx});
+                             {.scale = anim_scale(mark_action_anim), .center = true, .index = player_idx});
+
+            auto left = static_cast<int>(std::ranges::count(jump_bars, -1));
+            tex.draw_texture(t_jump_count, {.index = player_idx});
+            tex.draw_texture(t_jump_count_digits, {.frame = left, .index = player_idx});
         } else {
-            tex.draw_texture(t_finish,
-                             {.scale = mark_finish_anim ? static_cast<float>(mark_finish_anim->attribute) : 1.0f,
-                              .center = true,
-                              .index = player_idx});
+            tex.draw_texture(t_finish, {.scale = anim_scale(mark_finish_anim), .center = true, .index = player_idx});
         }
+    } else if (menu.open) {
+        draw_menu_arrows();
     } else {
-        tex.draw_texture(t_resume_don,
-                         {.scale = resume_don_anim ? static_cast<float>(resume_don_anim->attribute) : 1.0f,
-                          .center = true,
-                          .index = player_idx});
-        tex.draw_texture(t_skip_l_kat,
-                         {.scale = skip_l_kat_anim ? static_cast<float>(skip_l_kat_anim->attribute) : 1.0f,
-                          .center = true,
-                          .index = player_idx * 2});
-        tex.draw_texture(t_skip_r_kat,
-                         {.scale = skip_r_kat_anim ? static_cast<float>(skip_r_kat_anim->attribute) : 1.0f,
-                          .center = true,
-                          .index = player_idx * 2 + 1});
-        tex.draw_texture(t_menu_don, {.scale = menu_don_anim ? static_cast<float>(menu_don_anim->attribute) : 1.0f,
-                                      .center = true,
-                                      .index = other_idx});
+        tex.draw_texture(t_resume_don, {.scale = anim_scale(resume_don_anim), .center = true, .index = player_idx});
+        draw_skip_buttons(player_idx, true);
+        tex.draw_texture(t_menu_don, {.scale = anim_scale(menu_don_anim), .center = true, .index = other_idx});
         tex.draw_texture(t_speed_r_kat,
-                         {.scale = speed_r_kat_anim ? static_cast<float>(speed_r_kat_anim->attribute) : 1.0f,
-                          .center = true,
-                          .index = other_idx * 2});
+                         {.scale = anim_scale(speed_r_kat_anim), .center = true, .index = other_idx * 2});
         tex.draw_texture(t_speed_l_kat,
-                         {.scale = speed_l_kat_anim ? static_cast<float>(speed_l_kat_anim->attribute) : 1.0f,
-                          .center = true,
-                          .index = other_idx * 2 + 1});
+                         {.scale = anim_scale(speed_l_kat_anim), .center = true, .index = other_idx * 2 + 1});
     }
+    draw_tempo_feedback(other_idx, clock.is_paused() && phase == Phase::PRACTICE && !menu.open);
 
     if (!clock.is_paused()) {
         tex.draw_texture(t_playing, {.fade = 0.5, .index = static_cast<int>(global_data.player_num) - 1});
@@ -1088,6 +1200,10 @@ void PracticeGameScreen::draw() {
 
     // Progress bar
     tex.draw_texture(t_progress_bar_bg, {});
+    float bar_width = tex.get_skin_config(SC::GAME_PRACTICE_PROGRESS_BAR_WIDTH)->width;
+    if (max_progress > 0) {
+        tex.draw_texture(t_gauge_max, {.x2 = static_cast<float>(max_progress) * bar_width});
+    }
     float progress;
     if (clock.is_paused() && !bars.empty()) {
         double raw = scrobble_time + scrobble_move->attribute - bars[0].hit_ms;
@@ -1095,8 +1211,12 @@ void PracticeGameScreen::draw() {
     } else {
         progress = players.empty() ? 0.0f : std::min(clock.position() / players[0]->end_time, 1.0);
     }
-    float bar_width = tex.get_skin_config(SC::GAME_PRACTICE_PROGRESS_BAR_WIDTH)->width;
     tex.draw_texture(t_progress_bar, {.x2 = progress * bar_width});
+    if (phase == Phase::REVIEW) {
+        for (TextureObject* card : t_review_cards) {
+            tex.draw_texture(card, {});
+        }
+    }
 
     if (!bars.empty()) {
         double first_bar_time = bars[0].hit_ms;
@@ -1175,9 +1295,156 @@ void PracticeGameScreen::draw() {
         }
     }
 
+    if (double t = now_ms - seek_limit_ms; t < 1133) {
+        double fade = t < 900 ? 1.0 : 1.0 - std::pow((t - 900) / 233.0, 2);
+        tex.draw_texture(t_seek_limit, {.fade = fade});
+    }
+    if (review_panel_open()) {
+        draw_review_panel();
+    }
+
     if (auto* session = PracticeTimer::active()) {
         session->draw();
     }
 
     draw_overlay(false);
+}
+
+static float ease_out(double p) {
+    p = std::clamp(p, 0.0, 1.0);
+    return static_cast<float>(1.0 - (1.0 - p) * (1.0 - p));
+}
+
+void PracticeGameScreen::draw_skip_buttons(int player_idx, bool clamp) const {
+    bool l_off = clamp && at_first_bar();
+    bool r_off = clamp && at_last_bar();
+    tex.draw_texture(l_off ? t_skip_l_kat_off : t_skip_l_kat,
+                     {.scale = skip_l_kat_anim ? static_cast<float>(skip_l_kat_anim->attribute) : 1.0f,
+                      .center = true,
+                      .index = player_idx * 2});
+    tex.draw_texture(r_off ? t_skip_r_kat_off : t_skip_r_kat,
+                     {.scale = skip_r_kat_anim ? static_cast<float>(skip_r_kat_anim->attribute) : 1.0f,
+                      .center = true,
+                      .index = player_idx * 2 + 1});
+}
+
+void PracticeGameScreen::draw_tempo_feedback(int other_idx, bool dots) const {
+    double t = now_ms - tempo_change_ms;
+    int level = 10 - song_speed;
+    bool has_level = level >= 0;
+    if (dots) {
+        for (int i = 0; i < 6; i++) {
+            tex.draw_texture(t_tempo_dot, {.index = other_idx * 6 + i});
+        }
+        if (has_level && t < 450) {
+            double fade = t < 50 ? 1.0 : 0.93 * (1.0 - ease_out((t - 50) / 400.0));
+            tex.draw_texture(t_tempo_dot_on, {.fade = fade, .index = other_idx * 6 + level});
+        }
+    }
+    if (!has_level || t >= 750) {
+        return;
+    }
+    double scale, fade = 1.0;
+    if (t < 33) {
+        scale = 0.294 + 0.53 * t / 33.0;
+        fade = 0.75 * t / 33.0;
+    } else if (t < 50) {
+        scale = 0.956 + 0.044 * (t - 33) / 17.0;
+    } else if (t < 317) {
+        double p = (t - 50) / 267.0;
+        scale = 1.0 - 0.076 * p * p;
+    } else if (t < 433) {
+        scale = 0.915 - 0.078 * (t - 317) / 116.0;
+    } else {
+        double p = (t - 433) / 317.0;
+        scale = 0.83 - 0.124 * p;
+        fade = 0.949 * (1.0 - p);
+    }
+    tex.draw_texture(
+        t_tempo_rate,
+        {.frame = level, .scale = static_cast<float>(scale), .center = true, .fade = fade, .index = other_idx});
+}
+
+void PracticeGameScreen::draw_menu_arrows() const {
+    double p = std::fmod(now_ms, 1000.0);
+    float offset = 20.0f;
+    double fade = 0.0;
+    if (p < 467) {
+        offset = 14.85f * ease_out(p / 467.0);
+        fade = 1.0;
+    } else if (p < 933) {
+        double q = (p - 467) / 466.0;
+        offset = 14.85f + 5.15f * ease_out(q);
+        fade = 1.0 - q;
+    }
+    offset *= tex.screen_scale;
+    for (int drum = 0; drum < 2; drum++) {
+        tex.draw_texture(t_menu_arrow, {.x = -offset, .fade = fade, .index = drum * 2});
+        tex.draw_texture(t_menu_arrow,
+                         {.mirror = Mirror::HORIZONTAL, .x = offset, .fade = fade, .index = drum * 2 + 1});
+        tex.draw_texture(t_menu_decide, {.index = drum});
+    }
+}
+
+void PracticeGameScreen::draw_review_panel() const {
+    double t = now_ms - review_start_ms;
+    double s = 1.0;
+    if (t < REVIEW_PANEL_OPEN_MS) {
+        s = t / REVIEW_PANEL_OPEN_MS;
+    } else if (t > REVIEW_PANEL_CLOSE_AT_MS) {
+        s = 1.0 - (t - REVIEW_PANEL_CLOSE_AT_MS) / REVIEW_PANEL_CLOSE_MS;
+    }
+    if (s <= 0.01) {
+        return;
+    }
+    auto sx = static_cast<float>(s);
+    float cx = tex.screen_width / 2.0f;
+    float panel_w = t_menu_panel->width * sx;
+    tex.draw_texture(t_menu_panel,
+                     {.x = cx - panel_w / 2.0f, .y = t_review_panel->y[0] - 75 * tex.screen_scale, .x2 = panel_w});
+    float rx = t_review_panel->x[0];
+    tex.draw_texture(t_review_panel, {.x = (cx + (rx - cx) * sx) - rx, .x2 = t_review_panel->width * sx});
+}
+
+const Note* PracticeGameScreen::find_tail(const Note& head) const {
+
+    for (const auto& n : scrobble_note_list) {
+        if (n.type == NoteType::TAIL && n.hit_ms > head.hit_ms) {
+            return &n;
+        }
+    }
+    return nullptr;
+}
+
+void PracticeGameScreen::draw_renda_marker(float cx, float cy, int count, int required) const {
+    const float sc = tex.screen_scale;
+    const float by = cy - 88 * sc; // bubble centre
+    auto draw_centred = [&](TextureObject* t, int frame, float x, float y) {
+        tex.draw_texture(t, {.frame = frame, .x = cx + x * sc - t->width / 2.0f, .y = by + y * sc - t->height / 2.0f});
+    };
+    auto draw_number = [&](TextureObject* t, int value, int slots, const float* xs, float y) {
+        std::string str = std::to_string(value);
+        auto pad = slots - static_cast<int>(str.size());
+        for (int i = 0; i < std::ssize(str); i++) {
+            draw_centred(t, str[i] - '0', xs[pad + i], y);
+        }
+    };
+    if (required <= 0) {
+        static constexpr float XS[4][4] = {{0}, {-11, 11}, {-22, 0, 22}, {-31, -10.35f, 10.3f, 31}};
+        count = std::min(count, 9999);
+        auto slots = static_cast<int>(std::to_string(count).size());
+        draw_centred(t_renda_bubbles[slots < 4 ? 0 : 1], 0, 0, 0);
+        draw_number(t_renda_digits, count, slots, XS[slots - 1], -13);
+        return;
+    }
+    static constexpr float COUNT_XS[3][3] = {{-18}, {-32, -11}, {-47.25f, -26.9f, -6.5f}};
+    static constexpr float SLASH_X[3] = {3, 8, 9.25f};
+    static constexpr float MAX_XS[3][3] = {{20}, {22, 38}, {21.25f, 36.25f, 51.25f}};
+    count = std::min(count, 999);
+    required = std::min(required, 999);
+    auto slots = static_cast<int>(std::to_string(std::max(count, required)).size());
+    draw_centred(t_renda_bubbles[slots - 1], 0, 0, 0);
+    draw_number(t_renda_digits, count, slots, COUNT_XS[slots - 1], -13);
+    draw_centred(t_renda_slash, 0, SLASH_X[slots - 1], -13);
+    draw_number(t_renda_digits_small, required, slots, MAX_XS[slots - 1], -10);
 }

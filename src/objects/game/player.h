@@ -85,6 +85,10 @@ public:
         auto it = note_judgments.find(note_index);
         return it != note_judgments.end() ? std::optional<Judgments>(it->second) : std::nullopt;
     }
+    std::optional<int> get_roll_hits(int head_index) const {
+        auto it = roll_hits.find(head_index);
+        return it != roll_hits.end() ? std::optional<int>(it->second) : std::nullopt;
+    }
     bool is_auto_play() const { return modifiers.auto_play; }
     bool is_replay() const { return replay_active; }
     void load_replay(const std::map<double, InputLogType>& log) {
@@ -109,6 +113,7 @@ public:
         was_gauge_clear = false;
         miss_streak = 0;
         note_judgments.clear();
+        roll_hits.clear();
         last_reported_score = -1;
         last_reported_gogo = -1;
         arc_points = 25;
@@ -179,6 +184,7 @@ private:
     double hit_offset_sum_ms = 0.0;
     int hit_offset_count = 0;
     std::unordered_map<int, Judgments> note_judgments;
+    std::unordered_map<int, int> roll_hits;
 
     int arc_points{25};
     float judge_x{0};

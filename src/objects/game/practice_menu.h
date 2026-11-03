@@ -13,7 +13,8 @@ public:
         AUTO,
         RESTART,
         ANOTHER,
-        END
+        END,
+        REVIEW_END
     };
 
     enum class Action {
@@ -59,6 +60,8 @@ public:
 
     // Free-roam jump-point navigation, entered from the JUMP_TO_MARK menu row.
     void open_jump_mode();
+
+    void open_review_end();
 
     void draw();
     void draw_dialog();

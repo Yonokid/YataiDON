@@ -1473,6 +1473,9 @@ void Player::check_drumroll(double current_ms, DrumType drum_type, std::optional
     const bool is_big = !other_notes.empty() && other_notes.front().type == NoteType::ROLL_HEAD_L;
     draw_arc_list.emplace_back(NoteType(drum_type), current_ms, arc_player(), is_big, false);
     curr_drumroll_count++;
+    if (!other_notes.empty()) {
+        roll_hits[other_notes.front().index] = curr_drumroll_count;
+    }
     total_drumroll++;
     branch_r_count++;
     if (background.has_value()) {
@@ -1514,6 +1517,7 @@ void Player::check_balloon(double current_ms, DrumType drum_type, const Note& ba
         background->handle_balloon(PlayerNum(is_2p + 1), balloon.count.value() - curr_balloon_count - 1);
     }
     curr_balloon_count++;
+    roll_hits[balloon.index] = curr_balloon_count;
     total_drumroll++;
     score += 100;
     score_counter.add_popup(100);

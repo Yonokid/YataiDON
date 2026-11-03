@@ -6,7 +6,7 @@
 #include "../../libs/global_data.h"
 
 PracticeTimer::PracticeTimer(int limit_seconds, double current_ms)
-    : remaining_ms(limit_seconds * 1000.0), last_ms(current_ms) {
+    : remaining_ms(limit_seconds * 1000.0), last_ms(current_ms), max_seconds(limit_seconds) {
     if (!load("PracticeTimer", "practice_timer", limit_seconds)) {
         return;
     }
@@ -27,8 +27,19 @@ void PracticeTimer::update(double current_ms, bool running) {
     }
 }
 
+void PracticeTimer::start_review(int seconds, double current_ms) {
+    remaining_ms = seconds * 1000.0;
+    max_seconds = seconds;
+    last_ms = current_ms;
+    up_ms = -1;
+}
+
 void PracticeTimer::draw() {
-    call(fn_draw, "PracticeTimer:draw", static_cast<int>(std::ceil(std::max(remaining_ms, 0.0) / 1000.0)), up_ms);
+    if (hidden) {
+        return;
+    }
+    call(fn_draw, "PracticeTimer:draw", static_cast<int>(std::ceil(std::max(remaining_ms, 0.0) / 1000.0)), up_ms,
+         max_seconds);
 }
 
 void PracticeTimer::begin_session(double current_ms) {
