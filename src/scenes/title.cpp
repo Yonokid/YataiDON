@@ -16,6 +16,8 @@ static double g_last_card_poll_ms = 0;
 
 void TitleScreen::on_screen_start() {
     Screen::on_screen_start();
+    kinotake_indicator = KinotakeIndicator("attract");
+    announce_mode.clear();
     reset_attract_objects();
     load_videos();
     state = TitleState::OP_VIDEO;
@@ -187,6 +189,24 @@ void TitleScreen::scene_manager(double current_ms) {
     }
 }
 
+void TitleScreen::update_announce(double current_ms) {
+    auto campaigns = network.active_campaigns();
+    std::erase(campaigns, "kinotake");
+    std::string mode;
+    if (!campaigns.empty()) {
+        mode = network.is_tournament() ? "tournament" : kinotake_on ? "" : "campaign";
+    }
+    if (mode != announce_mode) {
+        announce_mode = mode;
+        if (!mode.empty()) {
+            announce = AttractAnnounce(mode);
+        }
+    }
+    if (!announce_mode.empty()) {
+        announce.update(current_ms);
+    }
+}
+
 std::optional<Screens> TitleScreen::update() {
     if (auto next = Screen::update()) {
         return next;
@@ -196,6 +216,9 @@ std::optional<Screens> TitleScreen::update() {
     text_overlay_fade->update(current_ms);
     fade_out->update(current_ms);
     allnet_indicator.update(current_ms);
+    kinotake_on = kinotake_indicator.refresh();
+    kinotake_indicator.update(current_ms);
+    update_announce(current_ms);
     entry_overlay.update(current_ms);
 
     if (fade_out->is_finished) {
@@ -332,6 +355,14 @@ void TitleScreen::draw() {
         tex.draw_texture(t_caution, {.frame = network.is_tournament() ? 0 : 1});
     }
 
+    if (state != TitleState::OP_VIDEO && state != TitleState::TOURNAMENT) {
+        if (kinotake_on) {
+            kinotake_indicator.draw();
+        }
+        if (!announce_mode.empty()) {
+            announce.draw();
+        }
+    }
     draw_rectangle(0, 0, tex.screen_width, tex.screen_height, fade(Color::WHITE, fade_out->attribute));
     coin_overlay.draw();
     allnet_indicator.draw();

@@ -266,6 +266,8 @@ struct GlobalData {
     int campaign_next = 0;
     bool entry_campaign_resume = false;
     PlayerNum entry_resume_seats[2] = {PlayerNum::ALL, PlayerNum::ALL};
+    int kinotake_team[2] = {-1, -1};
+    int kinotake_next = 0;
     // Card reader
     std::string card_reader_card_id_hex; // 16-char hex card ID
     bool card_reader_card_valid = false;

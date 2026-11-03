@@ -46,6 +46,7 @@
 #include "scenes/game_practice.h"
 #include "scenes/input_cali.h"
 #include "scenes/input_test.h"
+#include "scenes/kinotake_result.h"
 #include "scenes/loading.h"
 #include "scenes/onboarding.h"
 #include "scenes/result.h"
@@ -373,6 +374,9 @@ static void populate_screens(std::unordered_map<Screens, std::unique_ptr<Screen>
     }
     if (except != Screens::CAMPAIGN) {
         screens[Screens::CAMPAIGN] = std::make_unique<CampaignScreen>();
+    }
+    if (except != Screens::KINOTAKE_RESULT) {
+        screens[Screens::KINOTAKE_RESULT] = std::make_unique<KinotakeResultScreen>();
     }
 }
 

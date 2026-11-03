@@ -1,6 +1,8 @@
 #include "result.h"
 
+#include "../libs/file/script.h"
 #include "../libs/input/input.h"
+#include "../libs/network/network.h"
 
 void ResultScreen::on_screen_start() {
     Screen::on_screen_start();
@@ -14,6 +16,7 @@ void ResultScreen::on_screen_start() {
     fade_out = dynamic_cast<FadeAnimation*>(tex.get_animation(0));
     retry_message.reset();
     retrying = false;
+    quitting = false;
     fade_in.emplace(global_data.player_num);
     skipped_time = 0;
     skip_enabled_ms = 0;
@@ -106,6 +109,12 @@ void ResultScreen::update_input_and_timeout(double current_ms) {
     }
 
     if (skip_enabled_ms > 0 && current_ms >= skip_enabled_ms) {
+        if (check_key_pressed(global_data.config->keys.back_key) && reveal_end_ms() > 0) {
+            quitting = true;
+            fade_out->start();
+            audio.play_sound("don", VolumePreset::SOUND);
+            return;
+        }
         handle_input(current_ms);
     }
 
@@ -113,6 +122,16 @@ void ResultScreen::update_input_and_timeout(double current_ms) {
     if (reveal_end > 0 && !exiting() && current_ms >= reveal_end + kWaitEffectEndMs + kAutoNextSceneMs) {
         begin_exit();
     }
+}
+
+Screens ResultScreen::credit_end_screen() {
+    global_data.songs_played = 0;
+    if (!(network.kinotake_pending() || network.kinotake_tally().any()) ||
+        !script_manager.has_lua_script("kinotake_result")) {
+        return Screens::GAME_OVER;
+    }
+    global_data.kinotake_next = static_cast<int>(Screens::GAME_OVER);
+    return Screens::KINOTAKE_RESULT;
 }
 
 std::optional<Screens> ResultScreen::update() {
@@ -141,10 +160,9 @@ std::optional<Screens> ResultScreen::update() {
     } else if (fade_out) {
         fade_out->update(current_time);
         if (fade_out->is_finished) {
-            if (global_data.config->limits.song_limit > 0 &&
-                global_data.config->limits.song_limit == global_data.songs_played) {
-                global_data.songs_played = 0;
-                return on_screen_end(Screens::GAME_OVER);
+            if (quitting || (global_data.config->limits.song_limit > 0 &&
+                             global_data.config->limits.song_limit == global_data.songs_played)) {
+                return on_screen_end(credit_end_screen());
             }
             global_data.returned_from_result = true;
             return on_screen_end(Screens::SONG_SELECT);

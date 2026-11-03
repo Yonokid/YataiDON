@@ -72,6 +72,25 @@ struct GachaResult {
     std::string error;
 };
 
+struct KinotakeSeat {
+    int team = -1;
+    int plays = 0;
+    int64_t base = 0;  // scores
+    int64_t total = 0; // with bonuses
+    int64_t mine = 0;  // the player's all-time points (after the last play)
+    int assist = 1;    // highest costume rate seen
+    bool duet = false;
+};
+// Kinotake costumes (cos index): wearing one doubles the play's points
+constexpr int KINOTAKE_COSTUME_KINOKO = 131;
+constexpr int KINOTAKE_COSTUME_TAKENOKO = 132;
+
+struct KinotakeTally {
+    KinotakeSeat seat[2];
+    int64_t kinoko = 0, takenoko = 0; // today's team totals after the last answered play
+    bool any() const { return seat[0].plays > 0 || seat[1].plays > 0; }
+};
+
 std::string modifiers_to_json(const Modifiers& modifiers);
 
 class NetworkClient {
@@ -131,6 +150,12 @@ public:
     void spin_gacha(const std::string& access_code);
     std::optional<GachaResult> take_gacha_result();
 
+    void submit_kinotake(int seat, const std::string& access_code, int team, int score, bool duet, bool costume);
+    bool kinotake_pending() const { return kinotake_pending_count_ > 0; }
+    const KinotakeTally& kinotake_tally() const { return kinotake_tally_; }
+    void reset_kinotake_tally() { kinotake_tally_ = {}; }
+    int kinotake_leader() const { return kinotake_leader_; }
+
     void shutdown();
 
 private:
@@ -142,6 +167,9 @@ private:
     std::vector<std::string> campaigns;
     std::optional<GachaResult> gacha_result;
     bool probing_ = false;
+    KinotakeTally kinotake_tally_;
+    int kinotake_pending_count_ = 0;
+    int kinotake_leader_ = -1;
 #if defined(NETWORK_ENABLED)
     std::optional<cpr::AsyncResponse> pending_heartbeat;
     static constexpr double HEARTBEAT_INTERVAL_MS = 30000.0;
@@ -159,6 +187,8 @@ private:
     std::optional<cpr::AsyncResponse> pending_score_submit;
 
     std::optional<cpr::AsyncResponse> pending_gacha;
+
+    std::vector<std::pair<int, cpr::AsyncResponse>> pending_kinotake;
 
     std::optional<cpr::AsyncResponse> pending_leaderboard;
     std::string pending_leaderboard_hash;

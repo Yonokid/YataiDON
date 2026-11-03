@@ -14,6 +14,7 @@
 #include "../objects/global/chara_3d.h"
 #include "../objects/global/coin_overlay.h"
 #include "../objects/global/entry_overlay.h"
+#include "../objects/global/kinotake_indicator.h"
 #include "../objects/global/nameplate.h"
 #include "../objects/global/network_msg.h"
 #include "../objects/global/timer.h"
@@ -56,6 +57,8 @@ private:
     Nameplate nameplate;
     CoinOverlay coin_overlay;
     AllNetIcon allnet_indicator;
+    KinotakeIndicator kinotake_indicator;
+    bool kinotake_on = false;
     NetworkMsg network_msg; // login / probe wait banner
     EntryOverlay entry_overlay;
     std::unique_ptr<Timer> timer;
@@ -117,6 +120,7 @@ private:
     bool campaign_shown_ = false;
     bool update_campaign(double current_ms);
     void resume_from_campaign();
+    void leave_for_campaign();
 
 public:
     EntryScreen() : Screen("entry") {}

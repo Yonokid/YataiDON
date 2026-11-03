@@ -418,6 +418,17 @@ void GameScreen::save_score(const std::string& player_id, PlayerNum player_num) 
                 network.submit_score(hash, session_data.selected_difficulty, access_code, score, target->input_log,
                                      played_at, modifiers_json, pd.chara_is_costume, pd.chara_cos_index);
                 session_data.result_data.submitted = true;
+                const int seat = static_cast<int>(player_num) - 1;
+                if (!run_skipped && (seat == 0 || seat == 1) && global_data.kinotake_team[seat] >= 0) {
+                    const bool duet = std::ranges::count_if(players, [](const auto& p) {
+                                          return p && !p->is_auto_play() && !p->is_replay();
+                                      }) == 2;
+                    const bool kinotake_costume =
+                        pd.chara_is_costume && (pd.chara_cos_index == KINOTAKE_COSTUME_KINOKO ||
+                                                pd.chara_cos_index == KINOTAKE_COSTUME_TAKENOKO);
+                    network.submit_kinotake(seat, access_code, global_data.kinotake_team[seat], score.score, duet,
+                                            kinotake_costume);
+                }
             }
         }
     } catch (const std::exception& e) {

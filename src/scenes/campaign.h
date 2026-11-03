@@ -15,6 +15,7 @@ private:
 
     Screens next() const { return static_cast<Screens>(global_data.campaign_next); }
     void give_reward(int cos_index);
+    void handle_input();
 
 public:
     CampaignScreen() : Screen("campaign") {}

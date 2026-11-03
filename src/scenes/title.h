@@ -11,7 +11,9 @@
 #include "../objects/global/allnet_indicator.h"
 #include "../objects/global/coin_overlay.h"
 #include "../objects/global/entry_overlay.h"
+#include "../objects/global/kinotake_indicator.h"
 #include "../objects/global/network_msg.h"
+#include "../objects/title/attract_announce.h"
 #include "../objects/title/attract_scene.h"
 #include "../objects/title/tournament_attract.h"
 #include "../objects/title/warning_screen.h"
@@ -39,6 +41,11 @@ private:
     TextureObject* t_caution = nullptr;
 
     AllNetIcon allnet_indicator;
+    KinotakeIndicator kinotake_indicator;
+    bool kinotake_on = false;
+    void update_announce(double current_ms);
+    AttractAnnounce announce;
+    std::string announce_mode;
     CoinOverlay coin_overlay;
     EntryOverlay entry_overlay;
     NetworkMsg network_msg;

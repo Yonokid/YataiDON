@@ -19,6 +19,7 @@ protected:
     // after the fade out of a failed run: the revive message, then the retry mini-game
     std::optional<ResultRetryMessage> retry_message;
     bool retrying = false;
+    bool quitting = false;
     bool allow_retry = true;
     AllNetIcon allnet_indicator;
     CoinOverlay coin_overlay;
@@ -48,6 +49,7 @@ protected:
     void draw_overlay();
 
     void draw_song_info();
+    Screens credit_end_screen();
 
 public:
     ResultScreen() : Screen("result") {}

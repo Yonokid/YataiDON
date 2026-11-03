@@ -822,6 +822,28 @@ std::optional<GachaResult> NetworkClient::take_gacha_result() {
     return std::exchange(gacha_result, std::nullopt);
 }
 
+void NetworkClient::submit_kinotake(int seat, const std::string& access_code, int team, int score, bool duet,
+                                    bool costume) {
+    if (!network_enabled() || !online || seat < 0 || seat > 1 || team < 0) {
+        return;
+    }
+    std::map<std::string, std::string> params{
+        {"access_code", access_code},      {"team", std::to_string(team)},          {"score", std::to_string(score)},
+        {"duet", duet ? "true" : "false"}, {"costume", costume ? "true" : "false"},
+    };
+    pending_kinotake.emplace_back(seat, cpr::PostAsync(cpr::Url{network_url("/kinotake")},
+                                                       signed_headers("POST", "/kinotake", params),
+                                                       cpr::Parameters{{"access_code", params["access_code"]},
+                                                                       {"team", params["team"]},
+                                                                       {"score", params["score"]},
+                                                                       {"duet", params["duet"]},
+                                                                       {"costume", params["costume"]}},
+                                                       cpr::Timeout{5000} NETWORK_CA_OPT));
+    kinotake_pending_count_ = static_cast<int>(pending_kinotake.size());
+    kinotake_tally_.seat[seat].team = team;
+    kinotake_tally_.seat[seat].duet = kinotake_tally_.seat[seat].duet || duet;
+}
+
 std::optional<std::string> NetworkClient::take_song_jump_result() {
     if (!song_jump_result.has_value()) {
         return std::nullopt;
@@ -954,8 +976,44 @@ void NetworkClient::update(double current_ms) {
                     }
                 }
             }
+            kinotake_leader_ = -1;
+            if (!doc.HasParseError() && doc.IsObject() && doc.HasMember("kinotake") && doc["kinotake"].IsObject()) {
+                const auto& k = doc["kinotake"];
+                const auto get = [&k](const char* key) -> int64_t {
+                    return k.HasMember(key) && k[key].IsInt64() ? k[key].GetInt64() : 0;
+                };
+                const int64_t kinoko = get("kinoko");
+                const int64_t takenoko = get("takenoko");
+                kinotake_leader_ = kinoko > takenoko ? 0 : takenoko > kinoko ? 1 : -1;
+            }
         }
     }
+
+    for (auto it = pending_kinotake.begin(); it != pending_kinotake.end();) {
+        if (it->second.wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
+            ++it;
+            continue;
+        }
+        cpr::Response response = it->second.get();
+        rapidjson::Document doc;
+        const auto num = [&doc](const char* key) -> int64_t {
+            return doc.HasMember(key) && doc[key].IsInt64() ? doc[key].GetInt64() : 0;
+        };
+        if (response.status_code == 200 && !doc.Parse(response.text.c_str()).HasParseError() && doc.IsObject()) {
+            KinotakeSeat& s = kinotake_tally_.seat[it->first];
+            s.plays++;
+            s.base += num("base");
+            s.total += num("total");
+            s.mine = num("mine");
+            s.assist = std::max(s.assist, static_cast<int>(num("assist_rate")));
+            kinotake_tally_.kinoko = num("kinoko");
+            kinotake_tally_.takenoko = num("takenoko");
+        } else {
+            spdlog::warn("Kinotake submit failed: HTTP {} - {}", response.status_code, response.text);
+        }
+        it = pending_kinotake.erase(it);
+    }
+    kinotake_pending_count_ = static_cast<int>(pending_kinotake.size());
 
     if (pending_gacha.has_value() && pending_gacha->wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
         cpr::Response response = pending_gacha->get();
@@ -1134,6 +1192,7 @@ void NetworkClient::poll_song_jump(const std::string&) {}
 std::optional<std::string> NetworkClient::take_song_jump_result() {
     return std::nullopt;
 }
+void NetworkClient::submit_kinotake(int, const std::string&, int, int, bool, bool) {}
 void NetworkClient::spin_gacha(const std::string&) {
     gacha_result = GachaResult{.error = "offline_gacha"};
 }

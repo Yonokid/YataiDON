@@ -11,6 +11,7 @@
 
 void EntryScreen::on_screen_start() {
     Screen::on_screen_start();
+    kinotake_indicator = KinotakeIndicator("entry");
     side = 1;
     is_2p = false;
     box_manager = std::make_unique<BoxManager>(global_data.entry_join_pending);
@@ -34,6 +35,7 @@ void EntryScreen::on_screen_start() {
     campaign_shown_ = resuming;
     if (!resuming) {
         global_data.campaign.clear();
+        global_data.kinotake_team[0] = global_data.kinotake_team[1] = -1;
     }
 
     if (online) {
@@ -701,6 +703,9 @@ std::optional<Screens> EntryScreen::update() {
 #endif
 
     allnet_indicator.update(current_time);
+    kinotake_on =
+        (global_data.kinotake_team[0] >= 0 || global_data.kinotake_team[1] >= 0) && kinotake_indicator.refresh();
+    kinotake_indicator.update(current_time);
     network_msg.update(current_time);
     if (login_pending() || network.probing()) {
         network_msg.show("clear_reading");
@@ -836,6 +841,12 @@ bool EntryScreen::update_campaign(double current_ms) {
         campaign_shown_ = true;
         std::vector<std::string> campaigns = network.active_campaigns();
         std::erase(campaigns, "mario");
+        if (std::ranges::contains(campaigns, "kinotake") && script_manager.has_lua_script("campaign_event")) {
+            global_data.campaign = "kinotake";
+            spdlog::info("[entry] campaign: kinotake");
+            leave_for_campaign();
+            return true;
+        }
         if (campaigns.empty()) {
             return false;
         }
@@ -858,16 +869,20 @@ bool EntryScreen::update_campaign(double current_ms) {
         state = EntryState::SELECT_MODE;
 
         if (!global_data.campaign.empty()) {
-            global_data.campaign_next = static_cast<int>(Screens::ENTRY);
-            global_data.entry_campaign_resume = true;
-            int n = 0;
-            for (const auto& player : players) {
-                global_data.entry_resume_seats[n++] = player ? player->player_num : PlayerNum::ALL;
-            }
+            leave_for_campaign();
             return true;
         }
     }
     return false;
+}
+
+void EntryScreen::leave_for_campaign() {
+    global_data.campaign_next = static_cast<int>(Screens::ENTRY);
+    global_data.entry_campaign_resume = true;
+    int n = 0;
+    for (const auto& player : players) {
+        global_data.entry_resume_seats[n++] = player ? player->player_num : PlayerNum::ALL;
+    }
 }
 
 void EntryScreen::draw_background() {
@@ -974,6 +989,9 @@ void EntryScreen::draw() {
         draw_rectangle(0, 0, tex.screen_width, tex.screen_height, Color::BLACK);
     }
 
+    if (kinotake_on) {
+        kinotake_indicator.draw();
+    }
     network_msg.draw();
     timer->draw();
     entry_overlay.draw(false);

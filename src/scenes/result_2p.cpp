@@ -42,6 +42,9 @@ std::optional<Screens> Result2PScreen::update() {
     if (fade_out) {
         fade_out->update(current_time);
         if (fade_out->is_finished) {
+            if (quitting) {
+                return on_screen_end(credit_end_screen());
+            }
             global_data.returned_from_result = true;
             return on_screen_end(Screens::SONG_SELECT_2P);
         }

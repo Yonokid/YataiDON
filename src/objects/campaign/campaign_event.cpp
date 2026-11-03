@@ -1,7 +1,7 @@
 #include "campaign_event.h"
 
-CampaignEvent::CampaignEvent(const std::string& campaign_id) {
-    if (!load("CampaignEvent", "campaign_event", campaign_id)) {
+CampaignEvent::CampaignEvent(const std::string& campaign_id, const std::vector<int>& seats) {
+    if (!load("CampaignEvent", "campaign_event", campaign_id, sol::as_table(seats))) {
         return;
     }
     fn_update = lua_object["update"];
@@ -10,6 +10,7 @@ CampaignEvent::CampaignEvent(const std::string& campaign_id) {
     fn_is_done = lua_object["is_done"];
     fn_get_reward = lua_object["get_reward"];
     fn_close = lua_object["close"];
+    fn_get_team = lua_object["get_team"];
 }
 
 CampaignEvent::~CampaignEvent() {
@@ -21,14 +22,20 @@ CampaignEvent::~CampaignEvent() {
 void CampaignEvent::update(double current_ms) {
     call(fn_update, "CampaignEvent:update", current_ms);
 }
-bool CampaignEvent::input_decide() {
-    return call_r<bool>(fn_input, "CampaignEvent:input", 3).value_or(false);
+bool CampaignEvent::input(Action action, int player) {
+    return call_r<bool>(fn_input, "CampaignEvent:input", static_cast<int>(action), player).value_or(false);
 }
 void CampaignEvent::draw() {
     call(fn_draw, "CampaignEvent:draw");
 }
 bool CampaignEvent::is_done() {
     return call_r<bool>(fn_is_done, "CampaignEvent:is_done").value_or(true);
+}
+int CampaignEvent::get_team(int player) {
+    if (!fn_get_team.valid()) {
+        return -1;
+    }
+    return call_r<int>(fn_get_team, "CampaignEvent:get_team", player).value_or(-1);
 }
 int CampaignEvent::get_reward() {
     return call_r<int>(fn_get_reward, "CampaignEvent:get_reward").value_or(-1);
