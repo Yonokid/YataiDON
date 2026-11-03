@@ -46,7 +46,6 @@ private:
     bool finished = false;
     std::optional<std::array<int, 3>> one_menu_sort_result;
 
-
     bool which_dialog = false;
     int which_index = 1;
     int stats_player = 0;
