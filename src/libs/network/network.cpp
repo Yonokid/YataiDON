@@ -637,6 +637,29 @@ static ReplayData parse_replay_response(const cpr::Response& response) {
     return result;
 }
 
+void NetworkClient::start_leaderboard_fetch(const std::string& hash) {
+    pending_leaderboard_hash = hash;
+    pending_leaderboard =
+        cpr::GetAsync(cpr::Url{network_url("/song_ranking")},
+                      signed_headers("GET", "/song_ranking", {{"hash", hash}, {"limit", "3"}}),
+                      cpr::Parameters{{"hash", hash}, {"limit", "3"}}, cpr::Timeout{5000} NETWORK_CA_OPT);
+}
+
+std::optional<std::vector<RankingEntry>> NetworkClient::song_leaderboard(const std::string& hash) {
+    if (!network_enabled() || !online || hash.empty()) {
+        return std::nullopt;
+    }
+    if (auto it = leaderboard_cache.find(hash); it != leaderboard_cache.end()) {
+        return it->second;
+    }
+    if (!pending_leaderboard.has_value()) {
+        start_leaderboard_fetch(hash);
+    } else if (pending_leaderboard_hash != hash) {
+        next_leaderboard_hash = hash;
+    }
+    return std::nullopt;
+}
+
 void NetworkClient::request_replay(int score_id) {
     if (!network_enabled()) {
         return;
@@ -719,6 +742,7 @@ void NetworkClient::submit_score(const std::string& hash, int difficulty, const 
     if (!network_enabled()) {
         return;
     }
+    leaderboard_cache.erase(hash);
     std::map<std::string, std::string> params{
         {"access_code", access_code},
         {"hash", hash},
@@ -986,6 +1010,33 @@ void NetworkClient::update(double current_ms) {
         replay_fetch_result = parse_replay_response(response);
     }
 
+    if (pending_leaderboard.has_value() &&
+        pending_leaderboard->wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+        cpr::Response response = pending_leaderboard->get();
+        pending_leaderboard.reset();
+        // 404 = song not on the server: cache it empty so it is not asked again; transport errors are retried
+        if (response.status_code == 200 || response.status_code == 404) {
+            std::vector<RankingEntry> entries;
+            rapidjson::Document doc;
+            if (response.status_code == 200 && !doc.Parse(response.text.c_str()).HasParseError() &&
+                doc.HasMember("ranking") && doc["ranking"].IsArray()) {
+                for (const auto& row : doc["ranking"].GetArray()) {
+                    if (row.IsObject() && row.HasMember("username") && row["username"].IsString() &&
+                        row.HasMember("score") && row["score"].IsInt()) {
+                        entries.push_back({row["username"].GetString(), row["score"].GetInt()});
+                    }
+                }
+            }
+            leaderboard_cache[pending_leaderboard_hash] = std::move(entries);
+        } else {
+            spdlog::warn("song_leaderboard: HTTP {} - {}", response.status_code, response.text);
+        }
+        std::string next = std::exchange(next_leaderboard_hash, "");
+        if (!next.empty() && !leaderboard_cache.contains(next)) {
+            start_leaderboard_fetch(next);
+        }
+    }
+
     if (pending_score_submit.has_value() &&
         pending_score_submit->wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
         cpr::Response response = pending_score_submit->get();
@@ -1016,6 +1067,10 @@ void NetworkClient::shutdown() {
     if (pending_replay_fetch.has_value()) {
         pending_replay_fetch->wait();
         pending_replay_fetch.reset();
+    }
+    if (pending_leaderboard.has_value()) {
+        pending_leaderboard->wait();
+        pending_leaderboard.reset();
     }
 #if defined(__ANDROID__)
     if (pending_update_checksum.has_value()) {
@@ -1090,6 +1145,9 @@ std::optional<int> NetworkClient::take_replay_jump_result() {
     return std::nullopt;
 }
 void NetworkClient::request_replay(int) {}
+std::optional<std::vector<RankingEntry>> NetworkClient::song_leaderboard(const std::string&) {
+    return std::nullopt;
+}
 std::optional<ReplayData> NetworkClient::take_replay_result() {
     return std::nullopt;
 }

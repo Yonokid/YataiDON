@@ -32,6 +32,9 @@ class ResultPlayer : public LuaScript {
     bool count_up_sound_1p_only = false;
     void assign_field(const std::string& field_name, const std::string& value);
     void update_score_animation(double current_ms, bool is_skipped);
+    void update_ranking();
+    std::string ranking_name;
+    bool ranking_pending = false;
 
 public:
     ResultPlayer() = default;

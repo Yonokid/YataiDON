@@ -211,12 +211,10 @@ void SongBox::update(double current_time) {
     }
 
     if (!score_history) {
-        for (const auto& s : scores) {
-            if (s.has_value()) {
-                score_history = std::make_unique<ScoreHistory>(scores, current_time);
-                break;
-            }
+        for (Difficulty d : get_diffs()) {
+            hash_for(static_cast<int>(d));
         }
+        score_history = std::make_unique<ScoreHistory>(scores, hashes, current_time);
     }
 
     if (score_history) {

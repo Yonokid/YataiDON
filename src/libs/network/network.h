@@ -40,7 +40,11 @@ struct RemoteScore {
     Score score;
 };
 
-// Everything GET /user returns about a player; each field is set only if the server sent it
+struct RankingEntry {
+    std::string username;
+    int score = 0;
+};
+
 struct RemoteUser {
     std::optional<std::string> username;
     std::optional<std::string> title;
@@ -122,6 +126,8 @@ public:
     void request_replay(int score_id);
     std::optional<ReplayData> take_replay_result();
 
+    std::optional<std::vector<RankingEntry>> song_leaderboard(const std::string& hash);
+
     void spin_gacha(const std::string& access_code);
     std::optional<GachaResult> take_gacha_result();
 
@@ -153,6 +159,12 @@ private:
     std::optional<cpr::AsyncResponse> pending_score_submit;
 
     std::optional<cpr::AsyncResponse> pending_gacha;
+
+    std::optional<cpr::AsyncResponse> pending_leaderboard;
+    std::string pending_leaderboard_hash;
+    std::string next_leaderboard_hash;
+    std::map<std::string, std::vector<RankingEntry>> leaderboard_cache;
+    void start_leaderboard_fetch(const std::string& hash);
 
 #if defined(__ANDROID__)
     std::optional<cpr::AsyncResponse> pending_update_checksum;
