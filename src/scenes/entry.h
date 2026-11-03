@@ -9,6 +9,7 @@
 #include "../objects/entry/entry_script.h"
 #include "../objects/entry/name_entry.h"
 #include "../objects/entry/player.h"
+#include "../objects/entry/practice_help.h"
 #include "../objects/global/allnet_indicator.h"
 #include "../objects/global/chara_3d.h"
 #include "../objects/global/coin_overlay.h"
@@ -31,7 +32,8 @@ enum class EntryState {
     WAITING = 3,
     NAME_ENTRY = 4,
     CAMPAIGN = 5,
-    BNCOIN = 6
+    BNCOIN = 6,
+    PRACTICE_HELP = 7
 };
 
 struct RemoteLogin {
@@ -110,6 +112,8 @@ private:
     std::unique_ptr<BanaCoinPopup> bncoin_popup_;
     static constexpr int BNCOIN_PRACTICE_COST = 100;
     void open_bncoin_popup();
+    std::unique_ptr<PracticeHelp> practice_help_;
+    void start_practice();
     bool campaign_shown_ = false;
     bool update_campaign(double current_ms);
     void resume_from_campaign();

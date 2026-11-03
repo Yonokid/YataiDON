@@ -269,6 +269,7 @@ ScoresManager::ScoresManager(const fs::path& db_path) {
     }
 
     run_migration("ALTER TABLE players ADD COLUMN modifier_skip BOOL NOT NULL DEFAULT 0;");
+    run_migration("ALTER TABLE players ADD COLUMN practice_help_seen BOOL NOT NULL DEFAULT 0;");
 
     // Migration v7: dan_results (one best-of row per course title) replaced by dan_scores (attempt history).
     if (version < 7 && run_migration("DROP TABLE IF EXISTS dan_results;")) {
@@ -1211,6 +1212,18 @@ void ScoresManager::save_dan_score(const std::string& player_id, const std::stri
         sqlite3_reset(stmt);
     }
     sqlite3_finalize(stmt);
+}
+
+bool ScoresManager::first_practice_visit(const std::string& player_id) {
+    sqlite3_stmt* stmt;
+    const char* query = "UPDATE players SET practice_help_seen = 1 WHERE player_id = ? AND practice_help_seen = 0;";
+    if (sqlite3_prepare_v2(db_fsd, query, -1, &stmt, nullptr) != SQLITE_OK) {
+        return false;
+    }
+    sqlite3_bind_text(stmt, 1, player_id.c_str(), -1, SQLITE_TRANSIENT);
+    const bool first = sqlite3_step(stmt) == SQLITE_DONE && sqlite3_changes(db_fsd) == 1;
+    sqlite3_finalize(stmt);
+    return first;
 }
 
 void ScoresManager::migrate_player_id(const std::string& old_id, const std::string& new_id) {
