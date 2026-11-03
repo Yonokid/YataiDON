@@ -25,7 +25,7 @@ public:
 
     bool confirmed = false;
 
-    CostumeMenu(PlayerNum player_num);
+    CostumeMenu(PlayerNum player_num, bool collabo_bonus = false);
     ~CostumeMenu() override;
     void update(double current_time_ms);
     void handle_input();

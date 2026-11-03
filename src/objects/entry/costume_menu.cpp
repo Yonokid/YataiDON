@@ -10,7 +10,8 @@
 #include "../../libs/gfx/texture.h"
 #include "../../libs/input/input.h"
 
-CostumeMenu::CostumeMenu(PlayerNum player_num) : player_num(player_num), is_2p(player_num == PlayerNum::P2) {
+CostumeMenu::CostumeMenu(PlayerNum player_num, bool collabo_bonus)
+    : player_num(player_num), is_2p(player_num == PlayerNum::P2) {
     PlayerSoundScope audio_owner(player_num);
     const SkinInfo* info = font_manager.get_text_info("entry_costume_text");
     std::string text_str = font_manager.get_text_label("entry_costume_text");
@@ -19,7 +20,7 @@ CostumeMenu::CostumeMenu(PlayerNum player_num) : player_num(player_num), is_2p(p
 
     t_item_box = is_2p ? tex.get_texture("costume_select/item_box_2p") : tex.get_texture("costume_select/item_box_1p");
 
-    if (!load("CostumeMenu", "costume_menu", is_2p, text_str, title_x, title_y)) {
+    if (!load("CostumeMenu", "costume_menu", is_2p, text_str, title_x, title_y, collabo_bonus)) {
         return;
     }
     fn_update = lua_object["update"];

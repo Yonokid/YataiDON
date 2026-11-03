@@ -745,7 +745,8 @@ bool EntryScreen::update_campaign(double current_ms) {
     if (state == EntryState::SELECT_MODE && !campaign_shown_ && players[0] && !login_pending() && !network.probing() &&
         mode_select_ready()) {
         campaign_shown_ = true;
-        const std::vector<std::string> campaigns = network.active_campaigns();
+        std::vector<std::string> campaigns = network.active_campaigns();
+        std::erase(campaigns, "mario");
         if (campaigns.empty()) {
             return false;
         }

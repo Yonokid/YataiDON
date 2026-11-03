@@ -1,5 +1,6 @@
 #include "player.h"
 
+#include <algorithm>
 #include <spdlog/spdlog.h>
 
 #include "../../libs/file/scores.h"
@@ -100,7 +101,10 @@ void EntryPlayer::update(double current_time) {
 }
 
 void EntryPlayer::open_costume_menu() {
-    costume_menu.emplace(player_num);
+    const auto campaigns = network.active_campaigns();
+    const bool bonus = !collabo_bonus_seen && std::ranges::find(campaigns, "mario") != campaigns.end();
+    collabo_bonus_seen = collabo_bonus_seen || bonus;
+    costume_menu.emplace(player_num, bonus);
     audio.play_player_sound("select_costume", player_num, VolumePreset::VOICE);
     preset_seq_applied = 0;
 }
