@@ -112,16 +112,22 @@ bool BoxManager::selection_allowed() const {
 }
 
 void BoxManager::select_box() {
+    const Screens location = boxes[selected_box_index]->location;
+    if (location == Screens::PRACTICE_SELECT) {
+        bncoin_request = true;
+        return;
+    }
     if (!selection_allowed()) {
         audio.play_sound("kat", VolumePreset::SOUND);
         return;
     }
-    const Screens location = boxes[selected_box_index]->location;
     if (location == Screens::SONG_SELECT) {
         audio.play_sound("mode_game", VolumePreset::VOICE);
-    } else if (location == Screens::PRACTICE_SELECT) {
-        audio.play_sound("mode_practice", VolumePreset::VOICE);
     }
+    fade_out->start();
+}
+
+void BoxManager::start_selected() {
     fade_out->start();
 }
 

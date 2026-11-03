@@ -28,6 +28,7 @@ void EntryScreen::on_screen_start() {
     name_pending_ = -1;
     name_entry_.reset();
     campaign_menu_.reset();
+    bncoin_popup_.reset();
     const bool resuming = global_data.entry_join_pending || global_data.entry_campaign_resume;
     campaign_shown_ = resuming;
     if (!resuming) {
@@ -493,6 +494,16 @@ std::optional<Screens> EntryScreen::handle_input() {
         }
         return std::nullopt;
     }
+    if (state == EntryState::BNCOIN) {
+        if (menu_left_pressed() && bncoin_popup_->input(BanaCoinPopup::LEFT)) {
+            audio.play_sound("kat", VolumePreset::SOUND);
+        } else if (menu_right_pressed() && bncoin_popup_->input(BanaCoinPopup::RIGHT)) {
+            audio.play_sound("kat", VolumePreset::SOUND);
+        } else if (menu_confirm_pressed() && bncoin_popup_->input(BanaCoinPopup::DECIDE)) {
+            audio.play_sound("don", VolumePreset::SOUND);
+        }
+        return std::nullopt;
+    }
     if (state == EntryState::CAMPAIGN) {
         if (menu_left_pressed() && campaign_menu_->input(CampaignMenu::LEFT)) {
             audio.play_sound("kat", VolumePreset::SOUND);
@@ -662,7 +673,7 @@ std::optional<Screens> EntryScreen::update() {
     // Case 6: any card while a seat is free (P1 first, then P2)
     if (card_reader_ && card_reader_->is_polling() && !login_ready_ && !login_pending() && !network.probing() &&
         state != EntryState::SELECT_COSTUME && state != EntryState::NAME_ENTRY && state != EntryState::CAMPAIGN &&
-        !(seat_joined(PlayerNum::P1) && seat_joined(PlayerNum::P2))) {
+        state != EntryState::BNCOIN && !(seat_joined(PlayerNum::P1) && seat_joined(PlayerNum::P2))) {
         if (current_time - last_card_poll_ms_ >= global_data.config->card_reader.poll_interval_ms) {
             last_card_poll_ms_ = current_time;
             if (card_reader_->poll_once()) {
@@ -691,7 +702,7 @@ std::optional<Screens> EntryScreen::update() {
     }
     box_manager->update(current_time, is_2p);
     if (state != EntryState::WAITING && state != EntryState::NAME_ENTRY && state != EntryState::CAMPAIGN &&
-        !(arcade_credit() && state == EntryState::SELECT_SIDE) && !login_pending()) {
+        state != EntryState::BNCOIN && !(arcade_credit() && state == EntryState::SELECT_SIDE) && !login_pending()) {
         timer->update(current_time);
     }
     nameplate.update(current_time);
@@ -720,6 +731,21 @@ std::optional<Screens> EntryScreen::update() {
             }
         }
     }
+    if (box_manager->bncoin_request) {
+        box_manager->bncoin_request = false;
+        open_bncoin_popup();
+    }
+    if (state == EntryState::BNCOIN) {
+        bncoin_popup_->update(current_time);
+        if (bncoin_popup_->is_done()) {
+            if (bncoin_popup_->paid()) {
+                global_data.bncoin -= BNCOIN_PRACTICE_COST;
+                box_manager->start_selected();
+            }
+            bncoin_popup_.reset();
+            state = EntryState::SELECT_MODE;
+        }
+    }
     if (state == EntryState::SELECT_COSTUME) {
         bool any_open = false;
         for (auto& player : players) {
@@ -744,6 +770,26 @@ std::optional<Screens> EntryScreen::update() {
         }
     }
     return handle_input();
+}
+
+void EntryScreen::open_bncoin_popup() {
+    const bool two_players = !box_manager->selection_allowed();
+    const char* kind = two_players ? "onlyplay" : global_data.bncoin < BNCOIN_PRACTICE_COST ? "shortage" : "practice";
+    auto popup = std::make_unique<BanaCoinPopup>(kind, global_data.bncoin, BNCOIN_PRACTICE_COST);
+    if (popup->unavailable()) { // skin without the popups: practice as before
+        if (two_players) {
+            audio.play_sound("kat", VolumePreset::SOUND);
+        } else {
+            audio.play_sound("mode_practice", VolumePreset::VOICE);
+            box_manager->start_selected();
+        }
+        return;
+    }
+    if (!two_players) {
+        audio.play_sound("mode_practice", VolumePreset::VOICE);
+    }
+    bncoin_popup_ = std::move(popup);
+    state = EntryState::BNCOIN;
 }
 
 bool EntryScreen::update_campaign(double current_ms) {
@@ -849,7 +895,7 @@ void EntryScreen::draw() {
         }
     } else if (state == EntryState::SELECT_SIDE) {
         draw_side_select(lua_entry->get_side_select_fade());
-    } else if (state == EntryState::SELECT_MODE) {
+    } else if (state == EntryState::SELECT_MODE || state == EntryState::BNCOIN) {
         draw_mode_select();
     } else if (state == EntryState::CAMPAIGN) {
         campaign_menu_->draw();
@@ -878,6 +924,9 @@ void EntryScreen::draw() {
     }
     if (name_entry_) {
         name_entry_->draw();
+    }
+    if (bncoin_popup_) {
+        bncoin_popup_->draw();
     }
 
     if (box_manager->is_finished()) {

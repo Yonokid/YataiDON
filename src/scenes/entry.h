@@ -3,6 +3,7 @@
 #include "../libs/file/scores.h"
 #include "../libs/network/network.h"
 #include "../libs/screen.h"
+#include "../objects/entry/bncoin_popup.h"
 #include "../objects/entry/box_manager.h"
 #include "../objects/entry/campaign_menu.h"
 #include "../objects/entry/entry_script.h"
@@ -29,7 +30,8 @@ enum class EntryState {
     SELECT_COSTUME = 2,
     WAITING = 3,
     NAME_ENTRY = 4,
-    CAMPAIGN = 5
+    CAMPAIGN = 5,
+    BNCOIN = 6
 };
 
 struct RemoteLogin {
@@ -105,6 +107,9 @@ private:
     void on_card_login();
 
     std::unique_ptr<CampaignMenu> campaign_menu_;
+    std::unique_ptr<BanaCoinPopup> bncoin_popup_;
+    static constexpr int BNCOIN_PRACTICE_COST = 100;
+    void open_bncoin_popup();
     bool campaign_shown_ = false;
     bool update_campaign(double current_ms);
     void resume_from_campaign();

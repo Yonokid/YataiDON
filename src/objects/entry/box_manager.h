@@ -24,6 +24,7 @@ private:
 
 public:
     bool costume_menu_open{false};
+    bool bncoin_request{false};
     PlayerNum opening_player = PlayerNum::P1;
 
     explicit BoxManager(bool two_player = false);
@@ -31,6 +32,7 @@ public:
     bool selection_allowed() const;
     bool is_disabled(int index) const; // greyed out: shown but not selectable
     void select_box();
+    void start_selected();
     bool is_box_selected() const;
     bool is_finished() const;
     bool is_costume_box() const;
