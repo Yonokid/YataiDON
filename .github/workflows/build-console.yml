@@ -12,7 +12,7 @@ jobs:
       PS5_VULKAN_REV: f410e67a0241b3e8edcdbcd2a9b285dfc4a412ed
       PS5_MESA_REV: 1ba9874f478657ccf6da72ce55f0260164cc0bd0
       PS5_SDK_REV: b83202be73e930050e00de0f1b4d9ec46c0391bf
-      NATIVE_TEMPLATE_REV: 470695e0c557f99ff2df0e36e4df713c5e636526
+      NATIVE_TEMPLATE_REV: ace98a99460c95a8d2821a9e33935c7b71070f7f
       FFMPEG_VERSION: 8.1.2
       FFMPEG_SHA256: 464beb5e7bf0c311e68b45ae2f04e9cc2af88851abb4082231742a74d97b524c
       OPUS_VERSION: 1.5.2
@@ -102,7 +102,7 @@ jobs:
         run: |
           t=platform/ps5/vendor/native-template
           git init -q "$t"
-          git -C "$t" fetch -q --depth 1 https://github.com/drakmor/ps5-native-app-boilerplate.git "$NATIVE_TEMPLATE_REV"
+          git -C "$t" fetch -q --depth 1 https://github.com/mihawk-99/PS5_Vulkan.git "$NATIVE_TEMPLATE_REV"
           git -C "$t" checkout -q --detach FETCH_HEAD
           # Regenerates the clean-room libc.prx (checksum-verified) and host zlib.
           bash "$t/tools/rebuild-libc.sh"
