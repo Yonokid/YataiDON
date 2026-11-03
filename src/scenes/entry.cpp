@@ -292,6 +292,11 @@ void EntryScreen::end_name_entry() {
         const std::string& code =
             name_slot_ == 0 ? global_data.config->network.access_code_1 : global_data.config->network.access_code_2;
         std::thread([code, name] { network.update_username(code, name); }).detach();
+        if (players[name_slot_]) {
+            const PlayerNum seat = players[name_slot_]->player_num;
+            audio.play_player_sound("name_fixed_" + std::to_string(static_cast<int>(seat)) + "p", seat,
+                                    VolumePreset::VOICE);
+        }
     }
     audio.stop_sound("name_select_bgm");
     audio.stop_sound("name_entry_vo");

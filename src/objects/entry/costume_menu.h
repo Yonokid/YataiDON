@@ -57,8 +57,12 @@ private:
 
     TextureObject* t_item_box = nullptr;
 
-    // icon glide after a selection change (matches SCROLL_MS in costume_menu.lua)
     static constexpr double ICON_SCROLL_MS = 67.0;
+    static constexpr double COLLABO_BONUS_MS = 6000.0;
+    bool collabo_bonus = false;
+    double open_ms = -1.0;
+    bool intro_voice_pending = true;
+    void play_voice(const std::string& name) const;
     double now_ms = 0.0;
     int icon_prev_index = -1;
     int icon_scroll_dir = 0;

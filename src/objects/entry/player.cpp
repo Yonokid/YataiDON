@@ -105,7 +105,7 @@ void EntryPlayer::open_costume_menu() {
     const bool bonus = !collabo_bonus_seen && std::ranges::find(campaigns, "mario") != campaigns.end();
     collabo_bonus_seen = collabo_bonus_seen || bonus;
     costume_menu.emplace(player_num, bonus);
-    audio.play_player_sound("select_costume", player_num, VolumePreset::VOICE);
+    audio.play_player_sound("mode_costume", player_num, VolumePreset::VOICE);
     preset_seq_applied = 0;
 }
 

@@ -11,7 +11,7 @@
 #include "../../libs/input/input.h"
 
 CostumeMenu::CostumeMenu(PlayerNum player_num, bool collabo_bonus)
-    : player_num(player_num), is_2p(player_num == PlayerNum::P2) {
+    : player_num(player_num), is_2p(player_num == PlayerNum::P2), collabo_bonus(collabo_bonus) {
     PlayerSoundScope audio_owner(player_num);
     const SkinInfo* info = font_manager.get_text_info("entry_costume_text");
     std::string text_str = font_manager.get_text_label("entry_costume_text");
@@ -197,7 +197,20 @@ void CostumeMenu::apply_preset(const std::string& item) {
 void CostumeMenu::update(double current_time_ms) {
     PlayerSoundScope audio_owner(player_num);
     now_ms = current_time_ms;
+    if (open_ms < 0.0) {
+        open_ms = current_time_ms;
+    }
+    if (intro_voice_pending && current_time_ms - open_ms >= (collabo_bonus ? COLLABO_BONUS_MS : 0.0) &&
+        (!audio.has_sound("mode_costume") || !audio.is_sound_playing("mode_costume"))) {
+        intro_voice_pending = false;
+        audio.play_player_sound("select_costume", player_num, VolumePreset::VOICE);
+    }
     call(fn_update, "CostumeMenu:update", current_time_ms);
+}
+
+void CostumeMenu::play_voice(const std::string& name) const {
+    audio.play_player_sound(name + "_" + std::to_string(static_cast<int>(player_num)) + "p", player_num,
+                            VolumePreset::VOICE);
 }
 
 std::optional<int> CostumeMenu::get_index() {
@@ -241,6 +254,7 @@ void CostumeMenu::handle_input() {
                     picked_head_id = costume_ids[costume_icon_index];
                     pick_stage = CostumePickStage::BODY;
                     load_costume_icons("costume_body_icon", "body");
+                    play_voice("costume_body");
                     if (costume_icons.empty()) {
                         spdlog::warn("CostumeMenu: no body icons found, confirming head only");
                         confirmed = true;
@@ -280,6 +294,7 @@ void CostumeMenu::handle_input() {
                 }
                 costume_select_mode = true;
                 audio.play_player_sound("don", player_num, VolumePreset::SOUND);
+                play_voice("costume_kigurumi");
             } else if (std::string(ITEMS[selected_index]) == "costume_select/head_body") {
                 pick_stage = CostumePickStage::HEAD;
                 picked_head_id = -1;
@@ -290,6 +305,7 @@ void CostumeMenu::handle_input() {
                 }
                 costume_select_mode = true;
                 audio.play_player_sound("don", player_num, VolumePreset::SOUND);
+                play_voice("costume_head");
             } else if (is_preset_item(ITEMS[selected_index])) {
                 if (!preset_cos_id) {
                     apply_preset(ITEMS[selected_index]);
