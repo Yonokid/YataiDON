@@ -118,6 +118,7 @@ public:
     int index{0};
     int moji{0};
     bool is_branch_start{false};
+    bool partner{false};
     // Drumroll specific
     std::optional<int> color;
     float roll_intensity = 0.0f;

@@ -504,7 +504,7 @@ TJAParser::notes_to_position(int diff) {
             // Process each note character
             for (char item : part) {
                 // Skip empty notes (0) and non-digits
-                if (item == '0' || !std::isdigit(static_cast<unsigned char>(item))) {
+                if (item == '0' || (!std::isdigit(static_cast<unsigned char>(item)) && item != 'A' && item != 'B')) {
                     if (item != '0') {
                         spdlog::warn("Unrecognized note '{}' in {}", item, file_path.string());
                     }
@@ -1394,7 +1394,8 @@ Note TJAParser::add_note(char item, ParserState& state) {
     Note note = Note();
     note.hit_ms = this->current_ms;
     note.display = !state.doron;
-    note.type = NoteType(item - '0');
+    note.partner = item == 'A' || item == 'B';
+    note.type = item == 'A' ? NoteType::DON_L : item == 'B' ? NoteType::KAT_L : NoteType(item - '0');
     note.index = state.index;
     note.bpm = state.bpm;
     note.scroll_x = state.scroll_x_modifier;

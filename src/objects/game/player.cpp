@@ -80,6 +80,12 @@ void Player::init_player_textures() {
     t_notes_9 = tex.get_texture("notes/9");
     t_notes_10 = tex.get_texture("notes/10");
     t_moji = tex.get_texture("notes/moji");
+    t_kusudama_star = tex.has_texture("notes/kusudama_star") ? tex.get_texture("notes/kusudama_star") : nullptr;
+    if (tex.has_texture("notes/tetunagi_arm")) {
+        t_tetunagi[0] = tex.get_texture("notes/tetunagi_don");
+        t_tetunagi[1] = tex.get_texture("notes/tetunagi_katsu");
+        t_tetunagi_arm = tex.get_texture("notes/tetunagi_arm");
+    }
     t_moji_drumroll_mid = tex.get_texture("notes/moji_drumroll_mid");
     t_drumroll_big_tail = tex.get_texture("notes/drumroll_big_tail");
     t_drumroll_tail = tex.get_texture("notes/drumroll_tail");
@@ -470,6 +476,9 @@ void Player::update(double ms_from_start, double current_ms, std::optional<Backg
     if (combo_announce.has_value()) {
         combo_announce->update(current_ms);
     }
+    if (papamama_popup.has_value()) {
+        papamama_popup->update(current_ms);
+    }
     drumroll_counter_manager(current_ms);
     balloon_counter_manager(current_ms);
     kusudama_counter_manager(current_ms);
@@ -827,6 +836,20 @@ void Player::reset_chart() {
     this->branch_m = branch_m_temp;
     this->branch_e = branch_e_temp;
     this->branch_n = branch_n_temp;
+    partner_times.clear();
+    auto add_partner_times = [&](const NoteList& list) {
+        for (const Note& note : list.notes) {
+            if (note.partner) {
+                partner_times.insert(std::llround(note.hit_ms));
+            }
+        }
+    };
+    add_partner_times(notes);
+    for (const auto* branch : {&branch_m, &branch_e, &branch_n}) {
+        for (const NoteList& section : *branch) {
+            add_partner_times(section);
+        }
+    }
     std::vector<std::reference_wrapper<std::deque<NoteList>>> branches = {
         std::ref(this->branch_m), std::ref(this->branch_e), std::ref(this->branch_n)};
 
@@ -1841,6 +1864,7 @@ void Player::allow_papamama() {
     auto it = courses.find(difficulty);
     if (it != courses.end() && it->second.papamama) {
         input_player = PlayerNum::ALL;
+        papamama_popup.emplace();
     }
 }
 
@@ -2016,6 +2040,56 @@ void Player::draw_balloon(double current_ms, float y, const Note& head, int curr
     }
 }
 
+void Player::draw_tetunagi(double current_ms, const Note& note, float x, float y, int current_eighth) {
+    const double miss_window = (difficulty <= static_cast<int>(Difficulty::NORMAL)) ? Timing::BAD_EASY : Timing::BAD;
+    auto judged = note_judgments.find(note.index);
+    const bool missed = judged != note_judgments.end() && judged->second == Judgments::BAD;
+    int arm_frame = 0;
+    float lx = 15, rx = 53, ly, ry;
+    if (missed) {
+        const double t = current_ms - (note.hit_ms + miss_window);
+        arm_frame = t < 33 ? 0 : t < 67 ? 1 : 2;
+        static constexpr float MISS_X[] = {15, 28, 32};
+        static constexpr float MISS_Y[] = {74, 78, 74};
+        lx = MISS_X[arm_frame];
+        rx = lx + (arm_frame == 0 ? 38 : 40);
+        ly = ry = MISS_Y[arm_frame];
+    } else {
+        const double t = std::fmod(current_ms, 666.67) / 333.33;
+        const float swing = 32.0f * static_cast<float>(t < 1 ? t : 2 - t);
+        ly = 58 + swing;
+        ry = 90 - swing;
+    }
+    const Mirror mirror = is_2p ? Mirror::VERTICAL : Mirror::NONE;
+    if (is_2p) { // 2P entry: flipped above the note, the two arms swing in swapped phase
+        std::tie(ly, ry) = std::pair(41 - ry, 41 - ly);
+    }
+    tex.draw_texture(t_tetunagi_arm, {.frame = arm_frame, .mirror = mirror, .x = x + lx, .y = y + ly});
+    tex.draw_texture(t_tetunagi_arm, {.frame = arm_frame, .mirror = mirror, .x = x + rx, .y = y + ry});
+    tex.draw_texture(t_tetunagi[note.type == NoteType::KAT_L],
+                     {.frame = missed ? 2 : current_eighth % 2, .center = true, .x = x, .y = y});
+}
+
+void Player::draw_kusudama_stars(double current_ms, float cx, float cy) {
+    static constexpr float CORNER[4][2] = {{-46, -46}, {-46, 48}, {48, -46}, {48, 48}};
+    const float half = t_kusudama_star->width / 2.0f;
+    for (int i = 0; i < 4; i++) {
+        const double t = std::fmod(current_ms, 1000.0) - (i * 166.67);
+        if (t < 0 || t >= 500) {
+            continue;
+        }
+        const float p = static_cast<float>(std::fmod(t, 250.0) / 250.0);
+        const bool fading = t >= 250;
+        const float scale = fading ? 0.827f + (0.373f * p) : 0.2f + (0.6f * p);
+        const float alpha = fading ? 0.934f * (1 - p) : p;
+        tex.draw_texture(t_kusudama_star, {.scale = scale,
+                                           .center = true,
+                                           .x = cx + CORNER[i][0] - half,
+                                           .y = cy + CORNER[i][1] - half,
+                                           .fade = alpha});
+    }
+}
+
 void Player::draw_notes(double current_ms, float y) {
     current_ms += visual_offset;
     for (auto& barline : std::views::reverse(barlines)) {
@@ -2091,12 +2165,19 @@ void Player::draw_notes(double current_ms, float y) {
             draw_drumroll(current_ms, y, note, current_eighth, false);
         } else if (note.type == NoteType::BALLOON_HEAD) {
             draw_balloon(current_ms, y, note, current_eighth, false);
+        } else if (note.display && t_tetunagi_arm && linked(note)) {
+            draw_tetunagi(current_ms, note, pos->first - (t_notes_9->width / 2.0f),
+                          pos->second + tex.get_skin_config(SC::GAME_NOTES)->y, current_eighth);
         } else if (note.display) {
             tex.draw_texture(note_tex_ids[static_cast<int>(note.type)],
                              {.frame = current_eighth % 2,
                               .center = true,
                               .x = pos->first - (t_notes_9->width / 2.0f),
                               .y = pos->second + tex.get_skin_config(SC::GAME_NOTES)->y});
+            if (note.type == NoteType::KUSUDAMA && t_kusudama_star) {
+                draw_kusudama_stars(current_ms, pos->first,
+                                    pos->second + tex.get_skin_config(SC::GAME_NOTES)->y + t_notes_9->height / 2.0f);
+            }
         }
     }
 
@@ -2257,6 +2338,9 @@ void Player::draw_overlays(float y) {
     }
     if (balloon_counter.has_value()) {
         balloon_counter->draw(y);
+    }
+    if (papamama_popup.has_value()) {
+        papamama_popup->draw();
     }
     if (kusudama_counter.has_value()) {
         kusudama_counter->draw();

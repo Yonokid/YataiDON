@@ -1,6 +1,7 @@
 #pragma once
 
 #include <unordered_map>
+#include <unordered_set>
 
 #include "../../libs/gfx/text.h"
 #include "../../libs/network/network.h"
@@ -27,6 +28,7 @@
 #include "kusudama_counter.h"
 #include "lane_hit_effect.h"
 #include "note_arc.h"
+#include "papamama.h"
 #include "score_counter.h"
 
 namespace JudgePos {
@@ -73,6 +75,10 @@ public:
     // hit notes fly to this player's soul gauge: the bottom one only when two play (2P alone plays
     // on the top lane)
     PlayerNum arc_player() const { return (is_2p && kusudama_partner) ? PlayerNum::P2 : PlayerNum::P1; }
+    std::unordered_set<long long> partner_times;
+    bool linked(const Note& note) const {
+        return note.partner && kusudama_partner && kusudama_partner->partner_times.contains(std::llround(note.hit_ms));
+    }
 
     std::optional<Note> get_first_note();
 
@@ -271,6 +277,9 @@ private:
     TextureObject* t_notes_9 = nullptr;
     TextureObject* t_notes_10 = nullptr;
     TextureObject* t_moji = nullptr;
+    TextureObject* t_tetunagi[2] = {};
+    TextureObject* t_tetunagi_arm = nullptr;
+    TextureObject* t_kusudama_star = nullptr;
     TextureObject* t_moji_drumroll_mid = nullptr;
     TextureObject* t_drumroll_big_tail = nullptr;
     TextureObject* t_drumroll_tail = nullptr;
@@ -289,6 +298,7 @@ private:
     TempoMap tempo_map;
     std::optional<double> audio_end_ms;
     std::optional<ComboAnnounce> combo_announce;
+    std::optional<PapamamaPopup> papamama_popup;
     std::optional<BranchIndicator> branch_indicator;
     std::optional<std::variant<FailAnimation, ClearAnimation, FCAnimation>> ending_anim;
 
@@ -357,6 +367,8 @@ private:
     void draw_balloon(double current_ms, float y, const Note& head, int current_eighth, bool moji_pass);
 
     void draw_notes(double current_ms, float y);
+    void draw_kusudama_stars(double current_ms, float cx, float cy);
+    void draw_tetunagi(double current_ms, const Note& note, float x, float y, int current_eighth);
 
     void draw_song_timer(double current_ms, float y);
 
