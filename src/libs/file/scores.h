@@ -150,8 +150,8 @@ public:
     std::optional<PlayerData> get_player_data(const std::string& player_id);
     void save_player_data(const PlayerData& player);
     void migrate_player_id(const std::string& old_id, const std::string& new_id);
-    // true once per player: the first call marks the practice explanation as seen
-    bool first_practice_visit(const std::string& player_id);
+    // true once per player and column (`practice_help_seen`, `reward_info_seen`): the first call marks it as seen
+    bool first_visit(const std::string& player_id, const char* seen_column);
     bool begin_transaction();
     bool commit();
     void rollback();

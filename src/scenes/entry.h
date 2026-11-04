@@ -6,6 +6,7 @@
 #include "../objects/entry/bncoin_popup.h"
 #include "../objects/entry/box_manager.h"
 #include "../objects/entry/campaign_menu.h"
+#include "../objects/entry/entry_info.h"
 #include "../objects/entry/entry_script.h"
 #include "../objects/entry/name_entry.h"
 #include "../objects/entry/player.h"
@@ -34,7 +35,8 @@ enum class EntryState {
     NAME_ENTRY = 4,
     CAMPAIGN = 5,
     BNCOIN = 6,
-    PRACTICE_HELP = 7
+    PRACTICE_HELP = 7,
+    ENTRY_INFO = 8
 };
 
 struct RemoteLogin {
@@ -118,6 +120,8 @@ private:
     void open_bncoin_popup();
     std::unique_ptr<PracticeHelp> practice_help_;
     void start_practice();
+    std::unique_ptr<EntryInfo> entry_info_;
+    void enter_reward_shop();
     bool campaign_shown_ = false;
     bool update_campaign(double current_ms);
     void resume_from_campaign();

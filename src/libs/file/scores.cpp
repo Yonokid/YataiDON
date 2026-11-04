@@ -1,5 +1,6 @@
 #include "scores.h"
 
+#include <format>
 #include <iterator>
 #include <numeric>
 
@@ -270,6 +271,7 @@ ScoresManager::ScoresManager(const fs::path& db_path) {
 
     run_migration("ALTER TABLE players ADD COLUMN modifier_skip BOOL NOT NULL DEFAULT 0;");
     run_migration("ALTER TABLE players ADD COLUMN practice_help_seen BOOL NOT NULL DEFAULT 0;");
+    run_migration("ALTER TABLE players ADD COLUMN reward_info_seen BOOL NOT NULL DEFAULT 0;");
 
     // Migration v7: dan_results (one best-of row per course title) replaced by dan_scores (attempt history).
     if (version < 7 && run_migration("DROP TABLE IF EXISTS dan_results;")) {
@@ -1222,10 +1224,10 @@ void ScoresManager::save_dan_score(const std::string& player_id, const std::stri
     sqlite3_finalize(stmt);
 }
 
-bool ScoresManager::first_practice_visit(const std::string& player_id) {
+bool ScoresManager::first_visit(const std::string& player_id, const char* seen_column) {
     sqlite3_stmt* stmt;
-    const char* query = "UPDATE players SET practice_help_seen = 1 WHERE player_id = ? AND practice_help_seen = 0;";
-    if (sqlite3_prepare_v2(db_fsd, query, -1, &stmt, nullptr) != SQLITE_OK) {
+    const std::string query = std::format("UPDATE players SET {0} = 1 WHERE player_id = ? AND {0} = 0;", seen_column);
+    if (sqlite3_prepare_v2(db_fsd, query.c_str(), -1, &stmt, nullptr) != SQLITE_OK) {
         return false;
     }
     sqlite3_bind_text(stmt, 1, player_id.c_str(), -1, SQLITE_TRANSIENT);
