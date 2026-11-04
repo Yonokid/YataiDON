@@ -52,6 +52,7 @@
 #include "scenes/result.h"
 #include "scenes/result_2p.h"
 #include "scenes/retry_game.h"
+#include "scenes/reward_shop.h"
 #include "scenes/settings.h"
 #include "scenes/song_select.h"
 #include "scenes/song_select_2p.h"
@@ -381,6 +382,9 @@ static void populate_screens(std::unordered_map<Screens, std::unique_ptr<Screen>
     }
     if (except != Screens::TOTAL_RESULT) {
         screens[Screens::TOTAL_RESULT] = std::make_unique<TotalResultScreen>();
+    }
+    if (except != Screens::REWARD_SHOP) {
+        screens[Screens::REWARD_SHOP] = std::make_unique<RewardShopScreen>();
     }
 }
 

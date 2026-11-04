@@ -16,6 +16,8 @@ static const char* mode_key(Screens location) {
         return "entry_practice";
     case Screens::ENTRY:
         return "entry_costume";
+    case Screens::REWARD_SHOP:
+        return "entry_shop";
     case Screens::SETTINGS:
         return "entry_settings";
     default:

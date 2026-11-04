@@ -749,6 +749,10 @@ std::optional<Screens> EntryScreen::update() {
             }
         }
     }
+    if (box_manager->shop_request) {
+        box_manager->shop_request = false;
+        open_reward_shop();
+    }
     if (box_manager->bncoin_request) {
         box_manager->bncoin_request = false;
         open_bncoin_popup();
@@ -786,6 +790,10 @@ std::optional<Screens> EntryScreen::update() {
         }
     }
     if (box_manager->is_finished()) {
+        if (box_manager->selected_box() == Screens::REWARD_SHOP) {
+            leave_for_campaign(); // same resume: back to mode select with these seats
+            global_data.reward_shop_from_entry = true;
+        }
         return on_screen_end(box_manager->selected_box());
     }
     for (auto& player : players) {
@@ -797,6 +805,24 @@ std::optional<Screens> EntryScreen::update() {
         }
     }
     return handle_input();
+}
+
+void EntryScreen::open_reward_shop() {
+    const auto& cfg = global_data.config->network;
+    const bool card = (seat_joined(PlayerNum::P1) && !cfg.access_code_1.empty()) ||
+                      (seat_joined(PlayerNum::P2) && !cfg.access_code_2.empty());
+    if (card && network.is_online()) {
+        audio.play_sound("mode_shop", VolumePreset::VOICE);
+        box_manager->start_selected();
+        return;
+    }
+    auto popup = std::make_unique<BanaCoinPopup>("cantshop", global_data.bncoin, 0);
+    if (popup->unavailable()) {
+        audio.play_sound("kat", VolumePreset::SOUND);
+        return;
+    }
+    bncoin_popup_ = std::move(popup);
+    state = EntryState::BNCOIN;
 }
 
 void EntryScreen::open_bncoin_popup() {

@@ -110,6 +110,31 @@ struct DonSeat {
     std::vector<DonPresent> presents;
 };
 
+struct MedalSeat {
+    bool answered = false;
+    int now = 0; // balance before this credit
+    int add = 0;
+    int max = 0;
+    bool daily = false, weekly = false, monthly = false;
+};
+struct ShopGood {
+    int type = -1; // 2 dress, 3 head, 4 body
+    int id = -1;
+    int cost = 0;
+    bool owned = false;
+};
+struct ShopSeat {
+    bool answered = false;
+    int medals = 0;
+    int max = 0;
+    std::vector<ShopGood> goods;
+};
+struct ShopBuyResult {
+    int seat = 0;
+    std::string status; // ok, already, shortage, lineup or error
+    int medals = 0;
+};
+
 struct OwnedCosmetics {
     bool all = true;
     std::set<int> costume;
@@ -184,6 +209,15 @@ public:
     bool don_points_pending() const { return !pending_don_points.empty(); }
     const DonSeat& don_seat(int seat) const { return don_seats[seat]; }
     void reset_don_points() { don_seats[0] = {}, don_seats[1] = {}; }
+    void submit_medals(int seat, const std::string& access_code);
+    const MedalSeat& medal_seat(int seat) const { return medal_seats[seat]; }
+    void reset_medals() { medal_seats[0] = {}, medal_seats[1] = {}; }
+    void request_reward_shop(int seat, const std::string& access_code);
+    const ShopSeat& shop_seat(int seat) const { return shop_seats[seat]; }
+    void buy_shop_good(int seat, const std::string& access_code, int type, int id);
+    std::optional<ShopBuyResult> take_shop_buy_result();
+    // Medal claims and lineup fetches still in flight
+    bool reward_shop_pending() const { return reward_shop_pending_count_ > 0; }
     OwnedCosmetics fetch_owned_cosmetics(const std::string& access_code);
     void unlock_campaign_costume(const std::string& access_code, int cos_index);
     int kinotake_leader() const { return kinotake_leader_; }
@@ -201,6 +235,10 @@ private:
     bool probing_ = false;
     KinotakeTally kinotake_tally_;
     DonSeat don_seats[2];
+    MedalSeat medal_seats[2];
+    ShopSeat shop_seats[2];
+    std::optional<ShopBuyResult> shop_buy_result;
+    int reward_shop_pending_count_ = 0;
     int kinotake_pending_count_ = 0;
     int kinotake_leader_ = -1;
 #if defined(NETWORK_ENABLED)
@@ -223,6 +261,9 @@ private:
 
     std::vector<std::pair<int, cpr::AsyncResponse>> pending_kinotake;
     std::vector<std::pair<int, cpr::AsyncResponse>> pending_don_points;
+    std::vector<std::pair<int, cpr::AsyncResponse>> pending_medals;
+    std::vector<std::pair<int, cpr::AsyncResponse>> pending_shop;
+    std::vector<std::pair<int, cpr::AsyncResponse>> pending_shop_buy;
 
     std::optional<cpr::AsyncResponse> pending_leaderboard;
     std::string pending_leaderboard_hash;

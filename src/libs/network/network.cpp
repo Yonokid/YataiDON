@@ -859,6 +859,46 @@ void NetworkClient::submit_don_points(int seat, const std::string& access_code, 
                              cpr::Timeout{5000} NETWORK_CA_OPT));
 }
 
+void NetworkClient::submit_medals(int seat, const std::string& access_code) {
+    if (!network_enabled() || !online || seat < 0 || seat > 1) {
+        return;
+    }
+    pending_medals.emplace_back(seat, cpr::PostAsync(cpr::Url{network_url("/medals")},
+                                                     signed_headers("POST", "/medals", {{"access_code", access_code}}),
+                                                     cpr::Parameters{{"access_code", access_code}},
+                                                     cpr::Timeout{5000} NETWORK_CA_OPT));
+    reward_shop_pending_count_++;
+}
+
+void NetworkClient::request_reward_shop(int seat, const std::string& access_code) {
+    shop_seats[seat] = {};
+    if (!network_enabled() || !online || seat < 0 || seat > 1) {
+        return;
+    }
+    pending_shop.emplace_back(seat, cpr::GetAsync(cpr::Url{network_url("/reward_shop")},
+                                                  cpr::Parameters{{"access_code", access_code}},
+                                                  cpr::Timeout{5000} NETWORK_CA_OPT));
+    reward_shop_pending_count_++;
+}
+
+void NetworkClient::buy_shop_good(int seat, const std::string& access_code, int type, int id) {
+    if (!network_enabled() || !online) {
+        shop_buy_result = ShopBuyResult{.seat = seat, .status = "error"};
+        return;
+    }
+    const std::string type_str = std::to_string(type), id_str = std::to_string(id);
+    std::map<std::string, std::string> params{{"access_code", access_code}, {"type", type_str}, {"item_id", id_str}};
+    pending_shop_buy.emplace_back(
+        seat,
+        cpr::PostAsync(cpr::Url{network_url("/reward_shop/buy")}, signed_headers("POST", "/reward_shop/buy", params),
+                       cpr::Parameters{{"access_code", access_code}, {"type", type_str}, {"item_id", id_str}},
+                       cpr::Timeout{5000} NETWORK_CA_OPT));
+}
+
+std::optional<ShopBuyResult> NetworkClient::take_shop_buy_result() {
+    return std::exchange(shop_buy_result, std::nullopt);
+}
+
 void NetworkClient::unlock_campaign_costume(const std::string& access_code, int cos_index) {
     if (!network_enabled() || !online) {
         return;
@@ -1113,6 +1153,83 @@ void NetworkClient::update(double current_ms) {
         it = pending_don_points.erase(it);
     }
 
+    const auto json_int = [](const rapidjson::Value& v, const char* key, int fallback) {
+        return v.HasMember(key) && v[key].IsInt() ? v[key].GetInt() : fallback;
+    };
+    const auto json_bool = [](const rapidjson::Value& v, const char* key) {
+        return v.HasMember(key) && v[key].IsBool() && v[key].GetBool();
+    };
+    for (auto it = pending_medals.begin(); it != pending_medals.end();) {
+        if (it->second.wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
+            ++it;
+            continue;
+        }
+        cpr::Response response = it->second.get();
+        rapidjson::Document doc;
+        if (response.status_code == 200 && !doc.Parse(response.text.c_str()).HasParseError() && doc.IsObject()) {
+            medal_seats[it->first] = {true,
+                                      json_int(doc, "now", 0),
+                                      json_int(doc, "add", 0),
+                                      json_int(doc, "max", 0),
+                                      json_bool(doc, "daily"),
+                                      json_bool(doc, "weekly"),
+                                      json_bool(doc, "monthly")};
+        } else {
+            spdlog::warn("Medal claim failed: HTTP {} - {}", response.status_code, response.text);
+        }
+        it = pending_medals.erase(it);
+        reward_shop_pending_count_--;
+    }
+    for (auto it = pending_shop.begin(); it != pending_shop.end();) {
+        if (it->second.wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
+            ++it;
+            continue;
+        }
+        cpr::Response response = it->second.get();
+        rapidjson::Document doc;
+        if (response.status_code == 200 && !doc.Parse(response.text.c_str()).HasParseError() && doc.IsObject()) {
+            ShopSeat seat;
+            seat.answered = true;
+            seat.medals = json_int(doc, "medals", 0);
+            seat.max = json_int(doc, "max", 0);
+            if (doc.HasMember("goods") && doc["goods"].IsArray()) {
+                for (const auto& v : doc["goods"].GetArray()) {
+                    if (v.IsObject()) {
+                        seat.goods.push_back({json_int(v, "type", -1), json_int(v, "id", -1), json_int(v, "cost", 0),
+                                              json_bool(v, "owned")});
+                    }
+                }
+            }
+            shop_seats[it->first] = std::move(seat);
+        } else {
+            spdlog::warn("Reward shop fetch failed: HTTP {} - {}", response.status_code, response.text);
+        }
+        it = pending_shop.erase(it);
+        reward_shop_pending_count_--;
+    }
+    if (!shop_buy_result) {
+        for (auto it = pending_shop_buy.begin(); it != pending_shop_buy.end(); ++it) {
+            if (it->second.wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
+                continue;
+            }
+            cpr::Response response = it->second.get();
+            rapidjson::Document doc;
+            const bool parsed = !doc.Parse(response.text.c_str()).HasParseError() && doc.IsObject();
+            ShopBuyResult result{.seat = it->first, .status = "error"};
+            if (response.status_code == 200 && parsed) {
+                result.status = "ok";
+                result.medals = json_int(doc, "medals", 0);
+            } else if (response.status_code == 409 && parsed && doc.HasMember("detail") && doc["detail"].IsString()) {
+                result.status = doc["detail"].GetString();
+            } else {
+                spdlog::warn("Reward shop buy failed: HTTP {} - {}", response.status_code, response.text);
+            }
+            shop_buy_result = std::move(result);
+            pending_shop_buy.erase(it);
+            break;
+        }
+    }
+
     if (pending_gacha.has_value() && pending_gacha->wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
         cpr::Response response = pending_gacha->get();
         pending_gacha.reset();
@@ -1292,6 +1409,16 @@ std::optional<std::string> NetworkClient::take_song_jump_result() {
 }
 void NetworkClient::submit_kinotake(int, const std::string&, int, int, bool, bool) {}
 void NetworkClient::submit_don_points(int, const std::string&, const std::vector<int>&) {}
+void NetworkClient::submit_medals(int, const std::string&) {}
+void NetworkClient::request_reward_shop(int seat, const std::string&) {
+    shop_seats[seat] = {};
+}
+void NetworkClient::buy_shop_good(int seat, const std::string&, int, int) {
+    shop_buy_result = ShopBuyResult{.seat = seat, .status = "error"};
+}
+std::optional<ShopBuyResult> NetworkClient::take_shop_buy_result() {
+    return std::exchange(shop_buy_result, std::nullopt);
+}
 void NetworkClient::unlock_campaign_costume(const std::string&, int) {}
 OwnedCosmetics NetworkClient::fetch_owned_cosmetics(const std::string&) {
     return {};

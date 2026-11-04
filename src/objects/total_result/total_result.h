@@ -2,8 +2,16 @@
 
 #include <unordered_map>
 
+#include "../../libs/file/filesystem.h"
 #include "../../libs/file/script.h"
 #include "../../libs/gfx/texture.h"
+
+struct RewardArt {
+    std::string name;
+    fs::path icon;
+};
+
+RewardArt reward_art(int type, int id);
 
 class TotalResult : public LuaScript {
 public:

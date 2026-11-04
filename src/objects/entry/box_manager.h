@@ -24,6 +24,7 @@ private:
 
 public:
     bool costume_menu_open{false};
+    bool shop_request{false};
     bool bncoin_request{false};
     PlayerNum opening_player = PlayerNum::P1;
 

@@ -7,16 +7,32 @@
 
 static constexpr double kAnswerTimeoutMs = 5000.0;
 
+static Screens after_total_result();
+
 Screens begin_total_result() {
     global_data.songs_played = 0;
+    network.reset_medals();
     const std::string* codes[2] = {&global_data.config->network.access_code_1,
                                    &global_data.config->network.access_code_2};
     for (int seat = 0; seat < 2; seat++) {
+        global_data.credit_seats[seat] = !global_data.credit_gauges[seat].empty();
         if (!codes[seat]->empty()) {
             network.submit_don_points(seat, *codes[seat], global_data.credit_gauges[seat]);
+            if (global_data.credit_seats[seat]) {
+                network.submit_medals(seat, *codes[seat]);
+            }
         }
     }
-    return script_manager.has_lua_script("total_result") ? Screens::TOTAL_RESULT : Screens::GAME_OVER;
+    return script_manager.has_lua_script("total_result") ? Screens::TOTAL_RESULT : after_total_result();
+}
+
+static Screens after_total_result() {
+    if (script_manager.has_lua_script("reward_shop") &&
+        (network.medal_seat(0).answered || network.medal_seat(1).answered || network.reward_shop_pending())) {
+        global_data.reward_shop_from_entry = false;
+        return Screens::REWARD_SHOP;
+    }
+    return Screens::GAME_OVER;
 }
 
 void TotalResultScreen::on_screen_start() {
@@ -70,7 +86,7 @@ std::optional<Screens> TotalResultScreen::update() {
         }
         start();
         if (tally->unavailable()) {
-            return on_screen_end(Screens::GAME_OVER);
+            return on_screen_end(after_total_result());
         }
     }
     tally->update(now);
@@ -88,7 +104,7 @@ std::optional<Screens> TotalResultScreen::update() {
         audio.play_sound("don", VolumePreset::SOUND);
     }
     if (tally->is_done()) {
-        return on_screen_end(Screens::GAME_OVER);
+        return on_screen_end(after_total_result());
     }
     return std::nullopt;
 }

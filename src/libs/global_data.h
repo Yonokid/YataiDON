@@ -270,6 +270,8 @@ struct GlobalData {
     int kinotake_next = 0;
     std::vector<int> credit_gauges[2];         // soul gauge percent per scored song this credit, per seat
     std::vector<std::string> credit_titles[2]; // same songs
+    bool reward_shop_from_entry = false;       // mode select opened the shop: no reward time, back to entry
+    bool credit_seats[2] = {false, false};     // seats that played the credit that just ended
     // Card reader
     std::string card_reader_card_id_hex; // 16-char hex card ID
     bool card_reader_card_valid = false;

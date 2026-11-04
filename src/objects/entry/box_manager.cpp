@@ -39,7 +39,11 @@ void BoxManager::build_board_list() {
     }
     for (auto [screen, sc] :
          {std::pair{Screens::PRACTICE_SELECT, "entry_practice"}, std::pair{Screens::ENTRY, "entry_costume"},
-          std::pair{Screens::SETTINGS, "entry_settings"}}) {
+          std::pair{Screens::REWARD_SHOP, "entry_shop"}, std::pair{Screens::SETTINGS, "entry_settings"}}) {
+        // no script, no shop board
+        if (screen == Screens::REWARD_SHOP && !script_manager.has_lua_script("reward_shop")) {
+            continue;
+        }
         // like the dan board: a skin that blanks the board's text leaves the board out
         std::string label = font_manager.get_text_label(sc);
         if (label.empty()) {
@@ -115,6 +119,10 @@ void BoxManager::select_box() {
     const Screens location = boxes[selected_box_index]->location;
     if (location == Screens::PRACTICE_SELECT) {
         bncoin_request = true;
+        return;
+    }
+    if (location == Screens::REWARD_SHOP) {
+        shop_request = true;
         return;
     }
     if (!selection_allowed()) {

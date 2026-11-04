@@ -83,6 +83,7 @@ private:
     void reload_preview_chara(PlayerNum player_num);
     bool arcade_credit() const;
     bool seat_joined(PlayerNum player_num) const;
+    void open_reward_shop();
     void join_player(PlayerNum player_num, bool do_login = true);
     void start_second_player_join();
     void draw_background();

@@ -7,38 +7,31 @@
 #include "../../libs/global_data.h"
 #include "../../libs/network/network.h"
 
-namespace {
-    struct RewardArt {
-        std::string name;
-        fs::path icon;
-    };
-
-    RewardArt reward_art(const DonPresent& present) {
-        const char* key = present.type == 3 ? "head" : present.type == 4 ? "body" : nullptr;
-        if (!key) {
-            return {};
-        }
-        RewardArt art;
-        const std::string id = std::to_string(present.id);
-        art.icon =
-            tex.resolve_skin_path(fs::path("Models") / (std::string("costume_") + key + "_icon") / (id + ".png"));
-        fs::path names_path = tex.resolve_skin_path("Models/costume_names.json");
-        if (fs::exists(names_path)) {
-            try {
-                auto doc = read_json_file(names_path);
-                if (doc.HasMember(key) && doc[key].IsObject() && doc[key].HasMember(id.c_str())) {
-                    const auto& entry = doc[key][id.c_str()];
-                    if (entry.HasMember("name") && entry["name"].IsString()) {
-                        art.name = entry["name"].GetString();
-                    }
-                }
-            } catch (const std::exception& ex) {
-                spdlog::warn("TotalResult: failed to parse {}: {}", names_path.string(), ex.what());
-            }
-        }
-        return art;
+RewardArt reward_art(int type, int id) {
+    const char* key = type == 2 ? "costume" : type == 3 ? "head" : type == 4 ? "body" : nullptr;
+    if (!key) {
+        return {};
     }
-} // namespace
+    RewardArt art;
+    const std::string id_str = std::to_string(id);
+    const std::string icon_dir = type == 2 ? std::string("costume_icon") : std::string("costume_") + key + "_icon";
+    art.icon = tex.resolve_skin_path(fs::path("Models") / icon_dir / (id_str + ".png"));
+    fs::path names_path = tex.resolve_skin_path("Models/costume_names.json");
+    if (fs::exists(names_path)) {
+        try {
+            auto doc = read_json_file(names_path);
+            if (doc.HasMember(key) && doc[key].IsObject() && doc[key].HasMember(id_str.c_str())) {
+                const auto& entry = doc[key][id_str.c_str()];
+                if (entry.HasMember("name") && entry["name"].IsString()) {
+                    art.name = entry["name"].GetString();
+                }
+            }
+        } catch (const std::exception& ex) {
+            spdlog::warn("RewardArt: failed to parse {}: {}", names_path.string(), ex.what());
+        }
+    }
+    return art;
+}
 
 TotalResult::TotalResult() {
     if (!script_manager.lua) {
@@ -63,7 +56,7 @@ TotalResult::TotalResult() {
         }
         sol::table presents = lua.create_table();
         for (const DonPresent& present : seat.presents) {
-            RewardArt art = reward_art(present);
+            RewardArt art = reward_art(present.type, present.id);
             if (!art.icon.empty() && fs::exists(art.icon)) {
                 Texture t = load_texture(art.icon.string().c_str());
                 if (t.id != 0) {
