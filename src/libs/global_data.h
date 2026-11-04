@@ -268,6 +268,8 @@ struct GlobalData {
     PlayerNum entry_resume_seats[2] = {PlayerNum::ALL, PlayerNum::ALL};
     int kinotake_team[2] = {-1, -1};
     int kinotake_next = 0;
+    std::vector<int> credit_gauges[2];         // soul gauge percent per scored song this credit, per seat
+    std::vector<std::string> credit_titles[2]; // same songs
     // Card reader
     std::string card_reader_card_id_hex; // 16-char hex card ID
     bool card_reader_card_valid = false;

@@ -3,6 +3,7 @@
 #include "../libs/file/script.h"
 #include "../libs/input/input.h"
 #include "../libs/network/network.h"
+#include "total_result.h"
 
 void ResultScreen::on_screen_start() {
     Screen::on_screen_start();
@@ -125,12 +126,12 @@ void ResultScreen::update_input_and_timeout(double current_ms) {
 }
 
 Screens ResultScreen::credit_end_screen() {
-    global_data.songs_played = 0;
+    const Screens next = begin_total_result();
     if (!(network.kinotake_pending() || network.kinotake_tally().any()) ||
         !script_manager.has_lua_script("kinotake_result")) {
-        return Screens::GAME_OVER;
+        return next;
     }
-    global_data.kinotake_next = static_cast<int>(Screens::GAME_OVER);
+    global_data.kinotake_next = static_cast<int>(next);
     return Screens::KINOTAKE_RESULT;
 }
 

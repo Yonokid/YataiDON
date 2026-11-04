@@ -20,6 +20,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 #include <thread>
 #include <utility>
@@ -82,13 +83,38 @@ struct KinotakeSeat {
     bool duet = false;
 };
 // Kinotake costumes (cos index): wearing one doubles the play's points
-constexpr int KINOTAKE_COSTUME_KINOKO = 131;
-constexpr int KINOTAKE_COSTUME_TAKENOKO = 132;
+constexpr int KINOTAKE_COSTUME_KINOKO = 105;
+constexpr int KINOTAKE_COSTUME_TAKENOKO = 106;
 
 struct KinotakeTally {
     KinotakeSeat seat[2];
     int64_t kinoko = 0, takenoko = 0; // today's team totals after the last answered play
     bool any() const { return seat[0].plays > 0 || seat[1].plays > 0; }
+};
+
+struct DonPresent {
+    int type = -1; // 0 music, 1 tone, 2 dress, 3 head, 4 body
+    int id = -1;
+    int next_aim = -1; // -1 = the track has ended
+};
+struct DonTitle {
+    std::string name;
+    int points = 0;
+};
+struct DonSeat {
+    bool answered = false;
+    std::vector<int> songs; // points per song, in play order
+    std::vector<DonTitle> titles;
+    int current = 0;
+    int aim = -1;
+    std::vector<DonPresent> presents;
+};
+
+struct OwnedCosmetics {
+    bool all = true;
+    std::set<int> costume;
+    std::set<int> head;
+    std::set<int> body;
 };
 
 std::string modifiers_to_json(const Modifiers& modifiers);
@@ -154,6 +180,12 @@ public:
     bool kinotake_pending() const { return kinotake_pending_count_ > 0; }
     const KinotakeTally& kinotake_tally() const { return kinotake_tally_; }
     void reset_kinotake_tally() { kinotake_tally_ = {}; }
+    void submit_don_points(int seat, const std::string& access_code, const std::vector<int>& gauges);
+    bool don_points_pending() const { return !pending_don_points.empty(); }
+    const DonSeat& don_seat(int seat) const { return don_seats[seat]; }
+    void reset_don_points() { don_seats[0] = {}, don_seats[1] = {}; }
+    OwnedCosmetics fetch_owned_cosmetics(const std::string& access_code);
+    void unlock_campaign_costume(const std::string& access_code, int cos_index);
     int kinotake_leader() const { return kinotake_leader_; }
 
     void shutdown();
@@ -168,6 +200,7 @@ private:
     std::optional<GachaResult> gacha_result;
     bool probing_ = false;
     KinotakeTally kinotake_tally_;
+    DonSeat don_seats[2];
     int kinotake_pending_count_ = 0;
     int kinotake_leader_ = -1;
 #if defined(NETWORK_ENABLED)
@@ -189,6 +222,7 @@ private:
     std::optional<cpr::AsyncResponse> pending_gacha;
 
     std::vector<std::pair<int, cpr::AsyncResponse>> pending_kinotake;
+    std::vector<std::pair<int, cpr::AsyncResponse>> pending_don_points;
 
     std::optional<cpr::AsyncResponse> pending_leaderboard;
     std::string pending_leaderboard_hash;

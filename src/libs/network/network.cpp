@@ -844,6 +844,62 @@ void NetworkClient::submit_kinotake(int seat, const std::string& access_code, in
     kinotake_tally_.seat[seat].duet = kinotake_tally_.seat[seat].duet || duet;
 }
 
+void NetworkClient::submit_don_points(int seat, const std::string& access_code, const std::vector<int>& gauges) {
+    if (!network_enabled() || !online || seat < 0 || seat > 1 || gauges.empty()) {
+        return;
+    }
+    std::string list;
+    for (int gauge : gauges) {
+        list += (list.empty() ? "" : ",") + std::to_string(gauge);
+    }
+    std::map<std::string, std::string> params{{"access_code", access_code}, {"gauges", list}};
+    pending_don_points.emplace_back(
+        seat, cpr::PostAsync(cpr::Url{network_url("/don_points")}, signed_headers("POST", "/don_points", params),
+                             cpr::Parameters{{"access_code", access_code}, {"gauges", list}},
+                             cpr::Timeout{5000} NETWORK_CA_OPT));
+}
+
+void NetworkClient::unlock_campaign_costume(const std::string& access_code, int cos_index) {
+    if (!network_enabled() || !online) {
+        return;
+    }
+    const std::string cos = std::to_string(cos_index);
+    cpr::Response response =
+        cpr::Post(cpr::Url{network_url("/campaign_costume")},
+                  signed_headers("POST", "/campaign_costume", {{"access_code", access_code}, {"cos", cos}}),
+                  cpr::Parameters{{"access_code", access_code}, {"cos", cos}}, cpr::Timeout{3000} NETWORK_CA_OPT);
+    if (response.status_code != 200) {
+        spdlog::warn("unlock_campaign_costume: status {}", response.status_code);
+    }
+}
+
+OwnedCosmetics NetworkClient::fetch_owned_cosmetics(const std::string& access_code) {
+    OwnedCosmetics owned;
+    if (!network_enabled() || !online) {
+        return owned;
+    }
+    cpr::Response response = cpr::Get(cpr::Url{network_url("/rewards")}, cpr::Parameters{{"access_code", access_code}},
+                                      cpr::Timeout{3000} NETWORK_CA_OPT);
+    rapidjson::Document doc;
+    if (response.status_code != 200 || doc.Parse(response.text.c_str()).HasParseError() || !doc.IsObject() ||
+        !doc.HasMember("force_unlock") || !doc["force_unlock"].IsBool() || doc["force_unlock"].GetBool()) {
+        return owned;
+    }
+    owned.all = false;
+    const std::pair<const char*, std::set<int>*> lists[] = {
+        {"costume", &owned.costume}, {"head", &owned.head}, {"body", &owned.body}};
+    for (auto& [key, ids] : lists) {
+        if (doc.HasMember(key) && doc[key].IsArray()) {
+            for (const auto& id : doc[key].GetArray()) {
+                if (id.IsInt()) {
+                    ids->insert(id.GetInt());
+                }
+            }
+        }
+    }
+    return owned;
+}
+
 std::optional<std::string> NetworkClient::take_song_jump_result() {
     if (!song_jump_result.has_value()) {
         return std::nullopt;
@@ -1014,6 +1070,48 @@ void NetworkClient::update(double current_ms) {
         it = pending_kinotake.erase(it);
     }
     kinotake_pending_count_ = static_cast<int>(pending_kinotake.size());
+
+    for (auto it = pending_don_points.begin(); it != pending_don_points.end();) {
+        if (it->second.wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
+            ++it;
+            continue;
+        }
+        cpr::Response response = it->second.get();
+        rapidjson::Document doc;
+        if (response.status_code == 200 && !doc.Parse(response.text.c_str()).HasParseError() && doc.IsObject()) {
+            const auto integer = [](const rapidjson::Value& v, const char* key, int fallback) {
+                return v.HasMember(key) && v[key].IsInt() ? v[key].GetInt() : fallback;
+            };
+            DonSeat seat;
+            seat.answered = true;
+            seat.current = integer(doc, "current", 0);
+            seat.aim = integer(doc, "aim", -1);
+            if (doc.HasMember("songs") && doc["songs"].IsArray()) {
+                for (const auto& v : doc["songs"].GetArray()) {
+                    seat.songs.push_back(v.IsInt() ? v.GetInt() : 0);
+                }
+            }
+            if (doc.HasMember("titles") && doc["titles"].IsArray()) {
+                for (const auto& v : doc["titles"].GetArray()) {
+                    if (v.IsObject() && v.HasMember("name") && v["name"].IsString()) {
+                        seat.titles.push_back({v["name"].GetString(), integer(v, "points", 0)});
+                    }
+                }
+            }
+            if (doc.HasMember("presents") && doc["presents"].IsArray()) {
+                for (const auto& v : doc["presents"].GetArray()) {
+                    if (v.IsObject()) {
+                        seat.presents.push_back(
+                            {integer(v, "type", -1), integer(v, "id", -1), integer(v, "next_aim", -1)});
+                    }
+                }
+            }
+            don_seats[it->first] = std::move(seat);
+        } else {
+            spdlog::warn("Don point tally failed: HTTP {} - {}", response.status_code, response.text);
+        }
+        it = pending_don_points.erase(it);
+    }
 
     if (pending_gacha.has_value() && pending_gacha->wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
         cpr::Response response = pending_gacha->get();
@@ -1193,6 +1291,11 @@ std::optional<std::string> NetworkClient::take_song_jump_result() {
     return std::nullopt;
 }
 void NetworkClient::submit_kinotake(int, const std::string&, int, int, bool, bool) {}
+void NetworkClient::submit_don_points(int, const std::string&, const std::vector<int>&) {}
+void NetworkClient::unlock_campaign_costume(const std::string&, int) {}
+OwnedCosmetics NetworkClient::fetch_owned_cosmetics(const std::string&) {
+    return {};
+}
 void NetworkClient::spin_gacha(const std::string&) {
     gacha_result = GachaResult{.error = "offline_gacha"};
 }

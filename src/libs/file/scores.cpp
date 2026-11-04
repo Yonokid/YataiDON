@@ -276,6 +276,14 @@ ScoresManager::ScoresManager(const fs::path& db_path) {
         sqlite3_exec(db_fsd, "PRAGMA user_version = 7;", nullptr, nullptr, nullptr);
     }
 
+    // Migration v8: dan costumes moved to the end of the costume list.
+    if (version < 8 && run_migration("UPDATE players SET chara_cos_index = CASE "
+                                     "WHEN chara_cos_index BETWEEN 36 AND 61 THEN chara_cos_index + 109 "
+                                     "WHEN chara_cos_index BETWEEN 62 AND 170 THEN chara_cos_index - 26 "
+                                     "ELSE chara_cos_index END;")) {
+        sqlite3_exec(db_fsd, "PRAGMA user_version = 8;", nullptr, nullptr, nullptr);
+    }
+
     ensure_dan_table(db_fsd);
 
     // Default player "1" (2P placeholder): Kat-chan, 2P chara colors, 2P title color. Only touches the untouched

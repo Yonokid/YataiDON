@@ -68,7 +68,12 @@ void CostumeMenu::load_costume_icons(const std::string& subdir, const std::strin
         }
     }
     std::ranges::sort(entries, [](const auto& a, const auto& b) { return a.first < b.first; });
+    const OwnedCosmetics& allowed = owned();
+    const std::set<int>& ids = json_key == "head" ? allowed.head : json_key == "body" ? allowed.body : allowed.costume;
     for (auto& [id, path] : entries) {
+        if (!allowed.all && !ids.contains(id)) {
+            continue;
+        }
         Texture t = load_texture(path.string().c_str());
         if (t.id == 0 || t.width <= 0 || t.height <= 0) {
             spdlog::warn("CostumeMenu: failed to load icon {}", path.string());
@@ -94,6 +99,15 @@ void CostumeMenu::load_costume_icons(const std::string& subdir, const std::strin
             spdlog::warn("CostumeMenu: failed to parse {}: {}", names_path.string(), ex.what());
         }
     }
+}
+
+const OwnedCosmetics& CostumeMenu::owned() {
+    if (!owned_cosmetics) {
+        owned_cosmetics =
+            network.fetch_owned_cosmetics(player_num == PlayerNum::P2 ? global_data.config->network.access_code_2
+                                                                      : global_data.config->network.access_code_1);
+    }
+    return *owned_cosmetics;
 }
 
 bool CostumeMenu::is_preset_item(const std::string& item) {
@@ -149,6 +163,13 @@ void CostumeMenu::load_preset_data() {
             }
         } catch (const std::exception& ex) {
             spdlog::warn("CostumeMenu: failed to parse {}: {}", presets_path.string(), ex.what());
+        }
+    }
+    if (const OwnedCosmetics& allowed = owned(); !allowed.all) {
+        const auto not_owned = [&](int id) { return !allowed.costume.contains(id); };
+        std::erase_if(preset_pool, not_owned);
+        for (auto& [item, ids] : preset_sets) {
+            std::erase_if(ids, not_owned);
         }
     }
     if (!preset_sets.contains("costume_select/default")) {

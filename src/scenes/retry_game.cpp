@@ -2,6 +2,7 @@
 
 #include "../libs/file/scores.h"
 #include "../libs/input/input.h"
+#include "total_result.h"
 
 void RetryGameScreen::on_screen_start() {
     Screen::on_screen_start();
@@ -82,8 +83,7 @@ std::optional<Screens> RetryGameScreen::update() {
         reset_session();
         if (global_data.config->limits.song_limit > 0 &&
             global_data.config->limits.song_limit == global_data.songs_played) {
-            global_data.songs_played = 0;
-            return on_screen_end(Screens::GAME_OVER);
+            return on_screen_end(begin_total_result());
         }
         global_data.returned_from_result = true;
         return on_screen_end(Screens::SONG_SELECT);

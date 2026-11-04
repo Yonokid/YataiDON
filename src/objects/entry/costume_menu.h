@@ -8,6 +8,7 @@
 
 #include "../../libs/file/script.h"
 #include "../../libs/global_data.h" // IWYU pragma: keep
+#include "../../libs/network/network.h"
 
 enum class CostumePickStage {
     NONE,
@@ -77,6 +78,8 @@ private:
     bool preset_data_loaded = false;
     std::unordered_map<std::string, int> preset_rolled;
     void load_preset_data();
+    std::optional<OwnedCosmetics> owned_cosmetics;
+    const OwnedCosmetics& owned();
     void apply_preset(const std::string& item);
     static bool is_preset_item(const std::string& item);
 

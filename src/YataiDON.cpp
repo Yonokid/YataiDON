@@ -57,6 +57,7 @@
 #include "scenes/song_select_2p.h"
 #include "scenes/song_select_practice.h"
 #include "scenes/title.h"
+#include "scenes/total_result.h"
 #include "scenes/tutorial.h"
 
 void draw_outer_border(int screen_width, int screen_height, Color last_color) {
@@ -377,6 +378,9 @@ static void populate_screens(std::unordered_map<Screens, std::unique_ptr<Screen>
     }
     if (except != Screens::KINOTAKE_RESULT) {
         screens[Screens::KINOTAKE_RESULT] = std::make_unique<KinotakeResultScreen>();
+    }
+    if (except != Screens::TOTAL_RESULT) {
+        screens[Screens::TOTAL_RESULT] = std::make_unique<TotalResultScreen>();
     }
 }
 

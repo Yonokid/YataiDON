@@ -34,6 +34,11 @@ void CampaignScreen::give_reward(int cos_index) {
         if (auto pd = scores_manager.get_player_data(id)) {
             pd->chara_cos_index = cos_index;
             pd->chara_is_costume = true;
+            const auto& net = global_data.config->network;
+            const std::string& code = id == scores_manager.player_1 ? net.access_code_1 : net.access_code_2;
+            if (!code.empty()) {
+                network.unlock_campaign_costume(code, cos_index);
+            }
             save_player_costume(*pd);
             (id == scores_manager.player_1 ? scores_manager.player_1_data : scores_manager.player_2_data) = *pd;
         }
