@@ -206,7 +206,13 @@ public:
     const KinotakeTally& kinotake_tally() const { return kinotake_tally_; }
     void reset_kinotake_tally() { kinotake_tally_ = {}; }
     void submit_don_points(int seat, const std::string& access_code, const std::vector<int>& gauges);
-    bool don_points_pending() const { return !pending_don_points.empty(); }
+    bool don_points_pending() const {
+#if defined(NETWORK_ENABLED)
+        return !pending_don_points.empty();
+#else
+        return false;
+#endif
+    }
     const DonSeat& don_seat(int seat) const { return don_seats[seat]; }
     void reset_don_points() { don_seats[0] = {}, don_seats[1] = {}; }
     void submit_medals(int seat, const std::string& access_code);
