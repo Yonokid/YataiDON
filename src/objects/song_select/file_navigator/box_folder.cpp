@@ -31,6 +31,16 @@ void FolderBox::load_text() {
     text_loaded = true;
 }
 
+std::string FolderBox::hover_voice() const {
+    if (collection == WAIWAI_MODE_COLLECTION) {
+        return "voice_waiwai_open";
+    }
+    if (collection == WAIWAI_NORMAL_COLLECTION) {
+        return "voice_waiwai_exit";
+    }
+    return "genre_voice_" + std::to_string(static_cast<int>(genre_index));
+}
+
 void FolderBox::update(double current_time) {
     bool is_open_prev = yellow_box_opened;
     enter_fade->update(current_time);
@@ -38,11 +48,11 @@ void FolderBox::update(double current_time) {
 
     if (!is_open_prev && yellow_box_opened) {
         if (!audio.is_sound_playing("voice_enter")) {
-            audio.play_sound("genre_voice_" + std::to_string(static_cast<int>(genre_index)), VolumePreset::VOICE);
+            audio.play_sound(hover_voice(), VolumePreset::VOICE);
             genre_voice_started = true;
         }
     } else if (!yellow_box_opened && genre_voice_started) {
-        audio.stop_sound("genre_voice_" + std::to_string(static_cast<int>(genre_index)));
+        audio.stop_sound(hover_voice());
         genre_voice_started = false;
     }
 }
@@ -51,7 +61,7 @@ void FolderBox::enter_box() {
     entered = true;
     enter_fade->start();
     if (genre_voice_started) {
-        audio.stop_sound("genre_voice_" + std::to_string(static_cast<int>(genre_index)));
+        audio.stop_sound(hover_voice());
     }
 }
 

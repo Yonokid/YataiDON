@@ -60,6 +60,7 @@
 #include "scenes/title.h"
 #include "scenes/total_result.h"
 #include "scenes/tutorial.h"
+#include "scenes/waiwai.h"
 
 void draw_outer_border(int screen_width, int screen_height, Color last_color) {
     draw_rectangle(-screen_width, 0, screen_width, screen_height, last_color);
@@ -289,6 +290,8 @@ static bool screen_fade_applies(Screens from, Screens to) {
     case Screens::AI_GAME:
     case Screens::RESULT:
     case Screens::RESULT_2P:
+    case Screens::WAIWAI_GAME:
+    case Screens::WAIWAI_RESULT:
     case Screens::DAN_RESULT:
         return false;
     default:
@@ -322,6 +325,21 @@ static void populate_screens(std::unordered_map<Screens, std::unique_ptr<Screen>
     }
     if (except != Screens::SONG_SELECT_2P) {
         screens[Screens::SONG_SELECT_2P] = std::make_unique<SongSelect2PScreen>();
+    }
+    if (except != Screens::WAIWAI_SONG_SELECT) {
+        screens[Screens::WAIWAI_SONG_SELECT] = std::make_unique<WaiwaiSongSelectScreen>();
+    }
+    if (except != Screens::WAIWAI_GAME) {
+        screens[Screens::WAIWAI_GAME] = std::make_unique<WaiwaiGameScreen>();
+    }
+    if (except != Screens::WAIWAI_RESULT) {
+        screens[Screens::WAIWAI_RESULT] = std::make_unique<WaiwaiResultScreen>();
+    }
+    if (except != Screens::WAIWAI_TUTORIAL) {
+        screens[Screens::WAIWAI_TUTORIAL] = std::make_unique<WaiwaiTutorialScreen>();
+    }
+    if (except != Screens::WAIWAI_RETRY_GAME) {
+        screens[Screens::WAIWAI_RETRY_GAME] = std::make_unique<WaiwaiRetryGameScreen>();
     }
     if (except != Screens::LOADING) {
         screens[Screens::LOADING] = std::make_unique<LoadingScreen>();

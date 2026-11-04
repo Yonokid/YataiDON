@@ -53,6 +53,7 @@ public:
     bool option_panel_by_lua = false;
 
     bool solo = true;
+    std::string shared_start_voice;
     double oni_open_ms = -1.0;
 
     SongSelectPlayer(PlayerNum player_num);

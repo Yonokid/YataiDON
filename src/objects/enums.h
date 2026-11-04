@@ -47,7 +47,10 @@ enum SongSelectState {
     DIFF_SORTING = 2,
     SEARCHING = 3,
     DAN_SELECTED = 4,
-    TUTORIAL_SELECTED = 5
+    TUTORIAL_SELECTED = 5,
+    NORMAL_MODE_SELECTED = 6,
+    WAIWAI_TUTORIAL_SELECTED = 7,
+    WAIWAI_MODE_SELECTED = 8
 };
 
 inline std::string branch_diff_to_string(BranchDifficulty difficulty) {
@@ -140,6 +143,12 @@ inline GenreIndex get_genre_index(const std::string& genreString) {
     }
     return GenreIndex::DEFAULT;
 }
+
+// Boxes the game adds. On the waiwai screen: back to the normal 2P select, and the how-to-play movie.
+inline const std::string WAIWAI_NORMAL_COLLECTION = "WAIWAI_NORMAL";
+inline const std::string WAIWAI_TUTORIAL_COLLECTION = "WAIWAI_TUTORIAL";
+// On the normal 2P select: into waiwai, for pairs where someone is logged in.
+inline const std::string WAIWAI_MODE_COLLECTION = "WAIWAI_MODE";
 
 inline const std::array<std::string, 6> COLLECTIONS = {"NEW",        "RECENT",      "FAVORITE",
                                                        "DIFFICULTY", "RECOMMENDED", "SEARCH"};

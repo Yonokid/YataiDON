@@ -16,7 +16,14 @@ BoxManager::BoxManager(bool two_player) : is_2p(two_player) {
                                  " is not a FadeAnimation");
     }
 
+    waiwai_label = font_manager.get_text_label("entry_waiwai");
     build_board_list();
+}
+
+bool BoxManager::waiwai_replaces_game() const {
+    const auto is_guest = [](const std::string& code) { return code.empty() || code == "0" || code == "1"; };
+    const auto& network = global_data.config->network;
+    return is_2p && !waiwai_label.empty() && is_guest(network.access_code_1) && is_guest(network.access_code_2);
 }
 
 void BoxManager::build_board_list() {
@@ -31,8 +38,15 @@ void BoxManager::build_board_list() {
 
     dan_box_index = (dan_available && !is_2p) ? 1 : -1;
 
-    box_locations = {Screens::SONG_SELECT};
-    boxes.push_back(std::make_unique<Box>(font_manager.get_text_label("entry_game"), font_size, Screens::SONG_SELECT));
+    waiwai_board = waiwai_replaces_game();
+    if (waiwai_board) {
+        box_locations = {Screens::WAIWAI_SONG_SELECT};
+        boxes.push_back(std::make_unique<Box>(waiwai_label, font_size, Screens::WAIWAI_SONG_SELECT));
+    } else {
+        box_locations = {Screens::SONG_SELECT};
+        boxes.push_back(
+            std::make_unique<Box>(font_manager.get_text_label("entry_game"), font_size, Screens::SONG_SELECT));
+    }
     if (dan_box_index >= 0) {
         box_locations.push_back(Screens::DAN_SELECT);
         boxes.push_back(std::make_unique<Box>(dan_text, font_size, Screens::DAN_SELECT));
@@ -98,7 +112,7 @@ void BoxManager::build_board_list() {
 }
 
 bool BoxManager::check_board_list_change() const {
-    return (dan_available && !is_2p) != (dan_box_index >= 0);
+    return (dan_available && !is_2p) != (dan_box_index >= 0) || waiwai_replaces_game() != waiwai_board;
 }
 
 void BoxManager::change_board_list() {

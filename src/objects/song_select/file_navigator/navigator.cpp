@@ -31,9 +31,6 @@ static std::unique_ptr<SongBox> make_song_box(const fs::path& path, const BoxDef
     return std::make_unique<SongBox>(path, box_def, std::move(parser), std::move(hashes));
 }
 
-// The back box closes a folder, so it carries that folder's genre: the genre
-// background behind the cursor (and a skin's board frame) follow it, like the
-// cabinet's もどる panel.  The box itself keeps its own colour.
 static std::unique_ptr<BackBox> make_back_box(const fs::path& parent_path, const BoxDef* folder = nullptr) {
     BoxDef d;
     d.back_color = BackBox::COLOR;
@@ -181,7 +178,7 @@ void Navigator::preload(std::vector<fs::path> songs_paths) {
 void Navigator::init(std::vector<fs::path> songs_paths) {
     t_background = tex.get_texture("box/background");
     emit_wheel_event(WHEEL_EVENT_SCENE_ENTRY);
-    if (is_init && hide_dan != built_hide_dan) {
+    if (is_init && (hide_dan != built_hide_dan || waiwai != built_waiwai || is_2p != built_is_2p)) {
         cancel_loading();
         is_inline = false;
         inline_state.reset();
@@ -198,6 +195,8 @@ void Navigator::init(std::vector<fs::path> songs_paths) {
         is_init = false;
     }
     built_hide_dan = hide_dan;
+    built_waiwai = waiwai;
+    built_is_2p = is_2p;
 
     if (!is_init) {
         if (!is_preloaded) {
@@ -358,6 +357,8 @@ LoadRequest Navigator::make_load_request(LoadRequest::Kind kind, const fs::path&
     request.score_revision = score_revision;
     request.search = current_search;
     request.hide_dan = hide_dan;
+    request.waiwai = waiwai;
+    request.is_2p = is_2p;
     request.difficulty = diff_sort_filter;
     return request;
 }
@@ -562,7 +563,8 @@ void Navigator::request_folder_summaries() {
     auto request = make_load_request(LoadRequest::Kind::SUMMARIES);
 
     auto add = [&](FolderBox* folder) {
-        if (folder && !folder_summaries.contains(folder->path) && !failed_folder_summaries.contains(folder->path)) {
+        if (folder && !folder->collection.starts_with("WAIWAI_") && !folder_summaries.contains(folder->path) &&
+            !failed_folder_summaries.contains(folder->path)) {
             request.summary_paths.push_back(folder->path);
         }
     };

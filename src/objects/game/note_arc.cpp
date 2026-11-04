@@ -1,7 +1,7 @@
 #include "note_arc.h"
 
 NoteArc::NoteArc(NoteType note_type, double current_ms, PlayerNum player_num, bool big, bool is_balloon, float start_x,
-                 float start_y)
+                 float start_y, bool rainbow_arc, bool synchro)
     : is_balloon(is_balloon), start_ms(current_ms), note_type(note_type), is_big(big) {
     NoteType texture_note_type = note_type;
     if (big) {
@@ -16,7 +16,7 @@ NoteArc::NoteArc(NoteType note_type, double current_ms, PlayerNum player_num, bo
     }
 
     if (load("NoteArc", "note_arc", static_cast<int>(texture_note_type), big, is_balloon, static_cast<int>(player_num),
-             start_x, start_y)) {
+             start_x, start_y, rainbow_arc, synchro)) {
         fn_draw = lua_object["draw"];
         firework_frames = lua_object["firework_frames"].get_or(0);
     }

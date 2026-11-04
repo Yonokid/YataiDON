@@ -176,6 +176,11 @@ static DrawTextureParams parse_draw_params_legacy(const sol::optional<sol::table
         params.mirror = mirror_from_string(mirror.value());
     }
 
+    sol::optional<std::string> blend = t["blend"];
+    if (blend && blend.value() == "additive") {
+        params.blend = blend_mode::ADDITIVE;
+    }
+
     sol::optional<sol::table> origin = t["origin"];
     if (origin) {
         params.origin.x = origin.value()[1].get_or(params.origin.x);
@@ -303,6 +308,10 @@ static DrawTextureParams parse_draw_params(lua_State* L, int index) {
             } else if (key == "mirror") {
                 if (lua_type(L, v) == LUA_TSTRING) {
                     params.mirror = mirror_from_string(lua_tostring(L, v));
+                }
+            } else if (key == "blend") {
+                if (lua_type(L, v) == LUA_TSTRING && std::string_view(lua_tostring(L, v)) == "additive") {
+                    params.blend = blend_mode::ADDITIVE;
                 }
             }
         }

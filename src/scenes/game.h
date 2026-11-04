@@ -110,7 +110,7 @@ public:
 
     std::optional<Screens> update() override;
 
-    void draw_players();
+    virtual void draw_players();
 
     void draw_overlay(bool with_song_info = true);
 

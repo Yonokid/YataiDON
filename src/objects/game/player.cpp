@@ -531,7 +531,9 @@ void Player::update(double ms_from_start, double current_ms, std::optional<Backg
             if (note_type == NoteType::BALLOON_HEAD || is_balloon) {
                 note_type = NoteType::DON_L;
             }
-            gauge_hit_effect.emplace_back(note_type, is_big, arc_player() == PlayerNum::P2);
+            if (!rainbow_arc) {
+                gauge_hit_effect.emplace_back(note_type, is_big, arc_player() == PlayerNum::P2);
+            }
         } else if (it->is_finished()) {
             it = draw_arc_list.erase(it);
         } else {
@@ -629,7 +631,7 @@ void Player::draw(double ms_from_start, float x, float y) {
     if (branch_indicator.has_value()) {
         branch_indicator->draw(y);
     }
-    if (gauge.has_value()) {
+    if (gauge.has_value() && !hide_gauge) {
         if (arc_player() == PlayerNum::P2) { // the bottom gauge only when two play
             gauge->draw(y + tex.get_skin_config(SC::GAME_GAUGE_2P_OFFSET)->y);
         } else {
@@ -838,10 +840,14 @@ void Player::reset_chart() {
     this->branch_e = branch_e_temp;
     this->branch_n = branch_n_temp;
     partner_times.clear();
+    big_times.clear();
     auto add_partner_times = [&](const NoteList& list) {
         for (const Note& note : list.notes) {
             if (note.partner) {
                 partner_times.insert(std::llround(note.hit_ms));
+            }
+            if (note.type == NoteType::DON_L || note.type == NoteType::KAT_L) {
+                big_times.insert(big_key(note));
             }
         }
     };
@@ -1485,7 +1491,7 @@ void Player::note_correct(const Note& note, double current_ms) {
         bool is_big =
             note.type == NoteType::DON_L || note.type == NoteType::KAT_L || note.type == NoteType::BALLOON_HEAD;
         draw_arc_list.emplace_back(note.type, current_ms, arc_player(), is_big, note.type == NoteType::BALLOON_HEAD,
-                                   judge_x, judge_y);
+                                   judge_x, judge_y, rainbow_arc, synchro(note));
     }
     auto it = std::ranges::lower_bound(draw_note_buffer, note.index, {}, &Note::index);
     if (it != draw_note_buffer.end() && *it == note) {
@@ -1495,7 +1501,7 @@ void Player::note_correct(const Note& note, double current_ms) {
 
 void Player::check_drumroll(double current_ms, DrumType drum_type, std::optional<Background>& background) {
     const bool is_big = !other_notes.empty() && other_notes.front().type == NoteType::ROLL_HEAD_L;
-    draw_arc_list.emplace_back(NoteType(drum_type), current_ms, arc_player(), is_big, false);
+    draw_arc_list.emplace_back(NoteType(drum_type), current_ms, arc_player(), is_big, false, 0.0f, 0.0f, rainbow_arc);
     curr_drumroll_count++;
     if (!other_notes.empty()) {
         roll_hits[other_notes.front().index] = curr_drumroll_count;
@@ -2041,15 +2047,54 @@ void Player::draw_balloon(double current_ms, float y, const Note& head, int curr
     }
 }
 
-void Player::draw_tetunagi(double current_ms, const Note& note, float x, float y, int current_eighth) {
-    const double miss_window = (difficulty <= static_cast<int>(Difficulty::NORMAL)) ? Timing::BAD_EASY : Timing::BAD;
+int Player::miss_arm_frame(double current_ms, const Note& note) const {
     auto judged = note_judgments.find(note.index);
-    const bool missed = judged != note_judgments.end() && judged->second == Judgments::BAD;
+    if (judged == note_judgments.end() || judged->second != Judgments::BAD) {
+        return -1;
+    }
+    const double miss_window = (difficulty <= static_cast<int>(Difficulty::NORMAL)) ? Timing::BAD_EASY : Timing::BAD;
+    const double t = current_ms - (note.hit_ms + miss_window);
+    return t < 33 ? 0 : t < 67 ? 1 : 2;
+}
+
+void Player::draw_synchro(double current_ms, const Note& note, float cx, float cy, int current_eighth) {
+    const SynchroArt& art = (*synchro_art)[note.type == NoteType::KAT_L];
+    const float s = tex.screen_scale;
+
+    auto draw_at = [&](TextureObject* t, float dx, float dy, Mirror mirror, double fade) {
+        tex.draw_texture(t, {.mirror = mirror,
+                             .x = cx + dx * s - t->x[0] - t->x2[0] / 2.0f,
+                             .y = cy + dy * s - t->y[0] - t->y2[0] / 2.0f,
+                             .fade = fade});
+    };
+    const double t = std::fmod(current_ms, 666.67) / 333.33;
+    const float phase = static_cast<float>(t < 1 ? t : 2 - t);
+    draw_at(art.glow, 0, 0, Mirror::NONE, 0.6 + 0.4 * phase);
+
+    const int miss = miss_arm_frame(current_ms, note);
+    const Mirror mirror = is_2p ? Mirror::VERTICAL : Mirror::NONE;
+    const float anchor = is_2p ? -53.0f : 54.0f;
+    if (miss >= 0) {
+        static constexpr float MISS_X[3][2] = {{-16, 16}, {-3, 30}, {2.35f, 39.35f}};
+        draw_at(art.arm[miss], MISS_X[miss][0], anchor, mirror, 1.0);
+        draw_at(art.arm[miss], MISS_X[miss][1], anchor, mirror, 1.0);
+    } else {
+        const float swing = 33.0f * phase;
+        const float left = is_2p ? -53.0f - (12.0f - swing) : 54.0f - 21.0f + swing;
+        const float right = is_2p ? -53.0f - (-21.0f + swing) : 54.0f + 12.0f - swing;
+        draw_at(art.arm[0], -16, left, mirror, 1.0);
+        draw_at(art.arm[0], 16, right, mirror, 1.0);
+    }
+    draw_at(art.face[miss >= 0 ? 1 : current_eighth % 2], 0, 0, Mirror::NONE, 1.0);
+}
+
+void Player::draw_tetunagi(double current_ms, const Note& note, float x, float y, int current_eighth) {
+    const int miss = miss_arm_frame(current_ms, note);
+    const bool missed = miss >= 0;
     int arm_frame = 0;
     float lx = 15, rx = 53, ly, ry;
     if (missed) {
-        const double t = current_ms - (note.hit_ms + miss_window);
-        arm_frame = t < 33 ? 0 : t < 67 ? 1 : 2;
+        arm_frame = miss;
         static constexpr float MISS_X[] = {15, 28, 32};
         static constexpr float MISS_Y[] = {74, 78, 74};
         lx = MISS_X[arm_frame];
@@ -2166,6 +2211,10 @@ void Player::draw_notes(double current_ms, float y) {
             draw_drumroll(current_ms, y, note, current_eighth, false);
         } else if (note.type == NoteType::BALLOON_HEAD) {
             draw_balloon(current_ms, y, note, current_eighth, false);
+        } else if (note.display && synchro(note)) {
+            draw_synchro(current_ms, note, pos->first,
+                         pos->second + tex.get_skin_config(SC::GAME_NOTES)->y + t_notes_9->height / 2.0f,
+                         current_eighth);
         } else if (note.display && t_tetunagi_arm && linked(note)) {
             draw_tetunagi(current_ms, note, pos->first - (t_notes_9->width / 2.0f),
                           pos->second + tex.get_skin_config(SC::GAME_NOTES)->y, current_eighth);
@@ -2252,8 +2301,25 @@ void Player::draw_modifiers(float y) {
     }
 }
 
+void Player::place_chara_on_stage(float x, float y) {
+    stage_chara = {x, y};
+    chara->use_default_pose(is_2p);
+}
+
+void Player::draw_stage_chara() {
+    if (stage_chara) {
+        chara->draw(stage_chara->first, stage_chara->second, 1.0f);
+    }
+}
+
+void Player::draw_arcs() {
+    for (NoteArc& anim : draw_arc_list) {
+        anim.draw(arc_y);
+    }
+}
+
 void Player::draw_lane_cover(float y) {
-    if (!is_balloon || (balloon_idle && !balloon_counter.has_value())) {
+    if (!stage_chara && (!is_balloon || (balloon_idle && !balloon_counter.has_value()))) {
         if (is_2p) {
             auto [cx, cy] = tex.chara_xy("game_p2");
             chara->draw(cx, y + cy, 1.0f);
@@ -2281,8 +2347,9 @@ void Player::draw_overlays(float y) {
     for (auto& anim : draw_drum_hit_list) {
         anim->draw(y);
     }
-    for (NoteArc& anim : draw_arc_list) {
-        anim.draw(y);
+    arc_y = y;
+    if (!hide_gauge) { // otherwise above the screen's gauge
+        draw_arcs();
     }
     for (GaugeHitEffect& anim : gauge_hit_effect) {
         anim.draw(y);
@@ -2328,7 +2395,7 @@ void Player::draw_overlays(float y) {
                 rig_2p_y = p2->y;
             }
         }
-        if (!balloon_idle || balloon_counter.has_value()) {
+        if (!stage_chara && (!balloon_idle || balloon_counter.has_value())) {
             auto [cx, cy] = tex.chara_xy("game_balloon");
             chara->draw(cx, y + cy + rig_2p_y, 1.0f);
         }

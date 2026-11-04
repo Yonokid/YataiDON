@@ -46,6 +46,11 @@ void TutorialScreen::on_screen_start() {
     session_data.selected_difficulty = static_cast<int>(Difficulty::EASY);
     hits.clear();
     rim_count = 0;
+
+    return_screen = global_data.previous_screen == "SONG_SELECT_2P"       ? Screens::SONG_SELECT_2P
+                    : global_data.previous_screen == "WAIWAI_SONG_SELECT" ? Screens::WAIWAI_SONG_SELECT
+                                                                          : Screens::SONG_SELECT;
+    skip_player = return_screen == Screens::SONG_SELECT ? global_data.player_num : PlayerNum::ALL;
     GameScreen::on_screen_start();
     transition->set_rainbow_only();
     overlay.emplace();
@@ -77,12 +82,12 @@ std::optional<Screens> TutorialScreen::update() {
     }
     hits.clear();
 
-    while (is_l_kat_pressed(global_data.player_num) || is_r_kat_pressed(global_data.player_num)) {
+    while (is_l_kat_pressed(skip_player) || is_r_kat_pressed(skip_player)) {
         rim_count++;
     }
     bool finished = overlay->loaded() ? overlay->is_finished(ms) : clock.position() >= players[0]->end_time;
     if (rim_count >= SKIP_HITS || finished) {
-        return on_screen_end(Screens::SONG_SELECT);
+        return on_screen_end(return_screen);
     }
 
     if (auto fill = overlay->gauge(ms); fill && players[0]->gauge) {

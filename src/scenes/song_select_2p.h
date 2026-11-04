@@ -3,14 +3,14 @@
 
 class SongSelect2PScreen : public SongSelectScreen {
 private:
-    std::unique_ptr<SongSelectPlayer> player_2;
-
     void handle_input_browsing(double current_ms) override;
     void handle_input_selecting() override;
-    void select_song(SongBox* song) override;
     void draw_overlays() override;
 
 protected:
+    std::unique_ptr<SongSelectPlayer> player_2;
+
+    void select_song(SongBox* song) override;
     bool is_2p_screen() override { return true; }
     Screens get_game_screen_target() override { return Screens::GAME_2P; }
 

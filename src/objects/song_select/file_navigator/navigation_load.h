@@ -95,6 +95,8 @@ struct LoadRequest {
     std::vector<fs::path> summary_paths;
     std::string search;
     bool hide_dan = false;
+    bool waiwai = false;
+    bool is_2p = false;
     std::optional<std::array<int, 3>> difficulty;
 };
 

@@ -53,7 +53,7 @@ std::optional<Screens> Game2PScreen::update() {
     const double end_time = std::max(players[0]->end_time, players[1]->end_time);
 
     if (result_transition.is_finished && !audio.is_sound_playing("result_transition")) {
-        return on_screen_end(Screens::RESULT_2P);
+        return on_screen_end(result_screen());
     }
 
     if (clock.position() >= end_time) {
@@ -67,7 +67,7 @@ std::optional<Screens> Game2PScreen::update() {
         restart_song();
     }
     if (check_key_pressed(global_data.config->keys.back_key)) {
-        return on_screen_end(Screens::SONG_SELECT_2P);
+        return on_screen_end(select_screen());
     }
     if (check_key_pressed(global_data.config->keys.pause_key)) {
         toggle_pause();

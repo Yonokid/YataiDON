@@ -39,6 +39,7 @@ protected:
 
     void handle_input(double current_ms);
 
+    virtual bool run_failed() const;
     bool retry_pending() const;
     bool exiting() const;
     void begin_exit();

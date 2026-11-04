@@ -18,7 +18,10 @@ private:
     int dan_box_index = -1;
     bool dan_available = false;
     std::string dan_text;
+    std::string waiwai_label;
+    bool waiwai_board = false;
 
+    bool waiwai_replaces_game() const;
     void build_board_list();
     void change_board_list();
 

@@ -9,6 +9,7 @@
 
 #include "../../../libs/file/filesystem.h"
 #include "../../../libs/file/scores.h"
+#include "../../../libs/gfx/text.h"
 #include "../../../libs/song_library.h"
 #include "../../../libs/song_library_loader.h"
 #include "color_utils.h"
@@ -94,6 +95,8 @@ class NavigationLoad {
     std::string player_1;
     std::string current_search;
     bool hide_dan;
+    bool waiwai;
+    bool is_2p;
     bool reloading_roots;
     bool genre_box_defs_built = false;
     std::map<GenreIndex, BoxDef> genre_box_defs;
@@ -180,8 +183,8 @@ public:
         : index(request.index), request(request), emit(std::move(emit)), cancellation_token(stop),
           cancellation(stop, [this] { abort_loading = true; }), root_paths(request.roots), language(request.language),
           player_1(request.player_1), current_search(request.search), hide_dan(request.hide_dan),
-          reloading_roots(request.kind == LoadRequest::Kind::ROOTS), inline_back_def(request.back_def),
-          diff_sort_filter(request.difficulty), folder_scanner(stop) {}
+          waiwai(request.waiwai), is_2p(request.is_2p), reloading_roots(request.kind == LoadRequest::Kind::ROOTS),
+          inline_back_def(request.back_def), diff_sort_filter(request.difficulty), folder_scanner(stop) {}
 
     void run() {
         if (request.kind == LoadRequest::Kind::SUMMARIES) {
@@ -214,6 +217,36 @@ public:
         } else {
             load_current_directory_async(request.path);
         }
+
+        if (is_2p && !abort_loading && (reloading_roots || std::ranges::contains(root_paths, request.path))) {
+            if (waiwai) {
+                add_mode_box("entry_game", "00 Waiwai Normal", WAIWAI_NORMAL_COLLECTION, TextureIndex::NONE, "#3ca0ff",
+                             "#2366aa");
+                add_mode_box("waiwai_tutorial_box", "00 Waiwai Tutorial", WAIWAI_TUTORIAL_COLLECTION,
+                             TextureIndex::NONE, "#28b932", "#106018");
+            } else {
+                add_mode_box("entry_waiwai", "00 Waiwai Mode", WAIWAI_MODE_COLLECTION, TextureIndex::NONE, "#3ca0ff",
+                             "#2366aa");
+            }
+        }
+    }
+
+private:
+    void add_mode_box(const char* label, const char* path, const std::string& collection, TextureIndex texture_index,
+                      const char* box_color, const char* fore_color) {
+        BoxDef def;
+        def.name = font_manager.get_text_label(label);
+        if (def.name.empty()) {
+            return;
+        }
+        def.texture_index = texture_index;
+        def.genre_index = GenreIndex::DEFAULT;
+        def.collection = collection;
+        def.box_color = parse_hex_color(box_color);
+        def.fore_color = parse_hex_color(fore_color);
+        PreparedFolder folder{fs::path(path), def};
+        folder.tja_count = 0;
+        emit(std::move(folder));
     }
 };
 

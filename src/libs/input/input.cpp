@@ -204,14 +204,16 @@ static ControllerSlots controller_slots;     // input thread only
 static std::atomic<int> slotted_gamepads{0}; // controller_slots.count(), for the game thread
 
 static bool is_gameplay_screen(std::string_view screen) {
-    return screen == "GAME" || screen == "GAME_2P" || screen == "GAME_DAN" || screen == "GAME_PRACTICE" ||
-           screen == "AI_GAME" || screen == "INPUT_TEST" || screen == "INPUT_CALI" || screen == "TUTORIAL";
+    return screen == "GAME" || screen == "GAME_2P" || screen == "WAIWAI_GAME" || screen == "GAME_DAN" ||
+           screen == "GAME_PRACTICE" || screen == "AI_GAME" || screen == "INPUT_TEST" || screen == "INPUT_CALI" ||
+           screen == "TUTORIAL";
 }
 
 // With two pads in 2P, pad 1 plays P1 and pad 2 plays P2 even when their bindings overlap.
 // One pad keeps the shared behaviour, so a single controller can still be split between players.
 static bool separate_players() {
-    return global_data.current_screen == "GAME_2P" && slotted_gamepads.load(std::memory_order_relaxed) >= 2;
+    return (global_data.current_screen == "GAME_2P" || global_data.current_screen == "WAIWAI_GAME") &&
+           slotted_gamepads.load(std::memory_order_relaxed) >= 2;
 }
 
 // Optional fixed gamepad layout for menus (keys.gamepad_menu_layout): D-pad/shoulders move,

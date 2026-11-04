@@ -18,6 +18,8 @@ static const char* mode_key(Screens location) {
         return "entry_costume";
     case Screens::REWARD_SHOP:
         return "entry_shop";
+    case Screens::WAIWAI_SONG_SELECT:
+        return "entry_waiwai";
     case Screens::SETTINGS:
         return "entry_settings";
     default:

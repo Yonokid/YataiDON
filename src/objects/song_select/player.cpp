@@ -94,11 +94,11 @@ void SongSelectPlayer::update(double current_time) {
 }
 
 bool SongSelectPlayer::is_voice_playing() {
-    return audio.is_sound_playing("voice_start_song_" + std::to_string(static_cast<int>(player_num)) + "p");
+    return audio.is_sound_playing(!shared_start_voice.empty()
+                                      ? shared_start_voice
+                                      : "voice_start_song_" + std::to_string(static_cast<int>(player_num)) + "p");
 }
 
-// Lumen CourseSelect: with the oni course hidden, MANIA_COMMAND_NUM right kats on the last
-// course open it, behind an animation that holds the cursor.
 static constexpr int ONI_COMMAND_COUNT = 10;
 static constexpr double ONI_OPEN_MS = 2000.0;
 
@@ -228,9 +228,19 @@ SongSelectState SongSelectPlayer::select_song() {
         return SongSelectState::DAN_SELECTED;
     }
     if (navigator.is_directory(item) && item->genre_index == GenreIndex::TUTORIAL) {
-        // the tutorial genre folder plays the tutorial instead of opening (Lumen ジャンル決定（終了）)
-        global_data.session_data[static_cast<int>(player_num)].selected_tutorial = item->path / TUTORIAL_CHART;
+        global_data.session_data[static_cast<int>(global_data.player_num)].selected_tutorial =
+            item->path / TUTORIAL_CHART;
         return SongSelectState::TUTORIAL_SELECTED;
+    }
+
+    if (navigator.is_directory(item) && item->collection == WAIWAI_NORMAL_COLLECTION) {
+        return SongSelectState::NORMAL_MODE_SELECTED;
+    }
+    if (navigator.is_directory(item) && item->collection == WAIWAI_TUTORIAL_COLLECTION) {
+        return SongSelectState::WAIWAI_TUTORIAL_SELECTED;
+    }
+    if (navigator.is_directory(item) && item->collection == WAIWAI_MODE_COLLECTION) {
+        return SongSelectState::WAIWAI_MODE_SELECTED;
     }
 
     if (navigator.is_song(item)) {
@@ -523,8 +533,10 @@ SongSelectState SongSelectPlayer::handle_input_selecting() {
             } else if (selected_difficulty >= Difficulty::EASY) {
                 voice_played = true;
                 start_background_diffs();
-                audio.play_player_sound("voice_start_song_" + std::to_string(static_cast<int>(player_num)) + "p",
-                                        player_num, VolumePreset::VOICE);
+                if (shared_start_voice.empty()) {
+                    audio.play_player_sound("voice_start_song_" + std::to_string(static_cast<int>(player_num)) + "p",
+                                            player_num, VolumePreset::VOICE);
+                }
             } else if (selected_difficulty == Difficulty::BACK) {
                 is_ready = true;
             }

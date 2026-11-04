@@ -137,6 +137,19 @@ std::optional<Screens> SongSelect2PScreen::update() {
         return on_screen_end(Screens::ENTRY);
     }
 
+    if (state == SongSelectState::TUTORIAL_SELECTED) {
+        return on_screen_end(Screens::TUTORIAL);
+    }
+    if (state == SongSelectState::NORMAL_MODE_SELECTED) {
+        return on_screen_end(Screens::SONG_SELECT_2P);
+    }
+    if (state == SongSelectState::WAIWAI_TUTORIAL_SELECTED) {
+        return on_screen_end(Screens::WAIWAI_TUTORIAL);
+    }
+    if (state == SongSelectState::WAIWAI_MODE_SELECTED) {
+        return on_screen_end(Screens::WAIWAI_SONG_SELECT);
+    }
+
     if (state != prev_state) {
         script->restart_text_fade();
         if (state == SongSelectState::SEARCHING) {

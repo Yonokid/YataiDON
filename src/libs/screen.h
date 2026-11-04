@@ -69,16 +69,24 @@ enum class Screens {
     CAMPAIGN,
     KINOTAKE_RESULT,
     TOTAL_RESULT,
-    REWARD_SHOP
+    REWARD_SHOP,
+    WAIWAI_SONG_SELECT,
+    WAIWAI_GAME,
+    WAIWAI_RESULT,
+    WAIWAI_TUTORIAL,
+    WAIWAI_RETRY_GAME
 };
 
 inline std::string screens_to_string(Screens screen) {
-    static const std::array<std::string, 27> names = {
-        "TITLE",           "ENTRY",          "SONG_SELECT", "GAME",       "GAME_2P",    "RESULT",
-        "RESULT_2P",       "SONG_SELECT_2P", "DAN_SELECT",  "GAME_DAN",   "DAN_RESULT", "PRACTICE_SELECT",
-        "GAME_PRACTICE",   "AI_SELECT",      "AI_GAME",     "SETTINGS",   "LOADING",    "INPUT_CALI",
-        "GAME_OVER",       "INPUT_TEST",     "RETRY_GAME",  "ONBOARDING", "TUTORIAL",   "CAMPAIGN",
-        "KINOTAKE_RESULT", "TOTAL_RESULT",   "REWARD_SHOP"};
+    static const std::array<std::string, 32> names = {
+        "TITLE",           "ENTRY",         "SONG_SELECT",     "GAME",
+        "GAME_2P",         "RESULT",        "RESULT_2P",       "SONG_SELECT_2P",
+        "DAN_SELECT",      "GAME_DAN",      "DAN_RESULT",      "PRACTICE_SELECT",
+        "GAME_PRACTICE",   "AI_SELECT",     "AI_GAME",         "SETTINGS",
+        "LOADING",         "INPUT_CALI",    "GAME_OVER",       "INPUT_TEST",
+        "RETRY_GAME",      "ONBOARDING",    "TUTORIAL",        "CAMPAIGN",
+        "KINOTAKE_RESULT", "TOTAL_RESULT",  "REWARD_SHOP",     "WAIWAI_SONG_SELECT",
+        "WAIWAI_GAME",     "WAIWAI_RESULT", "WAIWAI_TUTORIAL", "WAIWAI_RETRY_GAME"};
     int idx = static_cast<int>(screen);
     if (idx < 0 || static_cast<size_t>(idx) >= names.size()) {
         return "UNKNOWN";

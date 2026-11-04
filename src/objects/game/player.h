@@ -79,6 +79,27 @@ public:
         return note.partner && kusudama_partner && kusudama_partner->partner_times.contains(std::llround(note.hit_ms));
     }
 
+    struct SynchroArt {
+        TextureObject* glow;
+        TextureObject* arm[3];
+        TextureObject* face[2];
+    };
+    std::optional<std::array<SynchroArt, 2>> synchro_art;
+    std::unordered_set<long long> big_times;
+    static long long big_key(const Note& note) {
+        return std::llround(note.hit_ms) * 2 + (note.type == NoteType::KAT_L);
+    }
+    bool synchro(const Note& note) const {
+        return synchro_art && kusudama_partner && (note.type == NoteType::DON_L || note.type == NoteType::KAT_L) &&
+               kusudama_partner->big_times.contains(big_key(note));
+    }
+    bool hide_gauge = false;
+    bool rainbow_arc = false;
+
+    void place_chara_on_stage(float x, float y);
+    void draw_stage_chara();
+    void draw_arcs();
+
     std::optional<Note> get_first_note();
 
     ResultData get_result_score();
@@ -286,6 +307,8 @@ private:
     std::vector<Judgment> draw_judge_list;
     std::vector<GaugeHitEffect> gauge_hit_effect;
     std::vector<NoteArc> draw_arc_list;
+    float arc_y = 0;
+    std::optional<std::pair<float, float>> stage_chara;
     Combo combo_display;
     std::optional<DrumrollCounter> drumroll_counter;
     std::optional<BalloonCounter> balloon_counter;
@@ -368,6 +391,8 @@ private:
     void draw_notes(double current_ms, float y);
     void draw_kusudama_stars(double current_ms, float cx, float cy);
     void draw_tetunagi(double current_ms, const Note& note, float x, float y, int current_eighth);
+    void draw_synchro(double current_ms, const Note& note, float cx, float cy, int current_eighth);
+    int miss_arm_frame(double current_ms, const Note& note) const;
 
     void draw_song_timer(double current_ms, float y);
 

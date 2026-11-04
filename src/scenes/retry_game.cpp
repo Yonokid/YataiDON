@@ -78,7 +78,7 @@ std::optional<Screens> RetryGameScreen::update() {
 
     if (scene->is_finished()) {
         if (scene->is_success()) {
-            return on_screen_end(Screens::SONG_SELECT);
+            return on_screen_end(select_screen());
         }
         reset_session();
         if (global_data.config->limits.song_limit > 0 &&
@@ -86,7 +86,7 @@ std::optional<Screens> RetryGameScreen::update() {
             return on_screen_end(begin_total_result());
         }
         global_data.returned_from_result = true;
-        return on_screen_end(Screens::SONG_SELECT);
+        return on_screen_end(select_screen());
     }
     return std::nullopt;
 }

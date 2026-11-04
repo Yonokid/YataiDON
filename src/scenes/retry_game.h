@@ -20,6 +20,9 @@ private:
     float chara_progress = 0.0f;
     double last_ms = 0;
 
+protected:
+    virtual Screens select_screen() const { return Screens::SONG_SELECT; }
+
 public:
     static constexpr int needed_hits = 30;
 

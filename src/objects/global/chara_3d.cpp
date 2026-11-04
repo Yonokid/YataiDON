@@ -822,6 +822,17 @@ void Chara3D::set_rotation(float x, float y, float z) {
     render_dirty = true;
 }
 
+void Chara3D::use_default_pose(bool new_mirror) {
+    const Chara3DConfig cfg{};
+    scale = cfg.scale;
+    rot_x = cfg.rot_x;
+    rot_y = cfg.rot_y;
+    rot_z = cfg.rot_z;
+    mirror = new_mirror;
+    set_anim(anim_index);
+    render_dirty = true;
+}
+
 void Chara3D::set_bpm(float bpm) {
     this->bpm = bpm;
 }

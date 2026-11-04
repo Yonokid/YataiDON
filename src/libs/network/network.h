@@ -12,6 +12,7 @@
 #ifdef _WIN32
 #undef CloseWindow
 #undef ShowCursor
+#undef GetObject // renames rapidjson's GetObject() to GetObjectA in every file including this
 #endif
 #endif
 

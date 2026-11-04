@@ -42,6 +42,8 @@ private:
     bool is_preloaded = false;
     bool reloading_roots = false;
     bool built_hide_dan = false;
+    bool built_waiwai = false;
+    bool built_is_2p = false;
 
     std::optional<InlineState> inline_state;
     std::optional<fs::path> pending_inline_path;
@@ -121,6 +123,7 @@ public:
 
     std::atomic<bool> is_processing{false};
     bool hide_dan = false;
+    bool waiwai = false;
     bool is_2p = false;
     bool inline_streaming = false;
     fs::path current_path;

@@ -43,7 +43,7 @@ Screens ResultScreen::on_screen_end(Screens next_screen) {
         loading_graphic.reset();
     }
     // the retry mini-game restarts the song from this session
-    if (next_screen != Screens::RETRY_GAME) {
+    if (next_screen != Screens::RETRY_GAME && next_screen != Screens::WAIWAI_RETRY_GAME) {
         reset_session();
     }
     return Screen::on_screen_end(next_screen);
@@ -53,12 +53,15 @@ double ResultScreen::reveal_end_ms() {
     return player_1.has_value() ? player_1->reveal_end_ms() : 0.0;
 }
 
+bool ResultScreen::run_failed() const {
+    return !global_data.session_data[static_cast<int>(global_data.player_num)].result_data.cleared;
+}
+
 bool ResultScreen::retry_pending() const {
-    const SessionData& session_data = global_data.session_data[static_cast<int>(global_data.player_num)];
     const bool limit_reached =
         global_data.config->limits.song_limit > 0 && global_data.config->limits.song_limit == global_data.songs_played;
-    return allow_retry && !tex.options[SCO::DISABLE_RETRY_GAME] && !session_data.result_data.cleared &&
-           !limit_reached && script_manager.has_lua_script("retry_game");
+    return allow_retry && !tex.options[SCO::DISABLE_RETRY_GAME] && run_failed() && !limit_reached &&
+           script_manager.has_lua_script("retry_game");
 }
 
 bool ResultScreen::exiting() const {

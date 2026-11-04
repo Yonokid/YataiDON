@@ -92,11 +92,13 @@ public:
     std::optional<Screens> requested_screen;
 
     static constexpr Screens ALL_SCREENS[] = {
-        Screens::TITLE,      Screens::ENTRY,           Screens::SONG_SELECT,    Screens::GAME,       Screens::GAME_2P,
-        Screens::RESULT,     Screens::RESULT_2P,       Screens::SONG_SELECT_2P, Screens::DAN_SELECT, Screens::GAME_DAN,
-        Screens::DAN_RESULT, Screens::PRACTICE_SELECT, Screens::GAME_PRACTICE,  Screens::SETTINGS,   Screens::LOADING,
-        Screens::INPUT_CALI, Screens::GAME_OVER,       Screens::INPUT_TEST,     Screens::RETRY_GAME, Screens::TUTORIAL,
-        Screens::CAMPAIGN,   Screens::TOTAL_RESULT,    Screens::REWARD_SHOP};
+        Screens::TITLE,         Screens::ENTRY,         Screens::SONG_SELECT,     Screens::GAME,
+        Screens::GAME_2P,       Screens::RESULT,        Screens::RESULT_2P,       Screens::SONG_SELECT_2P,
+        Screens::DAN_SELECT,    Screens::GAME_DAN,      Screens::DAN_RESULT,      Screens::PRACTICE_SELECT,
+        Screens::GAME_PRACTICE, Screens::SETTINGS,      Screens::LOADING,         Screens::INPUT_CALI,
+        Screens::GAME_OVER,     Screens::INPUT_TEST,    Screens::RETRY_GAME,      Screens::TUTORIAL,
+        Screens::CAMPAIGN,      Screens::TOTAL_RESULT,  Screens::REWARD_SHOP,     Screens::WAIWAI_SONG_SELECT,
+        Screens::WAIWAI_GAME,   Screens::WAIWAI_RESULT, Screens::WAIWAI_TUTORIAL, Screens::WAIWAI_RETRY_GAME};
 
     void clear_selection() {
         commit_edit();

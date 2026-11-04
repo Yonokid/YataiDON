@@ -31,6 +31,7 @@ void SongSelectScreen::on_screen_start() {
 
     navigator.hide_dan = hides_dan();
     navigator.is_2p = is_2p_screen();
+    navigator.waiwai = is_waiwai_screen();
     navigator.init(global_data.config->paths.tja_path);
 #ifndef __EMSCRIPTEN__
     stats_stop.request_stop();
