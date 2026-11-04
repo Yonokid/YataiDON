@@ -57,7 +57,7 @@ private:
     void one_menu_sort_change_param(int move);
 
 public:
-    DiffSortSelect(const Statistics& statistics, int prev_diff, int prev_level, SongSelectScript* script = nullptr,
+    DiffSortSelect(Statistics statistics, int prev_diff, int prev_level, SongSelectScript* script = nullptr,
                    int prev_order = 1, bool two_players = false);
 
     void update(double current_ms);

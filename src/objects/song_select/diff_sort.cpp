@@ -1,5 +1,7 @@
 #include "diff_sort.h"
 
+#include <utility>
+
 #include "../../libs/audio/audio.h"
 #include "song_select_script.h"
 
@@ -10,9 +12,9 @@ static constexpr double SORT_END_WAIT_MS = 2000.0;
 static constexpr double SORT_ARROW_MS = 1000.0 / 60.0 * 10.0;
 static constexpr float SORT_ARROW_PUSH = 12.5f;
 
-DiffSortSelect::DiffSortSelect(const Statistics& statistics, int prev_diff, int prev_level, SongSelectScript* script,
+DiffSortSelect::DiffSortSelect(Statistics statistics, int prev_diff, int prev_level, SongSelectScript* script,
                                int prev_order, bool two_players)
-    : prev_diff(prev_diff), prev_level(prev_level), statistics(statistics), script(script) {
+    : prev_diff(prev_diff), prev_level(prev_level), statistics(std::move(statistics)), script(script) {
     one_menu_sort = tex.options[SCO::ONE_MENU_SORT] && script && script->has_sort_window();
     selected_box = -1;
     selected_level = 1;
