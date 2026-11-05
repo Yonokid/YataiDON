@@ -35,8 +35,8 @@ namespace gen4 {
         void sha256_block(uint32_t state[8], const uint8_t* p) {
             uint32_t w[64];
             for (int i = 0; i < 16; i++) {
-                w[i] = ((uint32_t)p[i * 4] << 24) | ((uint32_t)p[i * 4 + 1] << 16) | ((uint32_t)p[i * 4 + 2] << 8) |
-                       (uint32_t)p[i * 4 + 3];
+                w[i] = (static_cast<uint32_t>(p[i * 4]) << 24) | (static_cast<uint32_t>(p[i * 4 + 1]) << 16) |
+                       (static_cast<uint32_t>(p[i * 4 + 2]) << 8) | static_cast<uint32_t>(p[i * 4 + 3]);
             }
             for (int i = 16; i < 64; i++) {
                 uint32_t s0 = rotr(w[i - 15], 7) ^ rotr(w[i - 15], 18) ^ (w[i - 15] >> 3);
@@ -109,7 +109,7 @@ namespace gen4 {
             static const std::array<uint8_t, 256> table = [] {
                 std::array<uint8_t, 256> t{};
                 for (int i = 0; i < 256; i++) {
-                    t[AES_SBOX[i]] = (uint8_t)i;
+                    t[AES_SBOX[i]] = static_cast<uint8_t>(i);
                 }
                 return t;
             }();
@@ -117,7 +117,7 @@ namespace gen4 {
         }
 
         inline uint8_t xtime(uint8_t x) {
-            return (uint8_t)((x << 1) ^ ((x >> 7) * 0x1B));
+            return static_cast<uint8_t>((x << 1) ^ ((x >> 7) * 0x1B));
         }
 
         uint8_t gmul(uint8_t a, uint8_t b) {
@@ -141,18 +141,18 @@ namespace gen4 {
                 memcpy(t, round_keys + (i - 1) * 4, 4);
                 if (i % 8 == 0) {
                     uint8_t tmp = t[0];
-                    t[0] = (uint8_t)(AES_SBOX[t[1]] ^ rcon);
+                    t[0] = static_cast<uint8_t>(AES_SBOX[t[1]] ^ rcon);
                     t[1] = AES_SBOX[t[2]];
                     t[2] = AES_SBOX[t[3]];
                     t[3] = AES_SBOX[tmp];
                     rcon = xtime(rcon);
                 } else if (i % 8 == 4) {
-                    for (int j = 0; j < 4; j++) {
-                        t[j] = AES_SBOX[t[j]];
+                    for (unsigned char& j : t) {
+                        j = AES_SBOX[j];
                     }
                 }
                 for (int j = 0; j < 4; j++) {
-                    round_keys[i * 4 + j] = (uint8_t)(round_keys[(i - 8) * 4 + j] ^ t[j]);
+                    round_keys[i * 4 + j] = static_cast<uint8_t>(round_keys[(i - 8) * 4 + j] ^ t[j]);
                 }
             }
         }
@@ -194,10 +194,10 @@ namespace gen4 {
             for (int c = 0; c < 4; c++) {
                 uint8_t* p = s + c * 4;
                 uint8_t a0 = p[0], a1 = p[1], a2 = p[2], a3 = p[3];
-                p[0] = (uint8_t)(gmul(a0, 14) ^ gmul(a1, 11) ^ gmul(a2, 13) ^ gmul(a3, 9));
-                p[1] = (uint8_t)(gmul(a0, 9) ^ gmul(a1, 14) ^ gmul(a2, 11) ^ gmul(a3, 13));
-                p[2] = (uint8_t)(gmul(a0, 13) ^ gmul(a1, 9) ^ gmul(a2, 14) ^ gmul(a3, 11));
-                p[3] = (uint8_t)(gmul(a0, 11) ^ gmul(a1, 13) ^ gmul(a2, 9) ^ gmul(a3, 14));
+                p[0] = static_cast<uint8_t>(gmul(a0, 14) ^ gmul(a1, 11) ^ gmul(a2, 13) ^ gmul(a3, 9));
+                p[1] = static_cast<uint8_t>(gmul(a0, 9) ^ gmul(a1, 14) ^ gmul(a2, 11) ^ gmul(a3, 13));
+                p[2] = static_cast<uint8_t>(gmul(a0, 13) ^ gmul(a1, 9) ^ gmul(a2, 14) ^ gmul(a3, 11));
+                p[3] = static_cast<uint8_t>(gmul(a0, 11) ^ gmul(a1, 13) ^ gmul(a2, 9) ^ gmul(a3, 14));
             }
         }
 
@@ -230,9 +230,9 @@ namespace gen4 {
         memcpy(tail, data + full * 64, rest);
         tail[rest] = 0x80;
         size_t tail_len = (rest < 56) ? 64 : 128;
-        uint64_t bits = (uint64_t)len * 8;
+        uint64_t bits = static_cast<uint64_t>(len) * 8;
         for (int i = 0; i < 8; i++) {
-            tail[tail_len - 1 - i] = (uint8_t)(bits >> (i * 8));
+            tail[tail_len - 1 - i] = static_cast<uint8_t>(bits >> (i * 8));
         }
         for (size_t i = 0; i < tail_len; i += 64) {
             sha256_block(state, tail + i);
@@ -240,10 +240,10 @@ namespace gen4 {
 
         std::vector<uint8_t> out(32);
         for (int i = 0; i < 8; i++) {
-            out[i * 4] = (uint8_t)(state[i] >> 24);
-            out[i * 4 + 1] = (uint8_t)(state[i] >> 16);
-            out[i * 4 + 2] = (uint8_t)(state[i] >> 8);
-            out[i * 4 + 3] = (uint8_t)(state[i]);
+            out[i * 4] = static_cast<uint8_t>(state[i] >> 24);
+            out[i * 4 + 1] = static_cast<uint8_t>(state[i] >> 16);
+            out[i * 4 + 2] = static_cast<uint8_t>(state[i] >> 8);
+            out[i * 4 + 3] = static_cast<uint8_t>(state[i]);
         }
         return out;
     }
@@ -267,7 +267,7 @@ namespace gen4 {
             memcpy(block, cipher, 16);
             decrypt_block(round_keys, block);
             for (int i = 0; i < 16; i++) {
-                out[off + i] = (uint8_t)(block[i] ^ prev[i]);
+                out[off + i] = static_cast<uint8_t>(block[i] ^ prev[i]);
             }
             memcpy(prev, cipher, 16);
         }
@@ -276,7 +276,7 @@ namespace gen4 {
         // than a buffer of noise handed on to the inflater.
         uint8_t pad = out.back();
         if (pad == 0 || pad > 16) {
-            spdlog::warn("gen4: bad PKCS#7 padding ({}), wrong key?", (int)pad);
+            spdlog::warn("gen4: bad PKCS#7 padding ({}), wrong key?", static_cast<int>(pad));
             return {};
         }
         for (size_t i = out.size() - pad; i < out.size(); i++) {
@@ -303,7 +303,7 @@ namespace gen4 {
             if (pos + 2 > len) {
                 return {};
             }
-            size_t extra = (size_t)data[pos] | ((size_t)data[pos + 1] << 8);
+            size_t extra = static_cast<size_t>(data[pos]) | (static_cast<size_t>(data[pos + 1]) << 8);
             pos += 2 + extra;
         }
         if (flags & 0x08) {
@@ -323,11 +323,11 @@ namespace gen4 {
 
         // The gzip trailer carries the uncompressed size, which saves growing the
         // output buffer blindly.
-        uint32_t isize = (uint32_t)data[len - 4] | ((uint32_t)data[len - 3] << 8) | ((uint32_t)data[len - 2] << 16) |
-                         ((uint32_t)data[len - 1] << 24);
+        uint32_t isize = static_cast<uint32_t>(data[len - 4]) | (static_cast<uint32_t>(data[len - 3]) << 8) |
+                         (static_cast<uint32_t>(data[len - 2]) << 16) | (static_cast<uint32_t>(data[len - 1]) << 24);
 
         const size_t kMaxInflated = 64u * 1024 * 1024;
-        size_t want = isize ? (size_t)isize : len * 4;
+        size_t want = isize ? static_cast<size_t>(isize) : len * 4;
         if (want > kMaxInflated) {
             spdlog::warn("gen4: gzip declares {} bytes, refusing", want);
             return {};
@@ -335,9 +335,9 @@ namespace gen4 {
         std::vector<uint8_t> out(want);
         mz_stream stream = {};
         stream.next_in = data + pos;
-        stream.avail_in = (unsigned int)(len - pos - 8);
+        stream.avail_in = static_cast<unsigned int>(len - pos - 8);
         stream.next_out = out.data();
-        stream.avail_out = (unsigned int)out.size();
+        stream.avail_out = static_cast<unsigned int>(out.size());
 
         if (mz_inflateInit2(&stream, -MZ_DEFAULT_WINDOW_BITS) != MZ_OK) {
             spdlog::warn("gen4: inflate init failed");
@@ -356,9 +356,10 @@ namespace gen4 {
         }
         out.resize(stream.total_out);
 
-        uint32_t crc_stored = (uint32_t)data[len - 8] | ((uint32_t)data[len - 7] << 8) |
-                              ((uint32_t)data[len - 6] << 16) | ((uint32_t)data[len - 5] << 24);
-        uint32_t crc_actual = (uint32_t)mz_crc32(MZ_CRC32_INIT, out.data(), out.size());
+        uint32_t crc_stored = static_cast<uint32_t>(data[len - 8]) | (static_cast<uint32_t>(data[len - 7]) << 8) |
+                              (static_cast<uint32_t>(data[len - 6]) << 16) |
+                              (static_cast<uint32_t>(data[len - 5]) << 24);
+        uint32_t crc_actual = static_cast<uint32_t>(mz_crc32(MZ_CRC32_INIT, out.data(), out.size()));
         if (crc_actual != crc_stored) {
             spdlog::warn("gen4: gzip CRC32 mismatch, truncated/corrupt archive");
             return {};
@@ -374,16 +375,16 @@ namespace gen4 {
 
         std::string hex = to_hex_upper(sha256(buf.data(), buf.size()));
         for (int i = 0; i < 1000; i++) {
-            hex = to_hex_upper(sha256((const uint8_t*)hex.data(), hex.size()));
+            hex = to_hex_upper(sha256(reinterpret_cast<const uint8_t*>(hex.data()), hex.size()));
         }
 
         uint32_t digest_words[4];
-        md5((const uint8_t*)hex.data(), hex.size(), digest_words);
+        md5(reinterpret_cast<const uint8_t*>(hex.data()), hex.size(), digest_words);
 
         std::vector<uint8_t> digest(16);
         for (int i = 0; i < 4; i++) {
             for (int j = 0; j < 4; j++) {
-                digest[i * 4 + j] = (uint8_t)(digest_words[i] >> (j * 8));
+                digest[i * 4 + j] = static_cast<uint8_t>(digest_words[i] >> (j * 8));
             }
         }
 
@@ -407,7 +408,7 @@ namespace gen4 {
             if (id.empty() || id == "." || id == "..") {
                 return false;
             }
-            return id.find('/') == std::string::npos && id.find('\\') == std::string::npos;
+            return !id.contains('/') && !id.contains('\\');
         }
 
         // wordlist column -> the language codes this game uses.
@@ -629,9 +630,9 @@ namespace gen4 {
             return "";
         }
         int column = 0;
-        if (language.rfind("en", 0) == 0) {
+        if (language.starts_with("en")) {
             column = 1;
-        } else if (language.rfind("zh", 0) == 0) {
+        } else if (language.starts_with("zh")) {
             column = 2;
         }
         return NAMES[genre_no][column];
@@ -640,11 +641,11 @@ namespace gen4 {
     std::vector<int> genres_present(const Library& library) {
         std::vector<int> found;
         for (const OrderEntry& e : library.order()) {
-            if (std::find(found.begin(), found.end(), e.genre_no) == found.end()) {
+            if (std::ranges::find(found, e.genre_no) == found.end()) {
                 found.push_back(e.genre_no);
             }
         }
-        std::sort(found.begin(), found.end());
+        std::ranges::sort(found);
         return found;
     }
 
@@ -654,7 +655,7 @@ namespace gen4 {
 
     int genre_of_path(const fs::path& path) {
         std::string name = path.filename().string();
-        if (name.rfind("@genre_", 0) != 0) {
+        if (!name.starts_with("@genre_")) {
             return -1;
         }
         try {
@@ -669,7 +670,7 @@ namespace gen4 {
     static bool is_root_dir(const fs::path& dir) {
         static std::mutex mutex;
         static std::map<fs::path, bool> cache;
-        std::lock_guard<std::mutex> lock(mutex);
+        std::scoped_lock lock(mutex);
         auto it = cache.find(dir);
         if (it != cache.end()) {
             return it->second;
@@ -703,7 +704,7 @@ namespace gen4 {
         const std::string key = root.string();
 
         {
-            std::lock_guard<std::mutex> lock(cache_mutex);
+            std::scoped_lock lock(cache_mutex);
             auto it = cache.find(key);
             if (it != cache.end()) {
                 return &it->second;
@@ -717,7 +718,7 @@ namespace gen4 {
             return nullptr;
         }
 
-        std::lock_guard<std::mutex> lock(cache_mutex);
+        std::scoped_lock lock(cache_mutex);
         auto it = cache.find(key);
         if (it == cache.end()) {
             it = cache.emplace(key, std::move(lib)).first;

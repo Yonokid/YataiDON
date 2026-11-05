@@ -15,13 +15,15 @@ namespace gen4 {
     namespace {
 
         uint32_t read_be32(const uint8_t* p) {
-            return ((uint32_t)p[0] << 24) | ((uint32_t)p[1] << 16) | ((uint32_t)p[2] << 8) | p[3];
+            return (static_cast<uint32_t>(p[0]) << 24) | (static_cast<uint32_t>(p[1]) << 16) |
+                   (static_cast<uint32_t>(p[2]) << 8) | p[3];
         }
         uint16_t read_be16(const uint8_t* p) {
-            return (uint16_t)(((uint32_t)p[0] << 8) | p[1]);
+            return static_cast<uint16_t>((static_cast<uint32_t>(p[0]) << 8) | p[1]);
         }
         uint32_t read_le32(const uint8_t* p) {
-            return (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
+            return static_cast<uint32_t>(p[0]) | (static_cast<uint32_t>(p[1]) << 8) |
+                   (static_cast<uint32_t>(p[2]) << 16) | (static_cast<uint32_t>(p[3]) << 24);
         }
 
         struct Bnsf {
@@ -51,7 +53,7 @@ namespace gen4 {
                 if (preview > 30u * 60u * 1000u) {
                     continue; // half an hour: not a time
                 }
-                return (int)preview;
+                return static_cast<int>(preview);
             }
             return 0;
         }
@@ -66,7 +68,7 @@ namespace gen4 {
                 return false;
             }
 
-            size_t pos = (size_t)0x14 + read_le32(file.data() + 0x10);
+            size_t pos = static_cast<size_t>(0x14) + read_le32(file.data() + 0x10);
             if (pos > file.size()) {
                 spdlog::warn("gen4 audio: BANKTOC size out of range");
                 return false;
@@ -83,7 +85,7 @@ namespace gen4 {
                     pack_size = size;
                     break;
                 }
-                pos += (size_t)8 + (size_t)size; // avoid 32-bit wrap / no-progress loop
+                pos += static_cast<size_t>(8) + static_cast<size_t>(size); // avoid 32-bit wrap / no-progress loop
             }
             if (!pack || pack + pack_size > file.size()) {
                 spdlog::warn("gen4 audio: no PACK chunk");
@@ -99,7 +101,8 @@ namespace gen4 {
                 return false;
             }
             if (memcmp(p + 8, "IS22", 4) != 0) {
-                spdlog::warn("gen4 audio: codec tag is {:.4s}, only IS22 is supported", (const char*)(p + 8));
+                spdlog::warn("gen4 audio: codec tag is {:.4s}, only IS22 is supported",
+                             reinterpret_cast<const char*>(p + 8));
                 return false;
             }
             if (memcmp(p + 0x0C, "sfmt", 4) != 0) {
@@ -110,8 +113,8 @@ namespace gen4 {
             const uint8_t* fmt = p + 0x14;
             uint16_t flags = read_be16(fmt);
             out.channels = read_be16(fmt + 2);
-            out.sample_rate = (int)read_be32(fmt + 4);
-            out.num_samples = (int)read_be32(fmt + 8);
+            out.sample_rate = static_cast<int>(read_be32(fmt + 4));
+            out.num_samples = static_cast<int>(read_be32(fmt + 8));
             out.block_size = read_be16(fmt + 0x10);
             out.block_samples = read_be16(fmt + 0x12);
             if (out.sample_rate < 8000 || out.sample_rate > 192000 || out.num_samples < 0) {
@@ -166,14 +169,10 @@ namespace gen4 {
                     nib -= 16;
                 }
                 int sample = (((nib * scale) << 11) + 1024 + c1 * ch.hist1 + c2 * ch.hist2) >> 11;
-                if (sample > 32767) {
-                    sample = 32767;
-                }
-                if (sample < -32768) {
-                    sample = -32768;
-                }
+                sample = std::min(sample, 32767);
+                sample = std::max(sample, -32768);
                 ch.hist2 = ch.hist1;
-                ch.hist1 = (int16_t)sample;
+                ch.hist1 = static_cast<int16_t>(sample);
                 out14[i] = ch.hist1;
             }
         }
@@ -185,8 +184,8 @@ namespace gen4 {
             const uint8_t* p = file.data() + pack;
 
             auto be = [&](size_t off) { return read_be32(p + off); };
-            int channels = (int)be(0x08);
-            int rate = (int)be(0x0C);
+            int channels = static_cast<int>(be(0x08));
+            int rate = static_cast<int>(be(0x0C));
             uint32_t samples = be(0x10);
             uint32_t interleave = be(0x1C);
             uint32_t hdr_off = be(0x20);
@@ -195,8 +194,8 @@ namespace gen4 {
             uint32_t data_size = be(0x2C); // per channel
 
             if (channels < 1 || channels > 2 || rate <= 0 || samples == 0 || hdr_size < 0x44 ||
-                (size_t)hdr_off + (size_t)channels * hdr_size > pack_size ||
-                (size_t)data_off + (size_t)channels * data_size > pack_size) {
+                static_cast<size_t>(hdr_off) + static_cast<size_t>(channels) * hdr_size > pack_size ||
+                static_cast<size_t>(data_off) + static_cast<size_t>(channels) * data_size > pack_size) {
                 spdlog::warn("gen4 audio: IDSP stream shape not understood");
                 return false;
             }
@@ -207,18 +206,16 @@ namespace gen4 {
                 spdlog::warn("gen4 audio: IDSP interleave {} not usable", interleave);
                 return false;
             }
-            if (interleave > data_size) {
-                interleave = data_size;
-            }
+            interleave = std::min(interleave, data_size);
 
             std::vector<IdspChannel> chans(channels);
             for (int c = 0; c < channels; c++) {
-                const uint8_t* h = p + hdr_off + (size_t)c * hdr_size;
+                const uint8_t* h = p + hdr_off + static_cast<size_t>(c) * hdr_size;
                 for (int i = 0; i < 16; i++) {
-                    chans[c].coef[i] = (int16_t)read_be16(h + 0x1C + i * 2);
+                    chans[c].coef[i] = static_cast<int16_t>(read_be16(h + 0x1C + i * 2));
                 }
-                chans[c].hist1 = (int16_t)read_be16(h + 0x40);
-                chans[c].hist2 = (int16_t)read_be16(h + 0x42);
+                chans[c].hist1 = static_cast<int16_t>(read_be16(h + 0x40));
+                chans[c].hist2 = static_cast<int16_t>(read_be16(h + 0x42));
             }
 
             out.channels = channels;
@@ -235,7 +232,8 @@ namespace gen4 {
                 uint32_t block_frames = block_bytes / 8;
                 bool block_ok = true;
                 for (int c = 0; c < channels; c++) {
-                    const size_t src_off = data_off + ((size_t)b * channels + c) * (size_t)interleave;
+                    const size_t src_off =
+                        data_off + (static_cast<size_t>(b) * channels + c) * static_cast<size_t>(interleave);
                     if (src_off + block_bytes > pack_size) {
                         block_ok = false;
                         break;
@@ -256,8 +254,8 @@ namespace gen4 {
             }
 
             // The header's sample count is the real length; the rest is frame padding.
-            if ((size_t)samples * channels < out.samples.size()) {
-                out.samples.resize((size_t)samples * channels);
+            if (static_cast<size_t>(samples) * channels < out.samples.size()) {
+                out.samples.resize(static_cast<size_t>(samples) * channels);
             }
 
             return !out.samples.empty();
@@ -318,16 +316,18 @@ namespace gen4 {
         out.channels = info.channels;
         out.sample_rate = info.sample_rate;
         out.samples.clear();
-        out.samples.reserve((size_t)info.num_samples * info.channels);
+        out.samples.reserve(static_cast<size_t>(info.num_samples) * info.channels);
 
         const int samples_per_frame = info.block_samples > 0 ? info.block_samples : 960;
         const uint8_t* data = file.data() + info.data_offset;
         size_t pos = 0;
         std::vector<std::vector<int16_t>> pcm(info.channels, std::vector<int16_t>(samples_per_frame));
 
-        while (pos + (size_t)info.block_size <= info.data_size) {
+        while (pos + static_cast<size_t>(info.block_size) <= info.data_size) {
             for (int c = 0; c < info.channels; c++) {
-                g719_decode_frame(decoders[c].get(), (void*)(data + pos + (size_t)c * frame_bytes), pcm[c].data());
+                g719_decode_frame(decoders[c].get(),
+                                  const_cast<uint8_t*>(data + pos + static_cast<size_t>(c) * frame_bytes),
+                                  pcm[c].data());
             }
             pos += info.block_size;
 
@@ -339,7 +339,7 @@ namespace gen4 {
         }
 
         // The header's sample count is the real length; the last frame is padding.
-        size_t wanted = (size_t)info.num_samples * info.channels;
+        size_t wanted = static_cast<size_t>(info.num_samples) * info.channels;
         if (info.num_samples > 0 && wanted < out.samples.size()) {
             out.samples.resize(wanted);
         }

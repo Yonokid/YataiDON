@@ -9,7 +9,8 @@
 class SettingsBoxManager {
 private:
     std::vector<std::unique_ptr<SettingsBox>> boxes;
-    int selected_box_index;
+    static constexpr int INITIAL_SELECTED = 3;
+    int selected_box_index{INITIAL_SELECTED};
     bool box_selected{false};
 
 public:

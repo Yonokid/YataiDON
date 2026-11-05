@@ -341,7 +341,7 @@ void NavigationLoad::load_current_directory_async(const fs::path& path) {
             own_root_is_gen3 = true;
         }
     }
-    bool is_a_root = std::find(root_paths.begin(), root_paths.end(), path) != root_paths.end();
+    bool is_a_root = std::ranges::find(root_paths, path) != root_paths.end();
     if (!own_root.empty() && is_a_root && (own_root_is_gen3 || gen4::library_for(own_root))) {
         if (reloading_roots && !only_gen4_songs()) {
             BoxDef gen4_def = box_def;
@@ -1163,7 +1163,7 @@ void NavigationLoad::load_gen4_genres(const fs::path& data_root) {
         if (abort_loading) {
             break;
         }
-        GenreIndex genre = (GenreIndex)gen4::genre_index_for(genre_no);
+        GenreIndex genre = static_cast<GenreIndex>(gen4::genre_index_for(genre_no));
 
         BoxDef def;
         if (const BoxDef* like = box_def_for_genre(genre)) {
@@ -1204,7 +1204,7 @@ bool NavigationLoad::load_gen4_genre_songs(const fs::path& path, const BoxDef& b
         return false;
     }
 
-    GenreIndex genre = (GenreIndex)gen4::genre_index_for(genre_no);
+    GenreIndex genre = static_cast<GenreIndex>(gen4::genre_index_for(genre_no));
 
     BoxDef def = box_def;
     if (const BoxDef* like = box_def_for_genre(genre)) {
@@ -1271,7 +1271,7 @@ void NavigationLoad::load_gen3_genres(const fs::path& data_root) {
         if (abort_loading) {
             break;
         }
-        GenreIndex genre = (GenreIndex)gen3::genre_index_for(genre_name);
+        GenreIndex genre = static_cast<GenreIndex>(gen3::genre_index_for(genre_name));
 
         BoxDef def;
         if (const BoxDef* like = box_def_for_genre(genre)) {
@@ -1312,7 +1312,7 @@ bool NavigationLoad::load_gen3_genre_songs(const fs::path& path, const BoxDef& b
         return false;
     }
 
-    GenreIndex genre = (GenreIndex)gen3::genre_index_for(genre_name);
+    GenreIndex genre = static_cast<GenreIndex>(gen3::genre_index_for(genre_name));
 
     BoxDef def = box_def;
     if (const BoxDef* like = box_def_for_genre(genre)) {

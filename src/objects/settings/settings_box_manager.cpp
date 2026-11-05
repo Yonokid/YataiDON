@@ -2,12 +2,11 @@
 
 #include <iterator>
 
-static constexpr int INITIAL_SELECTED = 3;
 // Same 1280x720-canvas base values as SettingsBox; scale with the skin.
 static constexpr float BOX_STEP_BASE = 100.0f;
 static constexpr float BOX_INITIAL_Y_BASE = -50.0f;
 
-SettingsBoxManager::SettingsBoxManager(const rapidjson::Document& tmpl) : selected_box_index(INITIAL_SELECTED) {
+SettingsBoxManager::SettingsBoxManager(const rapidjson::Document& tmpl) {
     std::string lang = global_data.config->general.language;
 
     for (auto it = tmpl.MemberBegin(); it != tmpl.MemberEnd(); ++it) {

@@ -203,6 +203,12 @@ static constexpr bool kDefaultTouchInput = true;
 static constexpr bool kDefaultTouchInput = false;
 #endif
 
+#ifdef PLATFORM_ANDROID
+static constexpr int kDefaultAudioBufferSize = 256;
+#else
+static constexpr int kDefaultAudioBufferSize = 128;
+#endif
+
 // iOS drives the display from UIKit's animation callback, so vsync must stay on.
 #ifdef YATAIDON_PLATFORM_IOS
 static constexpr bool kDefaultVsync = true;
@@ -409,7 +415,7 @@ Config get_config() {
     config.audio.device_type = config_file["audio"]["device_type"].value_or(0);
     config.audio.device = config_file["audio"]["device"].value_or("");
     config.audio.sample_rate = config_file["audio"]["sample_rate"].value_or(44100);
-    config.audio.buffer_size = config_file["audio"]["buffer_size"].value_or(128);
+    config.audio.buffer_size = config_file["audio"]["buffer_size"].value_or(kDefaultAudioBufferSize);
     if (auto asio_channel = config_file["audio"]["asio_channel"].as_array()) {
         config.audio.asio_channel = parseIntArray(*asio_channel);
     }

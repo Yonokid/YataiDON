@@ -54,6 +54,32 @@ jobs:
           path: .cmake-deps
           key: android-cmake-deps-ndk30-${{ hashFiles('cmake/deps.cmake') }}
 
+      - name: Cache host shaderc
+        id: cache-shaderc
+        uses: actions/cache@v4
+        with:
+          path: .host-shaderc
+          key: host-shaderc-${{ runner.os }}-${{ hashFiles('cmake/deps.cmake') }}
+
+      - name: Build host shaderc
+        if: steps.cache-shaderc.outputs.cache-hit != 'true'
+        run: |
+          BGFX_TAG=$(grep -A1 'bgfx.cmake.git' cmake/deps.cmake | sed -n 's/.*GIT_TAG *//p')
+          git clone --depth 1 --branch "$BGFX_TAG" --recurse-submodules --shallow-submodules \
+            https://github.com/bkaradzic/bgfx.cmake.git "$RUNNER_TEMP/bgfx"
+          cmake -S "$RUNNER_TEMP/bgfx" -B "$RUNNER_TEMP/bgfx-build" -DCMAKE_BUILD_TYPE=Release \
+            -DBGFX_BUILD_EXAMPLES=OFF -DBGFX_BUILD_TESTS=OFF -DBGFX_BUILD_TOOLS=ON -DBGFX_BUILD_TOOLS_SHADER=ON \
+            -DBGFX_BUILD_TOOLS_TEXTURE=OFF -DBGFX_BUILD_TOOLS_GEOMETRY=OFF -DBGFX_BUILD_TOOLS_BIN2C=OFF \
+            -DBGFX_INSTALL=OFF -DBGFX_CUSTOM_TARGETS=OFF
+          cmake --build "$RUNNER_TEMP/bgfx-build" --target shaderc --parallel
+          mkdir -p .host-shaderc
+          cp "$RUNNER_TEMP/bgfx-build/cmake/bgfx/shaderc" .host-shaderc/
+
+      - name: Install host shaderc
+        run: |
+          mkdir -p .cmake-deps/bgfx-build/cmake/bgfx
+          cp .host-shaderc/shaderc .cmake-deps/bgfx-build/cmake/bgfx/shaderc
+
       - name: Write local.properties
         run: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > platform/android/local.properties
@@ -73,7 +99,7 @@ jobs:
         env:
           NETWORK_URL: ${{ secrets.NETWORK_URL }}
           NETWORK_AUTH_KEY: ${{ secrets.NETWORK_AUTH_KEY }}
-        run: ./gradlew assembleRelease --no-daemon
+        run: ./gradlew assembleRelease --no-daemon -PgfxBackend=bgfx
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -88,7 +114,7 @@ jobs:
         env:
           NETWORK_URL: ${{ secrets.NETWORK_URL }}
           NETWORK_AUTH_KEY: ${{ secrets.NETWORK_AUTH_KEY }}
-        run: ./gradlew assembleRelease --no-daemon -PbundleGameData=false
+        run: ./gradlew assembleRelease --no-daemon -PbundleGameData=false -PgfxBackend=bgfx
 
       - name: Upload update APK
         uses: actions/upload-artifact@v4

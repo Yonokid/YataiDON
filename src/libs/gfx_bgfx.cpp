@@ -16,6 +16,7 @@
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <numbers>
 #include <optional>
 #include <span>
 #include <spdlog/spdlog.h>
@@ -438,11 +439,11 @@ namespace {
         for (size_t i = 0; i < slots.size(); i++) {
             if (!alive(slots[i])) {
                 slots[i] = slot;
-                return (unsigned)i + 1;
+                return static_cast<unsigned>(i) + 1;
             }
         }
         slots.push_back(slot);
-        return (unsigned)slots.size();
+        return static_cast<unsigned>(slots.size());
     }
     unsigned add_slot(const TextureSlot& t) {
         return add_slot(textures, t, [](const TextureSlot& s) { return bgfx::isValid(s.handle); });
@@ -614,15 +615,16 @@ namespace {
         bgfx::setViewMode(pass.view, bgfx::ViewMode::Sequential);
         bgfx::setViewFrameBuffer(pass.view,
                                  target ? targets[target - 1].fb : bgfx::FrameBufferHandle BGFX_INVALID_HANDLE);
-        bgfx::setViewRect(pass.view, 0, 0, (uint16_t)pass.width, (uint16_t)pass.height);
+        bgfx::setViewRect(pass.view, 0, 0, static_cast<uint16_t>(pass.width), static_cast<uint16_t>(pass.height));
         bgfx::setViewClear(pass.view, clear ? BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH : BGFX_CLEAR_NONE,
-                           (uint32_t)clear_color.r << 24 | (uint32_t)clear_color.g << 16 |
-                               (uint32_t)clear_color.b << 8 | clear_color.a,
+                           static_cast<uint32_t>(clear_color.r) << 24 | static_cast<uint32_t>(clear_color.g) << 16 |
+                               static_cast<uint32_t>(clear_color.b) << 8 | clear_color.a,
                            1.0f, 0);
         float proj[16];
-        const float bottom = pass.flip ? 0.0f : (float)pass.height;
-        const float top = pass.flip ? (float)pass.height : 0.0f;
-        bx::mtxOrtho(proj, 0.0f, (float)pass.width, bottom, top, -1.0f, 1.0f, 0.0f, caps->homogeneousDepth);
+        const float bottom = pass.flip ? 0.0f : static_cast<float>(pass.height);
+        const float top = pass.flip ? static_cast<float>(pass.height) : 0.0f;
+        bx::mtxOrtho(proj, 0.0f, static_cast<float>(pass.width), bottom, top, -1.0f, 1.0f, 0.0f,
+                     caps->homogeneousDepth);
         bgfx::setViewTransform(pass.view, nullptr, proj);
         if (clear) {
             bgfx::touch(pass.view); // so the clear happens even without draws
@@ -645,7 +647,8 @@ namespace {
     }
 
     uint32_t pack(Color c) {
-        return (uint32_t)c.r | (uint32_t)c.g << 8 | (uint32_t)c.b << 16 | (uint32_t)c.a << 24;
+        return static_cast<uint32_t>(c.r) | static_cast<uint32_t>(c.g) << 8 | static_cast<uint32_t>(c.b) << 16 |
+               static_cast<uint32_t>(c.a) << 24;
     }
 
     void push_quad(Vec2 tl, Vec2 bl, Vec2 br, Vec2 tr, Vec2 uv_tl, Vec2 uv_bl, Vec2 uv_br, Vec2 uv_tr, Color c) {
@@ -694,13 +697,13 @@ namespace {
             return segments;
         }
         const float th = acosf(2 * powf(1 - 0.5f / radius, 2) - 1);
-        const int s = (int)ceilf((2 * 3.14159265358979f / th) / 4.0f);
+        const int s = static_cast<int>(ceilf((2 * std::numbers::pi_v<float> / th) / 4.0f));
         return s > 0 ? s : 4;
     }
 
     // Annulus sector (inner may be 0) around `center` from `start_deg`, 90 degrees.
     void corner(Vec2 center, float inner, float outer, float start_deg, int segments, Color c) {
-        const float step = 90.0f / (float)segments;
+        const float step = 90.0f / static_cast<float>(segments);
         for (int i = 0; i < segments; i++) {
             const float a0 = (start_deg + step * i) * deg2rad, a1 = (start_deg + step * (i + 1)) * deg2rad;
             const Vec2 o0{center.x + cosf(a0) * outer, center.y + sinf(a0) * outer};
@@ -727,31 +730,31 @@ namespace {
             }
         }
         TextureSlot slot;
-        slot.handle = bgfx::createTexture2D((uint16_t)rgba.width, (uint16_t)rgba.height, levels > 1, 1,
-                                            bgfx::TextureFormat::RGBA8);
+        slot.handle = bgfx::createTexture2D(static_cast<uint16_t>(rgba.width), static_cast<uint16_t>(rgba.height),
+                                            levels > 1, 1, bgfx::TextureFormat::RGBA8);
         // ponytail: box-filtered mips on the CPU; GPU generation if load time ever matters
         const auto* level = static_cast<const uint8_t*>(rgba.data);
         std::vector<uint8_t> next, prev;
         int w = rgba.width, h = rgba.height;
         for (int mip = 0; mip < levels; mip++) {
-            const auto bytes = (uint32_t)(w * h * 4);
-            bgfx::updateTexture2D(slot.handle, 0, (uint8_t)mip, 0, 0, (uint16_t)w, (uint16_t)h,
-                                  bgfx::copy(level, bytes));
+            const auto bytes = static_cast<uint32_t>(w * h * 4);
+            bgfx::updateTexture2D(slot.handle, 0, static_cast<uint8_t>(mip), 0, 0, static_cast<uint16_t>(w),
+                                  static_cast<uint16_t>(h), bgfx::copy(level, bytes));
             pending_upload_bytes += bytes;
             if (mip + 1 == levels) {
                 break;
             }
             const int nw = std::max(1, w / 2), nh = std::max(1, h / 2);
-            next.resize((size_t)nw * nh * 4);
+            next.resize(static_cast<size_t>(nw) * nh * 4);
             for (int y = 0; y < nh; y++) {
                 const int y0 = std::min(y * 2, h - 1), y1 = std::min(y * 2 + 1, h - 1);
                 for (int x = 0; x < nw; x++) {
                     const int x0 = std::min(x * 2, w - 1), x1 = std::min(x * 2 + 1, w - 1);
                     for (int c = 0; c < 4; c++) {
                         next[(y * nw + x) * 4 + c] =
-                            (uint8_t)((level[(y0 * w + x0) * 4 + c] + level[(y0 * w + x1) * 4 + c] +
-                                       level[(y1 * w + x0) * 4 + c] + level[(y1 * w + x1) * 4 + c] + 2) /
-                                      4);
+                            static_cast<uint8_t>((level[(y0 * w + x0) * 4 + c] + level[(y0 * w + x1) * 4 + c] +
+                                                  level[(y1 * w + x0) * 4 + c] + level[(y1 * w + x1) * 4 + c] + 2) /
+                                                 4);
                     }
                 }
             }
@@ -800,7 +803,8 @@ namespace {
             type = bgfx::NativeWindowHandleType::Wayland;
         } else {
             ndt = SDL_GetPointerProperty(props, SDL_PROP_WINDOW_X11_DISPLAY_POINTER, nullptr);
-            nwh = (void*)(uintptr_t)SDL_GetNumberProperty(props, SDL_PROP_WINDOW_X11_WINDOW_NUMBER, 0);
+            nwh = reinterpret_cast<void*>(
+                static_cast<uintptr_t>(SDL_GetNumberProperty(props, SDL_PROP_WINDOW_X11_WINDOW_NUMBER, 0)));
             type = bgfx::NativeWindowHandleType::Default;
         }
 #endif
@@ -812,8 +816,8 @@ namespace {
             return bgfx::RendererType::Vulkan; // only SPIR-V shaders are built so far
         }
         for (int i = 0; i < bgfx::RendererType::Count; i++) {
-            if (SDL_strcasecmp(name, bgfx::getRendererName((bgfx::RendererType::Enum)i)) == 0) {
-                return (bgfx::RendererType::Enum)i;
+            if (SDL_strcasecmp(name, bgfx::getRendererName(static_cast<bgfx::RendererType::Enum>(i))) == 0) {
+                return static_cast<bgfx::RendererType::Enum>(i);
             }
         }
         spdlog::warn("bgfx: unknown YATAIDON_BGFX_RENDERER '{}', using Vulkan", name);
@@ -826,8 +830,8 @@ namespace {
         bgfx::SwapChain sc;
         bgfx::NativeWindowHandleType::Enum type;
         native_handles(sc.nwh, sc.ndt, type);
-        sc.width = (uint32_t)w;
-        sc.height = (uint32_t)h;
+        sc.width = static_cast<uint32_t>(w);
+        sc.height = static_cast<uint32_t>(h);
         bgfx::reset(reset_flags, &sc);
     }
 
@@ -846,7 +850,7 @@ namespace {
         uint32_t cacheReadSize(uint64_t id) override {
             std::error_code ec;
             const auto size = std::filesystem::file_size(cache_path(id), ec);
-            return ec ? 0 : (uint32_t)size;
+            return ec ? 0 : static_cast<uint32_t>(size);
         }
         bool cacheRead(uint64_t id, void* data, uint32_t size) override {
             std::ifstream f(cache_path(id), std::ios::binary);
@@ -859,7 +863,7 @@ namespace {
         }
         void screenShot(const char* path, uint32_t w, uint32_t h, uint32_t pitch, bgfx::TextureFormat::Enum format,
                         const void* data, uint32_t, bool yflip) override {
-            Image img = gen_image_color((int)w, (int)h, Color::BLACK);
+            Image img = gen_image_color(static_cast<int>(w), static_cast<int>(h), Color::BLACK);
             auto* out = static_cast<uint8_t*>(img.data);
             const bool bgra = format == bgfx::TextureFormat::BGRA8;
             for (uint32_t y = 0; y < h; y++) {
@@ -894,7 +898,7 @@ namespace {
         }
         shot_prefix = colon + 1;
         for (const char* p = env; p < colon; p = std::strchr(p, ',') ? std::strchr(p, ',') + 1 : colon) {
-            shot_times.push_back(std::atof(p));
+            shot_times.push_back(std::strtod(p, nullptr));
         }
     }
 
@@ -957,8 +961,8 @@ void init_window(int width, int height, const char* title) {
     native_handles(init.swapChain.nwh, init.swapChain.ndt, init.platformData.type);
     int w = 0, h = 0;
     SDL_GetWindowSizeInPixels(window, &w, &h);
-    init.swapChain.width = (uint32_t)w;
-    init.swapChain.height = (uint32_t)h;
+    init.swapChain.width = static_cast<uint32_t>(w);
+    init.swapChain.height = static_cast<uint32_t>(h);
     reset_flags = (window_flags & window_flag::VSYNC) ? BGFX_RESET_VSYNC : BGFX_RESET_NONE;
     init.reset = reset_flags;
     init.callback = &callback;
@@ -970,7 +974,7 @@ void init_window(int width, int height, const char* title) {
     caps = bgfx::getCaps();
     spdlog::info("bgfx: {} renderer, {}x{}", bgfx::getRendererName(bgfx::getRendererType()), w, h);
     if (const char* dbg = std::getenv("YATAIDON_BGFX_DEBUG")) {
-        bgfx::setDebug(std::atoi(dbg) ? BGFX_DEBUG_STATS : BGFX_DEBUG_NONE);
+        bgfx::setDebug(std::strtol(dbg, nullptr, 10) ? BGFX_DEBUG_STATS : BGFX_DEBUG_NONE);
     }
 
     layout.begin()
@@ -1136,7 +1140,7 @@ int get_monitor_refresh_rate() {
 #else
     const SDL_DisplayMode* mode = SDL_GetCurrentDisplayMode(SDL_GetDisplayForWindow(window));
 #endif
-    return mode ? (int)mode->refresh_rate : 0;
+    return mode ? static_cast<int>(mode->refresh_rate) : 0;
 }
 
 // ---- frame / passes -------------------------------------------------------------------
@@ -1194,10 +1198,10 @@ RenderTarget load_render_texture(int width, int height) {
     t.width = width;
     t.height = height;
     TextureSlot color;
-    color.handle =
-        bgfx::createTexture2D((uint16_t)width, (uint16_t)height, false, 1, bgfx::TextureFormat::RGBA8, BGFX_TEXTURE_RT);
-    bgfx::TextureHandle depth =
-        bgfx::createTexture2D((uint16_t)width, (uint16_t)height, false, 1, depth_format, depth_flags);
+    color.handle = bgfx::createTexture2D(static_cast<uint16_t>(width), static_cast<uint16_t>(height), false, 1,
+                                         bgfx::TextureFormat::RGBA8, BGFX_TEXTURE_RT);
+    bgfx::TextureHandle depth = bgfx::createTexture2D(static_cast<uint16_t>(width), static_cast<uint16_t>(height),
+                                                      false, 1, depth_format, depth_flags);
     if (!bgfx::isValid(color.handle) || !bgfx::isValid(depth)) {
         if (bgfx::isValid(color.handle)) {
             bgfx::destroy(color.handle);
@@ -1265,7 +1269,8 @@ void begin_scissor_mode(int x, int y, int width, int height) {
         height += y;
         y = 0;
     }
-    Scissor s{true, (uint16_t)x, (uint16_t)y, (uint16_t)std::max(width, 0), (uint16_t)std::max(height, 0)};
+    Scissor s{true, static_cast<uint16_t>(x), static_cast<uint16_t>(y), static_cast<uint16_t>(std::max(width, 0)),
+              static_cast<uint16_t>(std::max(height, 0))};
     if (!(s == cur_scissor)) {
         flush();
         cur_scissor = s;
@@ -1393,8 +1398,8 @@ void update_texture(Texture tex, const void* pixels) {
         rgba = image_copy(src);
         image_format(&rgba, pixel_format::RGBA8);
     }
-    bgfx::updateTexture2D(t->handle, 0, 0, 0, 0, (uint16_t)tex.width, (uint16_t)tex.height,
-                          bgfx::copy(rgba.data, (uint32_t)(tex.width * tex.height * 4)));
+    bgfx::updateTexture2D(t->handle, 0, 0, 0, 0, static_cast<uint16_t>(tex.width), static_cast<uint16_t>(tex.height),
+                          bgfx::copy(rgba.data, static_cast<uint32_t>(tex.width * tex.height * 4)));
     if (rgba.data != pixels) {
         unload_image(rgba);
     }
@@ -1409,8 +1414,8 @@ Image load_image_from_texture(Texture tex) {
     // Blit mip 0 into a CPU-readable copy and run frames until it arrives. Those are FLUSH frames
     // (nothing presented); the game reads textures back while loading (Chara3D recolors).
     bgfx::TextureHandle staging =
-        bgfx::createTexture2D((uint16_t)tex.width, (uint16_t)tex.height, false, 1, bgfx::TextureFormat::RGBA8,
-                              BGFX_TEXTURE_BLIT_DST | BGFX_TEXTURE_READ_BACK);
+        bgfx::createTexture2D(static_cast<uint16_t>(tex.width), static_cast<uint16_t>(tex.height), false, 1,
+                              bgfx::TextureFormat::RGBA8, BGFX_TEXTURE_BLIT_DST | BGFX_TEXTURE_READ_BACK);
     bgfx::TextureRegion dst, src;
     dst.init(staging);
     src.init(t->handle);
@@ -1504,17 +1509,17 @@ int get_shader_location(Shader shader, const char* name) {
     ProgramSlot& p = programs[shader.id];
     for (size_t i = 0; i < p.names.size(); i++) {
         if (p.names[i] == name) {
-            return (int)i;
+            return static_cast<int>(i);
         }
     }
     p.names.emplace_back(name);
     p.uniforms.push_back(bgfx::createUniform(name, bgfx::UniformType::Vec4));
     p.values.push_back({});
-    return (int)p.names.size() - 1;
+    return static_cast<int>(p.names.size()) - 1;
 }
 
 void set_shader_value(Shader shader, int loc, const void* value, int uniform_type) {
-    if (!is_shader_valid(shader) || loc < 0 || (size_t)loc >= programs[shader.id].values.size()) {
+    if (!is_shader_valid(shader) || loc < 0 || static_cast<size_t>(loc) >= programs[shader.id].values.size()) {
         return;
     }
     const int n = uniform_type == shader_uniform::VEC3 ? 3 : uniform_type == shader_uniform::VEC2 ? 2 : 1;
@@ -1555,7 +1560,7 @@ void draw_texture_pro(Texture tex, Rect src, Rect dst, Vec2 origin, float rotati
         (cur_blend == blend_state(BLEND_ALPHA) || cur_blend == custom_separate_blend)) {
         return;
     }
-    const float w = (float)tex.width, h = (float)tex.height;
+    const float w = static_cast<float>(tex.width), h = static_cast<float>(tex.height);
     bool flip_x = false;
     if (src.width < 0) {
         flip_x = true;
@@ -1630,7 +1635,7 @@ void draw_rectangle(Rect rec, Color color) {
 }
 
 void draw_rectangle(int x, int y, int w, int h, Color color) {
-    fill_rect({(float)x, (float)y, (float)w, (float)h}, color);
+    fill_rect({static_cast<float>(x), static_cast<float>(y), static_cast<float>(w), static_cast<float>(h)}, color);
 }
 
 void draw_rectangle_lines_ex(Rect rec, float thick, Color color) {
@@ -1645,7 +1650,8 @@ void draw_rectangle_lines_ex(Rect rec, float thick, Color color) {
 
 void draw_rectangle_lines(int x, int y, int w, int h, Color color) {
     const float ox = 0.5f / cur_model[0], oy = 0.5f / cur_model[5]; // pixel centers, as raylib
-    const float l = (float)x + ox, t = (float)y + oy, r = (float)(x + w) - ox, b = (float)(y + h) - oy;
+    const float l = static_cast<float>(x) + ox, t = static_cast<float>(y) + oy, r = static_cast<float>(x + w) - ox,
+                b = static_cast<float>(y + h) - oy;
     push_line({l, t}, {r, t}, color);
     push_line({r, t}, {r, b}, color);
     push_line({r, b}, {l, b}, color);
@@ -1653,7 +1659,8 @@ void draw_rectangle_lines(int x, int y, int w, int h, Color color) {
 }
 
 void draw_line(int x0, int y0, int x1, int y1, Color color) {
-    push_line({(float)x0, (float)y0}, {(float)x1, (float)y1}, color);
+    push_line({static_cast<float>(x0), static_cast<float>(y0)}, {static_cast<float>(x1), static_cast<float>(y1)},
+              color);
 }
 
 void draw_rectangle_rounded(Rect rec, float roundness, int segments, Color color) {
@@ -1719,8 +1726,8 @@ void draw_text_ex(Font font, const char* text, Vec2 pos, float font_size, float 
     if (!text || !font.glyphs || !font.recs) {
         return;
     }
-    const float scale = font_size / (float)font.baseSize;
-    const float pad = (float)font.glyphPadding;
+    const float scale = font_size / static_cast<float>(font.baseSize);
+    const float pad = static_cast<float>(font.glyphPadding);
     float ox = 0.0f, oy = 0.0f;
     GlyphLookup glyph_lookup(font, text);
     for (const char* p = text; *p;) {
@@ -1742,18 +1749,20 @@ void draw_text_ex(Font font, const char* text, Vec2 pos, float font_size, float 
                               (r.height + 2 * pad) * scale},
                              {0, 0}, 0.0f, tint);
         }
-        ox += g.advanceX == 0 ? r.width * scale + spacing : (float)g.advanceX * scale + spacing;
+        ox += g.advanceX == 0 ? r.width * scale + spacing : static_cast<float>(g.advanceX) * scale + spacing;
     }
 }
 
 void draw_text(const char* text, int x, int y, int font_size, Color color) {
     font_size = std::max(font_size, 10); // raylib's default-font minimum
-    draw_text_ex(default_font, text, {(float)x, (float)y}, (float)font_size, (float)(font_size / 10), color);
+    draw_text_ex(default_font, text, {static_cast<float>(x), static_cast<float>(y)}, static_cast<float>(font_size),
+                 static_cast<float>(font_size / 10), color);
 }
 
 int measure_text(const char* text, int font_size) {
     font_size = std::max(font_size, 10);
-    return (int)measure_text_ex(default_font, text, (float)font_size, (float)(font_size / 10)).x;
+    return static_cast<int>(
+        measure_text_ex(default_font, text, static_cast<float>(font_size), static_cast<float>(font_size / 10)).x);
 }
 
 Font get_font_default() {
@@ -2072,12 +2081,14 @@ namespace {
             } else {
                 v.u = v.v = 0.0f;
             }
-            v.rgba = mesh.colors ? (uint32_t)mesh.colors[i * 4] | (uint32_t)mesh.colors[i * 4 + 1] << 8 |
-                                       (uint32_t)mesh.colors[i * 4 + 2] << 16 | (uint32_t)mesh.colors[i * 4 + 3] << 24
+            v.rgba = mesh.colors ? static_cast<uint32_t>(mesh.colors[i * 4]) |
+                                       static_cast<uint32_t>(mesh.colors[i * 4 + 1]) << 8 |
+                                       static_cast<uint32_t>(mesh.colors[i * 4 + 2]) << 16 |
+                                       static_cast<uint32_t>(mesh.colors[i * 4 + 3]) << 24
                                  : 0xffffffffu; // raylib's default for a missing colour attribute
         }
         slot.vb = bgfx::createDynamicVertexBuffer(
-            bgfx::copy(slot.cpu.data(), (uint32_t)(slot.cpu.size() * sizeof(MeshVertex))), mesh_layout);
+            bgfx::copy(slot.cpu.data(), static_cast<uint32_t>(slot.cpu.size() * sizeof(MeshVertex))), mesh_layout);
         if (caps->limits.maxVertexStreams >= 2 && caps->limits.maxVertexAttributes >= 6 &&
             bgfx::isValid(u_skin_position) && bgfx::isValid(u_skin_normal) && slot.skin_bounds.prepare(mesh)) {
             std::vector<SkinVertex> influences(mesh.vertexCount);
@@ -2095,9 +2106,9 @@ namespace {
         }
         if (mesh.indices) {
             slot.ib = bgfx::createIndexBuffer(
-                bgfx::copy(mesh.indices, (uint32_t)(mesh.triangleCount * 3 * sizeof(unsigned short))));
+                bgfx::copy(mesh.indices, static_cast<uint32_t>(mesh.triangleCount * 3 * sizeof(unsigned short))));
         }
-        mesh.vaoId = add_slot(mesh_slots, std::move(slot), [](const MeshSlot& s) { return bgfx::isValid(s.vb); });
+        mesh.vaoId = add_slot(mesh_slots, slot, [](const MeshSlot& s) { return bgfx::isValid(s.vb); });
     }
 
     void unload_mesh(Mesh& mesh) {
@@ -2111,10 +2122,12 @@ namespace {
             }
             *slot = MeshSlot{};
         }
-        for (void* p :
-             {(void*)mesh.vertices, (void*)mesh.texcoords, (void*)mesh.texcoords2, (void*)mesh.normals,
-              (void*)mesh.tangents, (void*)mesh.colors, (void*)mesh.indices, (void*)mesh.boneIndices,
-              (void*)mesh.boneWeights, (void*)mesh.animVertices, (void*)mesh.animNormals, (void*)mesh.vboId}) {
+        for (void* p : {reinterpret_cast<void*>(mesh.vertices), reinterpret_cast<void*>(mesh.texcoords),
+                        reinterpret_cast<void*>(mesh.texcoords2), reinterpret_cast<void*>(mesh.normals),
+                        reinterpret_cast<void*>(mesh.tangents), reinterpret_cast<void*>(mesh.colors),
+                        reinterpret_cast<void*>(mesh.indices), reinterpret_cast<void*>(mesh.boneIndices),
+                        reinterpret_cast<void*>(mesh.boneWeights), reinterpret_cast<void*>(mesh.animVertices),
+                        reinterpret_cast<void*>(mesh.animNormals), reinterpret_cast<void*>(mesh.vboId)}) {
             std::free(p);
         }
     }
@@ -2140,8 +2153,9 @@ namespace {
             tex = texture_slot(white_texture);
         }
         const Color c = diffuse.color;
-        const float col[4] = {(float)(c.r * tint.r / 255) / 255.0f, (float)(c.g * tint.g / 255) / 255.0f,
-                              (float)(c.b * tint.b / 255) / 255.0f, (float)(c.a * tint.a / 255) / 255.0f};
+        const float col[4] = {
+            static_cast<float>(c.r * tint.r / 255) / 255.0f, static_cast<float>(c.g * tint.g / 255) / 255.0f,
+            static_cast<float>(c.b * tint.b / 255) / 255.0f, static_cast<float>(c.a * tint.a / 255) / 255.0f};
         const auto model = to_bgfx(transform);
         bgfx::setTransform(model.data());
         bgfx::setVertexBuffer(0, slot->vb);
@@ -2212,7 +2226,7 @@ namespace {
     }
 
     BoneInfo* load_bones(const cgltf_skin& skin, unsigned& count) {
-        count = (unsigned)skin.joints_count;
+        count = static_cast<unsigned>(skin.joints_count);
         auto* bones = static_cast<BoneInfo*>(std::calloc(skin.joints_count, sizeof(BoneInfo)));
         for (size_t i = 0; i < skin.joints_count; i++) {
             const cgltf_node* node = skin.joints[i];
@@ -2224,7 +2238,7 @@ namespace {
             for (const cgltf_node* a = node->parent; a && bones[i].parent == -1; a = a->parent) {
                 for (size_t j = 0; j < skin.joints_count; j++) {
                     if (skin.joints[j] == a) {
-                        bones[i].parent = (int)j;
+                        bones[i].parent = static_cast<int>(j);
                         break;
                     }
                 }
@@ -2262,7 +2276,7 @@ namespace {
             switch (attr.type) {
             case cgltf_attribute_type_position:
                 if (acc->type == cgltf_type_vec3 && !mesh.vertices) {
-                    mesh.vertexCount = (int)acc->count;
+                    mesh.vertexCount = static_cast<int>(acc->count);
                     mesh.vertices = read_floats(acc, 3);
                     for (int k = 0; k < mesh.vertexCount; k++) {
                         float* v = mesh.vertices + k * 3;
@@ -2300,14 +2314,15 @@ namespace {
                             float f[4] = {};
                             cgltf_accessor_read_float(acc, k, f, n);
                             for (int i = 0; i < n; i++) {
-                                c[i] = (unsigned char)(f[i] * 255.0f); // truncated, as raylib
+                                c[i] = static_cast<unsigned char>(f[i] * 255.0f); // truncated, as raylib
                             }
                         } else {
                             cgltf_uint u[4] = {};
                             cgltf_accessor_read_uint(acc, k, u, n);
                             const bool wide = acc->component_type == cgltf_component_type_r_16u;
                             for (int i = 0; i < n; i++) {
-                                c[i] = wide ? (unsigned char)((float)u[i] / 65535.0f * 255.0f) : (unsigned char)u[i];
+                                c[i] = wide ? static_cast<unsigned char>(static_cast<float>(u[i]) / 65535.0f * 255.0f)
+                                            : static_cast<unsigned char>(u[i]);
                             }
                         }
                     }
@@ -2320,7 +2335,7 @@ namespace {
                         cgltf_uint u[4] = {};
                         cgltf_accessor_read_uint(acc, k, u, 4);
                         for (int i = 0; i < 4; i++) {
-                            mesh.boneIndices[k * 4 + i] = (unsigned char)u[i]; // raylib's u8 bone ids
+                            mesh.boneIndices[k * 4 + i] = static_cast<unsigned char>(u[i]); // raylib's u8 bone ids
                         }
                     }
                 }
@@ -2336,10 +2351,11 @@ namespace {
         }
         if (prim.indices && prim.indices->buffer_view) {
             const cgltf_accessor* acc = prim.indices;
-            mesh.triangleCount = (int)acc->count / 3;
+            mesh.triangleCount = static_cast<int>(acc->count) / 3;
             mesh.indices = static_cast<unsigned short*>(std::malloc(acc->count * sizeof(unsigned short)));
             for (size_t k = 0; k < acc->count; k++) {
-                mesh.indices[k] = (unsigned short)cgltf_accessor_read_index(acc, k); // u32 truncated, as raylib
+                mesh.indices[k] =
+                    static_cast<unsigned short>(cgltf_accessor_read_index(acc, k)); // u32 truncated, as raylib
             }
         } else {
             mesh.triangleCount = mesh.vertexCount / 3;
@@ -2367,7 +2383,7 @@ namespace {
         float t0 = 0.0f, t1 = 0.0f;
         int key = 0;
         bool found = false;
-        for (int i = 0; i + 1 < (int)input->count; i++) {
+        for (int i = 0; i + 1 < static_cast<int>(input->count); i++) {
             cgltf_accessor_read_float(input, i, &t0, 1);
             cgltf_accessor_read_float(input, i + 1, &t1, 1);
             if (t0 <= time && time < t1) {
@@ -2377,7 +2393,7 @@ namespace {
             }
         }
         if (!found && input->count >= 2) {
-            key = (int)input->count - 2;
+            key = static_cast<int>(input->count) - 2;
             float first = 0.0f;
             cgltf_accessor_read_float(input, 0, &first, 1);
             if (time < first) {
@@ -2516,7 +2532,7 @@ namespace {
                 slot->palette = nullptr;
                 slot->cpu_deformed = true;
             }
-            const size_t floats = (size_t)mesh.vertexCount * 3;
+            const size_t floats = static_cast<size_t>(mesh.vertexCount) * 3;
             if (!mesh.animVertices) {
                 mesh.animVertices = static_cast<float*>(std::malloc(floats * sizeof(float)));
             }
@@ -2610,7 +2626,7 @@ Model load_model(const char* path) {
 
     // material 0 is the default one; glTF material i is i + 1
     const std::filesystem::path dir = std::filesystem::path(path).parent_path();
-    model.materialCount = (int)data->materials_count + 1;
+    model.materialCount = static_cast<int>(data->materials_count) + 1;
     model.materials = static_cast<Material*>(std::calloc(model.materialCount, sizeof(Material)));
     model.materials[0] = default_material();
     for (size_t i = 0; i < data->materials_count; i++) {
@@ -2629,8 +2645,9 @@ Model load_model(const char* path) {
             }
         }
         Color& c = mat.maps[material_map::DIFFUSE].color;
-        c = Color((uint8_t)(pbr.base_color_factor[0] * 255), (uint8_t)(pbr.base_color_factor[1] * 255),
-                  (uint8_t)(pbr.base_color_factor[2] * 255), (uint8_t)(pbr.base_color_factor[3] * 255));
+        c = Color(
+            static_cast<uint8_t>(pbr.base_color_factor[0] * 255), static_cast<uint8_t>(pbr.base_color_factor[1] * 255),
+            static_cast<uint8_t>(pbr.base_color_factor[2] * 255), static_cast<uint8_t>(pbr.base_color_factor[3] * 255));
     }
 
     const cgltf_skin* skin = data->skins_count > 0 ? &data->skins[0] : nullptr;
@@ -2652,7 +2669,7 @@ Model load_model(const char* path) {
             Mesh& mesh = model.meshes[mesh_index];
             load_primitive(mesh, prim, world, world_normals);
             if (prim.material) {
-                model.meshMaterial[mesh_index] = (int)(prim.material - data->materials) + 1;
+                model.meshMaterial[mesh_index] = static_cast<int>(prim.material - data->materials) + 1;
             }
             // a rigid mesh parented to a joint follows that joint
             if (skin && !mesh.boneIndices && node->parent && !node->parent->mesh) {
@@ -2661,7 +2678,7 @@ Model load_model(const char* path) {
                         mesh.boneIndices = static_cast<unsigned char*>(std::calloc(mesh.vertexCount * 4, 1));
                         mesh.boneWeights = static_cast<float*>(std::calloc(mesh.vertexCount * 4, sizeof(float)));
                         for (int v = 0; v < mesh.vertexCount; v++) {
-                            mesh.boneIndices[v * 4] = (unsigned char)j;
+                            mesh.boneIndices[v * 4] = static_cast<unsigned char>(j);
                             mesh.boneWeights[v * 4] = 1.0f;
                         }
                         break;
@@ -2696,7 +2713,7 @@ Model load_model(const char* path) {
         }
     }
     for (int m = 0; m < model.meshCount; m++) {
-        model.meshes[m].boneCount = (int)model.skeleton.boneCount;
+        model.meshes[m].boneCount = static_cast<int>(model.skeleton.boneCount);
         upload_mesh(model.meshes[m]);
     }
     return model;
@@ -2715,8 +2732,10 @@ void unload_model(Model model) {
             std::free(model.materials[i].maps);
         }
     }
-    for (void* p : {(void*)model.meshes, (void*)model.materials, (void*)model.meshMaterial, (void*)model.skeleton.bones,
-                    (void*)model.skeleton.bindPose, (void*)model.currentPose, (void*)model.boneMatrices}) {
+    for (void* p : {reinterpret_cast<void*>(model.meshes), reinterpret_cast<void*>(model.materials),
+                    reinterpret_cast<void*>(model.meshMaterial), reinterpret_cast<void*>(model.skeleton.bones),
+                    reinterpret_cast<void*>(model.skeleton.bindPose), reinterpret_cast<void*>(model.currentPose),
+                    reinterpret_cast<void*>(model.boneMatrices)}) {
         std::free(p);
     }
 }
@@ -2778,11 +2797,11 @@ ModelAnimation* load_model_animations(const char* path, int* count) {
         if (src.name) {
             std::snprintf(anim.name, sizeof(anim.name), "%s", src.name);
         }
-        anim.keyframeCount = (int)(duration * GLTF_FRAMERATE) + 1;
+        anim.keyframeCount = static_cast<int>(duration * GLTF_FRAMERATE) + 1;
         anim.keyframePoses = static_cast<Transform**>(std::calloc(anim.keyframeCount, sizeof(Transform*)));
         for (int f = 0; f < anim.keyframeCount; f++) {
             Transform* pose = anim.keyframePoses[f] = static_cast<Transform*>(std::calloc(joints, sizeof(Transform)));
-            const float time = (float)f / GLTF_FRAMERATE;
+            const float time = static_cast<float>(f) / GLTF_FRAMERATE;
             for (size_t k = 0; k < joints; k++) {
                 const cgltf_node* j = skin.joints[k];
                 float tr[3] = {j->translation[0], j->translation[1], j->translation[2]};
@@ -2794,11 +2813,11 @@ ModelAnimation* load_model_animations(const char* path, int* count) {
                 const Transform local{{tr[0], tr[1], tr[2]}, {rot[0], rot[1], rot[2], rot[3]}, {sc[0], sc[1], sc[2]}};
                 pose[k] = matrix_decompose(matrix_multiply(transform_matrix(local), ext_offset[k]));
             }
-            build_pose_from_parents(bones, (int)anim.boneCount, pose);
+            build_pose_from_parents(bones, static_cast<int>(anim.boneCount), pose);
         }
         std::free(bones);
     }
-    *count = (int)data->animations_count;
+    *count = static_cast<int>(data->animations_count);
     return anims;
 }
 
@@ -2823,8 +2842,8 @@ void update_model_animation(Model model, ModelAnimation anim, float frame) {
         return;
     }
     // raylib UpdateModelAnimationBones: blend two keyframes, bone matrix = inverse(bind) * pose
-    int cur = (int)frame, next = cur + 1;
-    const float blend = std::clamp(frame - (float)cur, 0.0f, 1.0f);
+    int cur = static_cast<int>(frame), next = cur + 1;
+    const float blend = std::clamp(frame - static_cast<float>(cur), 0.0f, 1.0f);
     cur %= anim.keyframeCount;
     next %= anim.keyframeCount;
     const Transform* a = anim.keyframePoses[cur];
@@ -2921,9 +2940,9 @@ void update_mesh_buffer(Mesh mesh, int index, const void* data, int data_size, i
         spdlog::warn("bgfx: update_mesh_buffer index {} not supported", index); // ponytail: colours never change
         return;
     }
-    const int stride = comps * (int)sizeof(float);
+    const int stride = comps * static_cast<int>(sizeof(float));
     const int first = offset / stride;
-    const int n = std::min(data_size / stride, (int)slot->cpu.size() - first);
+    const int n = std::min(data_size / stride, static_cast<int>(slot->cpu.size()) - first);
     const auto* src = static_cast<const float*>(data);
     for (int i = 0; i < n; i++) {
         std::memcpy(field(slot->cpu[first + i]), src + i * comps, stride);
@@ -2938,8 +2957,8 @@ void update_mesh_buffer(Mesh mesh, int index, const void* data, int data_size, i
                 slot->posed_bounds = slot->skin_bounds.posed(slot->palette->matrices);
             }
         }
-        bgfx::update(slot->vb, (uint32_t)first,
-                     bgfx::copy(slot->cpu.data() + first, (uint32_t)(n * sizeof(MeshVertex))));
+        bgfx::update(slot->vb, static_cast<uint32_t>(first),
+                     bgfx::copy(slot->cpu.data() + first, static_cast<uint32_t>(n * sizeof(MeshVertex))));
     }
 }
 
@@ -2965,7 +2984,7 @@ void begin_mode_3d(Camera3D camera) {
     in_3d = true;
     // raylib BeginMode3D: right-handed, near/far 0.05/4000, aspect of the current target
     constexpr float near = 0.05f, far = 4000.0f;
-    const float aspect = (float)pass.width / (float)std::max(pass.height, 1);
+    const float aspect = static_cast<float>(pass.width) / static_cast<float>(std::max(pass.height, 1));
     float view[16], proj[16];
     bx::mtxLookAt(view, {camera.position.x, camera.position.y, camera.position.z},
                   {camera.target.x, camera.target.y, camera.target.z}, {camera.up.x, camera.up.y, camera.up.z},

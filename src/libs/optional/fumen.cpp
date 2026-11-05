@@ -132,7 +132,7 @@ static void swap32(void* p, size_t words) {
 }
 static void swap16(void* p) {
     uint16_t* h = static_cast<uint16_t*>(p);
-    *h = (uint16_t)((*h >> 8) | (*h << 8));
+    *h = static_cast<uint16_t>((*h >> 8) | (*h << 8));
 }
 
 // Counts how many independent header fields look plausible when the buffer
@@ -254,7 +254,7 @@ FumenParser::FumenParser(const fs::path& path, int start_delay)
             metadata.subtitle[lang] = text;
         }
     }
-    if (metadata.title.find("en") == metadata.title.end()) {
+    if (!metadata.title.contains("en")) {
         metadata.title["en"] = song_id;
     }
 
@@ -458,7 +458,7 @@ void FumenParser::build_notes(int diff) {
                     cached_notes.notes.push_back(tail);
 
                 } else if (is_balloon(nb.type)) {
-                    int hits = (int)(uint16_t)(nb.unknown2 & 0xFFFF);
+                    int hits = static_cast<int>(static_cast<uint16_t>(nb.unknown2 & 0xFFFF));
                     note.count = hits > 0 ? hits : 20;
                     cached_notes.notes.push_back(note);
 
@@ -507,10 +507,9 @@ void FumenParser::build_notes(int diff) {
         spdlog::warn("FumenParser: truncated/corrupt chart in {} difficulty {}", file_path.string(), diff);
     }
 
-    std::stable_sort(cached_notes.notes.begin(), cached_notes.notes.end(),
-                     [](const Note& a, const Note& b) { return a.hit_ms < b.hit_ms; });
+    std::ranges::stable_sort(cached_notes.notes, [](const Note& a, const Note& b) { return a.hit_ms < b.hit_ms; });
     for (size_t i = 0; i < cached_notes.notes.size(); i++) {
-        cached_notes.notes[i].index = (int)i;
+        cached_notes.notes[i].index = static_cast<int>(i);
     }
 
     modifier_moji(cached_notes);

@@ -1113,8 +1113,8 @@ std::string AudioEngine::load_sound(const fs::path& file_path, const std::string
                 return "";
             }
 
-            unsigned int frames = (unsigned int)decoded.frame_count();
-            unsigned int rate = (unsigned int)decoded.sample_rate;
+            unsigned int frames = static_cast<unsigned int>(decoded.frame_count());
+            unsigned int rate = static_cast<unsigned int>(decoded.sample_rate);
             float* data = adopt_decoded_pcm(decoded.samples, decoded.channels, frames, rate, target_sample_rate);
             if (!data) {
                 return "";
@@ -1664,8 +1664,8 @@ bool AudioEngine::prepare_nus3bank_pcm(const fs::path& file_path, PreparedPCM& o
         return false;
     }
 
-    unsigned int frames = (unsigned int)decoded.frame_count();
-    unsigned int rate = (unsigned int)decoded.sample_rate;
+    unsigned int frames = static_cast<unsigned int>(decoded.frame_count());
+    unsigned int rate = static_cast<unsigned int>(decoded.sample_rate);
     float* data = adopt_decoded_pcm(decoded.samples, decoded.channels, frames, rate, target_sample_rate,
                                     quick_resample ? SRC_LINEAR : SRC_SINC_FASTEST);
     if (!data) {

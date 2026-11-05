@@ -17,7 +17,7 @@ namespace gen3 {
 
         bool parse_config_version(const std::string& name, int& version, int& revision) {
             size_t i = 0;
-            while (i < name.size() && !isdigit((unsigned char)name[i])) {
+            while (i < name.size() && !isdigit(static_cast<unsigned char>(name[i]))) {
                 i++;
             }
             size_t hundred = name.find("100-", i);
@@ -75,21 +75,21 @@ namespace gen3 {
                 if (o + 4 > d.size()) {
                     return 0;
                 }
-                return (uint32_t)d[o] | ((uint32_t)d[o + 1] << 8) | ((uint32_t)d[o + 2] << 16) |
-                       ((uint32_t)d[o + 3] << 24);
+                return static_cast<uint32_t>(d[o]) | (static_cast<uint32_t>(d[o + 1]) << 8) |
+                       (static_cast<uint32_t>(d[o + 2]) << 16) | (static_cast<uint32_t>(d[o + 3]) << 24);
             };
             auto le16 = [&](size_t o) -> uint16_t {
                 if (o + 2 > d.size()) {
                     return 0;
                 }
-                return (uint16_t)(d[o] | (d[o + 1] << 8));
+                return static_cast<uint16_t>(d[o] | (d[o + 1] << 8));
             };
             if (d.size() < 20 || memcmp(d.data(), "\0PSF", 4) != 0) {
                 return "";
             }
             uint32_t keys = le32(8), values = le32(12), count = le32(16);
             for (uint32_t i = 0; i < count; i++) {
-                size_t e = 20 + (size_t)i * 16;
+                size_t e = 20 + static_cast<size_t>(i) * 16;
                 size_t k = keys + le16(e);
                 if (k >= d.size()) {
                     break;
@@ -101,11 +101,11 @@ namespace gen3 {
                 if (std::string(d.begin() + k, d.begin() + kend) != "TITLE") {
                     continue;
                 }
-                size_t v = (size_t)values + le32(e + 12);
+                size_t v = static_cast<size_t>(values) + le32(e + 12);
                 if (v >= d.size()) {
                     return "";
                 }
-                size_t vmax = std::min(d.size(), v + (size_t)le32(e + 4));
+                size_t vmax = std::min(d.size(), v + static_cast<size_t>(le32(e + 4)));
                 size_t vend = v;
                 while (vend < vmax && d[vend]) {
                     vend++;
@@ -203,23 +203,24 @@ namespace gen3 {
             if (off + 4 > data.size()) {
                 return -1;
             }
-            return (int32_t)(((uint32_t)data[off] << 24) | ((uint32_t)data[off + 1] << 16) |
-                             ((uint32_t)data[off + 2] << 8) | (uint32_t)data[off + 3]);
+            return static_cast<int32_t>(
+                (static_cast<uint32_t>(data[off]) << 24) | (static_cast<uint32_t>(data[off + 1]) << 16) |
+                (static_cast<uint32_t>(data[off + 2]) << 8) | static_cast<uint32_t>(data[off + 3]));
         };
 
         constexpr size_t RECORD_SIZE = 2316;
         int32_t count = be32(0);
-        if (count <= 0 || 4 + (size_t)count * RECORD_SIZE > data.size()) {
+        if (count <= 0 || 4 + static_cast<size_t>(count) * RECORD_SIZE > data.size()) {
             spdlog::warn("gen3: tuning.bin does not look like itself, ignoring it");
             return;
         }
-        size_t pool = 4 + (size_t)count * RECORD_SIZE;
+        size_t pool = 4 + static_cast<size_t>(count) * RECORD_SIZE;
 
         auto pool_string = [&](int32_t off) -> std::string {
-            if (off < 0 || pool + (size_t)off >= data.size()) {
+            if (off < 0 || pool + static_cast<size_t>(off) >= data.size()) {
                 return "";
             }
-            size_t a = pool + (size_t)off, b = a;
+            size_t a = pool + static_cast<size_t>(off), b = a;
             while (b < data.size() && data[b] != 0) {
                 b++;
             }
@@ -232,17 +233,17 @@ namespace gen3 {
         }
 
         for (int32_t r = 0; r < count; r++) {
-            size_t base = 4 + (size_t)r * RECORD_SIZE;
+            size_t base = 4 + static_cast<size_t>(r) * RECORD_SIZE;
             std::string id = pool_string(be32(base));
 
-            if (id.rfind("ex_", 0) == 0) {
+            if (id.starts_with("ex_")) {
                 auto it = by_id.find(id.substr(3));
                 if (it == by_id.end()) {
                     continue;
                 }
                 int32_t stars = be32(base + (3 + 3 * 32 + 1) * 4);
                 if (stars > 0 && stars <= 10) {
-                    it->second->stars[4] = (int)stars;
+                    it->second->stars[4] = static_cast<int>(stars);
                 }
                 if (be32(base + (3 + 3 * 32) * 4) >= 0) {
                     it->second->has_chart[4] = true;
@@ -258,7 +259,7 @@ namespace gen3 {
             for (int d = 0; d < 5; d++) {
                 int32_t stars = be32(base + (3 + d * 32 + 1) * 4);
                 if (stars > 0 && stars <= 10) {
-                    it->second->stars[d] = (int)stars;
+                    it->second->stars[d] = static_cast<int>(stars);
                 }
                 if (be32(base + (3 + d * 32) * 4) >= 0) {
                     it->second->has_chart[d] = true;
@@ -311,8 +312,8 @@ namespace gen3 {
 
     fs::path Library::sound_path(const std::string& id) const {
         std::string upper = id;
-        std::transform(upper.begin(), upper.end(), upper.begin(),
-                       [](unsigned char c) { return (char)std::toupper(c); });
+        std::ranges::transform(upper, upper.begin(),
+                               [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
         return data_root / "sound" / "bgm" / "nub" / ("SONG_" + upper + ".nub");
     }
 
@@ -325,7 +326,7 @@ namespace gen3 {
         for (const char* genre : ORDER) {
             for (const SongEntry& e : library.songs()) {
                 if (e.genre == genre) {
-                    found.push_back(genre);
+                    found.emplace_back(genre);
                     break;
                 }
             }
@@ -334,7 +335,7 @@ namespace gen3 {
             if (e.genre == "メドレー") {
                 continue;
             }
-            if (std::find(found.begin(), found.end(), e.genre) == found.end()) {
+            if (std::ranges::find(found, e.genre) == found.end()) {
                 found.push_back(e.genre);
             }
         }
@@ -343,33 +344,33 @@ namespace gen3 {
 
     int genre_index_for(const std::string& genre) {
         if (genre == "J-POP") {
-            return (int)GenreIndex::JPOP;
+            return static_cast<int>(GenreIndex::JPOP);
         }
         if (genre == "アニメ") {
-            return (int)GenreIndex::ANIME;
+            return static_cast<int>(GenreIndex::ANIME);
         }
         if (genre == "ボーカロイド") {
-            return (int)GenreIndex::VOCALOID;
+            return static_cast<int>(GenreIndex::VOCALOID);
         }
         if (genre == "童謡") {
-            return (int)GenreIndex::CHILDREN;
+            return static_cast<int>(GenreIndex::CHILDREN);
         }
         if (genre == "バラエティ") {
-            return (int)GenreIndex::VARIETY;
+            return static_cast<int>(GenreIndex::VARIETY);
         }
         if (genre == "メドレー") {
-            return (int)GenreIndex::VARIETY;
+            return static_cast<int>(GenreIndex::VARIETY);
         }
         if (genre == "クラシック") {
-            return (int)GenreIndex::CLASSICAL;
+            return static_cast<int>(GenreIndex::CLASSICAL);
         }
         if (genre == "ゲームミュージック") {
-            return (int)GenreIndex::GAME;
+            return static_cast<int>(GenreIndex::GAME);
         }
         if (genre == "ナムコオリジナル") {
-            return (int)GenreIndex::NAMCO;
+            return static_cast<int>(GenreIndex::NAMCO);
         }
-        return (int)GenreIndex::DEFAULT;
+        return static_cast<int>(GenreIndex::DEFAULT);
     }
 
     fs::path genre_path(const fs::path& data_root, const std::string& genre) {
@@ -378,7 +379,7 @@ namespace gen3 {
 
     std::string genre_of_path(const fs::path& path) {
         std::string name = path.filename().string();
-        if (name.rfind("@genre@", 0) != 0) {
+        if (!name.starts_with("@genre@")) {
             return "";
         }
         return name.substr(7);
@@ -388,7 +389,7 @@ namespace gen3 {
         static std::mutex mutex;
         static std::map<fs::path, bool> cache;
         {
-            std::lock_guard<std::mutex> lock(mutex);
+            std::scoped_lock lock(mutex);
             auto it = cache.find(p);
             if (it != cache.end()) {
                 return it->second;
@@ -396,7 +397,7 @@ namespace gen3 {
         }
         std::error_code ec;
         bool ok = fs::is_directory(p / "fumen", ec) && !newest_config(p).empty();
-        std::lock_guard<std::mutex> lock(mutex);
+        std::scoped_lock lock(mutex);
         cache[p] = ok;
         return ok;
     }
@@ -421,7 +422,7 @@ namespace gen3 {
 
         static std::mutex mutex;
         static std::map<fs::path, Library> libraries;
-        std::lock_guard<std::mutex> lock(mutex);
+        std::scoped_lock lock(mutex);
         auto it = libraries.find(root);
         if (it == libraries.end()) {
             Library lib;

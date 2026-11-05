@@ -37,30 +37,30 @@ namespace gen3 {
             }
             MemReader* r = static_cast<MemReader*>(opaque);
             size_t left = r->size - r->pos;
-            size_t n = std::min<size_t>(left, (size_t)buf_size);
+            size_t n = std::min<size_t>(left, static_cast<size_t>(buf_size));
             if (n == 0) {
                 return AVERROR_EOF;
             }
             memcpy(buf, r->data + r->pos, n);
             r->pos += n;
-            return (int)n;
+            return static_cast<int>(n);
         }
 
         int64_t mem_seek(void* opaque, int64_t offset, int whence) {
             MemReader* r = static_cast<MemReader*>(opaque);
             whence &= ~AVSEEK_FORCE;
             if (whence == AVSEEK_SIZE) {
-                return (int64_t)r->size;
+                return static_cast<int64_t>(r->size);
             }
             if (whence != SEEK_SET && whence != SEEK_CUR && whence != SEEK_END) {
                 return AVERROR(EINVAL);
             }
             size_t base = whence == SEEK_CUR ? r->pos : whence == SEEK_END ? r->size : 0;
-            int64_t target = (int64_t)base + offset;
-            if (target < 0 || target > (int64_t)r->size) {
+            int64_t target = static_cast<int64_t>(base) + offset;
+            if (target < 0 || target > static_cast<int64_t>(r->size)) {
                 return AVERROR(EINVAL);
             }
-            r->pos = (size_t)target;
+            r->pos = static_cast<size_t>(target);
             return target;
         }
 
@@ -77,7 +77,7 @@ namespace gen3 {
                 return true;
             case AV_SAMPLE_FMT_FLT: {
                 const float* p = reinterpret_cast<const float*>(frame->data[0]);
-                out.insert(out.end(), p, p + (size_t)frame->nb_samples * channels);
+                out.insert(out.end(), p, p + static_cast<size_t>(frame->nb_samples) * channels);
                 return true;
             }
             case AV_SAMPLE_FMT_S16P:
@@ -155,10 +155,10 @@ namespace gen3 {
         // whose TONE chunks name identical values.)
         out.preview_ms = 0;
         if (file.size() >= 0xE4) {
-            uint32_t preview = ((uint32_t)file[0xE0] << 24) | ((uint32_t)file[0xE1] << 16) |
-                               ((uint32_t)file[0xE2] << 8) | (uint32_t)file[0xE3];
+            uint32_t preview = (static_cast<uint32_t>(file[0xE0]) << 24) | (static_cast<uint32_t>(file[0xE1]) << 16) |
+                               (static_cast<uint32_t>(file[0xE2]) << 8) | static_cast<uint32_t>(file[0xE3]);
             if (preview <= 30u * 60u * 1000u) {
-                out.preview_ms = (int)preview;
+                out.preview_ms = static_cast<int>(preview);
             }
         }
 
@@ -169,12 +169,13 @@ namespace gen3 {
         {
             size_t pos = riff + 12;
             while (pos + 8 <= file.size()) {
-                uint32_t sz = (uint32_t)file[pos + 4] | ((uint32_t)file[pos + 5] << 8) |
-                              ((uint32_t)file[pos + 6] << 16) | ((uint32_t)file[pos + 7] << 24);
+                uint32_t sz = static_cast<uint32_t>(file[pos + 4]) | (static_cast<uint32_t>(file[pos + 5]) << 8) |
+                              (static_cast<uint32_t>(file[pos + 6]) << 16) |
+                              (static_cast<uint32_t>(file[pos + 7]) << 24);
                 if (memcmp(file.data() + pos, "fact", 4) == 0 && sz >= 12 && pos + 8 + sz <= file.size()) {
                     auto le32 = [&](size_t o) {
-                        return (uint32_t)file[o] | ((uint32_t)file[o + 1] << 8) | ((uint32_t)file[o + 2] << 16) |
-                               ((uint32_t)file[o + 3] << 24);
+                        return static_cast<uint32_t>(file[o]) | (static_cast<uint32_t>(file[o + 1]) << 8) |
+                               (static_cast<uint32_t>(file[o + 2]) << 16) | (static_cast<uint32_t>(file[o + 3]) << 24);
                     };
                     fact_samples = le32(pos + 8);
                     fact_delay = le32(pos + 16);
@@ -183,7 +184,7 @@ namespace gen3 {
                 if (memcmp(file.data() + pos, "data", 4) == 0) {
                     break;
                 }
-                size_t advance = (size_t)8 + sz + (sz & 1);
+                size_t advance = static_cast<size_t>(8) + sz + (sz & 1);
                 if (advance < 8 || pos + advance <= pos) {
                     break; // malformed size / overflow
                 }
@@ -229,7 +230,7 @@ namespace gen3 {
             int idx = -1;
             for (unsigned i = 0; i < fmt->nb_streams; i++) {
                 if (fmt->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
-                    idx = (int)i;
+                    idx = static_cast<int>(i);
                     break;
                 }
             }
@@ -315,11 +316,12 @@ namespace gen3 {
 
             // Cut the priming delay off the front and the padding off the end, so
             // sample zero of the result is sample zero of the song.
-            if (fact_delay > 0 && (size_t)fact_delay * out.channels <= out.samples.size()) {
-                out.samples.erase(out.samples.begin(), out.samples.begin() + (size_t)fact_delay * out.channels);
+            if (fact_delay > 0 && static_cast<size_t>(fact_delay) * out.channels <= out.samples.size()) {
+                out.samples.erase(out.samples.begin(),
+                                  out.samples.begin() + static_cast<size_t>(fact_delay) * out.channels);
             }
-            if (fact_samples > 0 && (size_t)fact_samples * out.channels < out.samples.size()) {
-                out.samples.resize((size_t)fact_samples * out.channels);
+            if (fact_samples > 0 && static_cast<size_t>(fact_samples) * out.channels < out.samples.size()) {
+                out.samples.resize(static_cast<size_t>(fact_samples) * out.channels);
             }
 
             ok = !bad_format && !out.samples.empty();
