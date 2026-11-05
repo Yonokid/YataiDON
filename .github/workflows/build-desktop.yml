@@ -1,7 +1,6 @@
 name: Build YataiDON Desktop (Release)
 
 on:
-  push:
   pull_request:
   workflow_dispatch:
 
@@ -454,4 +453,3 @@ jobs:
           prerelease: true
           make_latest: false
           token: ${{ secrets.GITHUB_TOKEN }}
-

@@ -113,12 +113,12 @@ void draw_model(Model model, Vec3 pos, float scale, Color tint) {
     ray::DrawModel(to<ray::Model>(model), pos, scale, {tint.r, tint.g, tint.b, tint.a});
 }
 
-void draw_text_ex(Font font, const char* text, Vec2 pos, float font_size, float spacing, Color color) {
-    ray::DrawTextEx(to<ray::Font>(font), text, pos, font_size, spacing, {color.r, color.g, color.b, color.a});
+void draw_text_ex(Font font, const char* text, Vec2 pos, float font_size, float spacing, Color tint) {
+    ray::DrawTextEx(to<ray::Font>(font), text, pos, font_size, spacing, {tint.r, tint.g, tint.b, tint.a});
 }
 
-void draw_texture_pro(Texture tex, Rect source, Rect dest, Vec2 origin, float rotation, Color tint) {
-    ray::DrawTexturePro(tex, source, dest, origin, rotation, {tint.r, tint.g, tint.b, tint.a});
+void draw_texture_pro(Texture tex, Rect src, Rect dst, Vec2 origin, float rotation, Color tint) {
+    ray::DrawTexturePro(tex, src, dst, origin, rotation, {tint.r, tint.g, tint.b, tint.a});
 }
 
 void draw_text(const char* text, int x, int y, int font_size, Color color) {
