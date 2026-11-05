@@ -35,6 +35,7 @@
 
 #include "objects/global/debug_menu.h"
 #include "objects/global/fps_counter.h"
+#include "scenes/ai_battle.h"
 #include "scenes/campaign.h"
 #include "scenes/dan_result.h"
 #include "scenes/dan_select.h"
@@ -288,6 +289,7 @@ static bool screen_fade_applies(Screens from, Screens to) {
     case Screens::TUTORIAL:
     case Screens::GAME_PRACTICE:
     case Screens::AI_GAME:
+    case Screens::AI_RESULT:
     case Screens::RESULT:
     case Screens::RESULT_2P:
     case Screens::WAIWAI_GAME:
@@ -340,6 +342,15 @@ static void populate_screens(std::unordered_map<Screens, std::unique_ptr<Screen>
     }
     if (except != Screens::WAIWAI_RETRY_GAME) {
         screens[Screens::WAIWAI_RETRY_GAME] = std::make_unique<WaiwaiRetryGameScreen>();
+    }
+    if (except != Screens::AI_SELECT) {
+        screens[Screens::AI_SELECT] = std::make_unique<AISongSelectScreen>();
+    }
+    if (except != Screens::AI_GAME) {
+        screens[Screens::AI_GAME] = std::make_unique<AIGameScreen>();
+    }
+    if (except != Screens::AI_RESULT) {
+        screens[Screens::AI_RESULT] = std::make_unique<AIResultScreen>();
     }
     if (except != Screens::LOADING) {
         screens[Screens::LOADING] = std::make_unique<LoadingScreen>();

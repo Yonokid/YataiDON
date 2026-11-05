@@ -169,7 +169,7 @@ std::optional<Screens> ResultScreen::update() {
                 return on_screen_end(credit_end_screen());
             }
             global_data.returned_from_result = true;
-            return on_screen_end(Screens::SONG_SELECT);
+            return on_screen_end(select_screen());
         }
     }
     return std::nullopt;

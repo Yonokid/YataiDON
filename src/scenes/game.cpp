@@ -371,6 +371,11 @@ void GameScreen::save_score(const std::string& player_id, PlayerNum player_num) 
     if (!target) {
         return;
     }
+    if (target->get_modifiers().subdiff != 0) {
+        ResultData& result = global_data.session_data[static_cast<int>(player_num)].result_data;
+        result.prev_score = result.score;
+        return;
+    }
 
     try {
         Score score;

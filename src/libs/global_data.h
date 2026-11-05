@@ -214,6 +214,9 @@ struct SessionData {
     bool dan_gaiden = false;
     bool dan_gen3 = false;
     int selected_difficulty = 0;
+    int subdiff = 0;
+    int ai_sections_won = 0;
+    int ai_sections_total = 0;
     std::string song_title = "default_title";
     std::string song_subtitle = "default_subtitle";
     bool song_subtitle_full_display = false;
@@ -248,6 +251,7 @@ class PracticeTimer;
 struct GlobalData {
     std::shared_ptr<PracticeTimer> practice_timer; // session countdown, spans practice select + game
     int songs_played = 0;
+    double ai_condition = 0.95;
     std::string current_screen = "LOADING";
     std::string previous_screen;
     bool in_transition = false;

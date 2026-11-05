@@ -19,6 +19,11 @@ public:
     void set_fraction(double fraction) { apply_points_clamped(fraction * max_points - points); }
     void update(double current_ms);
     void draw(float y = 0.0f);
+    // a scene's own Lua child of Gauge; call before the first draw
+    void use_script(std::string class_name, std::string file_name) {
+        script_class = std::move(class_name);
+        script_file = std::move(file_name);
+    }
 
     bool get_is_clear() const { return points >= clear_points; }
     bool get_is_rainbow() const { return points >= max_points; }
@@ -31,6 +36,8 @@ public:
 
 private:
     bool lua_tried = false;
+    std::string script_class = "Gauge";
+    std::string script_file = "gauge";
     sol::protected_function fn_draw;
     void apply_points_clamped(double delta);
     bool dan_mode = false;

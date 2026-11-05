@@ -40,6 +40,7 @@ protected:
     void handle_input(double current_ms);
 
     virtual bool run_failed() const;
+    virtual Screens select_screen() const { return Screens::SONG_SELECT; }
     bool retry_pending() const;
     bool exiting() const;
     void begin_exit();

@@ -27,6 +27,7 @@ struct Modifiers {
     int random = 0;
     int subdiff = 0;
     bool skip = false;
+    bool no_kusudama = false;
 };
 
 enum class NoteType : int {
@@ -444,4 +445,5 @@ void modifier_speed(NoteList& notes, float value);
 void modifier_display(NoteList& notes);
 void modifier_inverse(NoteList& notes);
 void modifier_random(NoteList& notes, int value);
+void modifier_difficulty(NoteList& notes, int level);
 void apply_modifiers(NoteList& notes, const Modifiers& modifiers);

@@ -316,7 +316,20 @@ void Player::autoplay_manager(double ms_from_start, double current_ms, std::opti
             }
         };
 
-        const double bad_window = (difficulty <= static_cast<int>(Difficulty::NORMAL)) ? Timing::BAD_EASY : Timing::BAD;
+        const bool easy = difficulty <= static_cast<int>(Difficulty::NORMAL);
+        const double bad_window = easy ? Timing::BAD_EASY : Timing::BAD;
+        // the judged time sits mid-window so check_note lands the chosen judgment
+        auto judged_ms = [&](const Note& note) {
+            if (!autoplay_judge) {
+                return ms_from_start;
+            }
+            const double good = easy ? Timing::GOOD_EASY : Timing::GOOD;
+            const double ok = easy ? Timing::OK_EASY : Timing::OK;
+            const Judgments judgment = autoplay_judge(note);
+            return judgment == Judgments::GOOD ? note.hit_ms
+                   : judgment == Judgments::OK ? note.hit_ms + (good + ok) / 2
+                                               : note.hit_ms + (ok + bad_window) / 2;
+        };
 
         while (!don_notes.empty() && ms_from_start >= don_notes.front().hit_ms) {
             if (ms_from_start > don_notes.front().hit_ms + bad_window) {
@@ -326,7 +339,7 @@ void Player::autoplay_manager(double ms_from_start, double current_ms, std::opti
             hit_type = DrumType::DON;
             autoplay_hit(hit_type, don_notes.front().type == NoteType::DON_L);
             audio.play_player_sound(don_hitsound, player_num, VolumePreset::HITSOUND);
-            check_note(ms_from_start, hit_type, current_ms, background);
+            check_note(judged_ms(don_notes.front()), hit_type, current_ms, background);
             last_note_hit = current_ms;
             if (don_notes.size() == remaining) {
                 break;
@@ -341,7 +354,7 @@ void Player::autoplay_manager(double ms_from_start, double current_ms, std::opti
             hit_type = DrumType::KAT;
             autoplay_hit(hit_type, kat_notes.front().type == NoteType::KAT_L);
             audio.play_player_sound(kat_hitsound, player_num, VolumePreset::HITSOUND);
-            check_note(ms_from_start, hit_type, current_ms, background);
+            check_note(judged_ms(kat_notes.front()), hit_type, current_ms, background);
             if (kat_notes.size() == remaining) {
                 break;
             }
@@ -643,7 +656,7 @@ void Player::draw(double ms_from_start, float x, float y) {
     }
     tex.draw_texture(t_lane_hit_circle, {.x = judge_x, .y = y + judge_y});
 
-    if (gogo_time.has_value()) {
+    if (gogo_time.has_value() && !hide_gogo_flame) {
         gogo_time->draw(judge_x, y + judge_y);
     }
     if (lane_hit_effect.has_value()) {
@@ -2306,10 +2319,14 @@ void Player::place_chara_on_stage(float x, float y) {
     chara->use_default_pose(is_2p);
 }
 
-void Player::draw_stage_chara() {
+void Player::draw_stage_chara(float scale) {
     if (stage_chara) {
-        chara->draw(stage_chara->first, stage_chara->second, 1.0f);
+        chara->draw(stage_chara->first, stage_chara->second, scale);
     }
+}
+
+void Player::hide_puchi() {
+    chara->set_puchi(0);
 }
 
 void Player::draw_arcs() {
@@ -2354,7 +2371,9 @@ void Player::draw_overlays(float y) {
     for (GaugeHitEffect& anim : gauge_hit_effect) {
         anim.draw(y);
     }
-    score_counter.draw(y);
+    if (!hide_score_counter) {
+        score_counter.draw(y);
+    }
 
     combo_display.draw(y);
     if (combo_announce.has_value()) {

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -94,10 +95,19 @@ public:
                kusudama_partner->big_times.contains(big_key(note));
     }
     bool hide_gauge = false;
+    bool hide_gogo_flame = false;
+    bool hide_score_counter = false;
     bool rainbow_arc = false;
+    // decides how autoplay lands each note; unset means every note is a Good
+    std::function<Judgments(const Note&)> autoplay_judge;
+    const std::unordered_map<int, Judgments>& get_note_judgments() const { return note_judgments; }
+    const std::unordered_map<int, int>& get_roll_hits() const { return roll_hits; }
+    void hide_puchi();
+    void hide_lane_badges() { show_lane_badges = false; }
 
     void place_chara_on_stage(float x, float y);
-    void draw_stage_chara();
+    void move_stage_chara(float x, float y) { stage_chara = {x, y}; }
+    void draw_stage_chara(float scale = 1.0f);
     void draw_arcs();
 
     std::optional<Note> get_first_note();
