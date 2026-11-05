@@ -59,6 +59,8 @@ void RewardShopScreen::dress_chara(int seat, int type, int id) {
     } else if (type == 3 || type == 4) {
         pd->chara_is_costume = false;
         (type == 3 ? pd->chara_head_index : pd->chara_body_index) = id;
+    } else if (type == 5) {
+        pd->chara_acce_index = id;
     }
     charas[seat] = make_chara_from_player_data(&*pd, seat == 1);
     charas[seat]->set_don_colors(pd->chara_color_1, pd->chara_color_2, pd->chara_color_3);

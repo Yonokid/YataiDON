@@ -9,6 +9,7 @@
 struct RewardArt {
     std::string name;
     fs::path icon;
+    bool two_frames = false; // a Models/acce sheet: two animation frames stacked, the icon is the top one
 };
 
 RewardArt reward_art(int type, int id);

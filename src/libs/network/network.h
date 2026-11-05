@@ -119,7 +119,7 @@ struct MedalSeat {
     bool daily = false, weekly = false, monthly = false;
 };
 struct ShopGood {
-    int type = -1; // 2 dress, 3 head, 4 body
+    int type = -1; // 2 dress, 3 head, 4 body, 5 puchichara
     int id = -1;
     int cost = 0;
     bool owned = false;

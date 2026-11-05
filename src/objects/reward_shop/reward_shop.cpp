@@ -30,6 +30,7 @@ RewardShop::RewardShop(bool from_time, const bool joined[2], Hooks hooks_in) : h
             Texture t = load_texture(art.icon.string().c_str());
             if (t.id != 0) {
                 icons[static_cast<int>(i)] = t;
+                icon_two_frames[static_cast<int>(i)] = art.two_frames;
             }
         }
         goods.add(lua.create_table_with("type", good.type, "id", good.id, "cost", good.cost, "name", art.name, "icon",
@@ -60,9 +61,11 @@ RewardShop::RewardShop(bool from_time, const bool joined[2], Hooks hooks_in) : h
             return;
         }
         const Texture& t = it->second;
-        const float scale = size / std::max(t.width, t.height);
-        const float w = t.width * scale, h = t.height * scale;
-        draw_texture_pro(t, {0, 0, static_cast<float>(t.width), static_cast<float>(t.height)},
+        const float src_w = static_cast<float>(t.width);
+        const float src_h = static_cast<float>(t.height) / (icon_two_frames[key] ? 2.0f : 1.0f);
+        const float scale = size / std::max(src_w, src_h);
+        const float w = src_w * scale, h = src_h * scale;
+        draw_texture_pro(t, {0, 0, src_w, src_h},
                          {tex.draw_offset_x + cx - w / 2, tex.draw_offset_y + cy - h / 2, w, h}, {0, 0}, 0,
                          fade(Color::WHITE, alpha));
     };

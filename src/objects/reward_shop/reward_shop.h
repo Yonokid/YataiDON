@@ -43,4 +43,5 @@ private:
     sol::protected_function fn_time_up;
     Hooks hooks;
     std::unordered_map<int, Texture> icons;
+    std::unordered_map<int, bool> icon_two_frames;
 };

@@ -8,13 +8,20 @@
 #include "../../libs/network/network.h"
 
 RewardArt reward_art(int type, int id) {
-    const char* key = type == 2 ? "costume" : type == 3 ? "head" : type == 4 ? "body" : nullptr;
+    const char* key = type == 2   ? "costume"
+                      : type == 3 ? "head"
+                      : type == 4 ? "body"
+                      : type == 5 ? "puchichara"
+                                  : nullptr;
     if (!key) {
         return {};
     }
     RewardArt art;
+    art.two_frames = type == 5;
     const std::string id_str = std::to_string(id);
-    const std::string icon_dir = type == 2 ? std::string("costume_icon") : std::string("costume_") + key + "_icon";
+    const std::string icon_dir = type == 2   ? std::string("costume_icon")
+                                 : type == 5 ? std::string("acce")
+                                             : std::string("costume_") + key + "_icon";
     art.icon = tex.resolve_skin_path(fs::path("Models") / icon_dir / (id_str + ".png"));
     fs::path names_path = tex.resolve_skin_path("Models/costume_names.json");
     if (fs::exists(names_path)) {
