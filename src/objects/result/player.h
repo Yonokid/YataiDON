@@ -14,7 +14,6 @@ class ResultPlayer : public LuaScript {
     PlayerNum player_num = PlayerNum::P1;
     bool has_2p = false;
     bool is_2p = false;
-    bool stage_hidden = false;
     Nameplate nameplate;
     std::unique_ptr<Chara3D> chara;
     std::optional<double> score_delay;
