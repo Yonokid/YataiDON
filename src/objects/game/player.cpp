@@ -2353,7 +2353,7 @@ void Player::draw_lane_cover(float y) {
 
 void Player::draw_overlays(float y) {
     tex.draw_texture(t_drum, {.y = y});
-    if (ending_anim.has_value()) {
+    if (ending_anim.has_value() && !hide_ending_anim) {
         if (ending_background && ending_background->wants_draw_ending()) {
             ending_background->draw_ending(player_num);
         } else {

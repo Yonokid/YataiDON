@@ -8,6 +8,7 @@
 
 #include "../objects/game/ai_battle_overlay.h"
 #include "../objects/game/ai_match.h"
+#include "../objects/result/ai_section_result.h"
 #include "../objects/song_select/ai_support_menu.h"
 #include "game_2p.h"
 #include "result.h"
@@ -48,6 +49,7 @@ class AIGameScreen : public Game2PScreen {
     int current_section = 0;
     int sections_won = 0;
     bool match_recorded = false;
+    std::vector<bool> section_won;
 
     Player* human() const;
     Player* ai() const;
@@ -56,6 +58,7 @@ class AIGameScreen : public Game2PScreen {
     void apply_overlay_layout();
     void update_tallies();
     void close_finished_sections();
+    void record_match(const SessionData& session);
     double section_end_ms(int section) const;
     int current_territory() const;
 
@@ -73,12 +76,18 @@ public:
 };
 
 class AIResultScreen : public ResultScreen {
+    std::optional<AISectionBoard> board;
+    bool board_started = false;
+
+    void submit_match();
+
 protected:
     Screens select_screen() const override { return Screens::AI_SELECT; }
+    double reveal_end_ms() override;
 
 public:
-    void on_screen_start() override {
-        ResultScreen::on_screen_start();
-        allow_retry = false;
-    }
+    void on_screen_start() override;
+    Screens on_screen_end(Screens next_screen) override;
+    std::optional<Screens> update() override;
+    void draw() override;
 };

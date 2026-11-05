@@ -4,6 +4,7 @@
 #include <array>
 #include <memory>
 
+#include "../libs/file/scores.h"
 #include "../libs/input/input.h"
 
 static constexpr int LEVEL_SELECT_SECONDS = 10;
@@ -82,7 +83,7 @@ void AISongSelectScreen::draw_overlays() {
         const auto* song = dynamic_cast<SongBox*>(navigator.get_current_item());
         const bool branching = course >= 0 && song != nullptr && song->course_info(course).is_branching;
         menu->draw(get_current_ms(), course, level_cursor, choosing_level, branching,
-                   static_cast<int>(global_data.player_num));
+                   static_cast<int>(global_data.player_num), ai_condition_tier(global_data.ai_condition));
     }
     SongSelectScreen::draw_overlays();
 }
@@ -165,6 +166,8 @@ void AIGameScreen::start_match() {
     current_section = 0;
     sections_won = 0;
     match_recorded = false;
+    section_won.clear();
+    global_data.ai_match = {};
 
     brain = AIBrain{.condition = global_data.ai_condition};
     ai()->autoplay_judge = [this](const Note&) {
@@ -188,6 +191,7 @@ void AIGameScreen::apply_overlay_layout() {
     for (auto& player : players) {
         player->place_chara_on_stage(0.0f, 0.0f);
         player->rainbow_arc = true;
+        player->hide_ending_anim = true;
     }
     human()->gauge->use_script("AIGauge", "ai_battle");
     ai()->hide_gauge = true;
@@ -258,6 +262,7 @@ void AIGameScreen::close_finished_sections() {
         const int margin = current_territory();
         const bool won = margin >= 0; // a tie goes to the player
         sections_won += won;
+        section_won.push_back(won);
         brain.on_section_end(margin);
         if (overlay) {
             overlay->set_section_result(current_section, won);
@@ -270,7 +275,26 @@ void AIGameScreen::close_finished_sections() {
         session.ai_sections_won = sections_won;
         session.ai_sections_total = section_count;
         spdlog::info("AI battle over: player won {} of {} sections", sections_won, section_count);
+        record_match(session);
+        if (overlay) {
+            overlay->set_match_result(sections_won * 2 > section_count, human()->get_bad() == 0);
+        }
     }
+}
+
+void AIGameScreen::record_match(const SessionData& session) {
+    AIMatchResult& match = global_data.ai_match;
+    match.sections.clear();
+    for (int section = 0; section < section_count; ++section) {
+        const AITally& tally = tallies[HUMAN][section];
+        const bool won = section_won[section];
+        match.sections.push_back({tally.good, tally.ok, tally.bad, tally.drumroll, won});
+    }
+    match.won = sections_won * 2 > section_count;
+    match.saves = !human()->is_auto_play() && !human()->is_replay() && !skipped && session.subdiff == 0;
+    const auto& courses = parser->metadata.course_data;
+    const auto course = courses.find(session.selected_difficulty);
+    match.stars = std::clamp(course == courses.end() ? 1 : static_cast<int>(course->second.level), 1, 10);
 }
 
 std::optional<Screens> AIGameScreen::update() {
@@ -303,6 +327,7 @@ void AIGameScreen::draw() {
     ai()->move_stage_chara((front + CHARA_GAP) * tex.screen_scale, CHARA_Y * tex.screen_scale);
     human()->draw_stage_chara(CHARA_SCALE);
     ai()->draw_stage_chara(CHARA_SCALE);
+    overlay->draw_clash(ms, territory, brain.anger > 0);
 
     const int shown_section = std::min(current_section, section_count - 1);
     const double section_start = shown_section == 0 ? start_delay : section_starts[shown_section - 1];
@@ -317,5 +342,110 @@ void AIGameScreen::draw() {
         overlay->draw_scoreboard(is_ai, tally.good, tally.ok, tally.bad, tally.drumroll);
     }
     ai()->draw_arcs();
+    overlay->draw_finale(ms);
+    draw_overlay();
+}
+
+void AIResultScreen::submit_match() {
+    network.reset_ai_battle();
+    const AIMatchResult& match = global_data.ai_match;
+    if (match.sections.empty() || !match.saves) {
+        return;
+    }
+    const SessionData& session = global_data.session_data[static_cast<int>(global_data.player_num)];
+    const auto won = std::ranges::count_if(match.sections, [](const AISectionTally& s) { return s.won; });
+    scores_manager.save_ai_section_wins(session.song_hash, session.selected_difficulty,
+                                        get_player_id(global_data.player_num), static_cast<int>(won),
+                                        static_cast<int>(match.sections.size()));
+    const std::string& code = global_data.player_num == PlayerNum::P1 ? global_data.config->network.access_code_1
+                                                                      : global_data.config->network.access_code_2;
+    if (code.empty()) {
+        return;
+    }
+    std::string sections;
+    for (const AISectionTally& s : match.sections) {
+        sections += fmt::format("{}{}:{}:{}:{}:{}", sections.empty() ? "" : ",", s.good, s.ok, s.bad, s.drumroll,
+                                s.won ? 1 : 0);
+    }
+    network.submit_ai_battle(code, session.song_hash, session.selected_difficulty, match.stars, match.won, sections);
+}
+
+void AIResultScreen::on_screen_start() {
+    ResultScreen::on_screen_start();
+    allow_retry = false;
+    submit_match();
+    board.reset();
+    board_started = false;
+    if (global_data.ai_match.sections.empty() || !script_manager.has_lua_script("ai_section_result")) {
+        return;
+    }
+    audio.stop_sound("bgm");
+    audio.load_screen_sounds("ai_section_result");
+    board.emplace(global_data.ai_match);
+    if (board->unavailable()) {
+        board.reset();
+        audio.play_sound("bgm", VolumePreset::MUSIC);
+        return;
+    }
+    background.reset();
+    if (player_1) {
+        player_1->hide_stage();
+    }
+}
+
+Screens AIResultScreen::on_screen_end(Screens next_screen) {
+    board.reset();
+    global_data.ai_match = {};
+    return ResultScreen::on_screen_end(next_screen);
+}
+
+double AIResultScreen::reveal_end_ms() {
+    return board ? 0.0 : ResultScreen::reveal_end_ms();
+}
+
+static constexpr double AI_ANSWER_TIMEOUT_MS = 5000.0;
+
+std::optional<Screens> AIResultScreen::update() {
+    auto next = ResultScreen::update();
+    if (next || !board || exiting()) {
+        return next;
+    }
+    const double now = get_current_ms();
+    board->update(now);
+    if (!board_started) {
+        const double revealed = ResultScreen::reveal_end_ms();
+        if (revealed <= 0 || (network.ai_battle_pending() && now < revealed + AI_ANSWER_TIMEOUT_MS)) {
+            return next;
+        }
+        board_started = true;
+        // the board takes the drum from here; the first hit must not also count as a reveal skip
+        skipped_time = skipped_time > 0 ? skipped_time : now;
+        board->begin(network.ai_battle_progress());
+        clear_input_buffers();
+        return next;
+    }
+    const PlayerNum seat = global_data.player_num;
+    if ((is_l_don_pressed(seat) || is_r_don_pressed(seat)) && board->decide()) {
+        audio.play_sound("don", VolumePreset::SOUND);
+    } else if ((is_l_kat_pressed(seat) || is_r_kat_pressed(seat)) && board->toggle()) {
+        audio.play_sound("kat", VolumePreset::SOUND);
+    }
+    if (board->is_done()) {
+        begin_exit();
+    }
+    return next;
+}
+
+void AIResultScreen::draw() {
+    if (!board) {
+        ResultScreen::draw();
+        return;
+    }
+    board->draw_background();
+    draw_song_info();
+    if (player_1) {
+        player_1->draw();
+    }
+    board->draw();
     draw_overlay();
 }

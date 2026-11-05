@@ -200,6 +200,21 @@ struct ResultData {
     int hit_offset_count = 0;
 };
 
+struct AISectionTally {
+    int good = 0;
+    int ok = 0;
+    int bad = 0;
+    int drumroll = 0;
+    bool won = false;
+};
+
+struct AIMatchResult {
+    std::vector<AISectionTally> sections;
+    bool won = false;
+    bool saves = false;
+    int stars = 1;
+};
+
 struct SessionData {
     fs::path selected_song;
     std::string song_hash;
@@ -272,6 +287,7 @@ struct GlobalData {
     PlayerNum entry_resume_seats[2] = {PlayerNum::ALL, PlayerNum::ALL};
     int kinotake_team[2] = {-1, -1};
     int kinotake_next = 0;
+    AIMatchResult ai_match;
     std::vector<int> credit_gauges[2];         // soul gauge percent per scored song this credit, per seat
     std::vector<std::string> credit_titles[2]; // same songs
     bool reward_shop_from_entry = false;       // mode select opened the shop: no reward time, back to entry

@@ -253,6 +253,13 @@ void ResultPlayer::draw_song_info(const std::string& title, const std::string& s
     call(fn_draw_song_info, "ResultPlayer:draw_song_info", info);
 }
 
+void ResultPlayer::hide_stage() {
+    stage_hidden = true;
+    if (lua_object.valid()) {
+        lua_object["hide_stage"] = true;
+    }
+}
+
 void ResultPlayer::draw() {
     PlayerSoundScope audio_owner(player_num);
     call(fn_draw, "ResultPlayer:draw");
@@ -269,7 +276,9 @@ void ResultPlayer::draw() {
             cs = ps.value_or(cs);
         }
     }
-    chara->draw(cx, cy, cs);
+    if (!stage_hidden) {
+        chara->draw(cx, cy, cs);
+    }
     if (fn_draw_front.valid()) {
         call(fn_draw_front, "ResultPlayer:draw_front");
     }

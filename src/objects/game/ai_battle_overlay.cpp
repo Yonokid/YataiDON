@@ -9,6 +9,9 @@ AIBattleOverlay::AIBattleOverlay() {
     fn_draw_back = lua_object["draw_back"];
     fn_draw_front = lua_object["draw_front"];
     fn_draw_scoreboard = lua_object["draw_scoreboard"];
+    fn_draw_clash = lua_object["draw_clash"];
+    fn_draw_finale = lua_object["draw_finale"];
+    fn_set_match_result = lua_object["set_match_result"];
 }
 
 void AIBattleOverlay::reset() {
@@ -29,4 +32,16 @@ void AIBattleOverlay::draw_front(double ms, int section, int section_count, floa
 
 void AIBattleOverlay::draw_scoreboard(bool is_ai, int good, int ok, int bad, int drumroll) {
     call(fn_draw_scoreboard, "AIBattleOverlay:draw_scoreboard", is_ai, good, ok, bad, drumroll);
+}
+
+void AIBattleOverlay::draw_clash(double ms, int territory, bool angry) {
+    call(fn_draw_clash, "AIBattleOverlay:draw_clash", ms, territory, angry);
+}
+
+void AIBattleOverlay::draw_finale(double ms) {
+    call(fn_draw_finale, "AIBattleOverlay:draw_finale", ms);
+}
+
+void AIBattleOverlay::set_match_result(bool won, bool full_combo) {
+    call(fn_set_match_result, "AIBattleOverlay:set_match_result", won, full_combo);
 }

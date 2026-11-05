@@ -8,5 +8,5 @@ class AISupportMenu : public LuaScript {
 public:
     AISupportMenu();
     bool loaded() const { return lua_object.valid(); }
-    void draw(double ms, int course, int cursor, bool choosing, bool branching, int player);
+    void draw(double ms, int course, int cursor, bool choosing, bool branching, int player, int tension);
 };

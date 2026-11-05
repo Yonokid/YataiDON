@@ -1188,6 +1188,34 @@ std::optional<DanRecord> ScoresManager::get_dan_record(const std::string& player
     return out;
 }
 
+void ScoresManager::save_ai_section_wins(const std::string& hash, int difficulty, const std::string& player_id, int won,
+                                         int total) {
+    sqlite3_exec(db_fsd,
+                 "CREATE TABLE IF NOT EXISTS ai_section_wins"
+                 "(hash TEXT NOT NULL, difficulty INTEGER NOT NULL, player_id TEXT NOT NULL,"
+                 "sections_won INTEGER NOT NULL, sections_total INTEGER NOT NULL,"
+                 "PRIMARY KEY(hash, difficulty, player_id));",
+                 nullptr, nullptr, nullptr);
+    sqlite3_stmt* stmt;
+    const char* query = "INSERT INTO ai_section_wins (hash, difficulty, player_id, sections_won, sections_total)"
+                        " VALUES (?, ?, ?, ?, ?) ON CONFLICT DO UPDATE SET"
+                        " sections_won = MAX(sections_won, excluded.sections_won),"
+                        " sections_total = excluded.sections_total;";
+    if (sqlite3_prepare_v2(db_fsd, query, -1, &stmt, nullptr) != SQLITE_OK) {
+        spdlog::error("save_ai_section_wins: failed to prepare: {}", sqlite3_errmsg(db_fsd));
+        return;
+    }
+    sqlite3_bind_text(stmt, 1, hash.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int(stmt, 2, difficulty);
+    sqlite3_bind_text(stmt, 3, player_id.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int(stmt, 4, won);
+    sqlite3_bind_int(stmt, 5, total);
+    if (sqlite3_step(stmt) != SQLITE_DONE) {
+        spdlog::error("save_ai_section_wins: failed for {}: {}", hash, sqlite3_errmsg(db_fsd));
+    }
+    sqlite3_finalize(stmt);
+}
+
 void ScoresManager::save_dan_score(const std::string& player_id, const std::string& course_id, const DanResultData& rd,
                                    int arrival) {
     sqlite3_stmt* stmt;

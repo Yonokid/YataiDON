@@ -875,6 +875,26 @@ void NetworkClient::submit_medals(int seat, const std::string& access_code) {
     reward_shop_pending_count_++;
 }
 
+void NetworkClient::submit_ai_battle(const std::string& access_code, const std::string& song_hash, int difficulty,
+                                     int stars, bool won, const std::string& sections) {
+    if (!network_enabled() || !online) {
+        return;
+    }
+    const std::string won_text = won ? "true" : "false";
+    std::map<std::string, std::string> params{
+        {"access_code", access_code},     {"song_hash", song_hash}, {"difficulty", std::to_string(difficulty)},
+        {"stars", std::to_string(stars)}, {"won", won_text},        {"sections", sections}};
+    pending_ai_battle.push_back(cpr::PostAsync(cpr::Url{network_url("/ai_battle")},
+                                               signed_headers("POST", "/ai_battle", params),
+                                               cpr::Parameters{{"access_code", access_code},
+                                                               {"song_hash", song_hash},
+                                                               {"difficulty", std::to_string(difficulty)},
+                                                               {"stars", std::to_string(stars)},
+                                                               {"won", won_text},
+                                                               {"sections", sections}},
+                                               cpr::Timeout{5000} NETWORK_CA_OPT));
+}
+
 void NetworkClient::request_reward_shop(int seat, const std::string& access_code) {
     shop_seats[seat] = {};
     if (!network_enabled() || !online || seat < 0 || seat > 1) {
@@ -1164,6 +1184,38 @@ void NetworkClient::update(double current_ms) {
     const auto json_bool = [](const rapidjson::Value& v, const char* key) {
         return v.HasMember(key) && v[key].IsBool() && v[key].GetBool();
     };
+    for (auto it = pending_ai_battle.begin(); it != pending_ai_battle.end();) {
+        if (it->wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
+            ++it;
+            continue;
+        }
+        cpr::Response response = it->get();
+        rapidjson::Document doc;
+        if (response.status_code == 200 && !doc.Parse(response.text.c_str()).HasParseError() && doc.IsObject()) {
+            AIBattleProgress progress;
+            progress.answered = true;
+            progress.rank_before = json_int(doc, "rank_before", 1);
+            progress.rank_after = json_int(doc, "rank_after", 1);
+            progress.tokens_before = json_int(doc, "tokens_before", 0);
+            progress.tokens_after = json_int(doc, "tokens_after", 0);
+            progress.next_rank_tokens = json_int(doc, "next_rank_tokens", -1);
+            progress.wins_before = json_int(doc, "wins_before", 0);
+            progress.wins_after = json_int(doc, "wins_after", 0);
+            progress.fulfilled = json_bool(doc, "fulfilled");
+            progress.first = json_bool(doc, "first");
+            progress.challenge = json_bool(doc, "challenge");
+            if (doc.HasMember("bests") && doc["bests"].IsArray()) {
+                for (const auto& best : doc["bests"].GetArray()) {
+                    progress.bests.push_back({json_int(best, "good", 0), json_int(best, "ok", 0),
+                                              json_int(best, "bad", 0), json_int(best, "drumroll", 0)});
+                }
+            }
+            ai_battle_progress_ = std::move(progress);
+        } else {
+            spdlog::warn("AI battle submit failed: HTTP {} - {}", response.status_code, response.text);
+        }
+        it = pending_ai_battle.erase(it);
+    }
     for (auto it = pending_medals.begin(); it != pending_medals.end();) {
         if (it->second.wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
             ++it;
@@ -1415,6 +1467,7 @@ std::optional<std::string> NetworkClient::take_song_jump_result() {
 void NetworkClient::submit_kinotake(int, const std::string&, int, int, bool, bool) {}
 void NetworkClient::submit_don_points(int, const std::string&, const std::vector<int>&) {}
 void NetworkClient::submit_medals(int, const std::string&) {}
+void NetworkClient::submit_ai_battle(const std::string&, const std::string&, int, int, bool, const std::string&) {}
 void NetworkClient::request_reward_shop(int seat, const std::string&) {
     shop_seats[seat] = {};
 }

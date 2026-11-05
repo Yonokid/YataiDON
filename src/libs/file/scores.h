@@ -145,6 +145,8 @@ public:
     // Best-of view over dan_scores for one course (course_id from dan_course_id).
     std::optional<DanRecord> get_dan_record(const std::string& player_id, const std::string& course_id);
     // Appends one attempt to dan_scores; each song links to its normal scores row (DanResultSong::score_id).
+    void save_ai_section_wins(const std::string& hash, int difficulty, const std::string& player_id, int won,
+                              int total);
     void save_dan_score(const std::string& player_id, const std::string& course_id, const DanResultData& rd,
                         int arrival);
     std::optional<PlayerData> get_player_data(const std::string& player_id);

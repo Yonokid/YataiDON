@@ -111,7 +111,15 @@ inline Judgments ai_pick_judgment(const AIRates& rates, double roll) {
     return roll < rates.good + rates.ok ? Judgments::OK : Judgments::BAD;
 }
 
+inline constexpr double AI_CONDITION_MIN = 0.90;
+inline constexpr double AI_CONDITION_MAX = 0.99;
+
 inline double ai_roll_condition() {
     std::mt19937 rng{std::random_device{}()};
-    return std::uniform_real_distribution<double>(0.90, 0.99)(rng);
+    return std::uniform_real_distribution<double>(AI_CONDITION_MIN, AI_CONDITION_MAX)(rng);
+}
+
+inline int ai_condition_tier(double condition) {
+    const double share = (condition - AI_CONDITION_MIN) / (AI_CONDITION_MAX - AI_CONDITION_MIN);
+    return std::clamp(static_cast<int>(share * 5), 0, 4);
 }

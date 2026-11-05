@@ -118,6 +118,26 @@ struct MedalSeat {
     int max = 0;
     bool daily = false, weekly = false, monthly = false;
 };
+struct AIBattleBest {
+    int good = 0;
+    int ok = 0;
+    int bad = 0;
+    int drumroll = 0;
+};
+struct AIBattleProgress {
+    bool answered = false;
+    int rank_before = 1;
+    int rank_after = 1;
+    int tokens_before = 0;
+    int tokens_after = 0;
+    int next_rank_tokens = -1; // -1 once the rank can't rise
+    int wins_before = 0;
+    int wins_after = 0;
+    bool fulfilled = false;
+    bool first = false;
+    bool challenge = false;
+    std::vector<AIBattleBest> bests;
+};
 struct ShopGood {
     int type = -1; // 2 dress, 3 head, 4 body, 5 puchichara
     int id = -1;
@@ -229,6 +249,18 @@ public:
     void unlock_campaign_costume(const std::string& access_code, int cos_index);
     int kinotake_leader() const { return kinotake_leader_; }
 
+    void submit_ai_battle(const std::string& access_code, const std::string& song_hash, int difficulty, int stars,
+                          bool won, const std::string& sections);
+    bool ai_battle_pending() const {
+#if defined(NETWORK_ENABLED)
+        return !pending_ai_battle.empty();
+#else
+        return false;
+#endif
+    }
+    const AIBattleProgress& ai_battle_progress() const { return ai_battle_progress_; }
+    void reset_ai_battle() { ai_battle_progress_ = {}; }
+
     void shutdown();
 
 private:
@@ -243,6 +275,7 @@ private:
     KinotakeTally kinotake_tally_;
     DonSeat don_seats[2];
     MedalSeat medal_seats[2];
+    AIBattleProgress ai_battle_progress_;
     ShopSeat shop_seats[2];
     std::optional<ShopBuyResult> shop_buy_result;
     int reward_shop_pending_count_ = 0;
@@ -269,6 +302,7 @@ private:
     std::vector<std::pair<int, cpr::AsyncResponse>> pending_kinotake;
     std::vector<std::pair<int, cpr::AsyncResponse>> pending_don_points;
     std::vector<std::pair<int, cpr::AsyncResponse>> pending_medals;
+    std::vector<cpr::AsyncResponse> pending_ai_battle;
     std::vector<std::pair<int, cpr::AsyncResponse>> pending_shop;
     std::vector<std::pair<int, cpr::AsyncResponse>> pending_shop_buy;
 

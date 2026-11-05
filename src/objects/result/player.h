@@ -14,6 +14,7 @@ class ResultPlayer : public LuaScript {
     PlayerNum player_num = PlayerNum::P1;
     bool has_2p = false;
     bool is_2p = false;
+    bool stage_hidden = false;
     Nameplate nameplate;
     std::unique_ptr<Chara3D> chara;
     std::optional<double> score_delay;
@@ -41,7 +42,7 @@ public:
     ResultPlayer(PlayerNum player_num, bool has_2p, bool is_2p);
     void update(double current_ms, bool fade_in_finished, bool is_skipped);
     void draw();
-    // the song number, title and subtitle at the top of the screen (the skin places and draws them)
     void draw_song_info(const std::string& title, const std::string& subtitle, int song_number);
     double reveal_end_ms();
+    void hide_stage();
 };

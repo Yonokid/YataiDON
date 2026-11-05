@@ -97,6 +97,7 @@ public:
     bool hide_gauge = false;
     bool hide_gogo_flame = false;
     bool hide_score_counter = false;
+    bool hide_ending_anim = false;
     bool rainbow_arc = false;
     // decides how autoplay lands each note; unset means every note is a Good
     std::function<Judgments(const Note&)> autoplay_judge;
