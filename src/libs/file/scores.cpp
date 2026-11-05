@@ -272,6 +272,7 @@ ScoresManager::ScoresManager(const fs::path& db_path) {
     run_migration("ALTER TABLE players ADD COLUMN modifier_skip BOOL NOT NULL DEFAULT 0;");
     run_migration("ALTER TABLE players ADD COLUMN practice_help_seen BOOL NOT NULL DEFAULT 0;");
     run_migration("ALTER TABLE players ADD COLUMN reward_info_seen BOOL NOT NULL DEFAULT 0;");
+    run_migration("ALTER TABLE players ADD COLUMN ai_intro_seen BOOL NOT NULL DEFAULT 0;");
 
     // Migration v7: dan_results (one best-of row per course title) replaced by dan_scores (attempt history).
     if (version < 7 && run_migration("DROP TABLE IF EXISTS dan_results;")) {

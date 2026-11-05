@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <memory>
 #include <optional>
 #include <random>
 #include <unordered_map>
@@ -9,6 +10,7 @@
 #include "../objects/game/ai_battle_overlay.h"
 #include "../objects/game/ai_match.h"
 #include "../objects/result/ai_section_result.h"
+#include "../objects/song_select/ai_intro.h"
 #include "../objects/song_select/ai_support_menu.h"
 #include "game_2p.h"
 #include "result.h"
@@ -16,6 +18,7 @@
 
 class AISongSelectScreen : public SongSelectScreen {
     std::optional<AISupportMenu> menu;
+    std::unique_ptr<AIIntro> intro;
     int chosen_course = 0;
     int level_cursor = 0;
     bool choosing_level = false;
@@ -34,6 +37,8 @@ protected:
 public:
     void on_screen_start() override;
     Screens on_screen_end(Screens next_screen) override;
+    std::optional<Screens> update() override;
+    void draw() override;
 };
 
 class AIGameScreen : public Game2PScreen {

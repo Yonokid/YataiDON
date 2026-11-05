@@ -27,11 +27,55 @@ void AISongSelectScreen::on_screen_start() {
     choosing_level = false;
     level_decided = false;
     level_cursor = 0;
+    if (script_manager.has_lua_script("ai_intro") &&
+        scores_manager.first_visit(get_player_id(global_data.player_num), "ai_intro_seen")) {
+        intro = std::make_unique<AIIntro>();
+        if (intro->unavailable()) {
+            intro.reset();
+        } else {
+            audio.stop_sound("bgm");
+            audio.stop_sound("voice_enter");
+        }
+    }
 }
 
 Screens AISongSelectScreen::on_screen_end(Screens next_screen) {
     menu.reset();
+    intro.reset();
     return SongSelectScreen::on_screen_end(next_screen);
+}
+
+std::optional<Screens> AISongSelectScreen::update() {
+    if (!intro) {
+        return SongSelectScreen::update();
+    }
+    if (auto next = Screen::update()) {
+        return next;
+    }
+    const double current_ms = get_current_ms();
+    if (menu_left_pressed()) {
+        intro->input(AIIntro::LEFT);
+    } else if (menu_right_pressed()) {
+        intro->input(AIIntro::RIGHT);
+    } else if (menu_confirm_pressed()) {
+        intro->input(AIIntro::DECIDE);
+    }
+    intro->update(current_ms);
+    if (intro->is_done()) {
+        intro.reset();
+        audio.play_sound("bgm", VolumePreset::MUSIC);
+        audio.play_sound("voice_enter", VolumePreset::VOICE);
+        select_timer = std::make_unique<Timer>(100, current_ms, [this] { player->select_song(); });
+    }
+    return std::nullopt;
+}
+
+void AISongSelectScreen::draw() {
+    if (intro) {
+        intro->draw();
+        return;
+    }
+    SongSelectScreen::draw();
 }
 
 void AISongSelectScreen::handle_input_selecting() {
