@@ -1476,7 +1476,8 @@ void modifier_random(NoteList& notes, int value) {
     std::mt19937 gen(rd());
 
     std::vector<int> indices(notes.notes.size());
-    std::ranges::iota(indices, 0);
+    // NOLINTNEXTLINE(modernize-use-ranges): std::ranges::iota is missing from the PS5 and iOS standard libraries
+    std::iota(indices.begin(), indices.end(), 0);
     std::ranges::shuffle(indices, gen);
 
     std::vector<int> selected_notes(indices.begin(), indices.begin() + percentage);
