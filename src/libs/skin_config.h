@@ -139,6 +139,10 @@ enum class SCO : unsigned int {
     LOADING_COUNTDOWN,
     DISABLE_RETRY_GAME,
     HIDDEN_ONI,
+    DISABLE_CAMPAIGNS,
+    DISABLE_REWARD_SHOP,
+    DISABLE_TOTAL_RESULT,
+    DISABLE_WAIWAI,
 };
 
 namespace std {
@@ -161,4 +165,8 @@ const std::unordered_map<std::string, SCO> screen_options_map{
     {"loading_countdown", SCO::LOADING_COUNTDOWN},
     {"disable_retry_game", SCO::DISABLE_RETRY_GAME},
     {"hidden_oni", SCO::HIDDEN_ONI},
+    {"disable_campaigns", SCO::DISABLE_CAMPAIGNS},
+    {"disable_reward_shop", SCO::DISABLE_REWARD_SHOP},
+    {"disable_total_result", SCO::DISABLE_TOTAL_RESULT},
+    {"disable_waiwai", SCO::DISABLE_WAIWAI},
 };

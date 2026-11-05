@@ -17,6 +17,7 @@
 
 #include "../file/scores.h"
 #include "../gfx/color_utils.h"
+#include "../gfx/texture.h"
 #include "../global_data.h"
 #include "../math/sha256.h"
 #include "../parsers/tja.h"
@@ -54,6 +55,10 @@ std::string modifiers_to_json(const Modifiers& m) {
     doc.Accept(writer);
 
     return buffer.GetString();
+}
+
+std::vector<std::string> NetworkClient::active_campaigns() const {
+    return online && !tex.options[SCO::DISABLE_CAMPAIGNS] ? campaigns : std::vector<std::string>{};
 }
 
 #if defined(NETWORK_ENABLED)

@@ -154,7 +154,7 @@ public:
     bool is_tournament() const { return online && tournament; }
     bool tournament_offline() const { return !online && tournament; }
 
-    std::vector<std::string> active_campaigns() const { return online ? campaigns : std::vector<std::string>{}; }
+    std::vector<std::string> active_campaigns() const;
 
     std::string register_user(const std::string& username, const std::string& idm = "");
     std::string map_to_json(const std::map<double, InputLogType>& my_map);

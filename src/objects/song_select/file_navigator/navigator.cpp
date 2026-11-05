@@ -358,6 +358,7 @@ LoadRequest Navigator::make_load_request(LoadRequest::Kind kind, const fs::path&
     request.search = current_search;
     request.hide_dan = hide_dan;
     request.waiwai = waiwai;
+    request.waiwai_box = !tex.options[SCO::DISABLE_WAIWAI];
     request.is_2p = is_2p;
     request.difficulty = diff_sort_filter;
     return request;

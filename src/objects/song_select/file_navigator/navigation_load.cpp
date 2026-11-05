@@ -96,6 +96,7 @@ class NavigationLoad {
     std::string current_search;
     bool hide_dan;
     bool waiwai;
+    bool waiwai_box;
     bool is_2p;
     bool reloading_roots;
     bool genre_box_defs_built = false;
@@ -183,8 +184,9 @@ public:
         : index(request.index), request(request), emit(std::move(emit)), cancellation_token(stop),
           cancellation(stop, [this] { abort_loading = true; }), root_paths(request.roots), language(request.language),
           player_1(request.player_1), current_search(request.search), hide_dan(request.hide_dan),
-          waiwai(request.waiwai), is_2p(request.is_2p), reloading_roots(request.kind == LoadRequest::Kind::ROOTS),
-          inline_back_def(request.back_def), diff_sort_filter(request.difficulty), folder_scanner(stop) {}
+          waiwai(request.waiwai), waiwai_box(request.waiwai_box), is_2p(request.is_2p),
+          reloading_roots(request.kind == LoadRequest::Kind::ROOTS), inline_back_def(request.back_def),
+          diff_sort_filter(request.difficulty), folder_scanner(stop) {}
 
     void run() {
         if (request.kind == LoadRequest::Kind::SUMMARIES) {
@@ -224,7 +226,7 @@ public:
                              "#2366aa");
                 add_mode_box("waiwai_tutorial_box", "00 Waiwai Tutorial", WAIWAI_TUTORIAL_COLLECTION,
                              TextureIndex::NONE, "#28b932", "#106018");
-            } else {
+            } else if (waiwai_box) {
                 add_mode_box("entry_waiwai", "00 Waiwai Mode", WAIWAI_MODE_COLLECTION, TextureIndex::NONE, "#3ca0ff",
                              "#2366aa");
             }

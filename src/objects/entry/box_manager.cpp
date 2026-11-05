@@ -16,7 +16,9 @@ BoxManager::BoxManager(bool two_player) : is_2p(two_player) {
                                  " is not a FadeAnimation");
     }
 
-    waiwai_label = font_manager.get_text_label("entry_waiwai");
+    if (!tex.options[SCO::DISABLE_WAIWAI]) {
+        waiwai_label = font_manager.get_text_label("entry_waiwai");
+    }
     build_board_list();
 }
 
@@ -55,7 +57,8 @@ void BoxManager::build_board_list() {
          {std::pair{Screens::PRACTICE_SELECT, "entry_practice"}, std::pair{Screens::ENTRY, "entry_costume"},
           std::pair{Screens::REWARD_SHOP, "entry_shop"}, std::pair{Screens::SETTINGS, "entry_settings"}}) {
         // no script, no shop board
-        if (screen == Screens::REWARD_SHOP && !script_manager.has_lua_script("reward_shop")) {
+        if (screen == Screens::REWARD_SHOP &&
+            (tex.options[SCO::DISABLE_REWARD_SHOP] || !script_manager.has_lua_script("reward_shop"))) {
             continue;
         }
         // like the dan board: a skin that blanks the board's text leaves the board out
