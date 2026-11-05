@@ -18,6 +18,7 @@ class WaiwaiSongSelectScreen : public SongSelect2PScreen {
 protected:
     Screens get_game_screen_target() override { return Screens::WAIWAI_GAME; }
     bool is_waiwai_screen() override { return true; }
+    fs::path bgm_override() override { return "Sounds/waiwai/waienso/jingle_waigenre_1.ogg"; }
     void select_song(SongBox* song) override;
     void handle_input(double current_ms) override;
 
