@@ -73,7 +73,7 @@ jobs:
             -DBGFX_BUILD_EXAMPLES=OFF -DBGFX_BUILD_TESTS=OFF -DBGFX_BUILD_TOOLS=ON -DBGFX_BUILD_TOOLS_SHADER=ON \
             -DBGFX_BUILD_TOOLS_TEXTURE=OFF -DBGFX_BUILD_TOOLS_GEOMETRY=OFF -DBGFX_BUILD_TOOLS_BIN2C=OFF \
             -DBGFX_INSTALL=OFF -DBGFX_CUSTOM_TARGETS=OFF
-          cmake --build "$RUNNER_TEMP/bgfx-build" --target shaderc --parallel
+          cmake --build "$RUNNER_TEMP/bgfx-build" --target shaderc --parallel "$(nproc)"
           mkdir -p .host-shaderc
           cp "$RUNNER_TEMP/bgfx-build/cmake/bgfx/shaderc" .host-shaderc/
 
