@@ -91,7 +91,7 @@ With `clang-tidy` and `run-clang-tidy` installed, run this from the repository r
 after configuring a build in `build/` to generate `build/compile_commands.json`:
 
 ```sh
-run-clang-tidy -quiet -p build "^$(pwd)/src/"
+run-clang-tidy -quiet -j 4 -p build "^$(pwd)/src/"
 ```
 
 ## Profiling

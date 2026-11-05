@@ -50,7 +50,7 @@ There is no unit test suite. Before finishing a change:
    ```sh
    find src -type f \( -name '*.cpp' -o -name '*.h' \) -exec clang-format -i {} +
    ```
-3. Lint: `run-clang-tidy -quiet -p build "^$(pwd)/src/"`.
+3. Lint: `run-clang-tidy -quiet -j 4 -p build "^$(pwd)/src/"`.
 4. For behavior changes, run the game (`./YataiDON`) and exercise the affected screen.
    Use the `PyTaikoGreen` skin for test runs.
 

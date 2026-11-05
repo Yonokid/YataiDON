@@ -86,7 +86,7 @@ find src -type f \( -name '*.cpp' -o -name '*.h' \) -exec clang-format --dry-run
 The project also has a `.clang-tidy` configuration. After configuring a build in `build/` (which generates `build/compile_commands.json`), lint with:
 
 ```sh
-run-clang-tidy -quiet -p build "^$(pwd)/src/"
+run-clang-tidy -quiet -j 4 -p build "^$(pwd)/src/"
 ```
 
 Lint is not enforced by CI, but please fix any warnings your change introduces.
