@@ -8,6 +8,8 @@
 
 #include "../../libs/gfx/text.h"
 #include "../../libs/screen.h"
+#include "../global/chara_3d.h"
+#include "../global/nameplate.h"
 #include "config_ref.h"
 
 class BaseOptionBox {
@@ -29,7 +31,7 @@ public:
 
     bool is_highlighted{false};
 
-    BaseOptionBox(const std::string& name, std::string description, const std::string& path);
+    BaseOptionBox(const std::string& name, const std::string& description, const std::string& path);
 
     virtual void confirm() {}
     virtual bool needs_text_input() const { return false; }
@@ -53,6 +55,7 @@ public:
     void confirm() override;
     void move_left() override;  // set false
     void move_right() override; // set true
+    void update(double current_time) override;
     void draw() override;
 };
 
@@ -93,6 +96,35 @@ public:
     void confirm() override;
     bool needs_text_input() const override;
     std::string text_input_value() const override { return input_string; }
+    void update(double current_time) override;
+    void move_left() override;
+    void move_right() override;
+    void draw() override;
+};
+
+// Picks which saved account (scores.db player) an access code slot logs in as.
+class AccountOptionBox : public BaseOptionBox {
+    int slot;
+    std::string value;
+    std::vector<std::string> accounts;
+    int account_index{0};
+    std::unique_ptr<OutlinedText> value_text;
+    std::unique_ptr<OutlinedText> code_text;
+    std::unique_ptr<OutlinedText> masked_text;
+    std::unique_ptr<FadeAnimation> flicker_fade;
+    // Held only while this option is on screen, so it never goes stale and opening settings stays fast
+    std::unique_ptr<Nameplate> nameplate;
+    std::unique_ptr<Chara3D> chara;
+    bool drawn{false};
+
+    PlayerData& slot_data() const;
+    void step(int direction);
+    void load_preview();
+
+public:
+    AccountOptionBox(const std::string& name, const std::string& description, const std::string& path);
+
+    void confirm() override;
     void update(double current_time) override;
     void move_left() override;
     void move_right() override;

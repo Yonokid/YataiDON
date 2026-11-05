@@ -53,6 +53,9 @@ std::unique_ptr<BaseOptionBox> SettingsBox::make_option_box(const rapidjson::Val
     if (type == "string") {
         return std::make_unique<StrOptionBox>(name, desc, path, values_map);
     }
+    if (type == "account") {
+        return std::make_unique<AccountOptionBox>(name, desc, path);
+    }
     if (type == "skin") {
         // Skin choices come from what's actually installed, not the json
         // template -- it can't know that ahead of time.

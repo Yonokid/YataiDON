@@ -25,6 +25,7 @@ private:
     void toggle_skin(int skin);
     void begin_download();
     bool apply();
+    void handle_tap(Vec2 tap);
     void draw_line(const std::string& text, float y, int size, Color color);
 
 public:

@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <functional>
+#include <optional>
 #include <string>
 #include <thread>
 #include <vector>
@@ -72,6 +73,9 @@ bool is_text_input_key(int key);
 
 // Enable/disable touch drum
 void set_touch_drum_enabled(bool enabled);
+
+// Latest finger press since the last call, 0..1 across the window; works with the drum disabled
+std::optional<Vec2> take_touch_tap();
 
 // Draw the touch drum overlay (returns true if drawn, false if hidden)
 bool draw_touch_drum();

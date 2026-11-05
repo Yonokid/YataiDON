@@ -15,6 +15,7 @@
 #include <string_view>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 
 #include "../../platform/platform.h"
 #include "../gfx.h"
@@ -124,6 +125,7 @@ static const int TOUCH_L_DON = 40003;
 static const int TOUCH_R_DON = 40004;
 
 static std::unordered_map<SDL_FingerID, int> touch_id_to_vkey;
+static std::optional<Vec2> last_touch_tap;
 
 std::atomic<bool> touch_drum_pressed{false};
 
@@ -568,6 +570,10 @@ static YD_EventFilterRet SDLCALL touch_event_watch(void* /*userdata*/, SDL_Event
     }
 
     if (event->type == SDL_EVENT_FINGER_DOWN) {
+        {
+            std::scoped_lock lock(input_mutex);
+            last_touch_tap = Vec2{event->tfinger.x, event->tfinger.y};
+        }
         if (!global_data.config || !global_data.config->general.touch_input) {
             return true;
         }
@@ -600,6 +606,11 @@ static YD_EventFilterRet SDLCALL touch_event_watch(void* /*userdata*/, SDL_Event
         touch_drum_pressed.store(!touch_id_to_vkey.empty(), std::memory_order_relaxed);
     }
     return true;
+}
+
+std::optional<Vec2> take_touch_tap() {
+    std::scoped_lock lock(input_mutex);
+    return std::exchange(last_touch_tap, std::nullopt);
 }
 
 bool draw_touch_drum() {

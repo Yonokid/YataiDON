@@ -1,5 +1,7 @@
 #pragma once
 
+#include <array>
+
 #include "../libs/file/config.h"
 #include "../libs/screen.h"
 #include "../objects/global/allnet_indicator.h"
@@ -29,7 +31,11 @@ private:
     std::optional<Indicator> indicator;
     std::optional<CoinOverlay> coin_overlay;
     std::optional<AllNetIcon> allnet_indicator;
-    std::string username_on_entry;
+    struct AccountOnEntry {
+        std::string code;
+        std::string username;
+    };
+    std::array<AccountOnEntry, 2> accounts_on_entry;
     std::optional<SettingsAssetState> assets_on_entry;
 
     TextureObject* t_background = nullptr;

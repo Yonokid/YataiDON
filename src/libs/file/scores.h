@@ -148,6 +148,7 @@ public:
     void save_dan_score(const std::string& player_id, const std::string& course_id, const DanResultData& rd,
                         int arrival);
     std::optional<PlayerData> get_player_data(const std::string& player_id);
+    std::vector<std::string> get_player_ids();
     void save_player_data(const PlayerData& player);
     void migrate_player_id(const std::string& old_id, const std::string& new_id);
     // true once per player and column (`practice_help_seen`, `reward_info_seen`): the first call marks it as seen

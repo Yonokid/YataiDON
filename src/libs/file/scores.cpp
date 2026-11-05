@@ -1037,6 +1037,20 @@ std::optional<PlayerData> ScoresManager::get_player_data(const std::string& play
     return p;
 }
 
+std::vector<std::string> ScoresManager::get_player_ids() {
+    std::vector<std::string> ids;
+    sqlite3_stmt* stmt;
+    if (sqlite3_prepare_v2(db_fsd, "SELECT player_id FROM players ORDER BY rowid;", -1, &stmt, nullptr) != SQLITE_OK) {
+        spdlog::error("get_player_ids: failed to prepare: {}", sqlite3_errmsg(db_fsd));
+        return ids;
+    }
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        ids.emplace_back(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0)));
+    }
+    sqlite3_finalize(stmt);
+    return ids;
+}
+
 void ScoresManager::save_player_data(const PlayerData& player) {
     sqlite3_stmt* stmt;
     const char* query =
