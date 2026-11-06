@@ -100,12 +100,12 @@ void SongInfo::update(double current_ms) {
     }
 }
 
-void SongInfo::draw() {
+void SongInfo::draw(float dx, float dy) {
     if (!fade) {
         return;
     }
-    float text_x = tex.get_skin_config(SC::GAME_SONG_INFO)->x;
-    float text_y = tex.get_skin_config(SC::GAME_SONG_INFO)->y - song_title->height / 2.0f;
+    float text_x = tex.get_skin_config(SC::GAME_SONG_INFO)->x + dx;
+    float text_y = tex.get_skin_config(SC::GAME_SONG_INFO)->y + dy - song_title->height / 2.0f;
 
     // Optional skin key game_song_info_max_width: a longer title is squeezed horizontally to fit.
     float title_w = song_title->width;
@@ -118,7 +118,7 @@ void SongInfo::draw() {
 
     float title_x = text_x - title_w;
     if (const SkinInfo* c = tex.get_skin_config(SC::GAME_SONG_INFO_CENTER); c && c->width > 0 && title_w <= c->width) {
-        title_x = c->x - title_w / 2.0f;
+        title_x = c->x + dx - title_w / 2.0f;
     }
 
     if (const SkinInfo* plate = tex.get_skin_config(SC::SONG_NUM_GAME)) {
@@ -127,20 +127,21 @@ void SongInfo::draw() {
             if (genre_shader_loaded) {
                 begin_shader_mode(genre_shader);
             }
-            tex.draw_texture(t_genre, {.fade = 1 - fade->attribute});
+            tex.draw_texture(t_genre, {.x = dx, .y = dy, .fade = 1 - fade->attribute});
             if (genre_shader_loaded) {
                 end_shader_mode();
             }
-            genre_text->draw({.x = t_genre->x[0] + t_genre->width / 2.0f - genre_text->width / 2.0f,
-                              .y = t_genre->y[0] + t_genre->height / 2.0f - genre_text->height / 2.0f,
+            genre_text->draw({.x = t_genre->x[0] + dx + t_genre->width / 2.0f - genre_text->width / 2.0f,
+                              .y = t_genre->y[0] + dy + t_genre->height / 2.0f - genre_text->height / 2.0f,
                               .fade = 1 - fade->attribute});
         }
         if (t_song_num_plate) {
-            tex.draw_texture(t_song_num_plate, {.fade = fade->attribute});
+            tex.draw_texture(t_song_num_plate, {.x = dx, .y = dy, .fade = fade->attribute});
         }
-        song_num->draw(plate->x - song_num->width / 2.0f, plate->y - song_num->height / 2.0f, fade->attribute);
+        song_num->draw(plate->x + dx - song_num->width / 2.0f, plate->y + dy - song_num->height / 2.0f,
+                       fade->attribute);
         if (const SkinInfo* m = tex.get_skin_config(SC::SONG_NUM_MAX_GAME); song_max && m) {
-            song_max->draw(m->x - song_max->width / 2.0f, m->y - song_max->height / 2.0f, fade->attribute);
+            song_max->draw(m->x + dx - song_max->width / 2.0f, m->y + dy - song_max->height / 2.0f, fade->attribute);
         }
         return;
     }
@@ -150,20 +151,20 @@ void SongInfo::draw() {
     song_title->draw({.x = title_x, .y = text_y, .x2 = title_x2, .fade = 1 - fade->attribute});
 
     if (song_subtitle) {
-        float sub_y = tex.get_skin_config(SC::GAME_SONG_INFO_SUBTITLE)->y - song_subtitle->height / 2.0f;
+        float sub_y = tex.get_skin_config(SC::GAME_SONG_INFO_SUBTITLE)->y + dy - song_subtitle->height / 2.0f;
         song_subtitle->draw({.x = text_x - song_subtitle->width, .y = sub_y, .fade = 1 - fade->attribute});
     }
 
     if (genre_text && t_genre) {
-        float genre_y_offset = song_subtitle ? song_subtitle->height : 0;
+        float genre_y_offset = (song_subtitle ? song_subtitle->height : 0) + dy;
         if (genre_shader_loaded) {
             begin_shader_mode(genre_shader);
         }
-        tex.draw_texture(t_genre, {.y = genre_y_offset, .fade = 1 - fade->attribute});
+        tex.draw_texture(t_genre, {.x = dx, .y = genre_y_offset, .fade = 1 - fade->attribute});
         if (genre_shader_loaded) {
             end_shader_mode();
         }
-        genre_text->draw({.x = t_genre->x[0] + t_genre->width / 2.0f - genre_text->width / 2.0f,
+        genre_text->draw({.x = t_genre->x[0] + dx + t_genre->width / 2.0f - genre_text->width / 2.0f,
                           .y = t_genre->y[0] + genre_y_offset + t_genre->height / 2.0f - genre_text->height / 2.0f,
                           .fade = 1 - fade->attribute});
     }
