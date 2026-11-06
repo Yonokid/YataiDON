@@ -20,8 +20,7 @@
 #include <utility>
 
 #include "../../platform/platform.h"
-#include "../gfx/sdl_compat.h"
-#include "../gfx/text.h"
+#include "../encoding.h"
 #include "../math/md5.h"
 #include "../profiler.h"
 #include "platform/platform_windows.h"

@@ -9,6 +9,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "../../../libs/encoding.h"
 #include "../../../libs/file/filesystem.h"
 #include "../../../libs/file/scores.h"
 #include "../../../libs/gfx/text.h"

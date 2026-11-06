@@ -106,5 +106,15 @@ FolderSummary scan_folder(const fs::path& path, const std::string& player_1_id, 
         }
     }
 
+    // A folder's ura crown only counts once every oni chart in it is also crowned.
+    const int oni = static_cast<int>(Difficulty::ONI);
+    const int ura = static_cast<int>(Difficulty::URA);
+    if (disqualified_p1.contains(oni)) {
+        crown.erase(ura);
+    }
+    if (disqualified_p2.contains(oni)) {
+        crown_p2.erase(ura);
+    }
+
     return {std::move(crown), std::move(crown_p2), tja_count};
 }
