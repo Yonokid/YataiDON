@@ -520,10 +520,12 @@ TJAParser::notes_to_position(int diff) {
                     continue;
                 }
 
-                // Skip consecutive balloon end markers (9)
-                if (item == '9' && !state.curr_note_list->empty()) {
-                    Note* last_note = &state.curr_note_list->back();
-                    if (last_note && last_note->type == NoteType::KUSUDAMA) {
+                // Repeated 9s are one kusudama, even with barlines between them
+                if (item == '9') {
+                    auto notes_back = std::views::reverse(*state.curr_note_list);
+                    auto last_note = std::ranges::find_if(
+                        notes_back, [](const Note& note) { return note.type != NoteType::BARLINE; });
+                    if (last_note != notes_back.end() && last_note->type == NoteType::KUSUDAMA) {
                         current_ms += increment;
                         continue;
                     }

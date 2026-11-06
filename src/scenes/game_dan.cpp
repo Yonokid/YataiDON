@@ -32,6 +32,12 @@ void DanGameScreen::on_screen_start() {
     allnet_indicator = AllNetIcon();
 }
 
+Modifiers DanGameScreen::get_player_modifiers(PlayerNum pn) {
+    Modifiers modifiers = GameScreen::get_player_modifiers(pn);
+    modifiers.no_kusudama = true;
+    return modifiers;
+}
+
 void DanGameScreen::init_dan() {
     SessionData& sd = global_data.session_data[static_cast<int>(global_data.player_num)];
 

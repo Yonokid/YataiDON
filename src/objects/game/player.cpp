@@ -1522,6 +1522,9 @@ void Player::check_drumroll(double current_ms, DrumType drum_type, std::optional
     const bool is_big = !other_notes.empty() && other_notes.front().type == NoteType::ROLL_HEAD_L;
     draw_arc_list.emplace_back(NoteType(drum_type), current_ms, arc_player(), is_big, false, 0.0f, 0.0f, rainbow_arc);
     curr_drumroll_count++;
+    if (curr_drumroll_count == 1) {
+        drumroll_counter.reset(); // an equal count left by the last roll would not restart the animations
+    }
     if (!other_notes.empty()) {
         roll_hits[other_notes.front().index] = curr_drumroll_count;
     }
@@ -1796,14 +1799,16 @@ void Player::check_note(double ms_from_start, DrumType drum_type, double current
 }
 
 void Player::drumroll_counter_manager(double current_ms) {
-    if (is_drumroll && curr_drumroll_count > 0 && drumroll_counter == std::nullopt) {
+    // a roll with no hits yet must not overwrite the previous roll's count, which may still be fading out
+    const bool hit_active_roll = is_drumroll && curr_drumroll_count > 0;
+    if (hit_active_roll && drumroll_counter == std::nullopt) {
         drumroll_counter = DrumrollCounter();
     }
 
     if (drumroll_counter.has_value()) {
-        if (drumroll_counter->is_finished() && !is_drumroll) {
+        if (drumroll_counter->is_finished() && !hit_active_roll) {
             drumroll_counter.reset();
-        } else if (is_drumroll) {
+        } else if (hit_active_roll) {
             drumroll_counter->update(current_ms, curr_drumroll_count);
         } else {
             drumroll_counter->update_animations(current_ms);

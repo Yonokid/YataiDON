@@ -38,6 +38,7 @@ public:
     Screens on_screen_end(Screens next_screen) override;
     std::optional<Screens> update() override;
     void draw() override;
+    Modifiers get_player_modifiers(PlayerNum pn) override;
 
 private:
     int song_index = 0;
