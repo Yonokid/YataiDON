@@ -83,7 +83,7 @@ struct AIRates {
 struct AIBrain {
     static constexpr int LARGE_MARGIN = 5;
     static constexpr int MAX_ANGER = 2;
-    static constexpr double ANGER_BOOST = 0.25;
+    static constexpr double ANGER_BOOST = 0.5;
     static constexpr int WEAK_AFTER_LOSSES = 2;
     static constexpr double WEAK_GOOD_FACTOR = 0.95;
 
