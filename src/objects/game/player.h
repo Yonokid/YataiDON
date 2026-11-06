@@ -105,6 +105,8 @@ public:
     const std::unordered_map<int, int>& get_roll_hits() const { return roll_hits; }
     void hide_puchi();
     void hide_lane_badges() { show_lane_badges = false; }
+    // AI battle: the AI lane's cover and background, no course mark and no plate (the skin draws the AI's)
+    void use_ai_lane();
 
     void place_chara_on_stage(float x, float y);
     void move_stage_chara(float x, float y) { stage_chara = {x, y}; }
@@ -192,6 +194,7 @@ protected:
     TextureObject* lane_mark = nullptr; // drawn instead of the difficulty mark (tutorial wakaba)
     bool show_lane_name = true;         // auto icon / nameplate
     bool show_lane_badges = true;       // player icon (1P/2P) / modifier badges
+    bool ai_lane = false;               // use_ai_lane
 
 private:
     bool is_2p;

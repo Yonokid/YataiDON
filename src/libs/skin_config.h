@@ -60,6 +60,7 @@ enum class SC : unsigned int {
     GAME_SONG_INFO_CENTER,
     SONG_SELECT_ROW_PITCH,
     SONG_SELECT_ROW_CURVE,
+    AI_GAME_SONG_INFO,
 };
 
 namespace std {
@@ -94,6 +95,7 @@ const std::unordered_map<std::string, SC> skin_config_map{
     {"game_song_info_center", SC::GAME_SONG_INFO_CENTER},
     {"song_select_row_pitch", SC::SONG_SELECT_ROW_PITCH},
     {"song_select_row_curve", SC::SONG_SELECT_ROW_CURVE},
+    {"ai_game_song_info", SC::AI_GAME_SONG_INFO},
     {"dan_select_exam_info", SC::DAN_SELECT_EXAM_INFO},
     {"dan_select_subtitle", SC::DAN_SELECT_SUBTITLE},
     {"dan_select_title", SC::DAN_SELECT_TITLE},

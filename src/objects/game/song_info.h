@@ -44,5 +44,6 @@ public:
     ~SongInfo();
 
     void update(double current_ms);
-    void draw();
+    // (dx, dy) moves the whole block (the AI battle shows it at the bottom right)
+    void draw(float dx = 0.0f, float dy = 0.0f);
 };

@@ -645,7 +645,7 @@ void Player::update(double ms_from_start, double current_ms, std::optional<Backg
 void Player::draw(double ms_from_start, float x, float y) {
     PlayerSoundScope audio_owner(player_num);
     tex.draw_texture(t_lane_background, {.y = y});
-    if (player_num == PlayerNum::AI) {
+    if (player_num == PlayerNum::AI || ai_lane) {
         tex.draw_texture(t_ai_lane_background, {.y = y});
     }
     if (branch_indicator.has_value()) {
@@ -703,7 +703,7 @@ void Player::draw(double ms_from_start, float x, float y) {
 void Player::draw_practice(double ms_from_start, float x, float y, bool draw_notes_on) {
     practice_lyric = true;
     tex.draw_texture(t_lane_background, {.y = y});
-    if (player_num == PlayerNum::AI) {
+    if (player_num == PlayerNum::AI || ai_lane) {
         tex.draw_texture(t_ai_lane_background, {.y = y});
     }
     if (branch_indicator.has_value()) {
@@ -2358,6 +2358,14 @@ void Player::draw_lane_cover(float y) {
     }
 }
 
+void Player::use_ai_lane() {
+    ai_lane = true;
+    show_lane_name = false;
+    if (tex.has_texture("lane/ai_lane_cover")) {
+        lane_cover_tex_id = tex.get_texture("lane/ai_lane_cover");
+    }
+}
+
 void Player::draw_overlays(float y) {
     tex.draw_texture(t_drum, {.y = y});
     if (ending_anim.has_value() && !hide_ending_anim) {
@@ -2393,7 +2401,7 @@ void Player::draw_overlays(float y) {
     int index = is_dan ? 0 : is_2p;
     if (lane_mark) {
         tex.draw_texture(lane_mark, {.y = y});
-    } else {
+    } else if (!ai_lane) {
         tex.draw_texture(t_lane_difficulty, {.frame = frame, .y = y, .index = index});
     }
     if (show_lane_badges) {

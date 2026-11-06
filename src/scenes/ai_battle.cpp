@@ -271,6 +271,7 @@ void AIGameScreen::apply_overlay_layout() {
     ai()->hide_gauge = true;
     ai()->hide_score_counter = true;
     ai()->hide_lane_badges();
+    ai()->use_ai_lane();
 }
 
 void AIGameScreen::on_screen_start() {
@@ -430,7 +431,12 @@ void AIGameScreen::draw() {
     }
     ai()->draw_arcs();
     overlay->draw_finale(ms);
-    draw_overlay();
+    if (const SkinInfo* pos = tex.get_skin_config(SC::AI_GAME_SONG_INFO)) {
+        song_info.draw(pos->x, pos->y);
+        draw_overlay(false);
+    } else {
+        draw_overlay();
+    }
 }
 
 void AIResultScreen::submit_match() {
