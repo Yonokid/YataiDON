@@ -24,5 +24,5 @@ void main() {
 
     float alpha = max(coverage, center.a);
     if (alpha <= 0.0) discard;
-    fragColor = vec4(center.a > 0.0 ? mix(center.rgb, tintColor, tintAmount) : vec3(0.0), alpha);
+    fragColor = vec4(center.a > 0.0 ? center.rgb * (1.0 - tintAmount) + tintColor : vec3(0.0), alpha);
 }

@@ -604,7 +604,7 @@ void Player::update(double ms_from_start, double current_ms, std::optional<Backg
             if (streak_now) {
                 chara->set_tint({0, 0, 0, 255}, 0.35f);
             } else if (gauge_full_now) {
-                chara->set_tint({255, 220, 0, 255}, 0.5f);
+                chara->set_tint({125, 110, 5, 255}, 0.0f);
             } else {
                 chara->set_tint({0, 0, 0, 255}, 0.0f);
             }

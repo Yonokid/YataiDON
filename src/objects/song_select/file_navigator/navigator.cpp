@@ -155,6 +155,7 @@ void Navigator::load_start_folder() {
     const fs::path start = resolve_start_path();
     const bool leaf = !start.empty() && !folder_scanner.has_child_folders(start);
     const fs::path target = leaf ? start.parent_path() : start;
+    start_folder = leaf ? fs::path{} : start;
     // A folder without subfolders only opens inline, from its box in the parent listing.
     if (leaf) {
         restore_cursor_path = start;
@@ -1226,7 +1227,7 @@ void Navigator::setup_back_box(const fs::path& path, bool has_children, const Ba
         if (!reloading_roots) {
             items.clear();
         }
-        if (std::ranges::contains(root_paths, path)) {
+        if (std::ranges::contains(root_paths, path) || path == start_folder) {
             return;
         }
         items.push_back(make_back_box(path.parent_path(), &folder));

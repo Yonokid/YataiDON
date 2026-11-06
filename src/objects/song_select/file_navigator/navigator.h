@@ -92,6 +92,7 @@ private:
     std::optional<fs::path> reopen_song_path;
     std::optional<fs::path> restore_cursor_path;
     std::optional<fs::path> open_start_folder;
+    fs::path start_folder; // start_path listing: top of navigation, so it has no back box
 
     std::optional<fs::path> recent_folder_path;
     std::optional<fs::path> favorite_folder_path;

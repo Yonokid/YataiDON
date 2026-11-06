@@ -25,5 +25,5 @@ void main()
 
     float alpha = max(coverage, center.a);
     if (alpha <= 0.0) discard;
-    gl_FragColor = vec4(center.a > 0.0 ? mix(center.rgb, tintColor.rgb, tintAmount.x) : vec3(0.0, 0.0, 0.0), alpha);
+    gl_FragColor = vec4(center.a > 0.0 ? center.rgb * (1.0 - tintAmount.x) + tintColor.rgb : vec3(0.0, 0.0, 0.0), alpha);
 }

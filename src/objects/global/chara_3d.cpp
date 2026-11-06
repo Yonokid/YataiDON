@@ -1022,6 +1022,12 @@ void Chara3D::draw_puchi(float x, float y) {
         overlay.a = static_cast<unsigned char>(std::clamp(tint_amount, 0.0f, 1.0f) * 255.0f);
         draw_texture_pro(puchi_silhouette, src, {px, py, size, size}, {0, 0}, 0.0f, overlay);
     }
+    // Matches outline_fxaa's formula: tint_color adds on top of tint_amount's darkening.
+    if (tint_color.r > 0 || tint_color.g > 0 || tint_color.b > 0) {
+        begin_blend_mode(blend_mode::ADDITIVE);
+        draw_texture_pro(puchi_silhouette, src, {px, py, size, size}, {0, 0}, 0.0f, tint_color);
+        end_blend_mode();
+    }
 }
 
 void Chara3D::draw_body(float x, float y) {
