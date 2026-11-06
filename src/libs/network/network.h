@@ -113,8 +113,8 @@ struct DonSeat {
 
 struct MedalSeat {
     bool answered = false;
-    int now = 0; // balance before this credit
-    int add = 0;
+    int now = 0; // balance before the first claim since the last reset
+    int add = 0; // every claim since then
     int max = 0;
     bool daily = false, weekly = false, monthly = false;
 };

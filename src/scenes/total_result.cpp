@@ -18,7 +18,6 @@ static void clear_credit_tally() {
 
 Screens begin_total_result() {
     global_data.songs_played = 0;
-    network.reset_medals();
     network.reset_don_points();
     const std::string* codes[2] = {&global_data.config->network.access_code_1,
                                    &global_data.config->network.access_code_2};
@@ -26,9 +25,6 @@ Screens begin_total_result() {
         global_data.credit_seats[seat] = !global_data.credit_gauges[seat].empty();
         if (!codes[seat]->empty()) {
             network.submit_don_points(seat, *codes[seat], global_data.credit_gauges[seat]);
-            if (global_data.credit_seats[seat]) {
-                network.submit_medals(seat, *codes[seat]);
-            }
         }
     }
     if (!tex.options[SCO::DISABLE_TOTAL_RESULT] && script_manager.has_lua_script("total_result")) {
@@ -44,6 +40,7 @@ static Screens after_total_result() {
         global_data.reward_shop_from_entry = false;
         return Screens::REWARD_SHOP;
     }
+    network.reset_medals();
     return Screens::GAME_OVER;
 }
 

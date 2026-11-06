@@ -12,6 +12,7 @@
 
 void EntryScreen::on_screen_start() {
     Screen::on_screen_start();
+    network.reset_medals();
     kinotake_indicator = KinotakeIndicator("entry");
     side = 1;
     is_2p = false;

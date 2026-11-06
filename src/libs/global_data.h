@@ -291,6 +291,7 @@ struct GlobalData {
     AIMatchResult ai_match;
     std::vector<int> credit_gauges[2];         // soul gauge percent per scored song this credit, per seat
     std::vector<std::string> credit_titles[2]; // same songs
+    bool medals_due[2] = {false, false};       // scored a song; the result screen claims its Don medals
     bool reward_shop_from_entry = false;       // mode select opened the shop: no reward time, back to entry
     bool credit_seats[2] = {false, false};     // seats that played the credit that just ended
     // Card reader

@@ -1263,13 +1263,16 @@ void NetworkClient::update(double current_ms) {
         cpr::Response response = it->second.get();
         rapidjson::Document doc;
         if (response.status_code == 200 && !doc.Parse(response.text.c_str()).HasParseError() && doc.IsObject()) {
-            medal_seats[it->first] = {true,
-                                      json_int(doc, "now", 0),
-                                      json_int(doc, "add", 0),
-                                      json_int(doc, "max", 0),
-                                      json_bool(doc, "daily"),
-                                      json_bool(doc, "weekly"),
-                                      json_bool(doc, "monthly")};
+            MedalSeat& seat = medal_seats[it->first];
+            if (!seat.answered) {
+                seat.now = json_int(doc, "now", 0);
+            }
+            seat.answered = true;
+            seat.add += json_int(doc, "add", 0);
+            seat.max = json_int(doc, "max", 0);
+            seat.daily |= json_bool(doc, "daily");
+            seat.weekly |= json_bool(doc, "weekly");
+            seat.monthly |= json_bool(doc, "monthly");
         } else {
             spdlog::warn("Medal claim failed: HTTP {} - {}", response.status_code, response.text);
         }

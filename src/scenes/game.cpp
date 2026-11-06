@@ -427,6 +427,7 @@ void GameScreen::save_score(const std::string& player_id, PlayerNum player_num) 
                 if (!run_skipped && (seat == 0 || seat == 1)) {
                     global_data.credit_gauges[seat].push_back(static_cast<int>(target->gauge->get_length()));
                     global_data.credit_titles[seat].push_back(session_data.song_title);
+                    global_data.medals_due[seat] = true;
                 }
                 if (!run_skipped && (seat == 0 || seat == 1) && global_data.kinotake_team[seat] >= 0) {
                     const bool duet = std::ranges::count_if(players, [](const auto& p) {
