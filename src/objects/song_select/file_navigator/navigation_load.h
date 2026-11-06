@@ -100,6 +100,7 @@ struct LoadRequest {
     bool is_2p = false;
     bool ai_assigned = false;
     std::optional<std::array<int, 3>> difficulty;
+    std::optional<fs::path> recent_folder;
 };
 
 struct LoadResult {

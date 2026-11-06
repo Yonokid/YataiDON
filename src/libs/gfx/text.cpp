@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <format>
+#include <regex>
 #include <spdlog/spdlog.h>
 #include <vector>
 
@@ -397,6 +398,12 @@ struct Coverage {
     int w = 0, h = 0;
 };
 
+static int glyph_advance(const Font& font, int glyph_index, float spacing) {
+    const GlyphInfo& g = font.glyphs[glyph_index];
+    return g.advanceX == 0 ? static_cast<int>(font.recs[glyph_index].width + spacing)
+                           : g.advanceX + static_cast<int>(spacing);
+}
+
 static Coverage text_coverage(const Font& font, const char* text, float font_size, float spacing, int margin) {
     Vec2 sz = measure_text_ex(font, text, font_size, spacing);
     Coverage c;
@@ -435,8 +442,7 @@ static Coverage text_coverage(const Font& font, const char* text, float font_siz
                 }
             }
         }
-        x += (g.advanceX == 0 ? static_cast<int>(font.recs[gi].width + spacing)
-                              : g.advanceX + static_cast<int>(spacing));
+        x += glyph_advance(font, gi, spacing);
     }
     return c;
 }
@@ -701,19 +707,52 @@ static bool in_rotate_set(const std::string& s) {
     return rotate_set.contains(s);
 }
 
+static std::string parse_color_markup(const std::string& text, std::vector<TextColorSpan>& spans) {
+    if (!text.contains("<c=#")) {
+        return text;
+    }
+    static const std::regex tag("<c=(#(?:[0-9a-fA-F]{3}){1,2})>([\\s\\S]*?)</c>");
+    std::string plain;
+    size_t copied = 0;
+    for (std::sregex_iterator it(text.begin(), text.end(), tag), end; it != end; ++it) {
+        const std::smatch& m = *it;
+        plain.append(text, copied, static_cast<size_t>(m.position()) - copied);
+        const size_t begin = plain.size();
+        plain += m[2].str();
+        spans.push_back({begin, plain.size(), parse_hex_color(m[1].str())});
+        copied = static_cast<size_t>(m.position() + m.length());
+    }
+    plain.append(text, copied);
+    return plain;
+}
+
+std::string strip_text_markup(const std::string& text) {
+    std::vector<TextColorSpan> spans;
+    return parse_color_markup(text, spans);
+}
+
+Color OutlinedText::fill_at(size_t offset, Color base) const {
+    for (const TextColorSpan& span : color_spans) {
+        if (offset >= span.begin && offset < span.end) {
+            return span.color;
+        }
+    }
+    return base;
+}
+
 OutlinedText::OutlinedText(std::string text, int font_size, Color color, Color outline_color, bool is_vertical,
                            float outline_thickness, float spacing, float v_advance, const std::string& font_name)
-    : text(std::move(text)), font_size(static_cast<float>(font_size)),
-      outline_thickness(outline_thickness * global_tex.screen_scale), v_advance(v_advance) {
+    : font_size(static_cast<float>(font_size)), outline_thickness(outline_thickness * global_tex.screen_scale),
+      v_advance(v_advance) {
+    this->text = parse_color_markup(text, color_spans);
     auto& manager = named_font_manager(font_name);
     if (outlined_text_cache().enabled()) {
         const auto rgba = [](Color c) {
             return static_cast<uint32_t>(c.r) | (static_cast<uint32_t>(c.g) << 8) | (static_cast<uint32_t>(c.b) << 16) |
                    (static_cast<uint32_t>(c.a) << 24);
         };
-        cache_key =
-            std::format("{}/{}/{}/{}/{}/{}/{}/{}/{}", manager.cache_generation(), font_size, rgba(color),
-                        rgba(outline_color), is_vertical, this->outline_thickness, spacing, v_advance, this->text);
+        cache_key = std::format("{}/{}/{}/{}/{}/{}/{}/{}/{}", manager.cache_generation(), font_size, rgba(color),
+                                rgba(outline_color), is_vertical, this->outline_thickness, spacing, v_advance, text);
         if (auto cached = outlined_text_cache().get(cache_key)) {
             cached_texture = std::move(cached);
             texture = cached_texture->texture;
@@ -829,13 +868,30 @@ OutlinedText::BuildData OutlinedText::build_horizontal_text(Color color, Color o
                                 static_cast<int>(line_advance * (lines.size() - 1) + line_h) + pad * 2 + top_extra,
                                 clear_of(outline_thickness > 0 ? outline_color : color));
 
+    size_t line_start = 0;
     for (size_t li = 0; li < lines.size(); li++) {
         float y = pad + top_extra + li * line_advance;
         if (outline_thickness > 0) {
             stamp_outline(&img, worker_font, lines[li].c_str(), {static_cast<float>(pad), y}, font_size, sp,
                           outline_color, outline_thickness);
         }
-        draw_text_clean(&img, worker_font, lines[li].c_str(), {static_cast<float>(pad), y}, font_size, sp, color);
+        if (color_spans.empty()) {
+            draw_text_clean(&img, worker_font, lines[li].c_str(), {static_cast<float>(pad), y}, font_size, sp, color);
+        } else {
+            int x = pad;
+            for (size_t i = 0; i < lines[li].size();) {
+                int n = 0;
+                const int cp = get_codepoint_next(lines[li].c_str() + i, &n);
+                if (n <= 0) {
+                    break;
+                }
+                draw_text_clean(&img, worker_font, lines[li].substr(i, n).c_str(), {static_cast<float>(x), y},
+                                font_size, sp, fill_at(line_start + i, color));
+                x += glyph_advance(worker_font, get_glyph_index(worker_font, cp), sp);
+                i += n;
+            }
+        }
+        line_start += lines[li].size() + 1;
     }
 
     return {img};
@@ -849,7 +905,8 @@ OutlinedText::BuildData OutlinedText::build_vertical_text(Color color, Color out
     struct TextItem {
         std::vector<std::string> chars;
         bool is_hgroup;
-        float width; // total render width
+        float width;   // total render width
+        size_t offset; // of the first char, in `text`
     };
 
     std::vector<std::string> raw_chars;
@@ -867,6 +924,7 @@ OutlinedText::BuildData OutlinedText::build_vertical_text(Color color, Color out
     }
 
     std::vector<TextItem> items;
+    size_t next_offset = 0;
     for (size_t i = 0; i < raw_chars.size();) {
         if (is_hgroup_char(raw_chars[i])) {
             size_t j = i;
@@ -877,8 +935,10 @@ OutlinedText::BuildData OutlinedText::build_vertical_text(Color color, Color out
             item.is_hgroup = (j - i >= 2);
             item.chars.assign(raw_chars.begin() + i, raw_chars.begin() + j);
             item.width = 0.0f;
+            item.offset = next_offset;
             for (const auto& s : item.chars) {
                 item.width += measure_text_ex(worker_font, s.c_str(), font_size, spacing).x;
+                next_offset += s.size();
             }
             items.push_back(std::move(item));
             i = j;
@@ -887,6 +947,8 @@ OutlinedText::BuildData OutlinedText::build_vertical_text(Color color, Color out
             item.is_hgroup = false;
             item.chars = {raw_chars[i]};
             item.width = measure_text_ex(worker_font, raw_chars[i].c_str(), font_size, spacing).x;
+            item.offset = next_offset;
+            next_offset += raw_chars[i].size();
             items.push_back(std::move(item));
             ++i;
         }
@@ -936,6 +998,7 @@ OutlinedText::BuildData OutlinedText::build_vertical_text(Color color, Color out
             if (item.is_hgroup) {
                 // Chars drawn left-to-right, group centred in max_item_width.
                 float cx = pad + (max_item_width - item.width) / 2.0f;
+                size_t char_offset = item.offset;
                 for (const auto& s : item.chars) {
                     float cw = measure_text_ex(worker_font, s.c_str(), font_size, spacing).x;
                     if (pass == 0) {
@@ -944,9 +1007,11 @@ OutlinedText::BuildData OutlinedText::build_vertical_text(Color color, Color out
                                           outline_thickness);
                         }
                     } else {
-                        draw_text_clean(target, worker_font, s.c_str(), {cx, y}, font_size, spacing, color);
+                        draw_text_clean(target, worker_font, s.c_str(), {cx, y}, font_size, spacing,
+                                        fill_at(char_offset, color));
                     }
                     cx += cw;
+                    char_offset += s.size();
                 }
             } else {
                 const auto& s = item.chars[0];
@@ -968,7 +1033,8 @@ OutlinedText::BuildData OutlinedText::build_vertical_text(Color color, Color out
                         }
                     } else {
                         draw_text_clean(&tmp, worker_font, s.c_str(),
-                                        {static_cast<float>(pad), static_cast<float>(pad)}, font_size, spacing, color);
+                                        {static_cast<float>(pad), static_cast<float>(pad)}, font_size, spacing,
+                                        fill_at(item.offset, color));
                     }
                     image_rotate_cw(&tmp);
 
@@ -984,7 +1050,8 @@ OutlinedText::BuildData OutlinedText::build_vertical_text(Color color, Color out
                                           outline_color, outline_thickness);
                         }
                     } else {
-                        draw_text_clean(target, worker_font, s.c_str(), {x, draw_y}, font_size, spacing, color);
+                        draw_text_clean(target, worker_font, s.c_str(), {x, draw_y}, font_size, spacing,
+                                        fill_at(item.offset, color));
                     }
                 }
             }

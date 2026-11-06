@@ -99,9 +99,21 @@ inline std::string localized_text(const std::map<std::string, std::string>& valu
 
 struct CachedOutlinedText;
 
+// Fill color for the bytes [begin, end) of a text with its markup removed.
+struct TextColorSpan {
+    size_t begin;
+    size_t end;
+    Color color;
+};
+
+// OutlinedText reads <c=#RRGGBB>...</c> in its text as a fill color for that part (box.def titles use this).
+// `text` without those tags, for code that compares or counts what is shown.
+std::string strip_text_markup(const std::string& text);
+
 class OutlinedText {
 private:
     std::string text;
+    std::vector<TextColorSpan> color_spans;
     float font_size;
     float outline_thickness;
     float v_advance = 1.0f;
@@ -120,6 +132,8 @@ private:
     struct BuildData {
         Image img;
     };
+
+    Color fill_at(size_t offset, Color base) const;
 
     BuildData build_horizontal_text(Color color, Color outline_color, float spacing);
     BuildData build_vertical_text(Color color, Color outline_color, float spacing);

@@ -21,7 +21,7 @@ struct BoxDef {
 
 inline size_t utf8_char_count(const std::string& s) {
     size_t count = 0;
-    for (unsigned char c : s) {
+    for (unsigned char c : strip_text_markup(s)) {
         if ((c & 0xC0) != 0x80) {
             ++count;
         }

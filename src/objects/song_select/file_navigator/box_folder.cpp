@@ -11,6 +11,9 @@ FolderBox::~FolderBox() {
     if (box_texture.has_value()) {
         unload_texture(box_texture.value());
     }
+    if (box_icon.has_value()) {
+        unload_texture(box_icon.value());
+    }
 }
 
 void FolderBox::load_text() {
@@ -27,6 +30,9 @@ void FolderBox::load_text() {
         }
     } else if (fs::exists(fs::path(path / "box.png")) && !box_texture.has_value()) {
         box_texture = load_texture_mipmapped((path / "box.png").string().c_str());
+    }
+    if (!is_osu_folder && fs::exists(path / "box_icon.png") && !box_icon.has_value()) {
+        box_icon = load_texture_mipmapped((path / "box_icon.png").string().c_str());
     }
     text_loaded = true;
 }

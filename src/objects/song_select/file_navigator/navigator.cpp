@@ -411,6 +411,7 @@ LoadRequest Navigator::make_load_request(LoadRequest::Kind kind, const fs::path&
     request.is_2p = is_2p;
     request.ai_assigned = ai_assigned;
     request.difficulty = diff_sort_filter;
+    request.recent_folder = recent_folder_path;
     return request;
 }
 
@@ -564,7 +565,7 @@ void sort_items(std::vector<std::unique_ptr<BaseBox>>& items, int first_index, i
         }
 
         std::ranges::sort(sortable, [](const std::unique_ptr<BaseBox>& a, const std::unique_ptr<BaseBox>& b) {
-            return alpha_less(a->text_name, b->text_name);
+            return alpha_less(strip_text_markup(a->text_name), strip_text_markup(b->text_name));
         });
 
         int sortable_idx = 0;

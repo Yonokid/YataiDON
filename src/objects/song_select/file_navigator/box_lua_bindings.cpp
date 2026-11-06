@@ -17,6 +17,42 @@
 #include "text_layout.h"
 
 namespace {
+
+    void draw_folder_image(const Texture& image, sol::table params) {
+        float s = tex.screen_scale;
+        float scale = params.get_or("scale", 1.0f);
+        float x = params.get_or("x", 0.0f);
+        float y = params.get_or("y", 0.0f);
+        float fade = params.get_or("fade", 1.0f);
+        float w = image.width;
+        float h = image.height;
+        float dw = w * s * scale;
+        float dh = h * s * scale;
+
+        float max_w = params.get_or("max_w", 0.0f);
+        float max_h = params.get_or("max_h", 0.0f);
+        if (dw > 0.0f && dh > 0.0f && (max_w > 0.0f || max_h > 0.0f)) {
+            float fw = (max_w > 0.0f) ? max_w / dw : 1.0f;
+            float fh = (max_h > 0.0f) ? max_h / dh : 1.0f;
+            float f = std::min(fw, fh);
+            if (f < 1.0f) {
+                dw *= f;
+                dh *= f;
+            } // shrink only, aspect kept
+        }
+        sol::optional<float> cx = params["cx"];
+        sol::optional<float> cy = params["cy"];
+        if (cx) {
+            x = *cx - dw / 2.0f;
+        }
+        if (cy) {
+            y = *cy - dh / 2.0f;
+        }
+
+        Rect src{0, 0, w, h};
+        Rect dest{x, y, dw, dh};
+        draw_texture_pro(image, src, dest, Vec2{0, 0}, 0, ::fade(Color::WHITE, fade));
+    }
     sol::table modifier_rows_table(ModifierSelector& m) {
         sol::table out = script_manager.lua->create_table();
         auto rows = m.lua_rows();
@@ -182,42 +218,15 @@ void register_song_select_lua_bindings(sol::state& lua) {
         },
         "has_box_texture", [](FolderBox& self) { return self.box_texture.has_value(); }, "draw_box_texture",
         [](FolderBox& self, sol::table params) {
-            if (!self.box_texture.has_value()) {
-                return;
+            if (self.box_texture.has_value()) {
+                draw_folder_image(*self.box_texture, params);
             }
-            float s = tex.screen_scale;
-            float scale = params.get_or("scale", 1.0f);
-            float x = params.get_or("x", 0.0f);
-            float y = params.get_or("y", 0.0f);
-            float fade = params.get_or("fade", 1.0f);
-            float w = self.box_texture->width;
-            float h = self.box_texture->height;
-            float dw = w * s * scale;
-            float dh = h * s * scale;
-
-            float max_w = params.get_or("max_w", 0.0f);
-            float max_h = params.get_or("max_h", 0.0f);
-            if (dw > 0.0f && dh > 0.0f && (max_w > 0.0f || max_h > 0.0f)) {
-                float fw = (max_w > 0.0f) ? max_w / dw : 1.0f;
-                float fh = (max_h > 0.0f) ? max_h / dh : 1.0f;
-                float f = std::min(fw, fh);
-                if (f < 1.0f) {
-                    dw *= f;
-                    dh *= f;
-                } // shrink only, aspect kept
+        },
+        "has_box_icon", [](FolderBox& self) { return self.box_icon.has_value(); }, "draw_box_icon",
+        [](FolderBox& self, sol::table params) {
+            if (self.box_icon.has_value()) {
+                draw_folder_image(*self.box_icon, params);
             }
-            sol::optional<float> cx = params["cx"];
-            sol::optional<float> cy = params["cy"];
-            if (cx) {
-                x = *cx - dw / 2.0f;
-            }
-            if (cy) {
-                y = *cy - dh / 2.0f;
-            }
-
-            Rect src{0, 0, w, h};
-            Rect dest{x, y, dw, dh};
-            draw_texture_pro(self.box_texture.value(), src, dest, Vec2{0, 0}, 0, ::fade(Color::WHITE, fade));
         });
 
     lua.new_usertype<BackBox>("BackBox", sol::base_classes, sol::bases<BaseBox>());
