@@ -42,7 +42,7 @@ void GameScreen::on_screen_start() {
     spdlog::info("Chart initialized for song: {}", session_data.selected_song.string());
     load_hitsounds();
     song_info = SongInfo(session_data.song_title, session_data.song_subtitle, parser->metadata.subtitle_full_display,
-                         session_data.genre_index, global_data.songs_played + 1, 0, session_data.genre_label);
+                         session_data.genre_index, global_data.songs_played + 1, session_data.genre_label);
     result_transition = ResultTransition(scene_player_num());
     bpm = parser->metadata.bpm;
     scene_preset = parser->metadata.scene_preset;

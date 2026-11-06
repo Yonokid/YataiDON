@@ -22,6 +22,20 @@ jobs:
         with:
           submodules: false
 
+      - name: Point apt at cached archives
+        id: apt-cache
+        run: |
+          mkdir -p .apt-cache/partial
+          echo "Dir::Cache::archives \"$PWD/.apt-cache\";" | sudo tee /etc/apt/apt.conf.d/99-ci-archives
+          echo "week=$(date +%G-%V)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache apt archives
+        uses: actions/cache@v4
+        with:
+          path: .apt-cache/*.deb
+          key: apt-${{ runner.os }}-${{ steps.apt-cache.outputs.week }}
+          restore-keys: apt-${{ runner.os }}-
+
       - name: Install dependencies
         env:
           DEBIAN_FRONTEND: noninteractive
