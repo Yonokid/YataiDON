@@ -1022,19 +1022,18 @@ std::optional<Note> Player::get_first_note() {
 float Player::get_position_x(const Note& note, double current_ms) {
     if (scroll_type != ScrollType::NMSCROLL) {
         double beats = tempo_map.beat_at(note.hit_ms) - tempo_map.beat_at(current_ms);
-        return JudgePos::X + beats / 4 * note.scroll_x * (tex.screen_width - JudgePos::X);
+        return JudgePos::X + beats / 4 * note.scroll_x * scroll_distance();
     }
-    float speedx = note.bpm / 240000 * note.scroll_x * (tex.screen_width - JudgePos::X);
+    float speedx = note.bpm / 240000 * note.scroll_x * scroll_distance();
     return JudgePos::X + (note.hit_ms - current_ms) * speedx;
 }
 
 float Player::get_position_y(const Note& note, double current_ms) {
     if (scroll_type != ScrollType::NMSCROLL) {
         double beats = tempo_map.beat_at(note.hit_ms) - tempo_map.beat_at(current_ms);
-        return beats / 4 * note.scroll_y * (tex.screen_width - JudgePos::X);
+        return beats / 4 * note.scroll_y * scroll_distance();
     }
-    float speedy =
-        note.bpm / 240000 * note.scroll_y * ((tex.screen_width - JudgePos::X) / tex.screen_width) * tex.screen_width;
+    float speedy = note.bpm / 240000 * note.scroll_y * scroll_distance();
     return (note.hit_ms - current_ms) * speedy;
 }
 

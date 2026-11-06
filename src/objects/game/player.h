@@ -37,6 +37,12 @@ namespace JudgePos {
     inline float Y = 0.0f;
 } // namespace JudgePos
 
+// Pixels a note travels per four beats at scroll 1. The lane runs past the screen edge: Green measures
+// 948 at 1280 wide, not screen width minus judge position.
+inline float scroll_distance() {
+    return tex.screen_width + 82 * tex.screen_scale - JudgePos::X;
+}
+
 namespace Timing {
     constexpr float GOOD = 25.0250015258789f;
     constexpr float OK = 75.0750045776367f;

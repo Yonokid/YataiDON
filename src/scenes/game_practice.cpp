@@ -928,11 +928,10 @@ std::optional<Screens> PracticeGameScreen::update() {
 }
 
 float PracticeGameScreen::get_scrobble_position_x(const Note& note, double current_ms) const {
-    float speedx = note.bpm / 240000.0f * note.scroll_x * (tex.screen_width - JudgePos::X);
+    float speedx = note.bpm / 240000.0f * note.scroll_x * scroll_distance();
     float offset_px = 0.0f;
     if (!bars.empty() && scrobble_index < std::ssize(bars)) {
-        float bar_speedx =
-            bars[scrobble_index].bpm / 240000.0f * bars[scrobble_index].scroll_x * (tex.screen_width - JudgePos::X);
+        float bar_speedx = bars[scrobble_index].bpm / 240000.0f * bars[scrobble_index].scroll_x * scroll_distance();
         offset_px = scrobble_move->attribute * bar_speedx;
     }
     return JudgePos::X + static_cast<float>((note.hit_ms - current_ms) * speedx) - offset_px;
@@ -962,9 +961,8 @@ void PracticeGameScreen::draw_bar_scrobble(const Note& bar, double current_ms) c
         return;
     }
     float x = get_scrobble_position_x(bar, current_ms);
-    float y_off = static_cast<float>((bar.hit_ms - current_ms) *
-                                     (bar.bpm / 240000.0f * bar.scroll_y *
-                                      ((tex.screen_width - JudgePos::X) / tex.screen_width) * tex.screen_width));
+    float y_off =
+        static_cast<float>((bar.hit_ms - current_ms) * (bar.bpm / 240000.0f * bar.scroll_y * scroll_distance()));
     float angle = (y_off != 0) ? std::atan2(bar.scroll_y, bar.scroll_x) * 180.0f / std::numbers::pi_v<float> : 0.0f;
     tex.draw_texture(t_notes_0, {.frame = bar.is_branch_start,
                                  .x = x + tex.get_skin_config(SC::GAME_MOJI_DRUMROLL)->x - t_notes_9->width / 2.0f,
