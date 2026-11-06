@@ -272,8 +272,11 @@ fs::path NavigationLoad::resolve_song_entry(const SongListEntry& entry) const {
         final_path = *found;
     }
     if (!entry.title.empty() || !entry.subtitle.empty()) {
-        if (auto by_title = index->find_song_by_title(entry.title, entry.subtitle);
-            by_title && scores_manager.get_single_hash(*by_title) == entry.hash) {
+        auto by_title = index->find_exact_title(entry.title, entry.subtitle);
+        if (!by_title) {
+            by_title = index->find_song_by_title(entry.title, entry.subtitle);
+        }
+        if (by_title && scores_manager.get_single_hash(*by_title) == entry.hash) {
             final_path = *by_title;
         }
     }
@@ -317,7 +320,9 @@ void NavigationLoad::parse_song_list(const fs::path& path, const BoxDef& box_def
         SongParser parser = take_parser(preparsed, final_path);
         const auto& titles = parser.metadata.title;
         const auto& subtitles = parser.metadata.subtitle;
-        const std::string title = titles.contains("en") ? titles.at("en") : titles.begin()->second;
+        const std::string title = !parser.metadata.audio_tagged_title.empty() ? parser.metadata.audio_tagged_title
+                                  : titles.contains("en")                     ? titles.at("en")
+                                                                              : titles.begin()->second;
         const std::string subtitle = subtitles.contains("en") ? subtitles.at("en") : subtitles.begin()->second;
         const std::string correct_hash = scores_manager.get_single_hash(final_path);
         out_entries.push_back({correct_hash, title, subtitle});

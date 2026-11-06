@@ -417,6 +417,11 @@ void TJAParser::get_metadata() {
     }
 
     for (auto& [region_code, title] : metadata.title) {
+        const bool audio_tagged = title.contains("-New Audio-") || title.contains("-新曲-") ||
+                                  title.contains("-Old Audio-") || title.contains("-旧曲-");
+        if (audio_tagged && region_code == "en") {
+            metadata.audio_tagged_title = title;
+        }
         if (title.contains("-New Audio-") || title.contains("-新曲-")) {
             replace_all(title, "-New Audio-", "");
             replace_all(title, "-新曲-", "");

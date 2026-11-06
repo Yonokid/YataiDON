@@ -275,6 +275,7 @@ struct CourseData {
 struct TJAMetadata {
     std::map<std::string, std::string> title = {{"en", ""}};
     std::map<std::string, std::string> subtitle = {{"en", ""}};
+    std::string audio_tagged_title; // en title before -Old/New Audio- is stripped; same-hash variants differ only here
     bool subtitle_full_display = false;
     std::string genre;
     fs::path wave;

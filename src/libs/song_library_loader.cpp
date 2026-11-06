@@ -16,7 +16,9 @@ bool is_library_song_file(const fs::path& path) {
 
 SongMetadata song_metadata_from(const TJAMetadata& metadata) {
     SongMetadata result;
-    if (auto it = metadata.title.find("en"); it != metadata.title.end()) {
+    if (!metadata.audio_tagged_title.empty()) {
+        result.title = metadata.audio_tagged_title;
+    } else if (auto it = metadata.title.find("en"); it != metadata.title.end()) {
         result.title = it->second;
     }
 
