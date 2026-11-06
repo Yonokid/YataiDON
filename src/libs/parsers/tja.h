@@ -116,7 +116,7 @@ public:
     std::optional<double> sudden_appear_ms;
     std::optional<double> sudden_moving_ms;
     bool display{true};
-    bool bar_start{false}; // BARLINE: the bar's first (commands inside a bar add more)
+    bool bar_start{false}; // BARLINE: first of its bar; commands inside a bar add more
     int index{0};
     int moji{0};
     bool is_branch_start{false};
