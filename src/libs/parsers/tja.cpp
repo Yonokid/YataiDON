@@ -1775,10 +1775,11 @@ namespace {
         return groups;
     }
 
+    // `pos` within its whole note (a TJA bar can be longer than 4/4); just under a whole note is the next one's start
     std::optional<int> grid_slot(double pos, double whole, int divisions) {
-        for (int slot = 0; slot < divisions; ++slot) {
+        for (int slot = 0; slot <= divisions; ++slot) {
             if (near_grid(slot * whole / divisions - pos, whole)) {
-                return slot;
+                return slot % divisions;
             }
         }
         return std::nullopt;
