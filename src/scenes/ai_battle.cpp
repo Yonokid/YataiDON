@@ -20,10 +20,24 @@ int AISongSelectScreen::hovered_course() const {
     return course >= 0 && course < static_cast<int>(LEVEL_COUNT.size()) ? course : -1;
 }
 
+void AISongSelectScreen::play_call_voice() {
+    audio.stop_sound("voice_enter");
+    const bool kadai = status.answered && status.rank == AI_ASSIGNED_RANK;
+    audio.play_sound(kadai ? "ai_select_vo_kadai" : "ai_select_vo_call", VolumePreset::VOICE);
+}
+
 void AISongSelectScreen::on_screen_start() {
+    const std::string& code = global_data.player_num == PlayerNum::P1 ? global_data.config->network.access_code_1
+                                                                      : global_data.config->network.access_code_2;
+    status = code.empty() ? AIBattleStatus{} : network.fetch_ai_battle_status(code);
     SongSelectScreen::on_screen_start();
+    PlayerData ai_data;
+    ai_data.chara_cos_index = AI_COSTUME;
+    ai_chara = make_chara_from_player_data(&ai_data, global_data.player_num == PlayerNum::P1);
+    ai_chara->set_anim(AnimIndex::DON_SELECT_LOOP);
     global_data.ai_condition = ai_roll_condition();
     menu.emplace();
+    menu->set_status(status);
     choosing_level = false;
     level_decided = false;
     level_cursor = 0;
@@ -37,17 +51,25 @@ void AISongSelectScreen::on_screen_start() {
             audio.stop_sound("voice_enter");
         }
     }
+    if (!intro) {
+        play_call_voice();
+    }
 }
 
 Screens AISongSelectScreen::on_screen_end(Screens next_screen) {
     menu.reset();
     intro.reset();
+    ai_chara.reset();
     return SongSelectScreen::on_screen_end(next_screen);
 }
 
 std::optional<Screens> AISongSelectScreen::update() {
     if (!intro) {
-        return SongSelectScreen::update();
+        auto next = SongSelectScreen::update();
+        if (ai_chara) {
+            ai_chara->update(get_current_ms());
+        }
+        return next;
     }
     if (auto next = Screen::update()) {
         return next;
@@ -64,7 +86,7 @@ std::optional<Screens> AISongSelectScreen::update() {
     if (intro->is_done()) {
         intro.reset();
         audio.play_sound("bgm", VolumePreset::MUSIC);
-        audio.play_sound("voice_enter", VolumePreset::VOICE);
+        play_call_voice();
         select_timer = std::make_unique<Timer>(100, current_ms, [this] { player->select_song(); });
     }
     return std::nullopt;
@@ -117,11 +139,18 @@ void AISongSelectScreen::select_song(SongBox* song) {
     const bool simplified = choosing_level && level_cursor < LEVEL_COUNT[chosen_course] - 1;
     const auto human = static_cast<int>(global_data.player_num);
     global_data.session_data[human].subdiff = simplified ? FIRST_LEVEL[chosen_course] + level_cursor : 0;
+    global_data.session_data[human].ai_assigned = song->collection == AI_ASSIGNED_COLLECTION;
 
     SongSelectScreen::select_song(song);
+    audio.play_sound("ai_select_vo_begin", VolumePreset::VOICE);
 }
 
 void AISongSelectScreen::draw_overlays() {
+    if (ai_chara) {
+        auto [chara_x, chara_y] =
+            tex.chara_xy(global_data.player_num == PlayerNum::P1 ? "song_select_2p" : "song_select_1p");
+        ai_chara->draw(chara_x, chara_y);
+    }
     if (menu) {
         const int course = hovered_course();
         const auto* song = dynamic_cast<SongBox*>(navigator.get_current_item());
@@ -214,6 +243,7 @@ void AIGameScreen::start_match() {
     global_data.ai_match = {};
 
     brain = AIBrain{.condition = global_data.ai_condition};
+    ai()->use_costume(AI_COSTUME);
     ai()->autoplay_judge = [this](const Note&) {
         return ai_pick_judgment(brain.rates(player_total), std::uniform_real_distribution<double>(0.0, 1.0)(rng));
     };
@@ -269,10 +299,7 @@ void AIGameScreen::update_tallies() {
             if (section < 0) {
                 continue;
             }
-            int& count = judgment == Judgments::GOOD ? tally[section].good
-                         : judgment == Judgments::OK ? tally[section].ok
-                                                     : tally[section].bad;
-            ++count;
+            ai_count_judgment(tally[section], judgment);
         }
         for (const auto& [index, hits] : player.get_roll_hits()) {
             const int section = section_of(index);
@@ -298,7 +325,23 @@ double AIGameScreen::section_end_ms(int section) const {
 int AIGameScreen::current_territory() const {
     const int section = std::min(current_section, section_count - 1);
     const int course = global_data.session_data[static_cast<int>(global_data.player_num)].selected_difficulty;
-    return ai_territory_points(course, tallies[HUMAN][section]) - ai_territory_points(course, tallies[AI][section]);
+    auto judged_in_section = [&](const Player& player) {
+        std::vector<std::pair<int, Judgments>> notes;
+        for (const auto& [index, judgment] : player.get_note_judgments()) {
+            const auto it = note_section.find(index);
+            if (it != note_section.end() && it->second == section) {
+                notes.emplace_back(index, judgment);
+            }
+        }
+        std::ranges::sort(notes);
+        std::vector<Judgments> judgments;
+        judgments.reserve(notes.size());
+        for (const auto& [index, judgment] : notes) {
+            judgments.push_back(judgment);
+        }
+        return judgments;
+    };
+    return ai_territory_margin(course, judged_in_section(*human()), judged_in_section(*ai()));
 }
 
 void AIGameScreen::close_finished_sections() {
@@ -362,13 +405,13 @@ void AIGameScreen::draw() {
     const double ms = get_current_ms();
     overlay->draw_back(ms, territory);
 
-    static constexpr float TILE_WIDTH = 72.0f;
-    static constexpr float CHARA_Y = 180.0f;
-    static constexpr float CHARA_GAP = 80.0f;
-    static constexpr float CHARA_SCALE = 0.35f;
-    const float front = (territory + AI_TERRITORY_MAX + 1) * TILE_WIDTH;
-    human()->move_stage_chara((front - CHARA_GAP) * tex.screen_scale, CHARA_Y * tex.screen_scale);
-    ai()->move_stage_chara((front + CHARA_GAP) * tex.screen_scale, CHARA_Y * tex.screen_scale);
+    static constexpr float CHARA_Y = 147.0f;
+    static constexpr float HUMAN_CHARA_GAP = 101.0f;
+    static constexpr float AI_CHARA_GAP = 50.0f;
+    static constexpr float CHARA_SCALE = 0.5f;
+    const float front = overlay->border_x(territory);
+    human()->move_stage_chara((front - HUMAN_CHARA_GAP) * tex.screen_scale, CHARA_Y * tex.screen_scale);
+    ai()->move_stage_chara((front + AI_CHARA_GAP) * tex.screen_scale, CHARA_Y * tex.screen_scale);
     human()->draw_stage_chara(CHARA_SCALE);
     ai()->draw_stage_chara(CHARA_SCALE);
     overlay->draw_clash(ms, territory, brain.anger > 0);
@@ -411,7 +454,8 @@ void AIResultScreen::submit_match() {
         sections += fmt::format("{}{}:{}:{}:{}:{}", sections.empty() ? "" : ",", s.good, s.ok, s.bad, s.drumroll,
                                 s.won ? 1 : 0);
     }
-    network.submit_ai_battle(code, session.song_hash, session.selected_difficulty, match.stars, match.won, sections);
+    network.submit_ai_battle(code, session.song_hash, session.selected_difficulty, match.stars, match.won,
+                             session.ai_assigned, sections);
 }
 
 void AIResultScreen::on_screen_start() {
@@ -419,6 +463,7 @@ void AIResultScreen::on_screen_start() {
     allow_retry = false;
     submit_match();
     board.reset();
+    flow.reset();
     board_started = false;
     if (global_data.ai_match.sections.empty() || !script_manager.has_lua_script("ai_section_result")) {
         return;
@@ -438,6 +483,7 @@ void AIResultScreen::on_screen_start() {
 }
 
 Screens AIResultScreen::on_screen_end(Screens next_screen) {
+    flow.reset();
     board.reset();
     global_data.ai_match = {};
     return ResultScreen::on_screen_end(next_screen);
@@ -469,13 +515,35 @@ std::optional<Screens> AIResultScreen::update() {
         return next;
     }
     const PlayerNum seat = global_data.player_num;
-    if ((is_l_don_pressed(seat) || is_r_don_pressed(seat)) && board->decide()) {
+    const bool don = menu_confirm_pressed(seat);
+    const bool kat = is_l_kat_pressed(seat) || is_r_kat_pressed(seat);
+    if (flow) {
+        flow->update(now);
+        if (don && flow->input(AIRewardFlow::DON)) {
+            audio.play_sound("don", VolumePreset::SOUND);
+        } else if (kat && flow->input(AIRewardFlow::KATSU)) {
+            audio.play_sound("kat", VolumePreset::SOUND);
+        }
+        if (flow->is_done()) {
+            begin_exit();
+        }
+        return next;
+    }
+    if (don && board->decide()) {
         audio.play_sound("don", VolumePreset::SOUND);
-    } else if ((is_l_kat_pressed(seat) || is_r_kat_pressed(seat)) && board->toggle()) {
+    } else if (kat && board->toggle()) {
         audio.play_sound("kat", VolumePreset::SOUND);
     }
     if (board->is_done()) {
-        begin_exit();
+        const AIBattleProgress& progress = network.ai_battle_progress();
+        if (progress.answered) {
+            flow.emplace(progress);
+        }
+        if (!flow || flow->unavailable() || flow->is_done()) {
+            flow.reset();
+            begin_exit();
+        }
+        clear_input_buffers();
     }
     return next;
 }
@@ -491,5 +559,8 @@ void AIResultScreen::draw() {
         player_1->draw();
     }
     board->draw();
+    if (flow) {
+        flow->draw();
+    }
     draw_overlay();
 }

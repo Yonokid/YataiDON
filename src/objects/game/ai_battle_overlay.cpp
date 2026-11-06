@@ -12,6 +12,7 @@ AIBattleOverlay::AIBattleOverlay() {
     fn_draw_clash = lua_object["draw_clash"];
     fn_draw_finale = lua_object["draw_finale"];
     fn_set_match_result = lua_object["set_match_result"];
+    fn_border_x = lua_object["border_x"];
 }
 
 void AIBattleOverlay::reset() {
@@ -44,4 +45,8 @@ void AIBattleOverlay::draw_finale(double ms) {
 
 void AIBattleOverlay::set_match_result(bool won, bool full_combo) {
     call(fn_set_match_result, "AIBattleOverlay:set_match_result", won, full_combo);
+}
+
+float AIBattleOverlay::border_x(int territory) {
+    return call_r<float>(fn_border_x, "AIBattleOverlay:border_x", territory).value_or(640.0f);
 }

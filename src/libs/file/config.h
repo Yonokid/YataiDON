@@ -56,6 +56,7 @@ struct NetworkConfig {
 
 struct PathsConfig {
     std::vector<fs::path> tja_path;
+    fs::path start_path; // box folder song select opens in: absolute or relative to a tja_path; empty for the roots
     fs::path skin;
 };
 

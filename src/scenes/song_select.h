@@ -77,6 +77,7 @@ protected:
     virtual void draw_overlays();
 
     virtual bool hides_dan() { return tex.get_skin_config(SC::ENTRY_DAN) != nullptr; }
+    virtual bool shows_ai_assigned() { return false; }
     virtual bool is_2p_screen() { return false; }
     virtual bool is_waiwai_screen() { return false; }
     virtual fs::path bgm_override() { return {}; }

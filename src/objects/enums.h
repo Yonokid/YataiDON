@@ -146,6 +146,7 @@ inline GenreIndex get_genre_index(const std::string& genreString) {
 
 // Boxes the game adds. On the waiwai screen: back to the normal 2P select, and the how-to-play movie.
 inline const std::string WAIWAI_NORMAL_COLLECTION = "WAIWAI_NORMAL";
+inline const std::string AI_ASSIGNED_COLLECTION = "AI_ASSIGNED";
 inline const std::string WAIWAI_TUTORIAL_COLLECTION = "WAIWAI_TUTORIAL";
 // On the normal 2P select: into waiwai, for pairs where someone is logged in.
 inline const std::string WAIWAI_MODE_COLLECTION = "WAIWAI_MODE";

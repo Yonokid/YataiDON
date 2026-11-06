@@ -232,6 +232,7 @@ struct SessionData {
     int subdiff = 0;
     int ai_sections_won = 0;
     int ai_sections_total = 0;
+    bool ai_assigned = false;
     std::string song_title = "default_title";
     std::string song_subtitle = "default_subtitle";
     bool song_subtitle_full_display = false;

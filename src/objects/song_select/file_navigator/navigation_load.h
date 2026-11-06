@@ -98,6 +98,7 @@ struct LoadRequest {
     bool waiwai = false;
     bool waiwai_box = true;
     bool is_2p = false;
+    bool ai_assigned = false;
     std::optional<std::array<int, 3>> difficulty;
 };
 

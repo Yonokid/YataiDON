@@ -1,6 +1,7 @@
 ﻿#include "entry.h"
 
 #include <algorithm>
+#include <array>
 #include <thread>
 
 #include "../libs/file/config.h"
@@ -664,6 +665,12 @@ std::optional<Screens> EntryScreen::handle_input() {
     return std::nullopt;
 }
 
+static bool mode_voice_playing() {
+    return std::ranges::any_of(std::array{"mode_game", "mode_ai", "mode_practice", "mode_shop"}, [](const char* voice) {
+        return audio.has_sound(voice) && audio.is_sound_playing(voice);
+    });
+}
+
 std::optional<Screens> EntryScreen::update() {
     Screen::update();
     double current_time = get_current_ms();
@@ -727,7 +734,7 @@ std::optional<Screens> EntryScreen::update() {
     box_manager->update(current_time, is_2p);
     if (state != EntryState::WAITING && state != EntryState::NAME_ENTRY && state != EntryState::CAMPAIGN &&
         state != EntryState::BNCOIN && state != EntryState::PRACTICE_HELP && state != EntryState::ENTRY_INFO &&
-        !(arcade_credit() && state == EntryState::SELECT_SIDE) && !login_pending()) {
+        !(arcade_credit() && state == EntryState::SELECT_SIDE) && !login_pending() && !box_manager->is_box_selected()) {
         timer->update(current_time);
     }
     nameplate.update(current_time);
@@ -805,6 +812,10 @@ std::optional<Screens> EntryScreen::update() {
         }
     }
     if (box_manager->is_finished()) {
+        // stay on the screen so the next screen's audio doesn't cut the voice off
+        if (mode_voice_playing()) {
+            return std::nullopt;
+        }
         if (box_manager->selected_box() == Screens::REWARD_SHOP) {
             leave_for_campaign(); // same resume: back to mode select with these seats
             global_data.reward_shop_from_entry = true;
@@ -1044,7 +1055,7 @@ void EntryScreen::draw() {
         entry_info_->draw();
     }
 
-    if (box_manager->is_finished()) {
+    if (box_manager->is_finished() && !mode_voice_playing()) {
         draw_rectangle(0, 0, tex.screen_width, tex.screen_height, Color::BLACK);
     }
 

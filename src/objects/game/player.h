@@ -134,6 +134,7 @@ public:
         replay_active = true;
     }
     void apply_replay_appearance(const PlayerData& pd);
+    void use_costume(int cos_index);
     bool is_skip_enabled() const { return modifiers.skip; }
     void cut_to_end(double now, int prev_good = 0, int prev_ok = 0, int prev_bad = 0);
     bool was_skipped() const { return skipped_run; }

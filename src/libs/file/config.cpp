@@ -361,6 +361,7 @@ Config get_config() {
 
     // Parse paths
     config.paths.tja_path = parsePathArrayOrDefault(config_file, "paths", "tja_path", {fs::path("Songs")});
+    config.paths.start_path = fs::path(config_file["paths"]["start_path"].value_or(""));
     config.paths.skin = fs::path(config_file["paths"]["skin"].value_or(""));
 
     // Parse keys (converting from strings to key codes)
@@ -493,7 +494,9 @@ void save_config(const Config& config) {
     for (const auto& path : config.paths.tja_path) {
         tja_path_array.push_back(path.string());
     }
-    config_table.insert("paths", toml::table{{"tja_path", tja_path_array}, {"skin", config.paths.skin.string()}});
+    config_table.insert("paths", toml::table{{"tja_path", tja_path_array},
+                                             {"start_path", config.paths.start_path.string()},
+                                             {"skin", config.paths.skin.string()}});
 
     // Keys
     config_table.insert("keys", toml::table{{"exit_key", getKeyStringSafe(config.keys.exit_key)},

@@ -11,6 +11,7 @@ class AIBattleOverlay : public LuaScript {
     sol::protected_function fn_draw_clash;
     sol::protected_function fn_draw_finale;
     sol::protected_function fn_set_match_result;
+    sol::protected_function fn_border_x;
 
 public:
     AIBattleOverlay();
@@ -23,4 +24,5 @@ public:
     void draw_clash(double ms, int territory, bool angry);
     void draw_finale(double ms);
     void set_match_result(bool won, bool full_combo);
+    float border_x(int territory);
 };

@@ -103,7 +103,7 @@ bool Navigator::swap_is_early(int begin_id) const {
     return (get_current_ms() - wheel_leg_ms) < kSwapDelayMs * duration_scale;
 }
 
-void Navigator::load_all_roots() {
+void Navigator::clear_directory_state() {
     cancel_loading();
     is_inline = false;
     inline_state.reset();
@@ -118,10 +118,54 @@ void Navigator::load_all_roots() {
     box_def_cache.clear();
     is_processing = true;
     loading_complete = false;
+}
+
+void Navigator::load_all_roots() {
+    clear_directory_state();
     reloading_roots = true;
 
     current_path = root_paths.empty() ? fs::path{} : root_paths.back();
     submit_load(make_load_request(LoadRequest::Kind::ROOTS));
+}
+
+// Empty when unset or not a box folder inside a song root: the back boxes walk parent paths up to
+// an exact root, so the result has to be built on the root's own spelling.
+fs::path Navigator::resolve_start_path() {
+    if (start_path.empty()) {
+        return {};
+    }
+    for (const fs::path& root : root_paths) {
+        fs::path rel = (root / start_path).lexically_normal().lexically_relative(root.lexically_normal());
+        if (rel.filename().empty()) {
+            rel = rel.parent_path();
+        }
+        if (rel.empty() || rel == "." || *rel.begin() == "..") {
+            continue;
+        }
+        std::error_code ec;
+        if (fs::is_directory(root / rel, ec) && folder_scanner.has_def_file(root / rel)) {
+            return root / rel;
+        }
+    }
+    spdlog::warn("start_path {} is not a box folder inside tja_path, opening at the root", start_path.string());
+    return {};
+}
+
+void Navigator::load_start_folder() {
+    const fs::path start = resolve_start_path();
+    const bool leaf = !start.empty() && !folder_scanner.has_child_folders(start);
+    const fs::path target = leaf ? start.parent_path() : start;
+    // A folder without subfolders only opens inline, from its box in the parent listing.
+    if (leaf) {
+        restore_cursor_path = start;
+        open_start_folder = start;
+    }
+    if (target.empty() || std::ranges::contains(root_paths, target)) {
+        load_all_roots();
+        return;
+    }
+    clear_directory_state();
+    load_current_directory(target);
 }
 
 void Navigator::reset_for_skin_reload() {
@@ -178,7 +222,8 @@ void Navigator::preload(std::vector<fs::path> songs_paths) {
 void Navigator::init(std::vector<fs::path> songs_paths) {
     t_background = tex.get_texture("box/background");
     emit_wheel_event(WHEEL_EVENT_SCENE_ENTRY);
-    if (is_init && (hide_dan != built_hide_dan || waiwai != built_waiwai || is_2p != built_is_2p)) {
+    if (is_init && (hide_dan != built_hide_dan || waiwai != built_waiwai || is_2p != built_is_2p ||
+                    ai_assigned != built_ai_assigned)) {
         cancel_loading();
         is_inline = false;
         inline_state.reset();
@@ -196,6 +241,7 @@ void Navigator::init(std::vector<fs::path> songs_paths) {
     }
     built_hide_dan = hide_dan;
     built_waiwai = waiwai;
+    built_ai_assigned = ai_assigned;
     built_is_2p = is_2p;
 
     if (!is_init) {
@@ -203,7 +249,7 @@ void Navigator::init(std::vector<fs::path> songs_paths) {
             preload(std::move(songs_paths));
         }
 
-        load_all_roots();
+        load_start_folder();
         is_init = true;
     } else if (!resume_directory_load()) {
         if (global_data.config->limits.song_limit > 0) {
@@ -215,7 +261,7 @@ void Navigator::init(std::vector<fs::path> songs_paths) {
             genre_bg.reset();
             awaiting_diff_sort = false;
             diff_sort_filter.reset();
-            load_all_roots();
+            load_start_folder();
         } else {
             if (inline_state.has_value()) {
                 if (open_index >= 0 && open_index < std::ssize(items) &&
@@ -320,7 +366,9 @@ bool Navigator::resume_directory_load() {
     auto [kind, path] = std::move(*interrupted_directory_load);
     interrupted_directory_load.reset();
 
-    if (kind == LoadRequest::Kind::ROOTS || global_data.config->limits.song_limit > 0) {
+    if (global_data.config->limits.song_limit > 0) {
+        load_start_folder();
+    } else if (kind == LoadRequest::Kind::ROOTS) {
         load_all_roots();
     } else {
         open_index = 0;
@@ -360,6 +408,7 @@ LoadRequest Navigator::make_load_request(LoadRequest::Kind kind, const fs::path&
     request.waiwai = waiwai;
     request.waiwai_box = !tex.options[SCO::DISABLE_WAIWAI];
     request.is_2p = is_2p;
+    request.ai_assigned = ai_assigned;
     request.difficulty = diff_sort_filter;
     return request;
 }
@@ -564,8 +613,8 @@ void Navigator::request_folder_summaries() {
     auto request = make_load_request(LoadRequest::Kind::SUMMARIES);
 
     auto add = [&](FolderBox* folder) {
-        if (folder && !folder->collection.starts_with("WAIWAI_") && !folder_summaries.contains(folder->path) &&
-            !failed_folder_summaries.contains(folder->path)) {
+        if (folder && !folder->collection.starts_with("WAIWAI_") && folder->collection != AI_ASSIGNED_COLLECTION &&
+            !folder_summaries.contains(folder->path) && !failed_folder_summaries.contains(folder->path)) {
             request.summary_paths.push_back(folder->path);
         }
     };
@@ -890,7 +939,8 @@ void Navigator::begin_inline_load() {
     diff_sort_filter.reset();
     bg_genre_pending = false;
     int approx_items =
-        (pending_inline_box_def.collection == "RECOMMENDED" || pending_inline_box_def.collection == "DIFFICULTY")
+        (pending_inline_box_def.collection == "RECOMMENDED" || pending_inline_box_def.collection == "DIFFICULTY" ||
+         pending_inline_box_def.collection == AI_ASSIGNED_COLLECTION)
             ? 10
             : pending_inline_folder->tja_count;
     items[open_index]->enter_box();
@@ -1364,6 +1414,13 @@ void Navigator::update(double current_ms) {
     background_fade_change->update(current_ms);
 
     flush_pending_boxes();
+
+    if (open_start_folder && !is_processing) {
+        if (!items.empty() && items[open_index]->path == *open_start_folder) {
+            load_current_directory(*open_start_folder);
+        }
+        open_start_folder.reset();
+    }
 
     if (bg_genre_pending && !items.empty()) {
         GenreIndex cursor_genre = items[open_index]->genre_index;

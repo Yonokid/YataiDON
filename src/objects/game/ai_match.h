@@ -8,6 +8,7 @@
 
 #include "../enums.h"
 
+inline constexpr int AI_COSTUME = 171;
 inline constexpr int AI_TERRITORY_MAX = 9;
 inline constexpr double AI_SHORT_SONG_MS = 100000.0;
 
@@ -26,6 +27,23 @@ inline int ai_territory_points(int course, const AITally& tally) {
     static constexpr int COEFFICIENTS[4][2] = {{5, 3}, {5, 3}, {3, 2}, {3, 1}};
     const int* coefficient = COEFFICIENTS[std::clamp(course, 0, 3)];
     return tally.good * coefficient[0] + tally.ok * coefficient[1];
+}
+
+inline void ai_count_judgment(AITally& tally, Judgments judgment) {
+    ++(judgment == Judgments::GOOD ? tally.good : judgment == Judgments::OK ? tally.ok : tally.bad);
+}
+
+// Whoever has judged more notes waits for the other, so a note the AI has landed and the
+// human has not yet reached never swings the territory. Judgments are in chart order.
+inline int ai_territory_margin(int course, const std::vector<Judgments>& human, const std::vector<Judgments>& ai) {
+    const size_t shared = std::min(human.size(), ai.size());
+    AITally human_tally;
+    AITally ai_tally;
+    for (size_t i = 0; i < shared; ++i) {
+        ai_count_judgment(human_tally, human[i]);
+        ai_count_judgment(ai_tally, ai[i]);
+    }
+    return ai_territory_points(course, human_tally) - ai_territory_points(course, ai_tally);
 }
 
 inline std::vector<double> ai_section_starts(const std::vector<double>& note_ms, const std::vector<double>& barline_ms,

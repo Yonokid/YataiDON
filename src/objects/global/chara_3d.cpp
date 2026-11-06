@@ -903,7 +903,7 @@ void Chara3D::draw_outline(float x, float y, int rt_w, int rt_h, float full_h) {
         rot, matrix_multiply(matrix_scale(draw_size, draw_size, draw_size), matrix_translate(x, y, 400.0f)));
 
     {
-        const float thickness_px = 2.5f * full_h / 720.0f;
+        const float thickness_px = 2.5f * draw_scale * full_h / 720.0f;
         float param[2] = {thickness_px, 0.3f};
         float size[2] = {static_cast<float>(rt_w), static_cast<float>(rt_h)};
         if (outline_param_loc < 0) {
@@ -983,6 +983,15 @@ void Chara3D::draw(float x, float y, float scale_mul) {
     if (tex.options[SCO::DISABLE_CHARA_3D]) {
         return;
     }
+    if (scale_mul != draw_scale) {
+        draw_scale = scale_mul;
+        render_dirty = true;
+        if (outline_fxaa_shader.id != 0) {
+            const float outline_thickness = 3.0f * draw_scale;
+            set_shader_value(outline_fxaa_shader, outline_fxaa_thickness_loc, &outline_thickness,
+                             shader_uniform::FLOAT);
+        }
+    }
     draw_body(x, y);
     draw_puchi(x, y);
 }
@@ -997,7 +1006,7 @@ void Chara3D::draw_puchi(float x, float y) {
     constexpr float PUCHI_Y = -120.0f;
     constexpr float PUCHI_SIZE = 150.0f;
     constexpr float PUCHI_BOB = 6.0f;
-    const float s = tex.screen_scale;
+    const float s = tex.screen_scale * draw_scale;
     const float fw = static_cast<float>(puchi_tex.width);
     const float fh = static_cast<float>(puchi_tex.height) / 2.0f;
     const int frame = static_cast<int>(puchi_ms / FRAME_MS) % 2;

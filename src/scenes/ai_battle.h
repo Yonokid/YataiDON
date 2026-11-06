@@ -9,6 +9,7 @@
 
 #include "../objects/game/ai_battle_overlay.h"
 #include "../objects/game/ai_match.h"
+#include "../objects/result/ai_reward_flow.h"
 #include "../objects/result/ai_section_result.h"
 #include "../objects/song_select/ai_intro.h"
 #include "../objects/song_select/ai_support_menu.h"
@@ -16,19 +17,30 @@
 #include "result.h"
 #include "song_select.h"
 
+static constexpr int AI_ASSIGNED_RANK = 10;
+
 class AISongSelectScreen : public SongSelectScreen {
     std::optional<AISupportMenu> menu;
     std::unique_ptr<AIIntro> intro;
+    std::unique_ptr<Chara3D> ai_chara;
     int chosen_course = 0;
     int level_cursor = 0;
     bool choosing_level = false;
     bool level_decided = false;
 
+    AIBattleStatus status;
+
     int hovered_course() const;
+    void play_call_voice();
 
 protected:
     Screens get_game_screen_target() override { return Screens::AI_GAME; }
     bool hides_dan() override { return true; }
+    fs::path bgm_override() override {
+        const fs::path bgm = "Sounds/ai_select/bgm.ogg";
+        return fs::exists(resolve_skin_path(bgm)) ? bgm : fs::path{}; // skins without it keep the normal select music
+    }
+    bool shows_ai_assigned() override { return status.answered && status.rank == AI_ASSIGNED_RANK; }
     bool allows_second_player_join() override { return false; }
     void select_song(SongBox* song) override;
     void handle_input_selecting() override;
@@ -82,6 +94,7 @@ public:
 
 class AIResultScreen : public ResultScreen {
     std::optional<AISectionBoard> board;
+    std::optional<AIRewardFlow> flow;
     bool board_started = false;
 
     void submit_match();
@@ -89,6 +102,12 @@ class AIResultScreen : public ResultScreen {
 protected:
     Screens select_screen() const override { return Screens::AI_SELECT; }
     double reveal_end_ms() override;
+    // confirm presses are consumed on read, so the base must not see them once the board has the drum
+    void handle_input(double current_ms) override {
+        if (!board_started) {
+            ResultScreen::handle_input(current_ms);
+        }
+    }
 
 public:
     void on_screen_start() override;

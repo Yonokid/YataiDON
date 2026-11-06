@@ -37,7 +37,7 @@ protected:
     std::optional<ResultPlayer> player_1;
     std::optional<FadeIn> fade_in;
 
-    void handle_input(double current_ms);
+    virtual void handle_input(double current_ms);
 
     virtual bool run_failed() const;
     virtual Screens select_screen() const { return Screens::SONG_SELECT; }

@@ -54,11 +54,15 @@ void BoxManager::build_board_list() {
         boxes.push_back(std::make_unique<Box>(dan_text, font_size, Screens::DAN_SELECT));
     }
     for (auto [screen, sc] :
-         {std::pair{Screens::PRACTICE_SELECT, "entry_practice"}, std::pair{Screens::ENTRY, "entry_costume"},
-          std::pair{Screens::REWARD_SHOP, "entry_shop"}, std::pair{Screens::SETTINGS, "entry_settings"}}) {
+         {std::pair{Screens::AI_SELECT, "entry_ai_battle"}, std::pair{Screens::PRACTICE_SELECT, "entry_practice"},
+          std::pair{Screens::ENTRY, "entry_costume"}, std::pair{Screens::REWARD_SHOP, "entry_shop"},
+          std::pair{Screens::SETTINGS, "entry_settings"}}) {
         // no script, no shop board
         if (screen == Screens::REWARD_SHOP &&
             (tex.options[SCO::DISABLE_REWARD_SHOP] || !script_manager.has_lua_script("reward_shop"))) {
+            continue;
+        }
+        if (screen == Screens::AI_SELECT && !script_manager.has_lua_script("ai_support_menu")) {
             continue;
         }
         // like the dan board: a skin that blanks the board's text leaves the board out
@@ -123,9 +127,10 @@ void BoxManager::change_board_list() {
     selected_box_index = 0;
 }
 
-// practice has no 2P mode: with two players in, its board is greyed out
+// practice and AI battle have no 2P mode: with two players in, their boards are greyed out
 bool BoxManager::is_disabled(int index) const {
-    return is_2p && boxes[index]->location == Screens::PRACTICE_SELECT;
+    const Screens location = boxes[index]->location;
+    return is_2p && (location == Screens::PRACTICE_SELECT || location == Screens::AI_SELECT);
 }
 
 bool BoxManager::selection_allowed() const {
@@ -148,6 +153,8 @@ void BoxManager::select_box() {
     }
     if (location == Screens::SONG_SELECT) {
         audio.play_sound("mode_game", VolumePreset::VOICE);
+    } else if (location == Screens::AI_SELECT) {
+        audio.play_sound("mode_ai", VolumePreset::VOICE);
     }
     fade_out->start();
 }

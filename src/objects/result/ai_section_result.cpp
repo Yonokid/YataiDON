@@ -34,7 +34,8 @@ void AISectionBoard::begin(const AIBattleProgress& progress) {
             "rank_before", progress.rank_before, "rank_after", progress.rank_after, "tokens_before",
             progress.tokens_before, "tokens_after", progress.tokens_after, "next_rank_tokens",
             progress.next_rank_tokens, "wins_before", progress.wins_before, "wins_after", progress.wins_after,
-            "fulfilled", progress.fulfilled, "first", progress.first, "challenge", progress.challenge, "bests", bests);
+            "fulfilled", progress.fulfilled, "first", progress.first, "challenge", progress.challenge,
+            "next_reward_wins", progress.next_reward_wins, "reward_kind", progress.reward_kind, "bests", bests);
     }
     call(fn_begin, "AISectionBoard:begin", answer);
 }

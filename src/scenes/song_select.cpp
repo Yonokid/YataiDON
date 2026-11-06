@@ -33,8 +33,10 @@ void SongSelectScreen::on_screen_start() {
     dan_transition.reset();
 
     navigator.hide_dan = hides_dan();
+    navigator.ai_assigned = shows_ai_assigned();
     navigator.is_2p = is_2p_screen();
     navigator.waiwai = is_waiwai_screen();
+    navigator.start_path = global_data.config->paths.start_path;
     navigator.init(global_data.config->paths.tja_path);
 #ifndef __EMSCRIPTEN__
     stats_stop.request_stop();

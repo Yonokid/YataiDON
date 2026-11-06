@@ -64,6 +64,13 @@ void Player::apply_replay_appearance(const PlayerData& pd) {
     chara->set_anim(AnimIndex::DON_NORMAL);
 }
 
+void Player::use_costume(int cos_index) {
+    PlayerData pd;
+    pd.chara_cos_index = cos_index;
+    chara = make_chara_from_player_data(&pd, false, true);
+    chara->set_anim(AnimIndex::DON_NORMAL);
+}
+
 void Player::init_player_textures() {
     t_lane_background = tex.get_texture("lane/lane_background");
     t_ai_lane_background = tex.get_texture("lane/ai_lane_background");

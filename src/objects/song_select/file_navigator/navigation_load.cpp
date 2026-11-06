@@ -98,6 +98,7 @@ class NavigationLoad {
     bool waiwai;
     bool waiwai_box;
     bool is_2p;
+    bool ai_assigned;
     bool reloading_roots;
     bool genre_box_defs_built = false;
     std::map<GenreIndex, BoxDef> genre_box_defs;
@@ -162,6 +163,7 @@ class NavigationLoad {
     void load_collection_difficulty(const fs::path& path, const BoxDef& box_def, int course, int level, int order = 1);
     void load_from_song_list(const fs::path& path, const BoxDef& box_def, bool mark_favorite);
     void load_collection_recommended(const fs::path& path, const BoxDef& box_def);
+    void load_collection_ai_assigned(const fs::path& path, const BoxDef& box_def);
     void load_collection_search(const fs::path& path, const BoxDef& box_def);
     void load_collection_play_count(const fs::path& path, const BoxDef& box_def);
     void scan_song_tree(const fs::path& path, std::vector<fs::path>& song_paths,
@@ -185,8 +187,8 @@ public:
           cancellation(stop, [this] { abort_loading = true; }), root_paths(request.roots), language(request.language),
           player_1(request.player_1), current_search(request.search), hide_dan(request.hide_dan),
           waiwai(request.waiwai), waiwai_box(request.waiwai_box), is_2p(request.is_2p),
-          reloading_roots(request.kind == LoadRequest::Kind::ROOTS), inline_back_def(request.back_def),
-          diff_sort_filter(request.difficulty), folder_scanner(stop) {}
+          ai_assigned(request.ai_assigned), reloading_roots(request.kind == LoadRequest::Kind::ROOTS),
+          inline_back_def(request.back_def), diff_sort_filter(request.difficulty), folder_scanner(stop) {}
 
     void run() {
         if (request.kind == LoadRequest::Kind::SUMMARIES) {
@@ -220,6 +222,10 @@ public:
             load_current_directory_async(request.path);
         }
 
+        if (ai_assigned && !abort_loading && (reloading_roots || std::ranges::contains(root_paths, request.path))) {
+            add_mode_box("ai_assigned_folder", "00 AI Mission", AI_ASSIGNED_COLLECTION, TextureIndex::NONE, "#e6be32",
+                         "#8c6a10");
+        }
         if (is_2p && !abort_loading && (reloading_roots || std::ranges::contains(root_paths, request.path))) {
             if (waiwai) {
                 add_mode_box("entry_game", "00 Waiwai Normal", WAIWAI_NORMAL_COLLECTION, TextureIndex::NONE, "#3ca0ff",
@@ -717,6 +723,29 @@ void NavigationLoad::load_collection_recommended(const fs::path& path, const Box
     }
 }
 
+void NavigationLoad::load_collection_ai_assigned(const fs::path& path, const BoxDef& box_def) {
+    if (!ensure_index()) {
+        return;
+    }
+    auto charts = index->filter_difficulty(static_cast<int>(Difficulty::ONI), 10, &abort_loading);
+    std::mt19937 rng(std::random_device{}());
+    std::ranges::shuffle(charts, rng);
+    charts.resize(std::min<size_t>(charts.size(), 10));
+    for (const fs::path& song_path : charts) {
+        if (abort_loading) {
+            break;
+        }
+        auto song = make_song_box(song_path, box_def, SongParser(song_path));
+        song->preserve_order = true;
+        fs::path genre_folder = navigation_scan::find_box_def_folder(song_path);
+        if (!genre_folder.empty()) {
+            apply_song_genre(song.get(), parse_box_def(genre_folder));
+        }
+        song->fade_in(266);
+        enqueue_inline_box(std::move(song));
+    }
+}
+
 void NavigationLoad::load_collection_search(const fs::path& path, const BoxDef& box_def) {
     auto hits = index->search(current_search, &abort_loading);
     auto preparsed = parse_songs_parallel(hits, cancellation_token);
@@ -866,6 +895,11 @@ void NavigationLoad::load_songs_inline_async(const fs::path& path, const BoxDef&
             spdlog::error("Error loading recommended collection {}: {}", path.string(), e.what());
             throw;
         }
+        return;
+    }
+
+    if (box_def.collection == AI_ASSIGNED_COLLECTION) {
+        load_collection_ai_assigned(path, box_def);
         return;
     }
 

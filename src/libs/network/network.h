@@ -126,17 +126,31 @@ struct AIBattleBest {
 };
 struct AIBattleProgress {
     bool answered = false;
-    int rank_before = 1;
-    int rank_after = 1;
+    int rank_before = 0;
+    int rank_after = 0;
     int tokens_before = 0;
     int tokens_after = 0;
-    int next_rank_tokens = -1; // -1 once the rank can't rise
+    int next_rank_tokens = -1;       // -1 once the rank can't rise
+    int next_rank_after_tokens = -1; // the same for rank_after
     int wins_before = 0;
     int wins_after = 0;
     bool fulfilled = false;
     bool first = false;
     bool challenge = false;
+    int next_reward_wins = -1; // -1 once every reward is earned
+    std::string next_reward_name;
+    std::string reward_kind; // "song", "head", "body", "title"; empty = this win gave no reward
+    std::string reward_name;
+    bool all_rewards = false;
     std::vector<AIBattleBest> bests;
+};
+struct AIBattleStatus {
+    bool answered = false;
+    int rank = 0;
+    int tokens = 0;
+    int next_rank_tokens = -1;
+    int wins = 0;
+    int next_reward_wins = -1;
 };
 struct ShopGood {
     int type = -1; // 2 dress, 3 head, 4 body, 5 puchichara
@@ -250,7 +264,8 @@ public:
     int kinotake_leader() const { return kinotake_leader_; }
 
     void submit_ai_battle(const std::string& access_code, const std::string& song_hash, int difficulty, int stars,
-                          bool won, const std::string& sections);
+                          bool won, bool assigned, const std::string& sections);
+    AIBattleStatus fetch_ai_battle_status(const std::string& access_code);
     bool ai_battle_pending() const {
 #if defined(NETWORK_ENABLED)
         return !pending_ai_battle.empty();

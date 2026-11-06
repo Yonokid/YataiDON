@@ -44,6 +44,7 @@ private:
     bool built_hide_dan = false;
     bool built_waiwai = false;
     bool built_is_2p = false;
+    bool built_ai_assigned = false;
 
     std::optional<InlineState> inline_state;
     std::optional<fs::path> pending_inline_path;
@@ -90,6 +91,7 @@ private:
     std::optional<fs::path> reopen_folder_path;
     std::optional<fs::path> reopen_song_path;
     std::optional<fs::path> restore_cursor_path;
+    std::optional<fs::path> open_start_folder;
 
     std::optional<fs::path> recent_folder_path;
     std::optional<fs::path> favorite_folder_path;
@@ -109,7 +111,10 @@ private:
     void setup_back_box(const fs::path& path, bool has_children, const BaseBox* from = nullptr);
 
     void request_directory(const fs::path& path);
+    void clear_directory_state();
     void load_all_roots();
+    fs::path resolve_start_path();
+    void load_start_folder();
     void request_inline(const fs::path& path, BoxDef box_def);
     void promote_recent_box(const SongBox* song);
     void collapse_inline_now();
@@ -123,10 +128,12 @@ public:
 
     std::atomic<bool> is_processing{false};
     bool hide_dan = false;
+    bool ai_assigned = false; // AI battle rank 10: show the assigned songs folder
     bool waiwai = false;
     bool is_2p = false;
     bool inline_streaming = false;
     fs::path current_path;
+    fs::path start_path;
     std::string current_search;
 
     SongSelectScript* script = nullptr;

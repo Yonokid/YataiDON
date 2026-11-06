@@ -876,14 +876,19 @@ void NetworkClient::submit_medals(int seat, const std::string& access_code) {
 }
 
 void NetworkClient::submit_ai_battle(const std::string& access_code, const std::string& song_hash, int difficulty,
-                                     int stars, bool won, const std::string& sections) {
+                                     int stars, bool won, bool assigned, const std::string& sections) {
     if (!network_enabled() || !online) {
         return;
     }
     const std::string won_text = won ? "true" : "false";
-    std::map<std::string, std::string> params{
-        {"access_code", access_code},     {"song_hash", song_hash}, {"difficulty", std::to_string(difficulty)},
-        {"stars", std::to_string(stars)}, {"won", won_text},        {"sections", sections}};
+    const std::string assigned_text = assigned ? "true" : "false";
+    std::map<std::string, std::string> params{{"access_code", access_code},
+                                              {"song_hash", song_hash},
+                                              {"difficulty", std::to_string(difficulty)},
+                                              {"stars", std::to_string(stars)},
+                                              {"won", won_text},
+                                              {"assigned", assigned_text},
+                                              {"sections", sections}};
     pending_ai_battle.push_back(cpr::PostAsync(cpr::Url{network_url("/ai_battle")},
                                                signed_headers("POST", "/ai_battle", params),
                                                cpr::Parameters{{"access_code", access_code},
@@ -891,6 +896,7 @@ void NetworkClient::submit_ai_battle(const std::string& access_code, const std::
                                                                {"difficulty", std::to_string(difficulty)},
                                                                {"stars", std::to_string(stars)},
                                                                {"won", won_text},
+                                                               {"assigned", assigned_text},
                                                                {"sections", sections}},
                                                cpr::Timeout{5000} NETWORK_CA_OPT));
 }
@@ -936,6 +942,28 @@ void NetworkClient::unlock_campaign_costume(const std::string& access_code, int 
     if (response.status_code != 200) {
         spdlog::warn("unlock_campaign_costume: status {}", response.status_code);
     }
+}
+
+AIBattleStatus NetworkClient::fetch_ai_battle_status(const std::string& access_code) {
+    AIBattleStatus status;
+    if (!network_enabled() || !online) {
+        return status;
+    }
+    cpr::Response response = cpr::Get(cpr::Url{network_url("/ai_battle")},
+                                      cpr::Parameters{{"access_code", access_code}}, cpr::Timeout{3000} NETWORK_CA_OPT);
+    rapidjson::Document doc;
+    if (response.status_code == 200 && !doc.Parse(response.text.c_str()).HasParseError() && doc.IsObject()) {
+        const auto read = [&doc](const char* key, int fallback) {
+            return doc.HasMember(key) && doc[key].IsInt() ? doc[key].GetInt() : fallback; // null = no next step
+        };
+        status.answered = true;
+        status.rank = read("rank", 0);
+        status.tokens = read("tokens", 0);
+        status.next_rank_tokens = read("next_rank_tokens", -1);
+        status.wins = read("wins", 0);
+        status.next_reward_wins = read("next_reward_wins", -1);
+    }
+    return status;
 }
 
 OwnedCosmetics NetworkClient::fetch_owned_cosmetics(const std::string& access_code) {
@@ -1194,16 +1222,27 @@ void NetworkClient::update(double current_ms) {
         if (response.status_code == 200 && !doc.Parse(response.text.c_str()).HasParseError() && doc.IsObject()) {
             AIBattleProgress progress;
             progress.answered = true;
-            progress.rank_before = json_int(doc, "rank_before", 1);
-            progress.rank_after = json_int(doc, "rank_after", 1);
+            progress.rank_before = json_int(doc, "rank_before", 0);
+            progress.rank_after = json_int(doc, "rank_after", 0);
             progress.tokens_before = json_int(doc, "tokens_before", 0);
             progress.tokens_after = json_int(doc, "tokens_after", 0);
             progress.next_rank_tokens = json_int(doc, "next_rank_tokens", -1);
+            progress.next_rank_after_tokens = json_int(doc, "next_rank_after_tokens", -1);
             progress.wins_before = json_int(doc, "wins_before", 0);
             progress.wins_after = json_int(doc, "wins_after", 0);
             progress.fulfilled = json_bool(doc, "fulfilled");
             progress.first = json_bool(doc, "first");
             progress.challenge = json_bool(doc, "challenge");
+            progress.next_reward_wins = json_int(doc, "next_reward_wins", -1);
+            progress.all_rewards = json_bool(doc, "all_rewards");
+            auto text_of = [](const rapidjson::Value& v, const char* key) -> std::string {
+                return v.HasMember(key) && v[key].IsString() ? v[key].GetString() : "";
+            };
+            progress.next_reward_name = text_of(doc, "next_reward_name");
+            if (doc.HasMember("reward") && doc["reward"].IsObject()) {
+                progress.reward_kind = text_of(doc["reward"], "kind");
+                progress.reward_name = text_of(doc["reward"], "name");
+            }
             if (doc.HasMember("bests") && doc["bests"].IsArray()) {
                 for (const auto& best : doc["bests"].GetArray()) {
                     progress.bests.push_back({json_int(best, "good", 0), json_int(best, "ok", 0),
@@ -1467,7 +1506,11 @@ std::optional<std::string> NetworkClient::take_song_jump_result() {
 void NetworkClient::submit_kinotake(int, const std::string&, int, int, bool, bool) {}
 void NetworkClient::submit_don_points(int, const std::string&, const std::vector<int>&) {}
 void NetworkClient::submit_medals(int, const std::string&) {}
-void NetworkClient::submit_ai_battle(const std::string&, const std::string&, int, int, bool, const std::string&) {}
+void NetworkClient::submit_ai_battle(const std::string&, const std::string&, int, int, bool, bool, const std::string&) {
+}
+AIBattleStatus NetworkClient::fetch_ai_battle_status(const std::string&) {
+    return {};
+}
 void NetworkClient::request_reward_shop(int seat, const std::string&) {
     shop_seats[seat] = {};
 }

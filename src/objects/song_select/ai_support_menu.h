@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../../libs/file/script.h"
+#include "../../libs/network/network.h"
 
 class AISupportMenu : public LuaScript {
     sol::protected_function fn_draw;
@@ -8,5 +9,6 @@ class AISupportMenu : public LuaScript {
 public:
     AISupportMenu();
     bool loaded() const { return lua_object.valid(); }
+    void set_status(const AIBattleStatus& status);
     void draw(double ms, int course, int cursor, bool choosing, bool branching, int player, int tension);
 };
