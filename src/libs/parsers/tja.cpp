@@ -4,6 +4,7 @@
 #include <array>
 #include <cctype>
 #include <cmath>
+#include <cstdint>
 #include <cstring>
 #include <fstream>
 #include <limits>
@@ -1646,162 +1647,136 @@ std::vector<std::pair<int, int>> find_streams(const std::deque<Note>& modded_not
     return streams;
 }
 
-// AI battle support levels, as the arcade simplifies a chart. The notes are grouped by the interval to the
-// next note (at most 8 notes a group); a pattern thins the groups of an interval or a denser one and can turn a
-// group into one colour.
-
-// The interval classes, in the order they are tried (a whole note divided by `div`, +-1/64 of a whole note).
-struct IntervalClass {
-    int id;
-    double div;
-};
-static constexpr std::array<IntervalClass, 16> INTERVAL_CLASSES = {{{1, 1.0},
-                                                                    {3, 2.0},
-                                                                    {5, 3.0},
-                                                                    {6, 4.0},
-                                                                    {8, 6.0},
-                                                                    {9, 8.0},
-                                                                    {11, 12.0},
-                                                                    {12, 16.0},
-                                                                    {14, 24.0},
-                                                                    {15, 32.0},
-                                                                    {17, 48.0},
-                                                                    {2, 4.0 / 3.0},
-                                                                    {4, 8.0 / 3.0},
-                                                                    {7, 16.0 / 3.0},
-                                                                    {10, 32.0 / 3.0},
-                                                                    {13, 64.0 / 3.0}}};
-// Sparse to dense; the dotted classes take no part.
-static constexpr std::array<int, 11> DENSITY = {1, 3, 5, 6, 8, 9, 11, 12, 14, 15, 17};
-
-static int interval_class(double interval, double whole) {
-    if (!(whole > 0.0)) {
-        return 0;
-    }
-    const double tolerance = whole / 64.0;
-    for (const auto& [id, div] : INTERVAL_CLASSES) {
-        const double off = whole / div - interval;
-        if (off >= -tolerance && off < tolerance) {
-            return id;
-        }
-    }
-    return 0;
-}
-
-static int density(int interval) {
-    const auto it = std::ranges::find(DENSITY, interval);
-    return it == DENSITY.end() ? -1 : static_cast<int>(it - DENSITY.begin());
-}
-
-static bool is_roll_or_balloon(const Note& note) {
-    return note.type == NoteType::ROLL_HEAD || note.type == NoteType::ROLL_HEAD_L ||
-           note.type == NoteType::BALLOON_HEAD || note.type == NoteType::KUSUDAMA;
-}
+// AI battle support levels, as the arcade simplifies a chart. The notes are grouped by the gap to the next note (at
+// most 8 notes a group); a level thins the groups of a gap or a shorter one and can turn a group into one colour.
 
 namespace {
-    struct SupportGroup {
-        int interval = 0;
-        std::vector<size_t> notes;
+    // The gap to the next note as a fraction of a whole note, longest first (the order is the density).
+    enum class Gap : std::uint8_t {
+        NONE, // another gap, or after a roll
+        WHOLE,
+        HALF,
+        THIRD,
+        QUARTER,
+        SIXTH,
+        EIGHTH,
+        TWELFTH,
+        SIXTEENTH,
+        TWENTYFOURTH,
+        THIRTYSECOND,
+        FORTYEIGHTH,
     };
 
-    // Thin the groups of `interval` or denser holding min..max notes (-1: no bound).
+    // Notes per whole note, indexed by Gap.
+    constexpr std::array<int, 12> GAP_DIVISIONS = {0, 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48};
+
+    // The first gap within 1/64 of a whole note.
+    Gap gap_between(double gap_ms, double whole_ms) {
+        if (!(whole_ms > 0.0)) {
+            return Gap::NONE;
+        }
+        for (size_t g = 1; g < GAP_DIVISIONS.size(); ++g) {
+            const double off = whole_ms / GAP_DIVISIONS[g] - gap_ms;
+            if (off >= -whole_ms / 64.0 && off < whole_ms / 64.0) {
+                return static_cast<Gap>(g);
+            }
+        }
+        return Gap::NONE;
+    }
+
+    // Drop the off-beat notes of the groups of `from` or a shorter gap holding at least `min_notes`.
     struct ThinRule {
-        int interval;
-        int min;
-        int max;
+        Gap from = Gap::NONE;
+        size_t min_notes = 0;
     };
 
-    // One colour for the groups between `densest_from` (or denser) and `sparsest_to` (or sparser, 0: any).
+    // One colour for the groups from `from` to `to` (or any shorter gap when NONE) holding at least `min_notes`.
     struct ColorRule {
-        int densest_from;
-        int sparsest_to;
-        int min;
-        int max;
+        Gap from = Gap::NONE;
+        Gap to = Gap::NONE;
+        size_t min_notes = 0;
     };
 
-    struct SupportPattern {
-        ThinRule thin1;
-        ThinRule thin2;
+    struct SupportLevel {
+        int level; // subdiff: the level picked on the AI battle's support board
+        std::array<ThinRule, 2> thin;
         ColorRule color;
     };
 
-    constexpr std::array<SupportPattern, 15> SUPPORT_PATTERNS = {{
-        {{14, -1, -1}, {11, 4, -1}, {11, 12, 3, -1}},
-        {{14, -1, -1}, {11, 2, -1}, {11, 12, -1, -1}},
-        {{11, -1, -1}, {0, -1, -1}, {11, 0, -1, -1}},
-        {{11, -1, -1}, {8, 4, -1}, {8, 9, 3, -1}},
-        {{11, -1, -1}, {8, 2, -1}, {8, 9, -1, -1}},
-        {{8, -1, -1}, {0, -1, -1}, {8, 0, -1, -1}},
-        {{11, -1, -1}, {0, -1, -1}, {0, 0, -1, -1}},
-        {{11, -1, -1}, {8, 4, -1}, {0, 0, -1, -1}},
-        {{11, -1, -1}, {8, 2, -1}, {8, 0, -1, -1}},
-        {{8, -1, -1}, {0, -1, -1}, {0, 0, -1, -1}},
-        {{8, -1, -1}, {5, 4, -1}, {0, 0, -1, -1}},
-        {{8, -1, -1}, {5, 2, -1}, {5, 0, -1, -1}},
-        {{8, -1, -1}, {0, -1, -1}, {8, 0, -1, -1}},
-        {{8, -1, -1}, {5, 2, -1}, {0, 0, -1, -1}},
-        {{5, -1, -1}, {0, -1, -1}, {5, 0, -1, -1}},
+    // The lowest level of a course is the simplest.
+    constexpr std::array<SupportLevel, 9> SUPPORT_LEVELS = {{
+        {2, {{{Gap::THIRD}, {}}}, {Gap::THIRD}},
+        {3, {{{Gap::SIXTH}, {Gap::THIRD, 2}}}, {}},
+        {4, {{{Gap::SIXTH}, {}}}, {Gap::SIXTH}},
+        {6, {{{Gap::TWELFTH}, {Gap::SIXTH, 2}}}, {Gap::SIXTH}},
+        {7, {{{Gap::TWELFTH}, {Gap::SIXTH, 4}}}, {}},
+        {8, {{{Gap::TWELFTH}, {}}}, {}},
+        {10, {{{Gap::TWELFTH}, {}}}, {Gap::TWELFTH}},
+        {11, {{{Gap::TWENTYFOURTH}, {Gap::TWELFTH, 2}}}, {Gap::TWELFTH, Gap::SIXTEENTH}},
+        {12, {{{Gap::TWENTYFOURTH}, {Gap::TWELFTH, 4}}}, {Gap::TWELFTH, Gap::SIXTEENTH, 3}},
     }};
 
-    // subdiff (the level picked on the AI battle's support board) -> pattern; the lowest level is the simplest
-    int support_pattern(int level) {
-        switch (level) {
-        case 2:
-            return 15;
-        case 3:
-            return 14;
-        case 4:
-            return 13;
-        case 6:
-            return 9;
-        case 7:
-            return 8;
-        case 8:
-            return 7;
-        case 10:
-            return 3;
-        case 11:
-            return 2;
-        case 12:
-            return 1;
-        default:
-            return 0;
-        }
+    bool is_roll_or_balloon(const Note& note) {
+        return note.type == NoteType::ROLL_HEAD || note.type == NoteType::ROLL_HEAD_L ||
+               note.type == NoteType::BALLOON_HEAD || note.type == NoteType::KUSUDAMA;
     }
 
-    bool in_count(size_t count, int min, int max) {
-        return (min <= 0 || count >= static_cast<size_t>(min)) && (max <= 0 || count <= static_cast<size_t>(max));
-    }
+    struct SupportGroup {
+        Gap gap = Gap::NONE;
+        std::vector<size_t> notes;
+    };
 
     struct SupportChart {
         std::deque<Note>& notes;
         std::vector<double> bar_pos; // ms from the start of the note's bar
         std::vector<bool> removed;
 
-        double whole(size_t i) const { return get_ms_per_measure(notes[i].bpm, 1.0); }
+        double whole_ms(size_t i) const { return get_ms_per_measure(notes[i].bpm, 1.0); }
+
+        // A note joins the group of the gap to the note after it; a roll or balloon ends the group.
+        std::vector<SupportGroup> groups() const {
+            std::vector<SupportGroup> groups;
+            SupportGroup current;
+            std::optional<size_t> prev;
+            for (size_t i = 0; i < notes.size(); ++i) {
+                if (notes[i].type == NoteType::BARLINE || notes[i].type == NoteType::TAIL) {
+                    continue;
+                }
+                if (prev) {
+                    const bool after_roll = is_roll_or_balloon(notes[*prev]);
+                    const Gap gap =
+                        after_roll ? Gap::NONE : gap_between(notes[i].hit_ms - notes[*prev].hit_ms, whole_ms(*prev));
+                    if (gap != current.gap || current.notes.size() >= 8) {
+                        groups.push_back(std::move(current));
+                        current = {gap, {}};
+                    }
+                    if (!after_roll) {
+                        current.notes.push_back(*prev);
+                    }
+                }
+                prev = i;
+            }
+            groups.push_back(std::move(current));
+            return groups;
+        }
 
         void thin(const SupportGroup& group, const ThinRule& rule) {
-            const int rank = density(group.interval);
-            if (rule.interval == 0 || rank < 0 || rank < density(rule.interval) ||
-                !in_count(group.notes.size(), rule.min, rule.max)) {
+            if (rule.from == Gap::NONE || group.gap < rule.from || group.notes.size() < rule.min_notes) {
                 return;
             }
-            static constexpr std::array<int, 18> DIVISIONS = {0, 0, 0,  0,  0, 0,  4,  0, 6,
-                                                              8, 0, 12, 16, 0, 24, 32, 0, 48};
-            const int divisions = DIVISIONS[group.interval];
-            // the first note's slot on the interval's grid; off the grid (or a half note or slower): the whole group
-            // goes
             const size_t first = group.notes.front();
-            const double bar = whole(first);
-            if (!(bar > 0.0)) {
+            const double whole = whole_ms(first);
+            if (!(whole > 0.0)) {
                 return;
             }
+            // The first note's slot on the gap's grid. Half notes and longer, or a group off the grid, all go.
+            const int divisions = GAP_DIVISIONS[static_cast<size_t>(group.gap)];
             std::optional<int> slot;
-            if (divisions > 0) {
-                const double pos = std::fmod(bar_pos[first], bar);
+            if (group.gap >= Gap::QUARTER) {
+                const double pos = std::fmod(bar_pos[first], whole);
                 for (int s = 0; s < divisions && !slot; ++s) {
-                    const double off = s * bar / divisions - pos;
-                    if (off >= -bar / 64.0 && off < bar / 64.0) {
+                    const double off = s * whole / divisions - pos;
+                    if (off >= -whole / 64.0 && off < whole / 64.0) {
                         slot = s;
                     }
                 }
@@ -1813,9 +1788,8 @@ namespace {
                 return;
             }
             const int count = static_cast<int>(group.notes.size());
-            const bool binary =
-                group.interval == 6 || group.interval == 9 || group.interval == 12 || group.interval == 15;
-            const bool triplet = group.interval == 8 || group.interval == 11;
+            const bool binary = (divisions & (divisions - 1)) == 0;
+            const bool triplet = group.gap == Gap::SIXTH || group.gap == Gap::TWELFTH;
             const int phase = *slot % (binary ? 2 : 3);
             for (int i = 0; i < count; ++i) {
                 const int p = i + phase;
@@ -1825,13 +1799,10 @@ namespace {
                     const int kept = count >= 4 ? 2 : count >= 2 ? 1 : 0;
                     drop = p % 2 == 1 && i >= kept;
                 } else if (triplet) {
-                    if (count >= 3) {
-                        drop = i > 0 && p % 3 == 1;
-                    } else {
-                        drop = (count == 1 || i > 0) && p % 3 != 0;
-                    }
+                    // the middle of each triplet; a pair keeps only its first note
+                    drop = count >= 3 ? i > 0 && p % 3 == 1 : (count == 1 || i > 0) && p % 3 != 0;
                 } else {
-                    drop = p % 3 != 0;
+                    drop = p % 3 != 0; // 24ths and 48ths: one of three
                 }
                 if (drop) {
                     removed[group.notes[i]] = true;
@@ -1840,10 +1811,8 @@ namespace {
         }
 
         void color(const SupportGroup& group, const ColorRule& rule) {
-            const int rank = density(group.interval);
-            if (rule.densest_from == 0 || rank < 0 || rank < density(rule.densest_from) ||
-                (rule.sparsest_to != 0 && rank > density(rule.sparsest_to)) ||
-                !in_count(group.notes.size(), rule.min, rule.max)) {
+            if (rule.from == Gap::NONE || group.gap < rule.from || (rule.to != Gap::NONE && group.gap > rule.to) ||
+                group.notes.size() < rule.min_notes) {
                 return;
             }
             int don_count = 0;
@@ -1862,39 +1831,11 @@ namespace {
             }
         }
     };
-
-    // A note joins the group of the interval to the note after it; a roll or balloon ends the group.
-    std::vector<SupportGroup> support_groups(const SupportChart& chart) {
-        std::vector<SupportGroup> groups;
-        SupportGroup current;
-        std::optional<size_t> prev;
-        for (size_t i = 0; i < chart.notes.size(); ++i) {
-            const Note& note = chart.notes[i];
-            if (note.type == NoteType::BARLINE || note.type == NoteType::TAIL) {
-                continue;
-            }
-            if (prev) {
-                const bool after_roll = is_roll_or_balloon(chart.notes[*prev]);
-                const int interval =
-                    after_roll ? 0 : interval_class(note.hit_ms - chart.notes[*prev].hit_ms, chart.whole(*prev));
-                if (interval != current.interval || current.notes.size() >= 8) {
-                    groups.push_back(std::move(current));
-                    current = {interval, {}};
-                }
-                if (!after_roll) {
-                    current.notes.push_back(*prev);
-                }
-            }
-            prev = i;
-        }
-        groups.push_back(std::move(current));
-        return groups;
-    }
 } // namespace
 
 void modifier_difficulty(NoteList& notes, int level) {
-    const int pattern = support_pattern(level);
-    if (pattern == 0) {
+    const auto support = std::ranges::find(SUPPORT_LEVELS, level, &SupportLevel::level);
+    if (support == SUPPORT_LEVELS.end()) {
         return;
     }
     SupportChart chart{notes.notes, std::vector<double>(notes.notes.size(), 0.0),
@@ -1907,14 +1848,14 @@ void modifier_difficulty(NoteList& notes, int level) {
         }
         chart.bar_pos[i] = note.hit_ms - bar_start.value_or(note.hit_ms);
     }
-    const SupportPattern& rules = SUPPORT_PATTERNS[pattern - 1];
-    const std::vector<SupportGroup> groups = support_groups(chart);
+    const std::vector<SupportGroup> groups = chart.groups();
     for (const SupportGroup& group : groups) {
-        chart.thin(group, rules.thin1);
-        chart.thin(group, rules.thin2);
+        for (const ThinRule& rule : support->thin) {
+            chart.thin(group, rule);
+        }
     }
     for (const SupportGroup& group : groups) {
-        chart.color(group, rules.color);
+        chart.color(group, support->color);
     }
     std::deque<Note> kept;
     for (size_t i = 0; i < notes.notes.size(); ++i) {
