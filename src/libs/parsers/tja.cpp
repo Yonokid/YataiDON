@@ -1,6 +1,8 @@
 #include "tja.h"
 
 #include <algorithm>
+#include <array>
+#include <bit>
 #include <cctype>
 #include <cmath>
 #include <cstring>
@@ -8,6 +10,7 @@
 #include <limits>
 #include <numbers>
 #include <numeric>
+#include <optional>
 #include <random>
 #include <ranges>
 #include <spdlog/spdlog.h>
@@ -1368,6 +1371,7 @@ Note TJAParser::add_bar(ParserState& state) {
     bar_line.hit_ms = this->current_ms;
     bar_line.type = NoteType::BARLINE;
     bar_line.display = state.barline_display;
+    bar_line.bar_start = !state.barline_added;
     bar_line.bpm = state.bpm;
     bar_line.index = state.index;
     bar_line.scroll_x = state.scroll_x_modifier;
@@ -1643,203 +1647,221 @@ std::vector<std::pair<int, int>> find_streams(const std::deque<Note>& modded_not
     return streams;
 }
 
-static constexpr auto REMOVED_NOTE = static_cast<NoteType>(-1);
+// AI battle support levels, as the arcade simplifies a chart. The notes are grouped by the gap to the next note (at
+// most 8 notes a group); a level thins the groups of a gap or a shorter one and can turn a group into one colour.
 
-static bool is_roll_or_balloon(const Note& note) {
-    return note.type == NoteType::ROLL_HEAD || note.type == NoteType::ROLL_HEAD_L ||
-           note.type == NoteType::BALLOON_HEAD || note.type == NoteType::KUSUDAMA;
-}
+namespace {
+    // Each value is the notes per whole note, so a larger gap value is a shorter gap.
+    enum class Gap : int {
+        NONE = 0, // another gap, or after a roll
+        WHOLE = 1,
+        HALF = 2,
+        THIRD = 3,
+        QUARTER = 4,
+        SIXTH = 6,
+        EIGHTH = 8,
+        TWELFTH = 12,
+        SIXTEENTH = 16,
+        TWENTYFOURTH = 24,
+        THIRTYSECOND = 32,
+        FORTYEIGHTH = 48,
+    };
 
-static void make_single_color(std::deque<Note>& notes, int start, int end) {
-    int don_count = 0;
-    int kat_count = 0;
-    const int stop = std::min(end, static_cast<int>(notes.size()));
-    for (int i = start; i < stop; ++i) {
-        don_count += notes[i].type == NoteType::DON || notes[i].type == NoteType::DON_L;
-        kat_count += notes[i].type == NoteType::KAT || notes[i].type == NoteType::KAT_L;
+    constexpr std::array GAPS = {Gap::WHOLE,        Gap::HALF,         Gap::THIRD,      Gap::QUARTER,
+                                 Gap::SIXTH,        Gap::EIGHTH,       Gap::TWELFTH,    Gap::SIXTEENTH,
+                                 Gap::TWENTYFOURTH, Gap::THIRTYSECOND, Gap::FORTYEIGHTH};
+
+    constexpr size_t MAX_GROUP_NOTES = 8;
+
+    // Drop the off-beat notes of the groups of `from` or a shorter gap holding at least `min_notes`.
+    struct ThinRule {
+        Gap from = Gap::NONE;
+        size_t min_notes = 0;
+    };
+
+    // One colour for the groups from `from` to `to` (or any shorter gap when NONE) holding at least `min_notes`.
+    struct ColorRule {
+        Gap from = Gap::NONE;
+        Gap to = Gap::NONE;
+        size_t min_notes = 0;
+    };
+
+    struct SupportLevel {
+        int level;
+        ThinRule thin;
+        ThinRule thin_runs; // reaches longer gaps than `thin`, for runs only
+        ColorRule color;
+    };
+
+    // The lowest level of a course is the simplest.
+    constexpr std::array<SupportLevel, 9> SUPPORT_LEVELS = {{
+        {2, {Gap::THIRD}, {}, {Gap::THIRD}},
+        {3, {Gap::SIXTH}, {Gap::THIRD, 2}, {}},
+        {4, {Gap::SIXTH}, {}, {Gap::SIXTH}},
+        {6, {Gap::TWELFTH}, {Gap::SIXTH, 2}, {Gap::SIXTH}},
+        {7, {Gap::TWELFTH}, {Gap::SIXTH, 4}, {}},
+        {8, {Gap::TWELFTH}, {}, {}},
+        {10, {Gap::TWELFTH}, {}, {Gap::TWELFTH}},
+        {11, {Gap::TWENTYFOURTH}, {Gap::TWELFTH, 2}, {Gap::TWELFTH, Gap::SIXTEENTH}},
+        {12, {Gap::TWENTYFOURTH}, {Gap::TWELFTH, 4}, {Gap::TWELFTH, Gap::SIXTEENTH, 3}},
+    }};
+
+    struct SupportGroup {
+        Gap gap = Gap::NONE;
+        std::vector<size_t> notes;
+    };
+
+    bool is_roll_or_balloon(const Note& note) {
+        return note.type == NoteType::ROLL_HEAD || note.type == NoteType::ROLL_HEAD_L ||
+               note.type == NoteType::BALLOON_HEAD || note.type == NoteType::KUSUDAMA;
     }
-    const bool don = don_count >= kat_count;
-    for (int i = start; i < stop; ++i) {
-        if (notes[i].type == NoteType::DON || notes[i].type == NoteType::KAT) {
-            notes[i].type = don ? NoteType::DON : NoteType::KAT;
-        } else if (notes[i].type == NoteType::DON_L || notes[i].type == NoteType::KAT_L) {
-            notes[i].type = don ? NoteType::DON_L : NoteType::KAT_L;
-        }
-    }
-}
 
-static std::vector<int> find_sixteenth_2plus2(const std::deque<Note>& notes) {
-    std::vector<int> patterns;
-    for (int i = 0; i < static_cast<int>(notes.size()) - 3; ++i) {
-        if (is_roll_or_balloon(notes[i]) || is_roll_or_balloon(notes[i + 1]) || is_roll_or_balloon(notes[i + 2]) ||
-            is_roll_or_balloon(notes[i + 3])) {
-            continue;
-        }
-        if (get_note_interval_type(notes[i + 1].hit_ms - notes[i].hit_ms, notes[i].bpm) != Interval::SIXTEENTH ||
-            get_note_interval_type(notes[i + 3].hit_ms - notes[i + 2].hit_ms, notes[i + 2].bpm) !=
-                Interval::SIXTEENTH) {
-            continue;
-        }
-        const double sixteenth = get_ms_per_measure(notes[i].bpm, 4.0) / 4.0 / 16.0;
-        if (std::abs(notes[i + 2].hit_ms - notes[i + 1].hit_ms - sixteenth * 2) >= 20.0) {
-            continue;
-        }
-        if (i + 4 >= static_cast<int>(notes.size())) {
-            patterns.push_back(i);
-        } else if (!is_roll_or_balloon(notes[i + 4])) {
-            const double after = notes[i + 4].hit_ms - notes[i + 3].hit_ms;
-            if (after >= sixteenth * 1.5 || get_note_interval_type(after, notes[i + 3].bpm) != Interval::SIXTEENTH) {
-                patterns.push_back(i);
+    double whole_ms(const Note& note) {
+        return get_ms_per_measure(note.bpm, 1.0);
+    }
+
+    bool near_grid(double off_ms, double whole) {
+        const double tolerance = whole / 64.0;
+        return off_ms >= -tolerance && off_ms < tolerance;
+    }
+
+    Gap gap_between(double gap_ms, double whole) {
+        for (const Gap gap : GAPS) {
+            if (near_grid(whole / static_cast<int>(gap) - gap_ms, whole)) {
+                return gap;
             }
         }
+        return Gap::NONE;
     }
-    return patterns;
-}
 
-// Every other note of 1/32 streams; two of every three notes of 1/24 streams (levels 10-12).
-static void thin_fastest_streams(std::deque<Note>& notes) {
-    for (const auto& [start, length] : find_streams(notes, Interval::THIRTYSECOND)) {
-        for (int i = start + 1; i < start + length; i += 2) {
-            notes[i].type = REMOVED_NOTE;
-        }
-    }
-    for (const auto& [start, length] : find_streams(notes, Interval::TWENTYFOURTH)) {
-        for (int i = start + 1; i < start + length - 1; i += 3) {
-            notes[i].type = REMOVED_NOTE;
-            notes[i + 1].type = REMOVED_NOTE;
-        }
-    }
-}
-
-// Long 1/16 streams become repeating single-color triplets with the next two notes dropped (levels 11-12).
-static void sixteenths_to_triplets(std::deque<Note>& notes, int start, int length) {
-    const int end = start + length;
-    int i = start;
-    while (i < end) {
-        const int triplet_end = std::min(i + 3, end);
-        if (triplet_end - i >= 2) {
-            make_single_color(notes, i, triplet_end);
-        }
-        i += 3;
-        if (i < end) {
-            notes[i].type = REMOVED_NOTE;
-            i += 2;
-        }
-        if (i < end) {
-            notes[i].type = REMOVED_NOTE;
-            i += 1;
-        }
-    }
-}
-
-static void simplify_notes(std::deque<Note>& notes, int level) {
-    if (level == 6) {
-        for (const auto& [start, length] : find_streams(notes, Interval::EIGHTH)) {
-            if (length == 3) {
-                notes[start + 1].type = REMOVED_NOTE;
-            } else if (length > 3) {
-                make_single_color(notes, start, start + length);
+    // Each note's distance in ms from the start of its bar.
+    std::vector<double> bar_positions(const std::deque<Note>& notes) {
+        std::vector<double> positions;
+        positions.reserve(notes.size());
+        std::optional<double> bar_start;
+        for (const Note& note : notes) {
+            if (note.type == NoteType::BARLINE && (note.bar_start || !bar_start)) {
+                bar_start = note.hit_ms;
             }
+            positions.push_back(note.hit_ms - bar_start.value_or(note.hit_ms));
         }
-    } else if (level == 7) {
-        for (const auto& [start, length] : find_streams(notes, Interval::EIGHTH)) {
-            if (length == 5) {
-                notes[start + 3].type = REMOVED_NOTE;
-            } else if (length >= 7) {
-                for (int i = start + 3; i < start + length; i += 4) {
-                    notes[i].type = REMOVED_NOTE;
+        return positions;
+    }
+
+    // A note joins the group of the gap to the note after it; a roll or balloon ends the group.
+    std::vector<SupportGroup> group_notes(const std::deque<Note>& notes) {
+        std::vector<SupportGroup> groups;
+        SupportGroup current;
+        std::optional<size_t> prev;
+        for (size_t i = 0; i < notes.size(); ++i) {
+            if (notes[i].type == NoteType::BARLINE || notes[i].type == NoteType::TAIL) {
+                continue;
+            }
+            if (prev) {
+                const bool after_roll = is_roll_or_balloon(notes[*prev]);
+                const Gap gap =
+                    after_roll ? Gap::NONE : gap_between(notes[i].hit_ms - notes[*prev].hit_ms, whole_ms(notes[*prev]));
+                if (gap != current.gap || current.notes.size() >= MAX_GROUP_NOTES) {
+                    groups.push_back(std::move(current));
+                    current = {gap, {}};
+                }
+                if (!after_roll) {
+                    current.notes.push_back(*prev);
                 }
             }
+            prev = i;
         }
-    } else if (level == 8) {
-        for (const auto& [start, length] : find_streams(notes, Interval::SIXTEENTH)) {
-            if (length == 3) {
-                notes[start + 1].type = REMOVED_NOTE;
-            } else if (length == 5) {
-                // 3+1 when it starts on don, 2+2 when it starts on kat
-                const bool don = notes[start].type == NoteType::DON || notes[start].type == NoteType::DON_L;
-                notes[start + (don ? 3 : 2)].type = REMOVED_NOTE;
+        groups.push_back(std::move(current));
+        return groups;
+    }
+
+    // `pos` within its whole note (a TJA bar can be longer than 4/4); just under a whole note is the next one's start
+    std::optional<int> grid_slot(double pos, double whole, int divisions) {
+        for (int slot = 0; slot <= divisions; ++slot) {
+            if (near_grid(slot * whole / divisions - pos, whole)) {
+                return slot % divisions;
             }
         }
-    } else if (level == 10) {
-        thin_fastest_streams(notes);
-        for (const auto& [start, length] : find_streams(notes, Interval::SIXTEENTH)) {
-            if (length == 2 && notes[start].type != NoteType::TAIL) {
-                notes[start].type = notes[start + 1].type;
-            } else if (length == 3) {
-                notes[start + 1].type = REMOVED_NOTE;
-            } else if (length == 4 || length == 5) {
-                notes[start + 3].type = REMOVED_NOTE;
-                make_single_color(notes, start, start + length);
-            } else if (length > 5) {
-                notes[start + 3].type = REMOVED_NOTE;
-                for (int i = start + 5; i < start + length; i += 2) {
-                    notes[i].type = REMOVED_NOTE;
-                }
+        return std::nullopt;
+    }
+
+    // `slot` is the group's first note on the gap's grid; `i` counts from that note.
+    bool drops_note(Gap gap, int slot, int i, int count) {
+        const int p = slot + i;
+        if (std::has_single_bit(static_cast<unsigned>(gap))) {
+            return p % 2 == 1 && i >= std::min(count / 2, 2); // a run keeps its opening notes
+        }
+        if (gap == Gap::SIXTH || gap == Gap::TWELFTH) {
+            if (count >= 3) {
+                return i > 0 && p % 3 == 1;
             }
+            return (count == 1 || i > 0) && p % 3 != 0; // a pair keeps only its first note
         }
-        for (const int start : find_sixteenth_2plus2(notes)) {
-            notes[start + 2].type = REMOVED_NOTE;
+        return p % 3 != 0;
+    }
+
+    void thin_group(const std::deque<Note>& notes, const std::vector<double>& bar_pos, const SupportGroup& group,
+                    const ThinRule& rule, std::vector<bool>& removed) {
+        if (rule.from == Gap::NONE || group.gap < rule.from || group.notes.size() < rule.min_notes) {
+            return;
         }
-    } else if (level == 11) {
-        thin_fastest_streams(notes);
-        for (const auto& [start, length] : find_streams(notes, Interval::TWELFTH)) {
-            for (int i = start + 1; i < start + length - 1; i += 3) {
-                notes[i].type = REMOVED_NOTE;
-            }
+        const size_t first = group.notes.front();
+        const double whole = whole_ms(notes[first]);
+        // Half notes and longer, or a group off the grid, all go.
+        std::optional<int> slot;
+        if (group.gap >= Gap::QUARTER) {
+            slot = grid_slot(std::fmod(bar_pos[first], whole), whole, static_cast<int>(group.gap));
         }
-        for (const auto& [start, length] : find_streams(notes, Interval::SIXTEENTH)) {
-            if (length == 2 && notes[start].type != NoteType::TAIL) {
-                notes[start].type = notes[start + 1].type;
-            } else if (length == 3) {
-                notes[start + 1].type = REMOVED_NOTE;
-            } else if (length == 4 || length == 5) {
-                notes[start + 3].type = REMOVED_NOTE;
-                make_single_color(notes, start, start + length);
-            } else if (length > 5) {
-                sixteenths_to_triplets(notes, start, length);
-            }
-        }
-    } else if (level == 12) {
-        thin_fastest_streams(notes);
-        for (const auto& [start, length] : find_streams(notes, Interval::TWELFTH)) {
-            if (length <= 4) {
-                make_single_color(notes, start, start + length);
-            } else {
-                for (int i = start + 1; i < start + length - 1; i += 3) {
-                    notes[i].type = REMOVED_NOTE;
-                }
-            }
-        }
-        for (const auto& [start, length] : find_streams(notes, Interval::SIXTEENTH)) {
-            if (length == 3) {
-                make_single_color(notes, start, start + length);
-            } else if (length == 4 || length == 5) {
-                notes[start + 3].type = REMOVED_NOTE;
-                make_single_color(notes, start, start + length);
-            } else if (length > 5) {
-                sixteenths_to_triplets(notes, start, length);
+        const int count = static_cast<int>(group.notes.size());
+        for (int i = 0; i < count; ++i) {
+            if (!slot || drops_note(group.gap, *slot, i, count)) {
+                removed[group.notes[i]] = true;
             }
         }
     }
-}
+
+    void make_single_color(std::deque<Note>& notes, const SupportGroup& group, const ColorRule& rule) {
+        if (rule.from == Gap::NONE || group.gap < rule.from || (rule.to != Gap::NONE && group.gap > rule.to) ||
+            group.notes.size() < rule.min_notes) {
+            return;
+        }
+        int don_count = 0;
+        int kat_count = 0;
+        for (const size_t i : group.notes) {
+            don_count += notes[i].type == NoteType::DON || notes[i].type == NoteType::DON_L;
+            kat_count += notes[i].type == NoteType::KAT || notes[i].type == NoteType::KAT_L;
+        }
+        const bool don = don_count >= kat_count;
+        for (const size_t i : group.notes) {
+            if (notes[i].type == NoteType::DON || notes[i].type == NoteType::KAT) {
+                notes[i].type = don ? NoteType::DON : NoteType::KAT;
+            } else if (notes[i].type == NoteType::DON_L || notes[i].type == NoteType::KAT_L) {
+                notes[i].type = don ? NoteType::DON_L : NoteType::KAT_L;
+            }
+        }
+    }
+} // namespace
 
 void modifier_difficulty(NoteList& notes, int level) {
-    if (level < 6 || level == 9 || level > 12) {
+    const auto support = std::ranges::find(SUPPORT_LEVELS, level, &SupportLevel::level);
+    if (support == SUPPORT_LEVELS.end()) {
         return;
     }
-    std::deque<Note> chart;
-    std::ranges::copy_if(notes.notes, std::back_inserter(chart),
-                         [](const Note& note) { return note.type != NoteType::BARLINE; });
-    simplify_notes(chart, level);
-
-    auto simplified = chart.begin();
-    for (Note& note : notes.notes) {
-        if (note.type != NoteType::BARLINE) {
-            note.type = (simplified++)->type;
+    std::deque<Note>& chart = notes.notes;
+    const std::vector<double> bar_pos = bar_positions(chart);
+    std::vector<bool> removed(chart.size(), false);
+    for (const SupportGroup& group : group_notes(chart)) {
+        thin_group(chart, bar_pos, group, support->thin, removed);
+        thin_group(chart, bar_pos, group, support->thin_runs, removed);
+        make_single_color(chart, group, support->color);
+    }
+    std::deque<Note> kept;
+    for (size_t i = 0; i < chart.size(); ++i) {
+        if (!removed[i]) {
+            kept.push_back(std::move(chart[i]));
         }
     }
-    std::erase_if(notes.notes, [](const Note& note) { return note.type == REMOVED_NOTE; });
+    chart = std::move(kept);
 }
 
 std::string TJAParser::get_song_hash() {
