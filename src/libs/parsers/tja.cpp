@@ -1,6 +1,7 @@
 #include "tja.h"
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <cmath>
 #include <cstring>
@@ -8,6 +9,7 @@
 #include <limits>
 #include <numbers>
 #include <numeric>
+#include <optional>
 #include <random>
 #include <ranges>
 #include <spdlog/spdlog.h>
@@ -1368,6 +1370,7 @@ Note TJAParser::add_bar(ParserState& state) {
     bar_line.hit_ms = this->current_ms;
     bar_line.type = NoteType::BARLINE;
     bar_line.display = state.barline_display;
+    bar_line.bar_start = !state.barline_added;
     bar_line.bpm = state.bpm;
     bar_line.index = state.index;
     bar_line.scroll_x = state.scroll_x_modifier;
@@ -1643,203 +1646,283 @@ std::vector<std::pair<int, int>> find_streams(const std::deque<Note>& modded_not
     return streams;
 }
 
-static constexpr auto REMOVED_NOTE = static_cast<NoteType>(-1);
+// AI battle support levels, as the arcade simplifies a chart. The notes are grouped by the interval to the
+// next note (at most 8 notes a group); a pattern thins the groups of an interval or a denser one and can turn a
+// group into one colour.
+
+// The interval classes, in the order they are tried (a whole note divided by `div`, +-1/64 of a whole note).
+struct IntervalClass {
+    int id;
+    double div;
+};
+static constexpr std::array<IntervalClass, 16> INTERVAL_CLASSES = {{{1, 1.0},
+                                                                    {3, 2.0},
+                                                                    {5, 3.0},
+                                                                    {6, 4.0},
+                                                                    {8, 6.0},
+                                                                    {9, 8.0},
+                                                                    {11, 12.0},
+                                                                    {12, 16.0},
+                                                                    {14, 24.0},
+                                                                    {15, 32.0},
+                                                                    {17, 48.0},
+                                                                    {2, 4.0 / 3.0},
+                                                                    {4, 8.0 / 3.0},
+                                                                    {7, 16.0 / 3.0},
+                                                                    {10, 32.0 / 3.0},
+                                                                    {13, 64.0 / 3.0}}};
+// Sparse to dense; the dotted classes take no part.
+static constexpr std::array<int, 11> DENSITY = {1, 3, 5, 6, 8, 9, 11, 12, 14, 15, 17};
+
+static int interval_class(double interval, double whole) {
+    if (!(whole > 0.0)) {
+        return 0;
+    }
+    const double tolerance = whole / 64.0;
+    for (const auto& [id, div] : INTERVAL_CLASSES) {
+        const double off = whole / div - interval;
+        if (off >= -tolerance && off < tolerance) {
+            return id;
+        }
+    }
+    return 0;
+}
+
+static int density(int interval) {
+    const auto it = std::ranges::find(DENSITY, interval);
+    return it == DENSITY.end() ? -1 : static_cast<int>(it - DENSITY.begin());
+}
 
 static bool is_roll_or_balloon(const Note& note) {
     return note.type == NoteType::ROLL_HEAD || note.type == NoteType::ROLL_HEAD_L ||
            note.type == NoteType::BALLOON_HEAD || note.type == NoteType::KUSUDAMA;
 }
 
-static void make_single_color(std::deque<Note>& notes, int start, int end) {
-    int don_count = 0;
-    int kat_count = 0;
-    const int stop = std::min(end, static_cast<int>(notes.size()));
-    for (int i = start; i < stop; ++i) {
-        don_count += notes[i].type == NoteType::DON || notes[i].type == NoteType::DON_L;
-        kat_count += notes[i].type == NoteType::KAT || notes[i].type == NoteType::KAT_L;
-    }
-    const bool don = don_count >= kat_count;
-    for (int i = start; i < stop; ++i) {
-        if (notes[i].type == NoteType::DON || notes[i].type == NoteType::KAT) {
-            notes[i].type = don ? NoteType::DON : NoteType::KAT;
-        } else if (notes[i].type == NoteType::DON_L || notes[i].type == NoteType::KAT_L) {
-            notes[i].type = don ? NoteType::DON_L : NoteType::KAT_L;
-        }
-    }
-}
+namespace {
+    struct SupportGroup {
+        int interval = 0;
+        std::vector<size_t> notes;
+    };
 
-static std::vector<int> find_sixteenth_2plus2(const std::deque<Note>& notes) {
-    std::vector<int> patterns;
-    for (int i = 0; i < static_cast<int>(notes.size()) - 3; ++i) {
-        if (is_roll_or_balloon(notes[i]) || is_roll_or_balloon(notes[i + 1]) || is_roll_or_balloon(notes[i + 2]) ||
-            is_roll_or_balloon(notes[i + 3])) {
-            continue;
+    // Thin the groups of `interval` or denser holding min..max notes (-1: no bound).
+    struct ThinRule {
+        int interval;
+        int min;
+        int max;
+    };
+
+    // One colour for the groups between `densest_from` (or denser) and `sparsest_to` (or sparser, 0: any).
+    struct ColorRule {
+        int densest_from;
+        int sparsest_to;
+        int min;
+        int max;
+    };
+
+    struct SupportPattern {
+        ThinRule thin1;
+        ThinRule thin2;
+        ColorRule color;
+    };
+
+    constexpr std::array<SupportPattern, 15> SUPPORT_PATTERNS = {{
+        {{14, -1, -1}, {11, 4, -1}, {11, 12, 3, -1}},
+        {{14, -1, -1}, {11, 2, -1}, {11, 12, -1, -1}},
+        {{11, -1, -1}, {0, -1, -1}, {11, 0, -1, -1}},
+        {{11, -1, -1}, {8, 4, -1}, {8, 9, 3, -1}},
+        {{11, -1, -1}, {8, 2, -1}, {8, 9, -1, -1}},
+        {{8, -1, -1}, {0, -1, -1}, {8, 0, -1, -1}},
+        {{11, -1, -1}, {0, -1, -1}, {0, 0, -1, -1}},
+        {{11, -1, -1}, {8, 4, -1}, {0, 0, -1, -1}},
+        {{11, -1, -1}, {8, 2, -1}, {8, 0, -1, -1}},
+        {{8, -1, -1}, {0, -1, -1}, {0, 0, -1, -1}},
+        {{8, -1, -1}, {5, 4, -1}, {0, 0, -1, -1}},
+        {{8, -1, -1}, {5, 2, -1}, {5, 0, -1, -1}},
+        {{8, -1, -1}, {0, -1, -1}, {8, 0, -1, -1}},
+        {{8, -1, -1}, {5, 2, -1}, {0, 0, -1, -1}},
+        {{5, -1, -1}, {0, -1, -1}, {5, 0, -1, -1}},
+    }};
+
+    // subdiff (the level picked on the AI battle's support board) -> pattern; the lowest level is the simplest
+    int support_pattern(int level) {
+        switch (level) {
+        case 2:
+            return 15;
+        case 3:
+            return 14;
+        case 4:
+            return 13;
+        case 6:
+            return 9;
+        case 7:
+            return 8;
+        case 8:
+            return 7;
+        case 10:
+            return 3;
+        case 11:
+            return 2;
+        case 12:
+            return 1;
+        default:
+            return 0;
         }
-        if (get_note_interval_type(notes[i + 1].hit_ms - notes[i].hit_ms, notes[i].bpm) != Interval::SIXTEENTH ||
-            get_note_interval_type(notes[i + 3].hit_ms - notes[i + 2].hit_ms, notes[i + 2].bpm) !=
-                Interval::SIXTEENTH) {
-            continue;
-        }
-        const double sixteenth = get_ms_per_measure(notes[i].bpm, 4.0) / 4.0 / 16.0;
-        if (std::abs(notes[i + 2].hit_ms - notes[i + 1].hit_ms - sixteenth * 2) >= 20.0) {
-            continue;
-        }
-        if (i + 4 >= static_cast<int>(notes.size())) {
-            patterns.push_back(i);
-        } else if (!is_roll_or_balloon(notes[i + 4])) {
-            const double after = notes[i + 4].hit_ms - notes[i + 3].hit_ms;
-            if (after >= sixteenth * 1.5 || get_note_interval_type(after, notes[i + 3].bpm) != Interval::SIXTEENTH) {
-                patterns.push_back(i);
+    }
+
+    bool in_count(size_t count, int min, int max) {
+        return (min <= 0 || count >= static_cast<size_t>(min)) && (max <= 0 || count <= static_cast<size_t>(max));
+    }
+
+    struct SupportChart {
+        std::deque<Note>& notes;
+        std::vector<double> bar_pos; // ms from the start of the note's bar
+        std::vector<bool> removed;
+
+        double whole(size_t i) const { return get_ms_per_measure(notes[i].bpm, 1.0); }
+
+        void thin(const SupportGroup& group, const ThinRule& rule) {
+            const int rank = density(group.interval);
+            if (rule.interval == 0 || rank < 0 || rank < density(rule.interval) ||
+                !in_count(group.notes.size(), rule.min, rule.max)) {
+                return;
             }
-        }
-    }
-    return patterns;
-}
-
-// Every other note of 1/32 streams; two of every three notes of 1/24 streams (levels 10-12).
-static void thin_fastest_streams(std::deque<Note>& notes) {
-    for (const auto& [start, length] : find_streams(notes, Interval::THIRTYSECOND)) {
-        for (int i = start + 1; i < start + length; i += 2) {
-            notes[i].type = REMOVED_NOTE;
-        }
-    }
-    for (const auto& [start, length] : find_streams(notes, Interval::TWENTYFOURTH)) {
-        for (int i = start + 1; i < start + length - 1; i += 3) {
-            notes[i].type = REMOVED_NOTE;
-            notes[i + 1].type = REMOVED_NOTE;
-        }
-    }
-}
-
-// Long 1/16 streams become repeating single-color triplets with the next two notes dropped (levels 11-12).
-static void sixteenths_to_triplets(std::deque<Note>& notes, int start, int length) {
-    const int end = start + length;
-    int i = start;
-    while (i < end) {
-        const int triplet_end = std::min(i + 3, end);
-        if (triplet_end - i >= 2) {
-            make_single_color(notes, i, triplet_end);
-        }
-        i += 3;
-        if (i < end) {
-            notes[i].type = REMOVED_NOTE;
-            i += 2;
-        }
-        if (i < end) {
-            notes[i].type = REMOVED_NOTE;
-            i += 1;
-        }
-    }
-}
-
-static void simplify_notes(std::deque<Note>& notes, int level) {
-    if (level == 6) {
-        for (const auto& [start, length] : find_streams(notes, Interval::EIGHTH)) {
-            if (length == 3) {
-                notes[start + 1].type = REMOVED_NOTE;
-            } else if (length > 3) {
-                make_single_color(notes, start, start + length);
+            static constexpr std::array<int, 18> DIVISIONS = {0, 0, 0,  0,  0, 0,  4,  0, 6,
+                                                              8, 0, 12, 16, 0, 24, 32, 0, 48};
+            const int divisions = DIVISIONS[group.interval];
+            // the first note's slot on the interval's grid; off the grid (or a half note or slower): the whole group
+            // goes
+            const size_t first = group.notes.front();
+            const double bar = whole(first);
+            if (!(bar > 0.0)) {
+                return;
             }
-        }
-    } else if (level == 7) {
-        for (const auto& [start, length] : find_streams(notes, Interval::EIGHTH)) {
-            if (length == 5) {
-                notes[start + 3].type = REMOVED_NOTE;
-            } else if (length >= 7) {
-                for (int i = start + 3; i < start + length; i += 4) {
-                    notes[i].type = REMOVED_NOTE;
+            std::optional<int> slot;
+            if (divisions > 0) {
+                const double pos = std::fmod(bar_pos[first], bar);
+                for (int s = 0; s < divisions && !slot; ++s) {
+                    const double off = s * bar / divisions - pos;
+                    if (off >= -bar / 64.0 && off < bar / 64.0) {
+                        slot = s;
+                    }
+                }
+            }
+            if (!slot) {
+                for (const size_t i : group.notes) {
+                    removed[i] = true;
+                }
+                return;
+            }
+            const int count = static_cast<int>(group.notes.size());
+            const bool binary =
+                group.interval == 6 || group.interval == 9 || group.interval == 12 || group.interval == 15;
+            const bool triplet = group.interval == 8 || group.interval == 11;
+            const int phase = *slot % (binary ? 2 : 3);
+            for (int i = 0; i < count; ++i) {
+                const int p = i + phase;
+                bool drop = false;
+                if (binary) {
+                    // off-beat notes go, but a run keeps its opening notes
+                    const int kept = count >= 4 ? 2 : count >= 2 ? 1 : 0;
+                    drop = p % 2 == 1 && i >= kept;
+                } else if (triplet) {
+                    if (count >= 3) {
+                        drop = i > 0 && p % 3 == 1;
+                    } else {
+                        drop = (count == 1 || i > 0) && p % 3 != 0;
+                    }
+                } else {
+                    drop = p % 3 != 0;
+                }
+                if (drop) {
+                    removed[group.notes[i]] = true;
                 }
             }
         }
-    } else if (level == 8) {
-        for (const auto& [start, length] : find_streams(notes, Interval::SIXTEENTH)) {
-            if (length == 3) {
-                notes[start + 1].type = REMOVED_NOTE;
-            } else if (length == 5) {
-                // 3+1 when it starts on don, 2+2 when it starts on kat
-                const bool don = notes[start].type == NoteType::DON || notes[start].type == NoteType::DON_L;
-                notes[start + (don ? 3 : 2)].type = REMOVED_NOTE;
+
+        void color(const SupportGroup& group, const ColorRule& rule) {
+            const int rank = density(group.interval);
+            if (rule.densest_from == 0 || rank < 0 || rank < density(rule.densest_from) ||
+                (rule.sparsest_to != 0 && rank > density(rule.sparsest_to)) ||
+                !in_count(group.notes.size(), rule.min, rule.max)) {
+                return;
             }
-        }
-    } else if (level == 10) {
-        thin_fastest_streams(notes);
-        for (const auto& [start, length] : find_streams(notes, Interval::SIXTEENTH)) {
-            if (length == 2 && notes[start].type != NoteType::TAIL) {
-                notes[start].type = notes[start + 1].type;
-            } else if (length == 3) {
-                notes[start + 1].type = REMOVED_NOTE;
-            } else if (length == 4 || length == 5) {
-                notes[start + 3].type = REMOVED_NOTE;
-                make_single_color(notes, start, start + length);
-            } else if (length > 5) {
-                notes[start + 3].type = REMOVED_NOTE;
-                for (int i = start + 5; i < start + length; i += 2) {
-                    notes[i].type = REMOVED_NOTE;
+            int don_count = 0;
+            int kat_count = 0;
+            for (const size_t i : group.notes) {
+                don_count += notes[i].type == NoteType::DON || notes[i].type == NoteType::DON_L;
+                kat_count += notes[i].type == NoteType::KAT || notes[i].type == NoteType::KAT_L;
+            }
+            const bool don = don_count >= kat_count;
+            for (const size_t i : group.notes) {
+                if (notes[i].type == NoteType::DON || notes[i].type == NoteType::KAT) {
+                    notes[i].type = don ? NoteType::DON : NoteType::KAT;
+                } else if (notes[i].type == NoteType::DON_L || notes[i].type == NoteType::KAT_L) {
+                    notes[i].type = don ? NoteType::DON_L : NoteType::KAT_L;
                 }
             }
         }
-        for (const int start : find_sixteenth_2plus2(notes)) {
-            notes[start + 2].type = REMOVED_NOTE;
-        }
-    } else if (level == 11) {
-        thin_fastest_streams(notes);
-        for (const auto& [start, length] : find_streams(notes, Interval::TWELFTH)) {
-            for (int i = start + 1; i < start + length - 1; i += 3) {
-                notes[i].type = REMOVED_NOTE;
+    };
+
+    // A note joins the group of the interval to the note after it; a roll or balloon ends the group.
+    std::vector<SupportGroup> support_groups(const SupportChart& chart) {
+        std::vector<SupportGroup> groups;
+        SupportGroup current;
+        std::optional<size_t> prev;
+        for (size_t i = 0; i < chart.notes.size(); ++i) {
+            const Note& note = chart.notes[i];
+            if (note.type == NoteType::BARLINE || note.type == NoteType::TAIL) {
+                continue;
             }
-        }
-        for (const auto& [start, length] : find_streams(notes, Interval::SIXTEENTH)) {
-            if (length == 2 && notes[start].type != NoteType::TAIL) {
-                notes[start].type = notes[start + 1].type;
-            } else if (length == 3) {
-                notes[start + 1].type = REMOVED_NOTE;
-            } else if (length == 4 || length == 5) {
-                notes[start + 3].type = REMOVED_NOTE;
-                make_single_color(notes, start, start + length);
-            } else if (length > 5) {
-                sixteenths_to_triplets(notes, start, length);
-            }
-        }
-    } else if (level == 12) {
-        thin_fastest_streams(notes);
-        for (const auto& [start, length] : find_streams(notes, Interval::TWELFTH)) {
-            if (length <= 4) {
-                make_single_color(notes, start, start + length);
-            } else {
-                for (int i = start + 1; i < start + length - 1; i += 3) {
-                    notes[i].type = REMOVED_NOTE;
+            if (prev) {
+                const bool after_roll = is_roll_or_balloon(chart.notes[*prev]);
+                const int interval =
+                    after_roll ? 0 : interval_class(note.hit_ms - chart.notes[*prev].hit_ms, chart.whole(*prev));
+                if (interval != current.interval || current.notes.size() >= 8) {
+                    groups.push_back(std::move(current));
+                    current = {interval, {}};
+                }
+                if (!after_roll) {
+                    current.notes.push_back(*prev);
                 }
             }
+            prev = i;
         }
-        for (const auto& [start, length] : find_streams(notes, Interval::SIXTEENTH)) {
-            if (length == 3) {
-                make_single_color(notes, start, start + length);
-            } else if (length == 4 || length == 5) {
-                notes[start + 3].type = REMOVED_NOTE;
-                make_single_color(notes, start, start + length);
-            } else if (length > 5) {
-                sixteenths_to_triplets(notes, start, length);
-            }
-        }
+        groups.push_back(std::move(current));
+        return groups;
     }
-}
+} // namespace
 
 void modifier_difficulty(NoteList& notes, int level) {
-    if (level < 6 || level == 9 || level > 12) {
+    const int pattern = support_pattern(level);
+    if (pattern == 0) {
         return;
     }
-    std::deque<Note> chart;
-    std::ranges::copy_if(notes.notes, std::back_inserter(chart),
-                         [](const Note& note) { return note.type != NoteType::BARLINE; });
-    simplify_notes(chart, level);
-
-    auto simplified = chart.begin();
-    for (Note& note : notes.notes) {
-        if (note.type != NoteType::BARLINE) {
-            note.type = (simplified++)->type;
+    SupportChart chart{notes.notes, std::vector<double>(notes.notes.size(), 0.0),
+                       std::vector<bool>(notes.notes.size(), false)};
+    std::optional<double> bar_start;
+    for (size_t i = 0; i < notes.notes.size(); ++i) {
+        const Note& note = notes.notes[i];
+        if (note.type == NoteType::BARLINE && (note.bar_start || !bar_start)) {
+            bar_start = note.hit_ms;
+        }
+        chart.bar_pos[i] = note.hit_ms - bar_start.value_or(note.hit_ms);
+    }
+    const SupportPattern& rules = SUPPORT_PATTERNS[pattern - 1];
+    const std::vector<SupportGroup> groups = support_groups(chart);
+    for (const SupportGroup& group : groups) {
+        chart.thin(group, rules.thin1);
+        chart.thin(group, rules.thin2);
+    }
+    for (const SupportGroup& group : groups) {
+        chart.color(group, rules.color);
+    }
+    std::deque<Note> kept;
+    for (size_t i = 0; i < notes.notes.size(); ++i) {
+        if (!chart.removed[i]) {
+            kept.push_back(std::move(notes.notes[i]));
         }
     }
-    std::erase_if(notes.notes, [](const Note& note) { return note.type == REMOVED_NOTE; });
+    notes.notes = std::move(kept);
 }
 
 std::string TJAParser::get_song_hash() {
