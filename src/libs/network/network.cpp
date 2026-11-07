@@ -1325,9 +1325,10 @@ void NetworkClient::update(double current_ms) {
             if (doc.HasMember("goods") && doc["goods"].IsArray()) {
                 for (const auto& v : doc["goods"].GetArray()) {
                     if (v.IsObject()) {
-                        seat.goods.push_back({json_int(v, "type", -1), json_int(v, "id", -1), json_int(v, "cost", 0),
-                                              json_bool(v, "owned"),
-                                              v.HasMember("name") && v["name"].IsString() ? v["name"].GetString() : ""});
+                        seat.goods.push_back(
+                            {json_int(v, "type", -1), json_int(v, "id", -1), json_int(v, "cost", 0),
+                             json_bool(v, "owned"),
+                             v.HasMember("name") && v["name"].IsString() ? v["name"].GetString() : ""});
                     }
                 }
             }
