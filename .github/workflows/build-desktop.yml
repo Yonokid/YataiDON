@@ -372,6 +372,65 @@ jobs:
         with:
           submodules: false
 
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: YataiDON-Linux
+          path: linux/
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: YataiDON-Windows
+          path: windows/
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: YataiDON-macOS
+          path: macos/
+
+      - name: Package updater assets
+        run: |
+          # Metadata files
+          cp linux/checksums-linux.sha256     ./checksums-linux.sha256
+          cp windows/checksums-windows.sha256 ./checksums-windows.sha256
+          cp macos/checksums-macos.sha256     ./checksums-macos.sha256
+
+          # Linux update package: binary + updater + shader + lib
+          UPDATE_LINUX="YataiDON update.sh shader/"
+          [ -d linux/lib ] && UPDATE_LINUX="$UPDATE_LINUX lib/"
+          tar -czf update-linux.tar.gz -C linux $UPDATE_LINUX
+
+          # Windows update package: binary + updater + dlls + shader
+          UPDATE_WIN="YataiDON.exe update.ps1 update.bat shader/"
+          for dll in windows/*.dll; do
+            [ -f "$dll" ] && UPDATE_WIN="$UPDATE_WIN $(basename "$dll")"
+          done
+          tar -czf update-windows.tar.gz -C windows $UPDATE_WIN
+
+          # macOS update package: binary + updater + shader + lib
+          UPDATE_MACOS="YataiDON update.sh shader/"
+          [ -d macos/lib ] && UPDATE_MACOS="$UPDATE_MACOS lib/"
+          tar -czf update-macos.tar.gz -C macos $UPDATE_MACOS
+
+      # Separate channel so updater files don't clutter the main release.
+      - name: Upload updater files
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            update-linux.tar.gz
+            update-windows.tar.gz
+            update-macos.tar.gz
+            checksums-linux.sha256
+            checksums-windows.sha256
+            checksums-macos.sha256
+          name: "Updater channel"
+          tag_name: "updater"
+          prerelease: true
+          make_latest: false
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Get skin heads
         id: skins
         run: |
@@ -396,25 +455,7 @@ jobs:
             git clone --depth 1 https://ese.tjadataba.se/Yonokid/$s.git Skins/$s
           done
 
-      - name: Download Linux artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: YataiDON-Linux
-          path: linux/
-
-      - name: Download Windows artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: YataiDON-Windows
-          path: windows/
-
-      - name: Download macOS artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: YataiDON-macOS
-          path: macos/
-
-      - name: Package release assets
+      - name: Package full release
         run: |
           # Skins are bundled here, not in the build jobs (the binary doesn't need them to compile)
           # Drop each skin's .git (a full pack of the content, doubles the zip past GitHub's 2 GiB asset limit)
@@ -428,28 +469,6 @@ jobs:
           (cd windows && zip -r ../YataiDON-Windows.zip .)
           (cd macos   && zip -r ../YataiDON-macOS.zip .)
 
-          # Metadata files
-          cp linux/checksums-linux.sha256     ./checksums-linux.sha256
-          cp windows/checksums-windows.sha256 ./checksums-windows.sha256
-          cp macos/checksums-macos.sha256     ./checksums-macos.sha256
-
-          # Linux update package: binary + updater + shader + lib
-          UPDATE_LINUX="YataiDON update.sh shader/"
-          [ -d linux/lib ] && UPDATE_LINUX="$UPDATE_LINUX lib/"
-          tar -czf update-linux.tar.gz -C linux $UPDATE_LINUX
-
-          # Windows update package: binary + updater + dlls + shader
-          UPDATE_WIN="YataiDON.exe update.ps1 update.bat shader/"
-          for dll in windows/*.dll; do
-            [ -f "$dll" ] && UPDATE_WIN="$UPDATE_WIN $(basename "$dll")"
-          done
-          tar -czf update-windows.tar.gz -C windows $UPDATE_WIN
-
-          # macOS update package: binary + updater + shader + lib
-          UPDATE_MACOS="YataiDON update.sh shader/"
-          [ -d macos/lib ] && UPDATE_MACOS="$UPDATE_MACOS lib/"
-          tar -czf update-macos.tar.gz -C macos $UPDATE_MACOS
-
       - name: Upload Release
         uses: softprops/action-gh-release@v2
         with:
@@ -460,21 +479,4 @@ jobs:
           name: "YataiDON [Latest Release]"
           tag_name: "latest"
           make_latest: true
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      # Separate channel so updater files don't clutter the main release.
-      - name: Upload updater files
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            update-linux.tar.gz
-            update-windows.tar.gz
-            update-macos.tar.gz
-            checksums-linux.sha256
-            checksums-windows.sha256
-            checksums-macos.sha256
-          name: "Updater channel"
-          tag_name: "updater"
-          prerelease: true
-          make_latest: false
           token: ${{ secrets.GITHUB_TOKEN }}
