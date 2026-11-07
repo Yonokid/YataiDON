@@ -105,7 +105,7 @@ std::optional<Screens> SongSelect2PScreen::update() {
     update_diff_sort(current_time);
 
     poll_song_jump(current_time);
-    network.take_replay_jump_result();  // 2P has no replays; drop it so 1P doesn't start a stale one later
+    network.take_replay_jump_result(); // 2P has no replays; drop it so 1P doesn't start a stale one later
     handle_input(current_time);
 
     player->update(current_time);
