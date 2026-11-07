@@ -8,11 +8,21 @@ jobs:
   build-linux:
     name: Build on Linux
     runs-on: ubuntu-26.04
+    container: ubuntu:26.04
+    defaults:
+      run:
+        shell: bash
     env:
       CCACHE_DIR: ${{ github.workspace }}/.ccache
       CCACHE_MAXSIZE: 500M
 
     steps:
+      - name: Bootstrap container
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            sudo git ca-certificates curl python3 build-essential
+
       - name: Configure Git credentials
         run: |
           git config --global url."https://${{ secrets.GITEA_USER }}:${{ secrets.GITEA_TOKEN }}@ese.tjadataba.se/".insteadOf "https://ese.tjadataba.se/"
@@ -48,6 +58,7 @@ jobs:
             ninja-build \
             pkg-config \
             patchelf \
+            libssl-dev \
             libx11-dev \
             libxrandr-dev \
             libxinerama-dev \
@@ -87,8 +98,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .ccache
-          key: ccache-${{ runner.os }}-${{ github.sha }}
-          restore-keys: ccache-${{ runner.os }}-
+          key: ccache-linux-baseline-${{ github.sha }}
+          restore-keys: ccache-linux-baseline-
 
       - name: Configure CMake
         run: |
