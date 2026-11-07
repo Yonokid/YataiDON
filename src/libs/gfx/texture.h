@@ -80,6 +80,11 @@ struct TextureObject {
     std::vector<int> y2;
     std::optional<std::vector<Rect>> crop_data;
 
+    // Where x/y/x2/y2 came from, so the debug menu can write edits back.
+    std::filesystem::path json_path;
+    std::string json_key;
+    float json_scale = 1.0f;
+
     float opaque_right = 0.0f;
     TextureObject(std::string name, int width, int height)
         : name(std::move(name)), width(width), height(height), x{0}, y{0}, x2{width}, y2{height} {}
@@ -129,6 +134,9 @@ struct FramedTexture : public TextureObject {
         return textures[frame].get();
     }
 };
+
+// Writes obj's x/y/x2/y2 at index back into the texture.json it was loaded from.
+bool save_texture_position(const TextureObject& obj, int index);
 
 struct DrawLogEntry {
     std::string name;

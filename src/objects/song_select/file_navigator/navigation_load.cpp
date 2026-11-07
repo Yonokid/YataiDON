@@ -167,8 +167,10 @@ class NavigationLoad {
     void load_from_song_list(const fs::path& path, const fs::path& list_folder, const BoxDef& box_def,
                              bool mark_favorite, const std::optional<std::set<fs::path>>& scope = std::nullopt,
                              int max_songs = INT_MAX);
-    fs::path resolve_song_entry(const SongListEntry& entry) const;
-    std::optional<std::set<fs::path>> surrounding_songs(const fs::path& path);
+    fs::path resolve_song_entry(const SongListEntry& entry) const { return ::resolve_song_entry(*index, entry); }
+    std::optional<std::set<fs::path>> surrounding_songs(const fs::path& path) {
+        return ::surrounding_songs(path, root_paths, *index, folder_scanner, abort_loading);
+    }
     void load_collection_recommended(const fs::path& path, const BoxDef& box_def);
     void load_collection_ai_assigned(const fs::path& path, const BoxDef& box_def);
     void load_collection_search(const fs::path& path, const BoxDef& box_def);
@@ -265,7 +267,7 @@ private:
     }
 };
 
-fs::path NavigationLoad::resolve_song_entry(const SongListEntry& entry) const {
+fs::path resolve_song_entry(const SongIndex& index, const SongListEntry& entry) {
     fs::path final_path;
     // Hash is the primary reference. If several songs share it, title and
     // subtitle disambiguate only among candidates with that same hash.
@@ -273,16 +275,16 @@ fs::path NavigationLoad::resolve_song_entry(const SongListEntry& entry) const {
         final_path = *found;
     }
     if (!entry.title.empty() || !entry.subtitle.empty()) {
-        auto by_title = index->find_exact_title(entry.title, entry.subtitle);
+        auto by_title = index.find_exact_title(entry.title, entry.subtitle);
         if (!by_title) {
-            by_title = index->find_song_by_title(entry.title, entry.subtitle);
+            by_title = index.find_song_by_title(entry.title, entry.subtitle);
         }
         if (by_title && scores_manager.get_single_hash(*by_title) == entry.hash) {
             final_path = *by_title;
         }
     }
     if (final_path.empty()) {
-        if (auto song_path_opt = index->find_song_by_title(entry.title, entry.subtitle)) {
+        if (auto song_path_opt = index.find_song_by_title(entry.title, entry.subtitle)) {
             final_path = *song_path_opt;
         }
     }
@@ -622,19 +624,28 @@ void NavigationLoad::load_collection_difficulty(const fs::path& path, const BoxD
     }
 
     const fs::path parent = path.parent_path();
+    const auto scope = surrounding_songs(path);
     for (const auto& song_path : index->filter_difficulty(course, level, &abort_loading)) {
         if (abort_loading) {
             break;
         }
 
-        // the song must sit below one of the collection folder's siblings
-        fs::path rel = song_path.lexically_relative(parent);
-        if (rel.empty() || rel.begin()->string() == "..") {
-            continue;
-        }
-        fs::path sibling = parent / *rel.begin();
-        if (sibling == path || !fs::is_directory(sibling)) {
-            continue;
+        fs::path sibling;
+        if (scope) {
+            if (!scope->contains(song_path)) {
+                continue;
+            }
+            sibling = navigation_scan::find_box_def_folder(song_path);
+        } else {
+            // at a root: the song must sit below one of the collection folder's siblings
+            fs::path rel = song_path.lexically_relative(parent);
+            if (rel.empty() || rel.begin()->string() == "..") {
+                continue;
+            }
+            sibling = parent / *rel.begin();
+            if (sibling == path || !fs::is_directory(sibling)) {
+                continue;
+            }
         }
 
         bool unmet = false;
@@ -672,18 +683,20 @@ void NavigationLoad::load_collection_difficulty(const fs::path& path, const BoxD
             enqueue_inline_box(make_back_box(parent, &inline_back_def));
         }
         auto song = make_song_box(h.path, box_def, take_parser(preparsed, h.path));
-        apply_song_genre(song.get(), parse_box_def(h.sibling));
+        if (!h.sibling.empty()) {
+            apply_song_genre(song.get(), parse_box_def(h.sibling));
+        }
         song->fade_in(266);
         enqueue_inline_box(std::move(song));
         songs_added++;
     }
 }
 
-// Songs in the folders around a collection box: their charts and song_list.txt entries, at any
-// depth. nullopt when the box sits at a root, where that is the whole library.
-std::optional<std::set<fs::path>> NavigationLoad::surrounding_songs(const fs::path& path) {
+std::optional<std::set<fs::path>> surrounding_songs(const fs::path& path, const std::vector<fs::path>& roots,
+                                                    const SongIndex& index, navigation_scan::FolderScanner& scanner,
+                                                    const std::atomic<bool>& abort) {
     const fs::path parent = path.parent_path();
-    if (std::ranges::contains(root_paths, parent)) {
+    if (std::ranges::contains(roots, parent)) {
         return std::nullopt;
     }
 
@@ -691,16 +704,16 @@ std::optional<std::set<fs::path>> NavigationLoad::surrounding_songs(const fs::pa
     std::error_code ec;
     fs::recursive_directory_iterator it(parent, fs::directory_options::skip_permission_denied, ec);
     const fs::recursive_directory_iterator end;
-    for (; !ec && it != end && !abort_loading; it.increment(ec)) {
+    for (; !ec && it != end && !abort; it.increment(ec)) {
         const fs::path& entry = it->path();
         std::error_code type_ec;
         if (it->is_directory(type_ec)) {
-            if (folder_scanner.has_def_file(entry) && !parse_box_def(entry).collection.empty()) {
+            if (scanner.has_def_file(entry) && !parse_navigation_box_def(entry, "").collection.empty()) {
                 it.disable_recursion_pending();
             }
         } else if (entry.filename() == "song_list.txt") {
             for (const auto& song_entry : read_song_list(entry)) {
-                if (fs::path song_path = resolve_song_entry(song_entry); !song_path.empty()) {
+                if (fs::path song_path = resolve_song_entry(index, song_entry); !song_path.empty()) {
                     songs.insert(std::move(song_path));
                 }
             }

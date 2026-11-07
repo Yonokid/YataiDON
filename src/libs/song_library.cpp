@@ -273,6 +273,11 @@ SongIndex::course_levels_in_subfolders(const fs::path& root, const std::atomic<b
     return songs;
 }
 
+std::array<int, 5> SongIndex::course_levels(const fs::path& path) const {
+    auto it = song_levels.find(path.string());
+    return it == song_levels.end() ? std::array<int, 5>{-1, -1, -1, -1, -1} : it->second;
+}
+
 void SongIndex::build_title_index() {
     // First match in song_files order wins, as with the linear scans this replaced
     title_subtitle_index.clear();

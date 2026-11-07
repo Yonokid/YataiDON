@@ -1,6 +1,8 @@
 #include "filesystem.h"
 
 #include "miniz.h" // IWYU pragma: keep
+#include <rapidjson/prettywriter.h>
+#include <rapidjson/stringbuffer.h>
 #ifdef SUPPORT_FUMEN
 #include "../optional/gen3.h"
 #include "../optional/gen4.h"
@@ -720,6 +722,23 @@ rapidjson::Document read_json_file(const fs::path& file_path) {
     }
 
     return doc;
+}
+
+bool write_json_file(const fs::path& file_path, const rapidjson::Document& doc) {
+    rapidjson::StringBuffer buffer;
+    rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
+    writer.SetIndent(' ', 4);
+    writer.SetFormatOptions(rapidjson::kFormatSingleLineArray);
+    doc.Accept(writer);
+
+    std::ofstream out(file_path, std::ios::binary | std::ios::trunc);
+    out << buffer.GetString() << '\n';
+    if (!out) {
+        spdlog::error("Failed to write {}", file_path.string());
+        return false;
+    }
+    skin_json_cache().put(file_path.lexically_normal().generic_string(), nullptr, 0);
+    return true;
 }
 
 namespace {

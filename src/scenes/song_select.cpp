@@ -301,8 +301,10 @@ void SongSelectScreen::update_diff_sort(double current_time) {
             stats_future.wait();
             cached_stats = stats_future.get();
         }
-        diff_sort_selector.emplace(cached_stats, last_diff_sort.first, last_diff_sort.second, script.get(),
-                                   last_diff_order, is_2p_screen());
+        const auto& scope = navigator.get_diff_sort_scope();
+        diff_sort_selector.emplace(scope ? navigator.get_statistics({}, {}, &*scope) : cached_stats,
+                                   last_diff_sort.first, last_diff_sort.second, script.get(), last_diff_order,
+                                   is_2p_screen());
     }
     if (diff_sort_selector) {
         state = SongSelectState::DIFF_SORTING;

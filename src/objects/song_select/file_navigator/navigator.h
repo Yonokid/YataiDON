@@ -103,6 +103,7 @@ private:
     bool awaiting_diff_sort = false;
     std::optional<std::array<int, 3>> diff_sort_filter;
     std::optional<std::pair<int, int>> last_diff_sort_result;
+    std::optional<std::set<fs::path>> diff_sort_scope; // nullopt: the box sits at a root
 
     bool vertical_gallery = false;
 
@@ -151,6 +152,7 @@ public:
     static BoxDef parse_box_def_uncached(const fs::path& path);
     bool needs_diff_sort() const { return awaiting_diff_sort; }
     bool diff_sort_ready() { return awaiting_diff_sort; }
+    const std::optional<std::set<fs::path>>& get_diff_sort_scope() const { return diff_sort_scope; }
     void apply_diff_sort(int course, int level, int order = 1);
     void cancel_diff_sort();
     void load_current_directory(fs::path path);
@@ -162,7 +164,8 @@ public:
     bool is_directory(BaseBox* item);
     bool is_song(BaseBox* item);
     BaseBox* get_current_item();
-    Statistics get_statistics(const fs::path& path, const std::stop_token& stop);
+    Statistics get_statistics(const fs::path& path, const std::stop_token& stop,
+                              const std::set<fs::path>* scope = nullptr);
 
     void move_left();
     void move_right();

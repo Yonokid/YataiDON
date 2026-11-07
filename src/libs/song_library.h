@@ -37,6 +37,7 @@ public:
                                                         const std::atomic<bool>* cancel = nullptr) const;
     std::vector<std::pair<std::filesystem::path, std::array<int, 5>>>
     course_levels_in_subfolders(const std::filesystem::path& root, const std::atomic<bool>* cancel = nullptr) const;
+    std::array<int, 5> course_levels(const std::filesystem::path& path) const;
 
 private:
     friend class SongLibrary;

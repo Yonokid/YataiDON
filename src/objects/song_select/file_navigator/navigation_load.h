@@ -1,10 +1,12 @@
 #pragma once
 
+#include <atomic>
 #include <condition_variable>
 #include <cstdint>
 #include <deque>
 #include <functional>
 #include <mutex>
+#include <set>
 #include <stop_token>
 #include <thread>
 #include <unordered_map>
@@ -15,6 +17,7 @@
 #include "../../../libs/parsers/song_parser.h"
 #include "../../../libs/song_library.h"
 #include "box_base.h"
+#include "navigation_scan.h"
 
 struct FolderSummary {
     std::map<int, Crown> crown;
@@ -133,6 +136,13 @@ private:
 BoxDef parse_navigation_box_def(const fs::path& path, const std::string& language);
 BoxDef cached_navigation_box_def(std::unordered_map<std::string, BoxDef>& cache, const fs::path& path,
                                  const std::string& language);
+
+fs::path resolve_song_entry(const SongIndex& index, const SongListEntry& entry);
+// Songs in the folders around a collection box: their charts and song_list.txt entries, at any
+// depth. nullopt when the box sits at a root, where that is the whole library.
+std::optional<std::set<fs::path>> surrounding_songs(const fs::path& path, const std::vector<fs::path>& roots,
+                                                    const SongIndex& index, navigation_scan::FolderScanner& scanner,
+                                                    const std::atomic<bool>& abort);
 
 void prepare_navigation(const LoadRequest& request, const std::stop_token& stop,
                         const std::function<void(PreparedEntry)>& emit);

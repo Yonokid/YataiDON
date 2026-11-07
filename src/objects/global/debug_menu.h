@@ -5,6 +5,7 @@
 #include <fstream>
 #include <iterator>
 #include <map>
+#include <set>
 #include <unordered_set>
 
 #include "../../libs/file/filesystem.h"
@@ -493,6 +494,13 @@ public:
         }
 
         if (clicked && has_selection && mouse_over_panel && mouse.y >= list_bottom) {
+            TextureObject* obj = selected_obj();
+            if (obj && !obj->json_path.empty() && in_rect(mouse, save_button(panel_x, list_bottom))) {
+                const bool ok = save_texture_position(*obj, selected_tex_index);
+                save_status = ok ? "saved to " + obj->json_path.parent_path().filename().string() + "/texture.json"
+                                 : "save failed, see log";
+                save_status_at = get_current_ms();
+            }
             const int step = key_down(SDL_SCANCODE_LSHIFT) ? 10 : 1;
             for (int i = 0; i < 4; i++) {
                 int* value = field_ptr(i);
@@ -1194,8 +1202,13 @@ private:
             groups[split_subset(debug_draw_log_prev[i]).first].push_back(i);
         }
         for (auto& [subset, indices] : groups) {
-            std::ranges::sort(indices, [](int a, int b) {
+            std::ranges::stable_sort(indices, [](int a, int b) {
                 return split_subset(debug_draw_log_prev[a]).second < split_subset(debug_draw_log_prev[b]).second;
+            });
+            // A texture drawn several times a frame keeps one row, pointing at its first draw.
+            std::erase_if(indices, [seen = std::set<std::pair<std::string, int>>()](int i) mutable {
+                const DrawLogEntry& e = debug_draw_log_prev[i];
+                return !seen.emplace(e.name, e.index).second;
             });
             visible_rows.push_back({true, subset, subset + " (" + std::to_string(indices.size()) + ")", -1});
             if (expanded_subsets.contains(subset)) {
@@ -1241,6 +1254,29 @@ private:
         Rect value = {minus.x + btn_size + 6, row_y + 2, 60.0f, btn_size + 2};
         Rect plus = {value.x + value.width + 6, row_y + 3, btn_size, btn_size};
         return {minus, plus, value};
+    }
+
+    std::string save_status;
+    double save_status_at = -1e9;
+    static constexpr double SAVE_STATUS_MS = 2500.0;
+
+    static Rect save_button(float panel_x, float edit_top) {
+        return {panel_x + 180, edit_top + EDIT_FIELDS_TOP + 3, PANEL_WIDTH - 186, EDIT_ROW_HEIGHT * 2 - 6};
+    }
+
+    void draw_save_button(const TextureObject& obj, float panel_x, float edit_top) const {
+        const bool enabled = !obj.json_path.empty();
+        Rect box = save_button(panel_x, edit_top);
+        draw_rectangle(box, fade(Color::WHITE, enabled ? 0.2f : 0.05f));
+        draw_rectangle_lines_ex(box, 1.0f, enabled ? Color(Color::GREEN) : fade(Color::WHITE, 0.3f));
+        const char* label = enabled ? "save to texture.json" : "no texture.json";
+        int label_w = measure_text(label, 14);
+        draw_text(label, static_cast<int>(box.x + (box.width - label_w) * 0.5f),
+                  static_cast<int>(box.y + (box.height - 14) * 0.5f), 14, enabled ? Color::GREEN : Color::GRAY);
+        if (get_current_ms() - save_status_at < SAVE_STATUS_MS) {
+            draw_text(save_status.c_str(), static_cast<int>(box.x), static_cast<int>(box.y + box.height) + 6, 12,
+                      Color::WHITE);
+        }
     }
 
     struct FrameCellButtons {
@@ -1296,8 +1332,9 @@ private:
             }
 
             const DrawLogEntry& e = debug_draw_log_prev[vr.log_index];
-            bool is_hovered = (vr.log_index == hovered_log_index);
-            bool is_selected = (&e == selected);
+            const DrawLogEntry* hovered = hovered_log_index >= 0 ? &debug_draw_log_prev[hovered_log_index] : nullptr;
+            bool is_hovered = hovered && hovered->name == e.name && hovered->index == e.index;
+            bool is_selected = selected && selected->name == e.name && selected->index == e.index;
             if (is_selected) {
                 draw_rectangle(static_cast<int>(panel_x), static_cast<int>(row_y), static_cast<int>(PANEL_WIDTH),
                                static_cast<int>(ROW_HEIGHT), fade(Color::SKYBLUE, 0.35f));
@@ -1405,6 +1442,7 @@ private:
             draw_text(text.c_str(), static_cast<int>(b.value.x) + 4, static_cast<int>(b.value.y) + 4, 14, Color::WHITE);
         }
 
+        draw_save_button(*obj, panel_x, edit_top);
         draw_frames_section(panel_x, edit_top);
     }
 

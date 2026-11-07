@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <atomic>
 #include <charconv>
+#include <cmath>
 #include <condition_variable>
 #include <cwctype>
 #include <format>
@@ -57,6 +58,57 @@ namespace {
     }
 
 } // namespace
+
+bool save_texture_position(const TextureObject& obj, int index) {
+    if (obj.json_path.empty() || index < 0 || index >= std::ssize(obj.x)) {
+        return false;
+    }
+    try {
+        rapidjson::Document doc = read_json_file(obj.json_path);
+        if (!doc.IsObject() || !doc.HasMember(obj.json_key.c_str())) {
+            return false;
+        }
+        Value& entry = doc[obj.json_key.c_str()];
+        Value* mapping = &entry;
+        if (entry.IsArray()) {
+            if (index >= static_cast<int>(entry.Size())) {
+                return false;
+            }
+            mapping = &entry[index];
+        }
+        if (!mapping->IsObject()) {
+            return false;
+        }
+
+        auto& alloc = doc.GetAllocator();
+        const int values[4] = {obj.x[index], obj.y[index], obj.x2[index], obj.y2[index]};
+        const char* keys[4] = {"x", "y", "x2", "y2"};
+        // x2/y2 default to the image size, so only write them when they now differ from what the json yields.
+        const double defaults[4] = {0.0, 0.0, static_cast<double>(obj.width), static_cast<double>(obj.height)};
+        for (int i = 0; i < 4; i++) {
+            const int loaded = static_cast<int>(json_member(*mapping, keys[i], defaults[i]) * obj.json_scale);
+            if (values[i] == loaded) {
+                continue;
+            }
+            const double raw = values[i] / static_cast<double>(obj.json_scale);
+            Value v;
+            if (raw == std::round(raw)) {
+                v.SetInt(static_cast<int>(raw));
+            } else {
+                v.SetDouble(raw);
+            }
+            if (mapping->HasMember(keys[i])) {
+                (*mapping)[keys[i]] = v;
+            } else {
+                mapping->AddMember(Value(keys[i], alloc), v, alloc);
+            }
+        }
+        return write_json_file(obj.json_path, doc);
+    } catch (const std::exception& e) {
+        spdlog::error("Failed to save {}: {}", obj.json_path.string(), e.what());
+        return false;
+    }
+}
 
 std::string TextureWrapper::skin_text(const std::string& key, const std::string& language,
                                       const std::string& fallback) const {
@@ -896,6 +948,9 @@ void TextureWrapper::load_folder(const std::string& screen_name, const std::stri
                     auto existing = textures.find(tex_id);
                     if (existing != textures.end()) {
                         read_tex_obj_data(m.value, existing->second.get(), tex_scale);
+                        existing->second->json_path = tex_json;
+                        existing->second->json_key = tex_name;
+                        existing->second->json_scale = tex_scale;
                         ids_this_call.insert(tex_id);
                         ++loaded_count;
                     } else {
@@ -996,6 +1051,9 @@ void TextureWrapper::load_folder(const std::string& screen_name, const std::stri
                     }
 
                     read_tex_obj_data(*p.mapping, obj.get(), tex_scale);
+                    obj->json_path = tex_json;
+                    obj->json_key = p.name;
+                    obj->json_scale = tex_scale;
 
                     if (!p.framed && !obj->crop_data.has_value() && p.mapping->IsObject() &&
                         !p.mapping->HasMember("x2")) {
