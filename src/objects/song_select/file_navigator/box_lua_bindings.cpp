@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <iterator>
+#include <utility>
 
 #include "../../../libs/file/script.h"
 #include "../../game/exam_caption.h"
@@ -219,13 +220,13 @@ void register_song_select_lua_bindings(sol::state& lua) {
         "has_box_texture", [](FolderBox& self) { return self.box_texture.has_value(); }, "draw_box_texture",
         [](FolderBox& self, sol::table params) {
             if (self.box_texture.has_value()) {
-                draw_folder_image(*self.box_texture, params);
+                draw_folder_image(*self.box_texture, std::move(params));
             }
         },
         "has_box_icon", [](FolderBox& self) { return self.box_icon.has_value(); }, "draw_box_icon",
         [](FolderBox& self, sol::table params) {
             if (self.box_icon.has_value()) {
-                draw_folder_image(*self.box_icon, params);
+                draw_folder_image(*self.box_icon, std::move(params));
             }
         });
 
