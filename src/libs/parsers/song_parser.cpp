@@ -12,7 +12,8 @@ namespace {
     }
 } // namespace
 
-SongParser::SongParser(const fs::path& path, int start_delay, PlayerNum player_num) {
+SongParser::SongParser(const fs::path& path, int start_delay, PlayerNum player_num)
+    : start_delay(start_delay), player_num(player_num) {
     // A gen 4 song is a folder of chart files rather than a single file.
     std::string ext = lower_extension(path);
 #ifdef SUPPORT_FUMEN

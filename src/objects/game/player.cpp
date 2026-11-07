@@ -16,9 +16,10 @@
 
 Player::Player(std::optional<SongParser>& parser_ref, PlayerNum player_num_param, int difficulty_param,
                bool is_2p_param, const Modifiers& modifiers_param, std::string score_method_param)
-    : is_2p(is_2p_param), player_num(player_num_param), input_player(player_num_param), difficulty(difficulty_param),
+    : JudgeCore(difficulty_param, modifiers_param, score_method_param == ScoreMethod::GEN3, is_2p_param),
+      player_num(player_num_param), input_player(player_num_param),
       visual_offset(global_data.config->general.visual_offset), score_method(std::move(score_method_param)),
-      modifiers(modifiers_param), parser(parser_ref), combo_display(combo, 0), score_counter(is_2p, player_num) {
+      parser(parser_ref), combo_display(combo, 0), score_counter(is_2p, player_num) {
     PlayerSoundScope audio_owner(player_num);
     init_player_textures();
     reset_chart();
@@ -275,19 +276,11 @@ void Player::handle_timeline(double ms_from_start) {
         if (timeline_buffer.size() != before) {
             continue;
         }
-        handle_branch_param(ms_from_start, entry, i);
-        if (timeline_buffer.size() != before) {
-            continue;
-        }
         handle_lyric(ms_from_start, entry, i);
         if (timeline_buffer.size() != before) {
             continue;
         }
         handle_camera(ms_from_start, entry, i);
-        if (timeline_buffer.size() != before) {
-            continue;
-        }
-        handle_section(ms_from_start, entry, i);
     }
 }
 
@@ -310,7 +303,7 @@ void Player::autoplay_manager(double ms_from_start, double current_ms, std::opti
             autoplay_hit_side = autoplay_hit_side == Side::LEFT ? Side::RIGHT : Side::LEFT;
             spawn_hit_effects(hit_type, autoplay_hit_side);
             audio.play_player_sound(don_hitsound, player_num, VolumePreset::HITSOUND);
-            check_note(ms_from_start, hit_type, current_ms, background);
+            check_note(ms_from_start, hit_type, current_ms);
         }
     } else {
         auto autoplay_hit = [&](DrumType type, bool big) {
@@ -346,7 +339,7 @@ void Player::autoplay_manager(double ms_from_start, double current_ms, std::opti
             hit_type = DrumType::DON;
             autoplay_hit(hit_type, don_notes.front().type == NoteType::DON_L);
             audio.play_player_sound(don_hitsound, player_num, VolumePreset::HITSOUND);
-            check_note(judged_ms(don_notes.front()), hit_type, current_ms, background);
+            check_note(judged_ms(don_notes.front()), hit_type, current_ms);
             last_note_hit = current_ms;
             if (don_notes.size() == remaining) {
                 break;
@@ -361,130 +354,11 @@ void Player::autoplay_manager(double ms_from_start, double current_ms, std::opti
             hit_type = DrumType::KAT;
             autoplay_hit(hit_type, kat_notes.front().type == NoteType::KAT_L);
             audio.play_player_sound(kat_hitsound, player_num, VolumePreset::HITSOUND);
-            check_note(judged_ms(kat_notes.front()), hit_type, current_ms, background);
+            check_note(judged_ms(kat_notes.front()), hit_type, current_ms);
             if (kat_notes.size() == remaining) {
                 break;
             }
         }
-    }
-}
-
-void Player::merge_branch_section(const NoteList& branch_section, double current_ms) {
-    const double boundary_eps = 1.0;
-    std::deque<Note> notes;
-    for (const Note& note : branch_section.notes) {
-        if (note.hit_ms >= resume_filter_ms - boundary_eps) {
-            notes.push_back(note);
-        }
-    }
-
-    draw_note_list.insert(draw_note_list.end(), notes.begin(), notes.end());
-
-    std::ranges::sort(draw_note_list, {}, &Note::load_ms);
-
-    timeline.insert(timeline.begin(), branch_section.timeline.begin(), branch_section.timeline.end());
-
-    std::ranges::sort(timeline, {}, &TimelineObject::start_time);
-
-    for (const auto& note : notes) {
-
-        if (note.type == NoteType::DON || note.type == NoteType::DON_L) {
-            auto pos = std::ranges::lower_bound(don_notes, note,
-                                                [](const auto& a, const auto& b) { return a.hit_ms < b.hit_ms; });
-            don_notes.insert(pos, note);
-        } else if (note.type == NoteType::KAT || note.type == NoteType::KAT_L) {
-            auto pos = std::ranges::lower_bound(kat_notes, note,
-                                                [](const auto& a, const auto& b) { return a.hit_ms < b.hit_ms; });
-            kat_notes.insert(pos, note);
-        } else if (note.type != NoteType::BARLINE) {
-            auto pos = std::ranges::lower_bound(other_notes, note,
-                                                [](const auto& a, const auto& b) { return a.hit_ms < b.hit_ms; });
-            other_notes.insert(pos, note);
-        }
-    }
-}
-
-void Player::evaluate_branch(double current_ms) {
-    float e_req = std::get<0>(curr_branch_reqs);
-    float m_req = std::get<1>(curr_branch_reqs);
-    double branch_end_ms = std::get<2>(curr_branch_reqs);
-    if (current_ms >= branch_end_ms) {
-        is_branch = false;
-        if (branch_condition == "p") {
-            branch_p_count =
-                branch_note_count != 0
-                    ? std::max(std::min(static_cast<int>(static_cast<double>(branch_p_count) / branch_note_count * 100),
-                                        100),
-                               0)
-                    : 0;
-        } else if (branch_condition == "r") {
-            branch_r_count = std::max(curr_drumroll_count, branch_r_count);
-        }
-        float count = branch_condition == "p" ? branch_p_count : branch_r_count;
-        if (branch_indicator.has_value()) {
-            spdlog::info("Branch set to {} based on conditions {}, {}, {}",
-                         branch_diff_to_string(branch_indicator->difficulty), count, e_req, m_req);
-        }
-        BranchDifficulty chosen;
-        if (branch_checkpoint_index < branch_history.size()) {
-            chosen = branch_history[branch_checkpoint_index];
-        } else {
-            chosen = (count >= e_req && count < m_req && e_req >= 0) ? BranchDifficulty::EXPERT
-                     : (count >= m_req)                              ? BranchDifficulty::MASTER
-                                                                     : BranchDifficulty::NORMAL;
-            branch_history.push_back(chosen);
-        }
-        branch_checkpoint_index++;
-        if (chosen == BranchDifficulty::EXPERT) {
-            if (!branch_e.empty()) {
-                merge_branch_section(branch_e.front(), current_ms);
-                branch_e.pop_front();
-                if (branch_indicator.has_value() and branch_indicator->difficulty != BranchDifficulty::EXPERT) {
-                    if (branch_indicator->difficulty == BranchDifficulty::MASTER) {
-                        branch_indicator->level_down(BranchDifficulty::EXPERT);
-                    } else {
-                        branch_indicator->level_up(BranchDifficulty::EXPERT);
-                    }
-                }
-            }
-            if (!branch_m.empty()) {
-                branch_m.pop_front();
-            }
-            if (!branch_n.empty()) {
-                branch_n.pop_front();
-            }
-        } else if (chosen == BranchDifficulty::MASTER) {
-            if (!branch_m.empty()) {
-                merge_branch_section(branch_m.front(), current_ms);
-                branch_m.pop_front();
-                if (branch_indicator.has_value() and branch_indicator->difficulty != BranchDifficulty::MASTER) {
-                    branch_indicator->level_up(BranchDifficulty::MASTER);
-                }
-            }
-            if (!branch_n.empty()) {
-                branch_n.pop_front();
-            }
-            if (!branch_e.empty()) {
-                branch_e.pop_front();
-            }
-        } else {
-            if (!branch_n.empty()) {
-                merge_branch_section(branch_n.front(), current_ms);
-                branch_n.erase(branch_n.begin());
-                if (branch_indicator.has_value() and branch_indicator->difficulty != BranchDifficulty::NORMAL) {
-                    branch_indicator->level_down(BranchDifficulty::NORMAL);
-                }
-            }
-            if (!branch_m.empty()) {
-                branch_m.pop_front();
-            }
-            if (!branch_e.empty()) {
-                branch_e.pop_front();
-            }
-        }
-        branch_p_count = 0;
-        branch_r_count = 0;
-        branch_note_count = 0;
     }
 }
 
@@ -636,9 +510,7 @@ void Player::update(double ms_from_start, double current_ms, std::optional<Backg
         std::visit([&current_ms](auto& anim) { anim.update(current_ms); }, ending_anim.value());
     }
 
-    if (is_branch) {
-        evaluate_branch(ms_from_start);
-    }
+    end_frame(ms_from_start);
     chara->update(current_ms);
 }
 
@@ -745,55 +617,19 @@ void Player::draw_practice(double ms_from_start, float x, float y, bool draw_not
     draw_overlays(y);
 }
 
-void Player::get_load_time(Note& note) {
-    int note_half_w = t_notes_9->width / 2;
-    float travel_distance = tex.screen_width - JudgePos::X;
-    // The faster axis decides when a note comes on screen: a polar #SCROLL pointing straight up
-    // leaves a horizontal component of ~1e-17, not 0
-    bool horizontal = abs(note.scroll_x) >= abs(note.scroll_y);
-    float base_pixels_per_ms =
-        (note.bpm / 240000 * (horizontal ? abs(note.scroll_x) : abs(note.scroll_y)) * travel_distance);
-    if (base_pixels_per_ms == 0) {
-        note.load_ms = note.hit_ms;
-        note.unload_ms = note.hit_ms;
-        return;
+JudgeParams Player::judge_params() const {
+    JudgeParams p;
+    if (parser.has_value()) {
+        p.start_delay = parser->start_delay;
+        p.parse_player = static_cast<int>(parser->player_num);
     }
-    float normal_travel_ms = (travel_distance + note_half_w) / base_pixels_per_ms;
-
-    if (!note.sudden_appear_ms.has_value() || !note.sudden_moving_ms.has_value() ||
-        note.sudden_appear_ms.value() == std::numeric_limits<float>::infinity()) {
-        if (scroll_type != ScrollType::NMSCROLL) {
-            // On screen while (note beat - current beat) * px_per_beat is between the left edge
-            // and the right edge
-            double px_per_beat = (horizontal ? note.scroll_x : abs(note.scroll_y)) * travel_distance / 4;
-            double left = horizontal ? -(JudgePos::X + note_half_w) : -(travel_distance + note_half_w);
-            double right = travel_distance + note_half_w;
-            double beat = tempo_map.beat_at(note.hit_ms);
-            double lo = beat - right / px_per_beat, hi = beat - left / px_per_beat;
-            auto [first, last] = tempo_map.ms_within(std::min(lo, hi), std::max(lo, hi));
-            note.load_ms = std::min(first, note.hit_ms);
-            note.unload_ms = std::max(last, note.hit_ms);
-            return;
-        }
-        note.load_ms = note.hit_ms - normal_travel_ms;
-        note.unload_ms = note.hit_ms + normal_travel_ms;
-        return;
-    }
-    note.load_ms = note.hit_ms - note.sudden_appear_ms.value();
-    float movement_duration = note.sudden_moving_ms.value();
-    if (movement_duration <= 0) {
-        movement_duration = normal_travel_ms;
-    }
-    float sudden_pixels_per_ms = travel_distance / movement_duration;
-    float unload_offset = travel_distance / sudden_pixels_per_ms;
-    note.unload_ms = note.hit_ms + unload_offset;
+    p.audio_end_ms = audio_end_ms;
+    p.dan = is_dan;
+    return p;
 }
 
-// #BMSCROLL / #HBSCROLL charts can hold notes behind a #DELAY that outlasts the song (a wall of
-// notes frozen on screen). They are drawn but never judged, counted or waited for.
 bool Player::unplayable(const Note& note) const {
-    return scroll_type != ScrollType::NMSCROLL && audio_end_ms.has_value() && note.type != NoteType::BARLINE &&
-           note.hit_ms > audio_end_ms.value();
+    return note_unplayable(note, scroll_type, audio_end_ms);
 }
 
 void Player::set_audio_end(double chart_ms) {
@@ -808,57 +644,23 @@ void Player::reset_chart() {
         return;
     }
 
-    don_notes.clear();
-    kat_notes.clear();
-    other_notes.clear();
     draw_note_list.clear();
     draw_note_buffer.clear();
     barlines.clear();
 
     auto [notes, branch_m_temp, branch_e_temp, branch_n_temp] = parser->notes_to_position(difficulty);
-    apply_modifiers(notes, modifiers);
+    prepare_chart(notes, branch_m_temp, branch_e_temp, branch_n_temp, modifiers, audio_end_ms);
 
-    Note* last_note = nullptr;
-    end_time = 0;
     bpm = parser->metadata.bpm;
     scroll_type = notes.scroll_type;
     tempo_map = notes.tempo_map;
-
-    for (Note& note : notes.notes) {
-        get_load_time(note);
-        if (note.type == NoteType::TAIL && last_note != nullptr) {
-            note.load_ms = last_note->load_ms;
-            last_note->unload_ms = note.unload_ms;
-            auto it = std::ranges::find_if(draw_note_list, [&](const Note& n) { return n.index == last_note->index; });
-            if (it != draw_note_list.end()) {
-                it->unload_ms = note.unload_ms;
-            }
-        }
-        bool playable = !unplayable(note);
-        if (playable) {
-            if (note.type == NoteType::DON || note.type == NoteType::DON_L) {
-                don_notes.push_back(note);
-            } else if (note.type == NoteType::KAT || note.type == NoteType::KAT_L) {
-                kat_notes.push_back(note);
-            } else if (note.type != NoteType::BARLINE) {
-                other_notes.push_back(note);
-            }
-        }
-        draw_note_list.push_back(note);
-        if (note.type != NoteType::BARLINE) {
-            last_note = &note;
-        }
-
-        if (playable && note.hit_ms > end_time) {
-            end_time = note.hit_ms;
-        }
-    }
-
+    draw_note_list.assign(notes.notes.begin(), notes.notes.end());
     std::ranges::sort(draw_note_list, {}, &Note::load_ms);
 
-    this->branch_m = branch_m_temp;
-    this->branch_e = branch_e_temp;
-    this->branch_n = branch_n_temp;
+    load_chart(notes, std::move(branch_m_temp), std::move(branch_e_temp), std::move(branch_n_temp),
+               parser->metadata.course_data, audio_end_ms);
+    end_time = judge_end_ms();
+
     partner_times.clear();
     big_times.clear();
     auto add_partner_times = [&](const NoteList& list) {
@@ -877,32 +679,10 @@ void Player::reset_chart() {
             add_partner_times(section);
         }
     }
-    std::vector<std::reference_wrapper<std::deque<NoteList>>> branches = {
-        std::ref(this->branch_m), std::ref(this->branch_e), std::ref(this->branch_n)};
 
-    for (auto& branch_ref : branches) {
-        std::deque<NoteList>& branch = branch_ref.get();
-
-        if (!branch.empty()) {
-            for (NoteList& section : branch) {
-                apply_modifiers(section, modifiers);
-                std::erase_if(section.notes, [&](const Note& n) { return unplayable(n); });
-                Note* last_note = nullptr;
-                for (Note& note : section.notes) {
-                    get_load_time(note);
-                    if (note.type == NoteType::TAIL && last_note != nullptr) {
-                        note.load_ms = last_note->load_ms;
-                        last_note->unload_ms = note.unload_ms;
-                    }
-                    last_note = &note;
-
-                    end_time = std::max(end_time, note.hit_ms);
-                }
-            }
-        }
-    }
-
-    this->timeline = notes.timeline;
+    this->timeline.clear();
+    std::ranges::copy_if(notes.timeline, std::back_inserter(this->timeline),
+                         [](const TimelineObject& t) { return !is_judge_timeline_entry(t); });
     last_jpos_key = {-1e300, -1};
 
     // Rasterize every #LYRIC glyph now, in one go: otherwise each new line with an
@@ -925,76 +705,8 @@ void Player::reset_chart() {
 
     std::ranges::sort(this->timeline, {}, &TimelineObject::start_time);
 
-    is_drumroll = false;
-    curr_drumroll_count = 0;
-    is_balloon = false;
-    curr_balloon_count = 0;
-    kusudama_shared_hits = 0;
     last_subdivision = -1;
-    is_branch = false;
-    branch_condition = "";
-    branch_p_count = 0;
-    branch_r_count = 0;
-    branch_note_count = 0;
-    branch_checkpoint_index = 0;
-
-    NoteList total_notes; // all notes including master branch
-
-    std::ranges::copy_if(notes.notes, std::back_inserter(total_notes.notes),
-                         [&](const Note& n) { return !unplayable(n); });
-    for (NoteList section : branch_m) {
-        total_notes.notes.insert(total_notes.notes.end(), section.notes.begin(), section.notes.end());
-    }
-
-    // setup gauge
-    int stars = 0;
-    if (parser->metadata.course_data.empty()) {
-        stars = 10;
-    } else {
-        stars = parser->metadata.course_data[difficulty].level;
-    }
-    if (stars == 0) {
-        difficulty = 3;
-        stars = 10;
-    }
-    int gauge_total_notes = 0;
-    for (Note& note : total_notes.notes) {
-        if (note.type >= NoteType::DON && note.type <= NoteType::KAT_L) {
-            gauge_total_notes++;
-        }
-    }
-    judgeable_note_count = gauge_total_notes;
-    gauge = Gauge(gauge_total_notes, difficulty, stars, player_num);
-
-    // setup score
-    base_score = 0;
-    score_init = 0;
-    score_diff = 0;
-    if (score_method == ScoreMethod::SHINUCHI) {
-        base_score = calculate_base_score(total_notes);
-    } else if (score_method == ScoreMethod::GEN3) {
-        if (difficulty < 0 || difficulty >= std::ssize(parser->metadata.course_data)) {
-            score_init = calculate_base_score(total_notes);
-            score_diff = 0;
-            return;
-        }
-        score_diff = parser->metadata.course_data[difficulty].scorediff;
-        if (score_diff <= 0) {
-            spdlog::warn(
-                "Error: No scorediff specified or scorediff less than 0 | Using shinuchi scoring method instead");
-            score_diff = 0;
-        }
-
-        std::vector<int> score_init_list = parser->metadata.course_data[difficulty].scoreinit;
-        if (score_init_list.empty()) {
-            spdlog::warn(
-                "Error: No scoreinit specified or scoreinit less than 0 | Using shinuchi scoring method instead");
-            score_init = calculate_base_score(total_notes);
-            score_diff = 0;
-        } else {
-            score_init = score_init_list[0];
-        }
-    }
+    gauge = Gauge(judgeable_note_count, difficulty, gauge_stars, player_num);
 }
 
 std::optional<Note> Player::get_first_note() {
@@ -1138,84 +850,6 @@ void Player::handle_bpmchange(double ms_from_start, const TimelineObject& timeli
     timeline_buffer.pop_back();
 }
 
-void Player::handle_branch_param(double ms_from_start, const TimelineObject& timeline_object, int buffer_index) {
-    if (timeline_object.start_time > ms_from_start) {
-        return;
-    }
-    if (!timeline_object.branch_params.has_value()) {
-        return;
-    }
-
-    std::string params = timeline_object.branch_params.value();
-
-    std::vector<std::string> parts;
-    std::stringstream ss(params);
-    std::string part;
-    while (std::getline(ss, part, ',')) {
-        parts.push_back(part);
-    }
-
-    if (parts.size() >= 3) {
-        std::string branch_cond = parts[0];
-        float e_req = 0.0f, m_req = 0.0f;
-        try {
-            e_req = std::stof(parts[1]);
-            m_req = std::stof(parts[2]);
-        } catch (const std::exception& e) {
-            spdlog::warn("Invalid #BRANCHSTART params '{}': {}", params, e.what());
-            e_req = m_req = 0.0f;
-        }
-
-        if (!is_branch) {
-            is_branch = true;
-            branch_condition = branch_cond;
-
-            double branch_condition_end_time;
-            if (!branch_m.empty() && !branch_m.front().notes.empty()) {
-                branch_condition_end_time = branch_m.front().notes.front().load_ms;
-            } else if (!branch_e.empty() && !branch_e.front().notes.empty()) {
-                branch_condition_end_time = branch_e.front().notes.front().load_ms;
-            } else if (!branch_n.empty() && !branch_n.front().notes.empty()) {
-                branch_condition_end_time = branch_n.front().notes.front().load_ms;
-            } else if (!draw_note_list.empty()) {
-                branch_condition_end_time = draw_note_list.front().load_ms;
-            } else {
-                branch_condition_end_time = ms_from_start;
-            }
-
-            if (branch_cond == "r") {
-                curr_branch_reqs = std::make_tuple(e_req, m_req, branch_condition_end_time);
-            } else if (branch_cond == "p") {
-                curr_branch_reqs = std::make_tuple(e_req, m_req, branch_condition_end_time);
-            }
-            spdlog::info(
-                "branch condition measures started with conditions {}, {}, {}, starting at {} and ending at {}",
-                branch_cond, e_req, m_req, timeline_object.start_time, branch_condition_end_time);
-        }
-    }
-    if (buffer_index != std::ssize(timeline_buffer) - 1) {
-        timeline_buffer[buffer_index] = std::move(timeline_buffer.back());
-    }
-    timeline_buffer.pop_back();
-}
-
-void Player::handle_section(double ms_from_start, const TimelineObject& timeline_object, int buffer_index) {
-    if (timeline_object.start_time > ms_from_start) {
-        return;
-    }
-    if (!timeline_object.section_reset.has_value()) {
-        return;
-    }
-
-    branch_p_count = 0;
-    branch_r_count = 0;
-    branch_note_count = 0;
-    if (buffer_index != std::ssize(timeline_buffer) - 1) {
-        timeline_buffer[buffer_index] = std::move(timeline_buffer.back());
-    }
-    timeline_buffer.pop_back();
-}
-
 void Player::handle_lyric(double ms_from_start, const TimelineObject& timeline_object, int buffer_index) {
     if (timeline_object.start_time > ms_from_start) {
         return;
@@ -1339,84 +973,6 @@ void Player::update_camera(double ms_from_start) {
     std::erase_if(camera_eases, [&](const TimelineObject& t) { return ms_from_start >= t.end_time; });
 }
 
-void Player::play_note_manager(double current_ms, std::optional<Background>& background) {
-    const double miss_window = (difficulty <= static_cast<int>(Difficulty::NORMAL)) ? Timing::BAD_EASY : Timing::BAD;
-    while (!don_notes.empty() && don_notes.front().hit_ms + miss_window < current_ms) {
-        combo = 0;
-        if (background.has_value()) {
-            background->handle_bad(PlayerNum(1 + is_2p));
-        }
-        bad_count++;
-        on_miss();
-        note_judgments[don_notes.front().index] = Judgments::BAD;
-        if (dan_gauge) {
-            dan_gauge->add_bad();
-        } else if (gauge.has_value()) {
-            gauge->add_bad();
-        }
-
-        don_notes.pop_front();
-        branch_note_count++;
-    }
-
-    while (!kat_notes.empty() && kat_notes.front().hit_ms + miss_window < current_ms) {
-        combo = 0;
-        if (background.has_value()) {
-            background->handle_bad(PlayerNum(1 + is_2p));
-        }
-        bad_count++;
-        on_miss();
-        note_judgments[kat_notes.front().index] = Judgments::BAD;
-        if (dan_gauge) {
-            dan_gauge->add_bad();
-        } else if (gauge.has_value()) {
-            gauge->add_bad();
-        }
-
-        kat_notes.pop_front();
-        branch_note_count++;
-    }
-
-    if (other_notes.empty()) {
-        return;
-    }
-
-    Note& note = other_notes.front();
-    if (note.hit_ms <= current_ms) {
-        if (note.type == NoteType::ROLL_HEAD || note.type == NoteType::ROLL_HEAD_L) {
-            is_drumroll = true;
-        } else if (note.type == NoteType::BALLOON_HEAD || note.type == NoteType::KUSUDAMA) {
-            if (!is_balloon) { // should not set animation DON_BALLOON_NOBEAT here
-                balloon_idle = true;
-            }
-            is_balloon = true;
-        } else if (note.type == NoteType::TAIL) {
-            other_notes.pop_front();
-            is_drumroll = false;
-            is_balloon = false;
-            curr_drumroll_count = 0;
-            curr_balloon_count = 0;
-            return;
-        }
-        if (other_notes.size() < 2) {
-            return;
-        }
-        Note& tail = other_notes[1];
-        if (tail.hit_ms <= current_ms) {
-            const bool balloon_missed = note.type == NoteType::BALLOON_HEAD; // a burst one is gone already
-            other_notes.pop_front();
-            other_notes.pop_front();
-            if (balloon_missed && background.has_value()) {
-                background->handle_balloon_end(PlayerNum(is_2p + 1));
-            }
-            is_drumroll = false;
-            is_balloon = false;
-            curr_drumroll_count = 0;
-            curr_balloon_count = 0;
-        }
-    }
-}
-
 void Player::draw_note_manager(double current_ms) {
     current_ms += visual_offset;
     while (!draw_note_list.empty() && current_ms >= draw_note_list.front().load_ms) {
@@ -1473,36 +1029,58 @@ void Player::draw_note_manager(double current_ms) {
 }
 
 void Player::note_manager(double current_ms, std::optional<Background>& background) {
-    play_note_manager(current_ms, background);
+    begin_frame(current_ms);
     draw_note_manager(current_ms);
 }
 
-void Player::note_correct(const Note& note, double current_ms) {
+void Player::on_judgment(const Note& note, Judgments judgment, std::optional<DrumType> hit_drum) {
+    const bool big = note.type == NoteType::DON_L || note.type == NoteType::KAT_L;
+    if (judgment == Judgments::BAD) {
+        on_miss();
+        if (hit_drum.has_value()) {
+            draw_judge_list.emplace_back(Judgments::BAD, big);
+            auto it = std::ranges::lower_bound(draw_note_buffer, note.index, {}, &Note::index);
+            if (it != draw_note_buffer.end() && *it == note) {
+                draw_note_buffer.erase(it);
+            }
+        }
+    } else {
+        if (judgment == Judgments::OK || draw_judge_list.size() < 7) {
+            draw_judge_list.emplace_back(judgment, big);
+        }
+        lane_hit_effect = LaneHitEffect(hit_drum.value_or(DrumType::DON), judgment);
+    }
+
+    if (dan_gauge || gauge.has_value()) {
+        Gauge& g = dan_gauge ? *dan_gauge : *gauge;
+        if (judgment == Judgments::GOOD) {
+            g.add_good();
+        } else if (judgment == Judgments::OK) {
+            g.add_ok();
+        } else {
+            g.add_bad();
+        }
+    }
+    if (bg_hook) {
+        const PlayerNum pn = PlayerNum(1 + is_2p);
+        if (judgment == Judgments::GOOD) {
+            bg_hook->handle_good(pn);
+        } else if (judgment == Judgments::OK) {
+            bg_hook->handle_ok(pn);
+        } else {
+            bg_hook->handle_bad(pn);
+        }
+    }
+}
+
+void Player::on_note_correct(const Note& note, double current_ms) {
     miss_streak = 0;
-    if (!don_notes.empty() && don_notes[0] == note) {
-        don_notes.pop_front();
-    } else if (!kat_notes.empty() && kat_notes[0] == note) {
-        kat_notes.pop_front();
-    } else if (!other_notes.empty() && other_notes[0] == note) {
-        other_notes.pop_front();
-    }
-
-    if ((note.type == NoteType::BALLOON_HEAD || note.type == NoteType::KUSUDAMA) && !other_notes.empty()) {
-        other_notes.pop_front();
-    }
-
     if (note.type < NoteType::BALLOON_HEAD) {
-        combo++;
         if (combo % 10 == 0 && !is_gogo_time) {
             chara->set_anim(AnimIndex::DON_COMBO);
         }
         if (combo % 100 == 0) {
             combo_announce = ComboAnnounce(combo, current_ms, player_num);
-        }
-        max_combo = std::max(max_combo, combo);
-        if (combo % 100 == 0 && score_method == ScoreMethod::GEN3) {
-            score += 10000;
-            score_counter.add_popup(10000);
         }
     }
 
@@ -1518,45 +1096,36 @@ void Player::note_correct(const Note& note, double current_ms) {
     }
 }
 
-void Player::check_drumroll(double current_ms, DrumType drum_type, std::optional<Background>& background) {
+void Player::on_score_popup(int amount, bool tick) {
+    score_counter.add_popup(amount, tick);
+}
+
+void Player::on_drumroll_hit(DrumType drum_type, double current_ms) {
     const bool is_big = !other_notes.empty() && other_notes.front().type == NoteType::ROLL_HEAD_L;
     draw_arc_list.emplace_back(NoteType(drum_type), current_ms, arc_player(), is_big, false, 0.0f, 0.0f, rainbow_arc);
-    curr_drumroll_count++;
     if (curr_drumroll_count == 1) {
         drumroll_counter.reset(); // an equal count left by the last roll would not restart the animations
     }
-    if (!other_notes.empty()) {
-        roll_hits[other_notes.front().index] = curr_drumroll_count;
+    if (bg_hook) {
+        bg_hook->handle_drumroll(PlayerNum(is_2p + 1));
     }
-    total_drumroll++;
-    branch_r_count++;
-    if (background.has_value()) {
-        background->handle_drumroll(PlayerNum(is_2p + 1));
-    }
-    score += 100;
-    score_counter.add_popup(100, true);
-    if (draw_note_buffer.empty()) {
+    if (draw_note_buffer.empty() || other_notes.empty()) {
         return;
     }
-    if (!other_notes.empty()) {
-        int active_drumroll_index = other_notes[0].index;
-        auto drumroll_it = std::ranges::lower_bound(draw_note_buffer, active_drumroll_index, {}, &Note::index);
-        if (drumroll_it != draw_note_buffer.end() && drumroll_it->index == active_drumroll_index &&
-            (drumroll_it->type == NoteType::ROLL_HEAD || drumroll_it->type == NoteType::ROLL_HEAD_L) &&
-            drumroll_it->color.has_value()) {
-            drumroll_it->color.value() = std::max(0, 255 - (curr_drumroll_count * 10));
-        }
+    int active_drumroll_index = other_notes[0].index;
+    auto drumroll_it = std::ranges::lower_bound(draw_note_buffer, active_drumroll_index, {}, &Note::index);
+    if (drumroll_it != draw_note_buffer.end() && drumroll_it->index == active_drumroll_index &&
+        (drumroll_it->type == NoteType::ROLL_HEAD || drumroll_it->type == NoteType::ROLL_HEAD_L) &&
+        drumroll_it->color.has_value()) {
+        drumroll_it->color.value() = std::max(0, 255 - (curr_drumroll_count * 10));
     }
 }
 
-void Player::check_balloon(double current_ms, DrumType drum_type, const Note& balloon,
-                           std::optional<Background>& background) {
-    if (drum_type != DrumType::DON) {
-        return;
-    }
-    if (!balloon.count.has_value()) {
-        return;
-    }
+void Player::on_balloon_start() {
+    balloon_idle = true; // should not set animation DON_BALLOON_NOBEAT here
+}
+
+void Player::on_balloon_hit(const Note& balloon, double current_ms, bool popped) {
     if (!balloon_counter.has_value()) {
         balloon_counter = BalloonCounter(balloon.count.value(), is_2p);
     }
@@ -1565,236 +1134,55 @@ void Player::check_balloon(double current_ms, DrumType drum_type, const Note& ba
         chara->set_anim(AnimIndex::DON_BALLOON_LOOP);
     }
     last_balloon_hit_ms = current_ms;
-    if (background.has_value()) {
-        background->handle_balloon(PlayerNum(is_2p + 1), balloon.count.value() - curr_balloon_count - 1);
+    if (bg_hook) {
+        bg_hook->handle_balloon(PlayerNum(is_2p + 1), balloon.count.value() - curr_balloon_count);
     }
-    curr_balloon_count++;
-    roll_hits[balloon.index] = curr_balloon_count;
-    total_drumroll++;
-    score += 100;
-    score_counter.add_popup(100);
-    if (curr_balloon_count == balloon.count.value()) {
-        is_balloon = false;
+    if (popped) {
         balloon_counter->update(current_ms, curr_balloon_count);
         audio.play_player_sound("balloon_pop", player_num, VolumePreset::HITSOUND);
-        note_correct(balloon, current_ms);
-        curr_balloon_count = 0;
     }
 }
 
-void Player::check_kusudama(double current_ms, DrumType drum_type, const Note& balloon,
-                            std::optional<Background>& background) {
-    if (drum_type != DrumType::DON) {
-        return;
+void Player::on_balloon_missed() {
+    if (bg_hook) {
+        bg_hook->handle_balloon_end(PlayerNum(is_2p + 1));
     }
-    if (!balloon.count.has_value()) {
-        return;
-    }
+}
 
-    Player* owner = kusudama_owner();
+void Player::on_kusudama_hit(JudgeCore* owner_judge, const Note& balloon, double current_ms, bool popped) {
+    Player* owner = static_cast<Player*>(owner_judge); // every lane on screen is a Player
     if (owner->kusudama_counter.has_value() && owner->kusudama_counter->has_missed()) {
         owner->kusudama_counter.reset();
     }
     if (!owner->kusudama_counter.has_value()) {
         owner->kusudama_counter = KusudamaCounter(balloon.count.value());
-        owner->kusudama_shared_hits = 0;
     }
-    if (background.has_value()) {
-        background->handle_kusudama(PlayerNum(is_2p + 1));
+    if (bg_hook) {
+        bg_hook->handle_kusudama(PlayerNum(is_2p + 1));
     }
-    total_drumroll++;
-    score += 100;
-    score_counter.add_popup(100);
-    owner->kusudama_shared_hits++;
     owner->kusudama_counter->update(current_ms, owner->kusudama_shared_hits);
-
-    if (owner->kusudama_shared_hits == balloon.count.value()) {
+    if (popped) {
         audio.play_player_sound("kusudama_pop", PlayerNum::ALL, VolumePreset::HITSOUND); // shared by both players
-
-        is_balloon = false;
-        note_correct(balloon, current_ms);
-
-        if (kusudama_partner && kusudama_partner != this && kusudama_partner->is_balloon &&
-            !kusudama_partner->other_notes.empty() &&
-            kusudama_partner->other_notes.front().type == NoteType::KUSUDAMA) {
-            Note partner_note = kusudama_partner->other_notes.front();
-            kusudama_partner->is_balloon = false;
-            kusudama_partner->note_correct(partner_note, current_ms);
-        }
-
-        owner->kusudama_shared_hits = 0;
     }
 }
 
-void Player::check_note(double ms_from_start, DrumType drum_type, double current_ms,
-                        std::optional<Background>& background) {
-    if (don_notes.empty() && kat_notes.empty() && other_notes.empty()) {
+void Player::on_branch_merged(BranchDifficulty chosen, const std::deque<Note>& notes, const NoteList& section) {
+    draw_note_list.insert(draw_note_list.end(), notes.begin(), notes.end());
+    std::ranges::sort(draw_note_list, {}, &Note::load_ms);
+    std::deque<TimelineObject> visual;
+    std::ranges::copy_if(section.timeline, std::back_inserter(visual),
+                         [](const TimelineObject& t) { return !is_judge_timeline_entry(t); });
+    timeline.insert(timeline.begin(), visual.begin(), visual.end());
+    std::ranges::sort(timeline, {}, &TimelineObject::start_time);
+
+    if (!branch_indicator.has_value() || branch_indicator->difficulty == chosen) {
         return;
     }
-
-    auto record_hit_offset = [this, ms_from_start](const Note& note) {
-        if (modifiers.auto_play) {
-            return;
-        }
-
-        const double offset_ms = ms_from_start - note.hit_ms;
-        hit_offset_sum_ms += offset_ms;
-        hit_offset_count++;
-    };
-
-    float good_window_ms;
-    float ok_window_ms;
-    float bad_window_ms;
-    if (difficulty <= static_cast<int>(Difficulty::NORMAL)) {
-        good_window_ms = Timing::GOOD_EASY;
-        ok_window_ms = Timing::OK_EASY;
-        bad_window_ms = Timing::BAD_EASY;
+    if (chosen == BranchDifficulty::MASTER ||
+        (chosen == BranchDifficulty::EXPERT && branch_indicator->difficulty == BranchDifficulty::NORMAL)) {
+        branch_indicator->level_up(chosen);
     } else {
-        good_window_ms = Timing::GOOD;
-        ok_window_ms = Timing::OK;
-        bad_window_ms = Timing::BAD;
-    }
-    if (score_method == ScoreMethod::GEN3) {
-        base_score = score_init;
-        if (9 < combo && combo < 30) {
-            base_score = std::floor(score_init + 1 * score_diff);
-        } else if (29 < combo && combo < 50) {
-            base_score = std::floor(score_init + 2 * score_diff);
-        } else if (49 < combo && combo < 100) {
-            base_score = std::floor(score_init + 4 * score_diff);
-        } else if (99 < combo) {
-            base_score = std::floor(score_init + 8 * score_diff);
-        }
-    }
-
-    Note curr_note;
-    if (is_drumroll && !other_notes.empty()) {
-        check_drumroll(current_ms, drum_type, background);
-        return;
-    }
-
-    if (is_balloon && !other_notes.empty()) {
-        curr_note = other_notes.front();
-        if (curr_note.type == NoteType::BALLOON_HEAD) {
-            check_balloon(current_ms, drum_type, curr_note, background);
-        }
-        if (curr_note.type == NoteType::KUSUDAMA) {
-            check_kusudama(current_ms, drum_type, curr_note, background);
-        }
-        return;
-    }
-
-    auto& lane = (drum_type == DrumType::DON) ? don_notes : kat_notes;
-    if (lane.empty()) {
-        return;
-    }
-    curr_note = lane.front();
-    size_t lane_pos = 0;
-    if (!modifiers.auto_play && lane.size() > 1 && ms_from_start > curr_note.hit_ms + ok_window_ms) {
-        const Note& next = lane[1];
-        auto blocked_by = [&](const std::deque<Note>& notes) {
-            auto it = std::ranges::find_if(notes, [&](const Note& n) { return n.index > curr_note.index; });
-            return it != notes.end() && it->index < next.index;
-        };
-        const auto& other_lane = (drum_type == DrumType::DON) ? kat_notes : don_notes;
-        if (!blocked_by(other_lane) && !blocked_by(other_notes) && ms_from_start > next.hit_ms - ok_window_ms) {
-            combo = 0;
-            bad_count++;
-            on_miss();
-            note_judgments[curr_note.index] = Judgments::BAD;
-            if (dan_gauge) {
-                dan_gauge->add_bad();
-            } else if (gauge.has_value()) {
-                gauge->add_bad();
-            }
-            if (background.has_value()) {
-                background->handle_bad(PlayerNum(1 + is_2p));
-            }
-            branch_note_count++;
-            lane.pop_front();
-            curr_note = lane.front();
-        }
-    }
-
-    {
-        if (ms_from_start > (curr_note.hit_ms + bad_window_ms)) {
-            return;
-        }
-
-        bool big = curr_note.type == NoteType::DON_L || curr_note.type == NoteType::KAT_L;
-        if ((curr_note.hit_ms - good_window_ms <= ms_from_start) &&
-            (ms_from_start <= curr_note.hit_ms + good_window_ms)) {
-            record_hit_offset(curr_note);
-            if (draw_judge_list.size() < 7) {
-                draw_judge_list.emplace_back(Judgments::GOOD, big);
-            }
-            lane_hit_effect = LaneHitEffect(drum_type, Judgments::GOOD);
-            note_judgments[curr_note.index] = Judgments::GOOD;
-            good_count++;
-            score += base_score;
-            score_counter.add_popup(base_score, true);
-            if (lane_pos != 0) {
-                lane.erase(lane.begin() + lane_pos);
-            }
-            note_correct(curr_note, current_ms);
-            if (dan_gauge) {
-                dan_gauge->add_good();
-            } else if (gauge.has_value()) {
-                gauge->add_good();
-            }
-            branch_p_count++;
-            branch_note_count++;
-            if (background.has_value()) {
-                background->handle_good(PlayerNum(1 + is_2p));
-            }
-
-        } else if ((curr_note.hit_ms - ok_window_ms) <= ms_from_start &&
-                   ms_from_start <= (curr_note.hit_ms + ok_window_ms)) {
-            record_hit_offset(curr_note);
-            draw_judge_list.emplace_back(Judgments::OK, big);
-            lane_hit_effect = LaneHitEffect(drum_type, Judgments::OK);
-            note_judgments[curr_note.index] = Judgments::OK;
-            ok_count++;
-            score += 10 * std::floor(base_score / 2 / 10);
-            score_counter.add_popup(10 * std::floor(base_score / 2 / 10), true);
-            if (lane_pos != 0) {
-                lane.erase(lane.begin() + lane_pos);
-            }
-            note_correct(curr_note, current_ms);
-            if (dan_gauge) {
-                dan_gauge->add_ok();
-            } else if (gauge.has_value()) {
-                gauge->add_ok();
-            }
-            branch_p_count += 0.5;
-            branch_note_count++;
-            if (background.has_value()) {
-                background->handle_ok(PlayerNum(1 + is_2p));
-            }
-
-        } else if ((curr_note.hit_ms - bad_window_ms) <= ms_from_start &&
-                   ms_from_start <= (curr_note.hit_ms + bad_window_ms)) {
-            draw_judge_list.emplace_back(Judgments::BAD, big);
-            bad_count++;
-            on_miss();
-            combo = 0;
-            branch_note_count++;
-            record_hit_offset(curr_note);
-            lane.erase(lane.begin() + lane_pos);
-            note_judgments[curr_note.index] = Judgments::BAD;
-            auto it = std::ranges::lower_bound(draw_note_buffer, curr_note.index, {}, &Note::index);
-            if (it != draw_note_buffer.end() && *it == curr_note) {
-                draw_note_buffer.erase(it);
-            }
-            if (dan_gauge) {
-                dan_gauge->add_bad();
-            } else if (gauge.has_value()) {
-                gauge->add_bad();
-            }
-            if (background.has_value()) {
-                background->handle_bad(PlayerNum(1 + is_2p));
-            }
-        }
+        branch_indicator->level_down(chosen);
     }
 }
 
@@ -1867,6 +1255,7 @@ void Player::cut_to_end(double now, int prev_good, int prev_ok, int prev_bad) {
     branch_e.clear();
     branch_n.clear();
     timeline.clear();
+    judge_timeline.clear();
     is_drumroll = false;
     is_balloon = false;
     drumroll_counter.reset();
@@ -1914,7 +1303,7 @@ void Player::handle_input(double ms_from_start, double current_ms, std::optional
             spawn_hit_effects(drum_type, side);
             audio.play_player_sound(drum_type == DrumType::DON ? don_hitsound : kat_hitsound, player_num,
                                     VolumePreset::HITSOUND);
-            check_note(log_ms, drum_type, current_ms, background);
+            check_note(log_ms, drum_type, current_ms);
             ++replay_cursor;
         }
         return;
@@ -1945,7 +1334,7 @@ void Player::handle_input(double ms_from_start, double current_ms, std::optional
                 log_type = input.side == Side::LEFT ? InputLogType::KAT_L : InputLogType::KAT_R;
             }
             input_log.emplace_back(ms_from_start, log_type);
-            check_note(ms_from_start, input.drum_type, current_ms, background);
+            check_note(ms_from_start, input.drum_type, current_ms);
         }
     }
 }
@@ -2496,7 +1885,7 @@ void Player::seek_to(double resume_time) {
     kusudama_shared_hits = 0;
 
     reset_chart();
-    resume_filter_ms = resume_time;
+    seek_judge(resume_time);
 
     while (!timeline.empty() && timeline.front().start_time <= resume_time) {
         TimelineObject entry = timeline.front();
@@ -2516,31 +1905,14 @@ void Player::seek_to(double resume_time) {
         if (timeline_buffer.size() != before) {
             continue;
         }
-        handle_branch_param(resume_time, entry, idx);
-        if (timeline_buffer.size() != before) {
-            continue;
-        }
         handle_lyric(resume_time, entry, idx);
         if (timeline_buffer.size() != before) {
             continue;
         }
         handle_camera(resume_time, entry, idx);
-        if (timeline_buffer.size() != before) {
-            continue;
-        }
-        handle_section(resume_time, entry, idx);
     }
 
     const double boundary_eps = 1.0;
-    auto filter = [resume_time, boundary_eps](std::deque<Note>& q) {
-        while (!q.empty() && q.front().hit_ms < resume_time - boundary_eps) {
-            q.pop_front();
-        }
-    };
-    filter(don_notes);
-    filter(kat_notes);
-    filter(other_notes);
-
     std::erase_if(draw_note_list,
                   [resume_time, boundary_eps](const Note& n) { return n.hit_ms < resume_time - boundary_eps; });
 }

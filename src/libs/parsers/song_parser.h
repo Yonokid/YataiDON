@@ -15,6 +15,8 @@ public:
     TJAMetadata metadata;
     TJAEXData ex_data;
     fs::path file_path;
+    int start_delay = 0;
+    PlayerNum player_num = PlayerNum::ALL;
 
     SongParser() = default;
     SongParser(const fs::path& path, int start_delay = 0, PlayerNum player_num = PlayerNum::ALL);

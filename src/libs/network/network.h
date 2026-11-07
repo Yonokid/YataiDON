@@ -28,15 +28,7 @@
 #include <vector>
 
 #include "../gfx/color_utils.h"
-
-enum class InputLogType {
-    KAT_L = 0,
-    DON_L = 1,
-    DON_R = 2,
-    KAT_R = 3
-};
-
-using InputLog = std::vector<std::pair<double, InputLogType>>;
+#include "../judge.h"
 
 struct RemoteScore {
     std::string hash;
@@ -199,8 +191,8 @@ public:
     std::string map_to_json(const InputLog& log);
     void submit_score(const std::string& hash, int difficulty, const std::string& access_code, const Score& score,
                       const InputLog& input_log, int64_t played_at, const std::string& modifiers_json,
-                      bool chara_is_costume, int chara_cos_index, const std::string& source_folder = "",
-                      int gauge = -1);
+                      bool chara_is_costume, int chara_cos_index, const std::string& source_folder = "", int gauge = -1,
+                      const std::optional<JudgeParams>& judge_params = std::nullopt);
 
     bool check_import_requested(const std::string& access_code);
     void clear_import_flag(const std::string& access_code);

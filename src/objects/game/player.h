@@ -5,6 +5,7 @@
 #include <unordered_set>
 
 #include "../../libs/gfx/text.h"
+#include "../../libs/judge.h"
 #include "../../libs/network/network.h"
 #include "../../libs/parsers/song_parser.h"
 #include "../../libs/screen.h"
@@ -43,16 +44,7 @@ inline float scroll_distance() {
     return tex.screen_width + 82 * tex.screen_scale - JudgePos::X;
 }
 
-namespace Timing {
-    constexpr float GOOD = 25.0250015258789f;
-    constexpr float OK = 75.0750045776367f;
-    constexpr float BAD = 108.441665649414f;
-    constexpr float GOOD_EASY = 41.7083358764648f;
-    constexpr float OK_EASY = 108.441665649414f;
-    constexpr float BAD_EASY = 125.125f;
-} // namespace Timing
-
-class Player {
+class Player : public JudgeCore {
 public:
     double end_time;
     float bpm;
@@ -60,8 +52,6 @@ public:
     PlayerNum input_player; // whose drums play this lane: ALL for a solo #PAPAMAMA course
     double last_note_hit;
     InputLog input_log;
-
-    std::vector<BranchDifficulty> branch_history;
 
     void allow_papamama();
 
@@ -76,7 +66,6 @@ public:
     Background* bg_hook = nullptr;
 
     Player* kusudama_partner = nullptr;
-    int kusudama_shared_hits = 0;
     Player* kusudama_owner() { return (kusudama_partner && is_2p) ? kusudama_partner : this; }
     // hit notes fly to this player's soul gauge: the bottom one only when two play (2P alone plays
     // on the top lane)
@@ -122,6 +111,8 @@ public:
     std::optional<Note> get_first_note();
 
     ResultData get_result_score();
+    // for the server's replay check (JudgeCore on the same chart and input log)
+    JudgeParams judge_params() const;
 
     int get_good() const { return good_count; }
     int get_ok() const { return ok_count; }
@@ -203,35 +194,19 @@ protected:
     bool ai_lane = false;               // use_ai_lane
 
 private:
-    bool is_2p;
-    int judgeable_note_count = 0;
     bool skipped_run = false;
     bool replay_active = false;
     InputLog replay_log;
     size_t replay_cursor = 0;
     bool is_dan{false};
-    int difficulty;
     int visual_offset;
     std::string score_method;
-    Modifiers modifiers;
     std::optional<SongParser> parser;
     Nameplate nameplate;
     std::unique_ptr<Chara3D> chara;
 
-    // Score management
-    int good_count{0};
-    int ok_count{0};
-    int bad_count{0};
-    int combo{0};
-    int score{0};
     int last_reported_score = -1; // last value sent to Background::handle_score
     int last_reported_gogo = -1;  // background handle_gogo edge detection
-    int max_combo{0};
-    int total_drumroll{0};
-    double hit_offset_sum_ms = 0.0;
-    int hit_offset_count = 0;
-    std::unordered_map<int, Judgments> note_judgments;
-    std::unordered_map<int, int> roll_hits;
 
     int arc_points{25};
     float judge_x{0};
@@ -251,46 +226,20 @@ private:
     Side autoplay_hit_side{Side::LEFT};
     int last_subdivision{-1};
 
-    std::deque<Note> don_notes;
-    std::deque<Note> kat_notes;
-    std::deque<Note> other_notes;
     std::deque<Note> barlines;
 
     std::deque<Note> draw_note_list;
     std::vector<Note> draw_note_buffer;
 
-    std::deque<NoteList> branch_m;
-    std::deque<NoteList> branch_e;
-    std::deque<NoteList> branch_n;
-
     std::deque<TimelineObject> timeline;
     std::vector<TimelineObject> timeline_buffer;
 
-    int base_score;
-    int score_init;
-    int score_diff;
-
-    bool is_drumroll;
-    int curr_drumroll_count;
     double last_drumroll_color_time;
-    bool is_balloon;
-    int curr_balloon_count;
     int balloon_index;
 
     std::optional<OutlinedText> current_lyric;
     Background* ending_background = nullptr;
     bool practice_lyric = false;
-
-    bool is_branch;
-    std::tuple<float, float, double> curr_branch_reqs;
-    float branch_p_count;
-    int branch_r_count;
-    int branch_note_count;
-
-    size_t branch_checkpoint_index = 0;
-    std::string branch_condition;
-
-    double resume_filter_ms = -1e18;
 
     std::string don_hitsound;
     std::string kat_hitsound;
@@ -345,18 +294,12 @@ private:
     std::optional<BranchIndicator> branch_indicator;
     std::optional<std::variant<FailAnimation, ClearAnimation, FCAnimation>> ending_anim;
 
-    void get_load_time(Note& note);
-
     void reset_chart();
     bool unplayable(const Note& note) const;
 
     void handle_timeline(double ms_from_start);
 
     void autoplay_manager(double ms_from_start, double current_ms, std::optional<Background>& background);
-
-    void evaluate_branch(double current_ms);
-
-    void merge_branch_section(const NoteList& branch_section, double current_ms);
 
     float get_position_x(const Note& note, double current_ms);
 
@@ -365,14 +308,10 @@ private:
     void handle_gogotime(double ms_from_start, const TimelineObject& timeline_object, int buffer_index);
     void handle_judgeposition(double ms_from_start, const TimelineObject& timeline_object, int buffer_index);
     void handle_bpmchange(double ms_from_start, const TimelineObject& timeline_object, int buffer_index);
-    void handle_branch_param(double ms_from_start, const TimelineObject& timeline_object, int buffer_index);
     void handle_lyric(double ms_from_start, const TimelineObject& timeline_object, int buffer_index);
     void handle_camera(double ms_from_start, const TimelineObject& timeline_object, int buffer_index);
     void update_camera(double ms_from_start);
     std::vector<TimelineObject> camera_eases; // running #CAM*START..END events (P1 only)
-    void handle_section(double ms_from_start, const TimelineObject& timeline_object, int buffer_index);
-
-    void play_note_manager(double current_ms, std::optional<Background>& background);
 
     bool is_balloon_type(int type);
 
@@ -380,17 +319,16 @@ private:
 
     void note_manager(double current_ms, std::optional<Background>& background);
 
-    void note_correct(const Note& note, double current_ms);
-
-    void check_drumroll(double current_ms, DrumType drum_type, std::optional<Background>& background);
-
-    void check_balloon(double current_ms, DrumType drum_type, const Note& balloon,
-                       std::optional<Background>& background);
-
-    void check_kusudama(double current_ms, DrumType drum_type, const Note& balloon,
-                        std::optional<Background>& background);
-
-    void check_note(double ms_from_start, DrumType drum_type, double current_ms, std::optional<Background>& background);
+    void on_judgment(const Note& note, Judgments judgment, std::optional<DrumType> hit_drum) override;
+    void on_note_correct(const Note& note, double current_ms) override;
+    void on_score_popup(int amount, bool tick) override;
+    void on_drumroll_hit(DrumType drum_type, double current_ms) override;
+    void on_balloon_start() override;
+    void on_balloon_hit(const Note& balloon, double current_ms, bool popped) override;
+    void on_balloon_missed() override;
+    void on_kusudama_hit(JudgeCore* owner, const Note& balloon, double current_ms, bool popped) override;
+    void on_branch_merged(BranchDifficulty chosen, const std::deque<Note>& notes, const NoteList& section) override;
+    JudgeCore* judge_partner() override { return kusudama_partner; }
 
     void drumroll_counter_manager(double current_ms);
 

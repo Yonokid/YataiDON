@@ -3,21 +3,15 @@
 #include <cmath>
 #include <stdexcept>
 
-Gauge::Gauge(int total_notes, int difficulty, int level, PlayerNum player_num) : player_num(player_num) {
-    this->difficulty = std::clamp(difficulty, 0, static_cast<int>(Difficulty::ONI));
-    clear_points = this->difficulty <= static_cast<int>(Difficulty::EASY)   ? 6000
-                   : this->difficulty <= static_cast<int>(Difficulty::HARD) ? 7000
-                                                                            : 8000;
-    const GaugeTable& table_row = table[this->difficulty][std::clamp(level - 1, 0, 9)];
-    const double denom = std::max(1, total_notes) * table_row.soul_percent;
-    good_points = (denom > 0.0) ? 1'000'000.0 / denom : 0;
-    ok_points = good_points * table_row.ok_multiplier;
-    bad_points = good_points * table_row.bad_multiplier;
-    points = 0;
+Gauge::Gauge(int total_notes, int difficulty, int level, PlayerNum player_num)
+    : Gauge(GaugeCore(total_notes, difficulty, level), player_num) {}
 
-    if (this->difficulty == static_cast<int>(Difficulty::EASY)) {
+Gauge::Gauge(const GaugeCore& core, PlayerNum player_num) : GaugeCore(core), player_num(player_num) {
+    if (dan_mode) {
+        string_diff = "";
+    } else if (difficulty == static_cast<int>(Difficulty::EASY)) {
         string_diff = "_easy";
-    } else if (this->difficulty <= static_cast<int>(Difficulty::HARD)) {
+    } else if (difficulty <= static_cast<int>(Difficulty::HARD)) {
         string_diff = "_normal";
     } else {
         string_diff = "_hard";
@@ -31,70 +25,32 @@ Gauge::Gauge(int total_notes, int difficulty, int level, PlayerNum player_num) :
 }
 
 Gauge Gauge::dan(const std::vector<DanSongEntry>& songs, int total_notes, PlayerNum player_num) {
-    // a missing LEVEL in the tja arrives as 0. treat it as oni 10 like player does
-    auto diff_of = [](const DanSongEntry& s) {
-        return s.level <= 0 ? static_cast<int>(Difficulty::ONI) : s.difficulty;
-    };
-    auto level_of = [](const DanSongEntry& s) { return s.level <= 0 ? 10 : s.level; };
-
     if (songs.empty()) {
         throw std::runtime_error("Gauge::dan: songs is empty");
     }
-    const DanSongEntry& first = songs.at(0);
-    Gauge g(total_notes, diff_of(first), level_of(first), player_num);
-    g.dan_mode = true;
-    g.string_diff = "";
-    g.clear_points = g.max_points; // no norma zone, the course bar is full or it isn't
-
-    // one rate for the whole course. harmonic mean of the songs soul percentages is what
-    // the arcade does when it breaks the gauge into thirds. ok/bad just averaged
-    GaugeTable row{0.0, 0.0, 0.0};
-    double inv_sum = 0.0;
+    std::vector<std::pair<int, int>> courses;
     for (const DanSongEntry& s : songs) {
-        const int d = std::clamp(diff_of(s), 0, static_cast<int>(Difficulty::ONI));
-        const GaugeTable& r = g.table[d][std::clamp(level_of(s) - 1, 0, 9)];
-        if (r.soul_percent > 0.0) {
-            inv_sum += 1.0 / r.soul_percent;
-        }
-        row.ok_multiplier += r.ok_multiplier / songs.size();
-        row.bad_multiplier += r.bad_multiplier / songs.size();
+        courses.emplace_back(s.difficulty, s.level);
     }
-    row.soul_percent = songs.size() / inv_sum;
-
-    const double denom = std::max(1, total_notes) * row.soul_percent;
-    g.good_points = (denom > 0.0) ? 1'000'000.0 / denom : 0;
-    g.ok_points = g.good_points * row.ok_multiplier;
-    g.bad_points = g.good_points * row.bad_multiplier;
-    return g;
-}
-
-void Gauge::apply_points_clamped(double delta) {
-    previous_points = points;
-    points = std::clamp<double>(points + delta, 0.0, max_points);
-    if (std::abs(points - max_points) < POINTS_EPS) {
-        points = max_points;
-    }
-    if (std::abs(points - clear_points) < POINTS_EPS) {
-        points = clear_points;
-    }
+    return Gauge(GaugeCore::dan(courses, total_notes), player_num);
 }
 
 void Gauge::add_good() {
     if (gauge_update_anim) {
         gauge_update_anim->start();
     }
-    apply_points_clamped(good_points);
+    GaugeCore::add_good();
 }
 
 void Gauge::add_ok() {
     if (gauge_update_anim) {
         gauge_update_anim->start();
     }
-    apply_points_clamped(ok_points);
+    GaugeCore::add_ok();
 }
 
 void Gauge::add_bad() {
-    apply_points_clamped(bad_points);
+    GaugeCore::add_bad();
 
     // this comparison is safe because apply_points_clamped snaps points onto max_points when within POINTS_EPS
     const bool was_full = previous_points >= max_points;

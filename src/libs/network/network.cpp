@@ -730,6 +730,22 @@ std::string NetworkClient::register_user(const std::string& username, const std:
     return response.text;
 }
 
+static std::string judge_params_to_json(const JudgeParams& p) {
+    rapidjson::Document doc;
+    doc.SetObject();
+    rapidjson::Document::AllocatorType& allocator = doc.GetAllocator();
+    doc.AddMember("start_delay", p.start_delay, allocator);
+    doc.AddMember("parse_player", p.parse_player, allocator);
+    if (p.audio_end_ms.has_value()) {
+        doc.AddMember("audio_end_ms", *p.audio_end_ms, allocator);
+    }
+    doc.AddMember("dan", p.dan, allocator);
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    doc.Accept(writer);
+    return buffer.GetString();
+}
+
 // [[ms, type], ...] in play order
 static std::string map_to_json_impl(const InputLog& log) {
     rapidjson::Document doc;
@@ -757,7 +773,8 @@ std::string NetworkClient::map_to_json(const InputLog& log) {
 void NetworkClient::submit_score(const std::string& hash, int difficulty, const std::string& access_code,
                                  const Score& score, const InputLog& input_log, int64_t played_at,
                                  const std::string& modifiers_json, bool chara_is_costume, int chara_cos_index,
-                                 const std::string& source_folder, int gauge) {
+                                 const std::string& source_folder, int gauge,
+                                 const std::optional<JudgeParams>& judge_params) {
     if (!network_enabled()) {
         return;
     }
@@ -785,6 +802,9 @@ void NetworkClient::submit_score(const std::string& hash, int difficulty, const 
     }
     if (gauge >= 0) {
         params["gauge"] = std::to_string(gauge);
+    }
+    if (judge_params.has_value()) {
+        params["judge_params"] = judge_params_to_json(*judge_params);
     }
     if (pending_score_submit.has_value()) {
         cpr::Response response = pending_score_submit->get();
@@ -816,6 +836,7 @@ void NetworkClient::submit_score(const std::string& hash, int difficulty, const 
                            {"chara_cos_index", params["chara_cos_index"]},
                            {"source_folder", source_folder},
                            {"gauge", gauge >= 0 ? std::to_string(gauge) : ""},
+                           {"judge_params", judge_params.has_value() ? params["judge_params"] : ""},
                        },
                        cpr::Timeout{5000} NETWORK_CA_OPT);
 }
@@ -1490,7 +1511,8 @@ std::string NetworkClient::register_user(const std::string&, const std::string&)
     return "";
 }
 void NetworkClient::submit_score(const std::string&, int, const std::string&, const Score&, const InputLog&, int64_t,
-                                 const std::string&, bool, int, const std::string&, int) {}
+                                 const std::string&, bool, int, const std::string&, int,
+                                 const std::optional<JudgeParams>&) {}
 bool NetworkClient::check_import_requested(const std::string&) {
     return false;
 }
