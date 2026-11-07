@@ -1,7 +1,5 @@
 #include "result.h"
 
-#include <utility>
-
 #include "../libs/file/script.h"
 #include "../libs/input/input.h"
 #include "../libs/network/network.h"
@@ -9,13 +7,6 @@
 
 void ResultScreen::on_screen_start() {
     Screen::on_screen_start();
-    const std::string* codes[2] = {&global_data.config->network.access_code_1,
-                                   &global_data.config->network.access_code_2};
-    for (int seat = 0; seat < 2; seat++) {
-        if (std::exchange(global_data.medals_due[seat], false)) {
-            network.submit_medals(seat, *codes[seat]);
-        }
-    }
     SessionData& session_data = global_data.session_data[static_cast<int>(global_data.player_num)];
     song_title = session_data.song_title;
     song_subtitle = (session_data.song_subtitle_full_display && !session_data.song_subtitle.empty())
