@@ -33,8 +33,8 @@ RewardShop::RewardShop(bool from_time, const bool joined[2], Hooks hooks_in) : h
                 icon_two_frames[static_cast<int>(i)] = art.two_frames;
             }
         }
-        goods.add(lua.create_table_with("type", good.type, "id", good.id, "cost", good.cost, "name", art.name, "icon",
-                                        static_cast<int>(i)));
+        goods.add(lua.create_table_with("type", good.type, "id", good.id, "cost", good.cost, "name",
+                                        good.name.empty() ? art.name : good.name, "icon", static_cast<int>(i)));
     }
 
     sol::table players = lua.create_table();

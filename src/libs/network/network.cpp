@@ -743,7 +743,8 @@ std::string NetworkClient::map_to_json(const std::map<double, InputLogType>& my_
 
 void NetworkClient::submit_score(const std::string& hash, int difficulty, const std::string& access_code,
                                  const Score& score, const std::map<double, InputLogType>& input_log, int64_t played_at,
-                                 const std::string& modifiers_json, bool chara_is_costume, int chara_cos_index) {
+                                 const std::string& modifiers_json, bool chara_is_costume, int chara_cos_index,
+                                 const std::string& source_folder, int gauge) {
     if (!network_enabled()) {
         return;
     }
@@ -766,6 +767,12 @@ void NetworkClient::submit_score(const std::string& hash, int difficulty, const 
         {"chara_is_costume", chara_is_costume ? "true" : "false"},
         {"chara_cos_index", std::to_string(chara_cos_index)},
     };
+    if (!source_folder.empty()) { // signed only when sent, matching the server
+        params["source_folder"] = source_folder;
+    }
+    if (gauge >= 0) {
+        params["gauge"] = std::to_string(gauge);
+    }
     if (pending_score_submit.has_value()) {
         cpr::Response response = pending_score_submit->get();
         pending_score_submit.reset();
@@ -794,6 +801,8 @@ void NetworkClient::submit_score(const std::string& hash, int difficulty, const 
                            {"modifiers", params["modifiers"]},
                            {"chara_is_costume", params["chara_is_costume"]},
                            {"chara_cos_index", params["chara_cos_index"]},
+                           {"source_folder", source_folder},
+                           {"gauge", gauge >= 0 ? std::to_string(gauge) : ""},
                        },
                        cpr::Timeout{5000} NETWORK_CA_OPT);
 }
@@ -873,6 +882,17 @@ void NetworkClient::submit_medals(int seat, const std::string& access_code) {
                                                      cpr::Parameters{{"access_code", access_code}},
                                                      cpr::Timeout{5000} NETWORK_CA_OPT));
     reward_shop_pending_count_++;
+}
+
+void NetworkClient::submit_revive_result(const std::string& access_code, bool success) {
+    if (!network_enabled() || !online) {
+        return;
+    }
+    const std::string result = success ? "true" : "false";
+    pending_revive.push_back(cpr::PostAsync(
+        cpr::Url{network_url("/revive_result")},
+        signed_headers("POST", "/revive_result", {{"access_code", access_code}, {"success", result}}),
+        cpr::Parameters{{"access_code", access_code}, {"success", result}}, cpr::Timeout{5000} NETWORK_CA_OPT));
 }
 
 void NetworkClient::submit_ai_battle(const std::string& access_code, const std::string& song_hash, int difficulty,
@@ -1255,6 +1275,17 @@ void NetworkClient::update(double current_ms) {
         }
         it = pending_ai_battle.erase(it);
     }
+    for (auto it = pending_revive.begin(); it != pending_revive.end();) {
+        if (it->wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
+            ++it;
+            continue;
+        }
+        cpr::Response response = it->get();
+        if (response.status_code != 200) {
+            spdlog::warn("Revive result failed: HTTP {} - {}", response.status_code, response.text);
+        }
+        it = pending_revive.erase(it);
+    }
     for (auto it = pending_medals.begin(); it != pending_medals.end();) {
         if (it->second.wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
             ++it;
@@ -1295,7 +1326,8 @@ void NetworkClient::update(double current_ms) {
                 for (const auto& v : doc["goods"].GetArray()) {
                     if (v.IsObject()) {
                         seat.goods.push_back({json_int(v, "type", -1), json_int(v, "id", -1), json_int(v, "cost", 0),
-                                              json_bool(v, "owned")});
+                                              json_bool(v, "owned"),
+                                              v.HasMember("name") && v["name"].IsString() ? v["name"].GetString() : ""});
                     }
                 }
             }
@@ -1473,7 +1505,8 @@ std::string NetworkClient::register_user(const std::string&, const std::string&)
     return "";
 }
 void NetworkClient::submit_score(const std::string&, int, const std::string&, const Score&,
-                                 const std::map<double, InputLogType>&, int64_t, const std::string&, bool, int) {}
+                                 const std::map<double, InputLogType>&, int64_t, const std::string&, bool, int,
+                                 const std::string&, int) {}
 bool NetworkClient::check_import_requested(const std::string&) {
     return false;
 }
@@ -1509,6 +1542,7 @@ std::optional<std::string> NetworkClient::take_song_jump_result() {
 void NetworkClient::submit_kinotake(int, const std::string&, int, int, bool, bool) {}
 void NetworkClient::submit_don_points(int, const std::string&, const std::vector<int>&) {}
 void NetworkClient::submit_medals(int, const std::string&) {}
+void NetworkClient::submit_revive_result(const std::string&, bool) {}
 void NetworkClient::submit_ai_battle(const std::string&, const std::string&, int, int, bool, bool, const std::string&) {
 }
 AIBattleStatus NetworkClient::fetch_ai_battle_status(const std::string&) {

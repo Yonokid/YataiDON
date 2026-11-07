@@ -421,7 +421,9 @@ void GameScreen::save_score(const std::string& player_id, PlayerNum player_num) 
             }
             if (!access_code.empty()) {
                 network.submit_score(hash, session_data.selected_difficulty, access_code, score, target->input_log,
-                                     played_at, modifiers_json, pd.chara_is_costume, pd.chara_cos_index);
+                                     played_at, modifiers_json, pd.chara_is_costume, pd.chara_cos_index,
+                                     session_data.selected_collection,
+                                     static_cast<int>(target->gauge->get_length()));
                 session_data.result_data.submitted = true;
                 const int seat = static_cast<int>(player_num) - 1;
                 if (!run_skipped && (seat == 0 || seat == 1)) {

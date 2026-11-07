@@ -71,6 +71,7 @@ void SongSelectScreen::select_song(SongBox* song) {
     const auto player_index = static_cast<int>(global_data.player_num);
     SessionData& session_data = global_data.session_data[player_index];
     session_data.selected_song = song->path;
+    session_data.selected_collection = song->collection;
     session_data.selected_difficulty = static_cast<int>(player->selected_difficulty);
     session_data.song_hash = song->hash_for(session_data.selected_difficulty);
     session_data.genre_index = static_cast<int>(song->song_genre_index) - 1;

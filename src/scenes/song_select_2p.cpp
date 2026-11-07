@@ -71,6 +71,7 @@ void SongSelect2PScreen::select_song(SongBox* song) {
     const auto p1_index = static_cast<int>(PlayerNum::P1);
     auto& sd1 = global_data.session_data[p1_index];
     sd1.selected_song = song->path;
+    sd1.selected_collection = song->collection;
     sd1.selected_difficulty = static_cast<int>(player->selected_difficulty);
     sd1.song_hash = song->hash_for(sd1.selected_difficulty);
     sd1.genre_index = std::max(0, static_cast<int>(song->song_genre_index) - 1);
@@ -79,6 +80,7 @@ void SongSelect2PScreen::select_song(SongBox* song) {
     const auto p2_index = static_cast<int>(PlayerNum::P2);
     auto& sd2 = global_data.session_data[p2_index];
     sd2.selected_song = song->path;
+    sd2.selected_collection = song->collection;
     sd2.selected_difficulty = static_cast<int>(player_2->selected_difficulty);
     sd2.song_hash = song->hash_for(sd2.selected_difficulty);
     sd2.genre_index = std::max(0, static_cast<int>(song->song_genre_index) - 1);

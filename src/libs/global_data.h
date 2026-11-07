@@ -217,6 +217,7 @@ struct AIMatchResult {
 
 struct SessionData {
     fs::path selected_song;
+    std::string selected_collection; // the song select folder it was picked from, sent with the score
     std::string song_hash;
     fs::path selected_dan_folder;
     fs::path selected_tutorial;

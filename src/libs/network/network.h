@@ -153,10 +153,11 @@ struct AIBattleStatus {
     int next_reward_wins = -1;
 };
 struct ShopGood {
-    int type = -1; // 2 dress, 3 head, 4 body, 5 puchichara
+    int type = -1; // 2 dress, 3 head, 4 body, 5 puchichara, 6 title
     int id = -1;
     int cost = 0;
     bool owned = false;
+    std::string name; // titles only: the skin has no names for them
 };
 struct ShopSeat {
     bool answered = false;
@@ -194,7 +195,8 @@ public:
     std::string map_to_json(const std::map<double, InputLogType>& my_map);
     void submit_score(const std::string& hash, int difficulty, const std::string& access_code, const Score& score,
                       const std::map<double, InputLogType>& input_log, int64_t played_at,
-                      const std::string& modifiers_json, bool chara_is_costume, int chara_cos_index);
+                      const std::string& modifiers_json, bool chara_is_costume, int chara_cos_index,
+                      const std::string& source_folder = "", int gauge = -1);
 
     bool check_import_requested(const std::string& access_code);
     void clear_import_flag(const std::string& access_code);
@@ -251,6 +253,7 @@ public:
     const DonSeat& don_seat(int seat) const { return don_seats[seat]; }
     void reset_don_points() { don_seats[0] = {}, don_seats[1] = {}; }
     void submit_medals(int seat, const std::string& access_code);
+    void submit_revive_result(const std::string& access_code, bool success);
     const MedalSeat& medal_seat(int seat) const { return medal_seats[seat]; }
     void reset_medals() { medal_seats[0] = {}, medal_seats[1] = {}; }
     void request_reward_shop(int seat, const std::string& access_code);
@@ -318,6 +321,7 @@ private:
     std::vector<std::pair<int, cpr::AsyncResponse>> pending_don_points;
     std::vector<std::pair<int, cpr::AsyncResponse>> pending_medals;
     std::vector<cpr::AsyncResponse> pending_ai_battle;
+    std::vector<cpr::AsyncResponse> pending_revive;
     std::vector<std::pair<int, cpr::AsyncResponse>> pending_shop;
     std::vector<std::pair<int, cpr::AsyncResponse>> pending_shop_buy;
 
