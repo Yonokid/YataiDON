@@ -807,16 +807,16 @@ void NetworkClient::submit_score(const std::string& hash, int difficulty, const 
                        cpr::Timeout{5000} NETWORK_CA_OPT);
 }
 
-void NetworkClient::poll_song_jump(const std::string& access_code) {
+void NetworkClient::poll_jump(const std::string& access_code) {
     if (!network_enabled()) {
         return;
     }
-    if (pending_song_jump.has_value()) {
+    if (pending_jump.has_value()) {
         return;
     }
-    pending_song_jump = cpr::GetAsync(cpr::Url{network_url("/poll_song_jump")},
-                                      signed_headers("GET", "/poll_song_jump", {{"access_code", access_code}}),
-                                      cpr::Parameters{{"access_code", access_code}}, cpr::Timeout{5000} NETWORK_CA_OPT);
+    pending_jump = cpr::GetAsync(cpr::Url{network_url("/poll_jump")},
+                                 signed_headers("GET", "/poll_jump", {{"access_code", access_code}}),
+                                 cpr::Parameters{{"access_code", access_code}}, cpr::Timeout{5000} NETWORK_CA_OPT);
 }
 
 void NetworkClient::spin_gacha(const std::string& access_code) {
@@ -1020,19 +1020,6 @@ std::optional<std::string> NetworkClient::take_song_jump_result() {
     std::optional<std::string> result = std::move(song_jump_result);
     song_jump_result.reset();
     return result;
-}
-
-void NetworkClient::poll_replay_jump(const std::string& access_code) {
-    if (!network_enabled()) {
-        return;
-    }
-    if (pending_replay_jump.has_value()) {
-        return;
-    }
-    pending_replay_jump =
-        cpr::GetAsync(cpr::Url{network_url("/poll_replay_jump")},
-                      signed_headers("GET", "/poll_replay_jump", {{"access_code", access_code}}),
-                      cpr::Parameters{{"access_code", access_code}}, cpr::Timeout{5000} NETWORK_CA_OPT);
 }
 
 std::optional<int> NetworkClient::take_replay_jump_result() {
@@ -1381,28 +1368,16 @@ void NetworkClient::update(double current_ms) {
         gacha_result = result;
     }
 
-    if (pending_song_jump.has_value() &&
-        pending_song_jump->wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
-        cpr::Response response = pending_song_jump->get();
-        pending_song_jump.reset();
+    if (pending_jump.has_value() && pending_jump->wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+        cpr::Response response = pending_jump->get();
+        pending_jump.reset();
 
-        if (response.status_code == 200) {
-            rapidjson::Document doc;
-            if (!doc.Parse(response.text.c_str()).HasParseError() && doc.HasMember("hash") && doc["hash"].IsString()) {
+        rapidjson::Document doc;
+        if (response.status_code == 200 && !doc.Parse(response.text.c_str()).HasParseError() && doc.IsObject()) {
+            if (doc.HasMember("hash") && doc["hash"].IsString()) {
                 song_jump_result = doc["hash"].GetString();
             }
-        }
-    }
-
-    if (pending_replay_jump.has_value() &&
-        pending_replay_jump->wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
-        cpr::Response response = pending_replay_jump->get();
-        pending_replay_jump.reset();
-
-        if (response.status_code == 200) {
-            rapidjson::Document doc;
-            if (!doc.Parse(response.text.c_str()).HasParseError() && doc.HasMember("score_id") &&
-                doc["score_id"].IsInt()) {
+            if (doc.HasMember("score_id") && doc["score_id"].IsInt()) {
                 replay_jump_result = doc["score_id"].GetInt();
             }
         }
@@ -1457,17 +1432,13 @@ void NetworkClient::shutdown() {
         pending_heartbeat->wait();
         pending_heartbeat.reset();
     }
-    if (pending_song_jump.has_value()) {
-        pending_song_jump->wait();
-        pending_song_jump.reset();
+    if (pending_jump.has_value()) {
+        pending_jump->wait();
+        pending_jump.reset();
     }
     if (pending_gacha.has_value()) {
         pending_gacha->wait();
         pending_gacha.reset();
-    }
-    if (pending_replay_jump.has_value()) {
-        pending_replay_jump->wait();
-        pending_replay_jump.reset();
     }
     if (pending_replay_fetch.has_value()) {
         pending_replay_fetch->wait();
@@ -1536,7 +1507,7 @@ void NetworkClient::update_costume(const std::string&, int, int, int, bool) {}
 std::vector<RemoteScore> NetworkClient::fetch_scores(const std::string&) {
     return {};
 }
-void NetworkClient::poll_song_jump(const std::string&) {}
+void NetworkClient::poll_jump(const std::string&) {}
 std::optional<std::string> NetworkClient::take_song_jump_result() {
     return std::nullopt;
 }
@@ -1568,7 +1539,6 @@ void NetworkClient::spin_gacha(const std::string&) {
 std::optional<GachaResult> NetworkClient::take_gacha_result() {
     return std::exchange(gacha_result, std::nullopt);
 }
-void NetworkClient::poll_replay_jump(const std::string&) {}
 std::optional<int> NetworkClient::take_replay_jump_result() {
     return std::nullopt;
 }

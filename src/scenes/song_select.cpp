@@ -146,12 +146,13 @@ void SongSelectScreen::handle_input_search() {
 }
 
 void SongSelectScreen::poll_song_jump(double current_ms) {
-    static constexpr double SONG_JUMP_POLL_INTERVAL_MS = 3000.0;
+    // Server drops jump requests after 15s (JUMP_TTL in hiroba), keep this below that
+    static constexpr double JUMP_POLL_INTERVAL_MS = 10000.0;
     const std::string& access_code = global_data.config->network.access_code_1;
     if (!access_code.empty() && state == SongSelectState::BROWSING &&
-        current_ms - last_song_jump_poll_ms >= SONG_JUMP_POLL_INTERVAL_MS) {
-        last_song_jump_poll_ms = current_ms;
-        network.poll_song_jump(access_code);
+        current_ms - last_jump_poll_ms >= JUMP_POLL_INTERVAL_MS) {
+        last_jump_poll_ms = current_ms;
+        network.poll_jump(access_code);
     }
 
     if (auto hash = network.take_song_jump_result()) {
@@ -159,15 +160,7 @@ void SongSelectScreen::poll_song_jump(double current_ms) {
     }
 }
 
-std::optional<Screens> SongSelectScreen::poll_replay_jump(double current_ms) {
-    static constexpr double REPLAY_JUMP_POLL_INTERVAL_MS = 3000.0;
-    const std::string& access_code = global_data.config->network.access_code_1;
-    if (!access_code.empty() && state == SongSelectState::BROWSING &&
-        current_ms - last_replay_jump_poll_ms >= REPLAY_JUMP_POLL_INTERVAL_MS) {
-        last_replay_jump_poll_ms = current_ms;
-        network.poll_replay_jump(access_code);
-    }
-
+std::optional<Screens> SongSelectScreen::take_replay_jump() {
     if (auto score_id = network.take_replay_jump_result()) {
         network.request_replay(*score_id);
     }
@@ -337,7 +330,7 @@ std::optional<Screens> SongSelectScreen::update() {
     update_diff_sort(current_time);
 
     poll_song_jump(current_time);
-    if (auto replay_screen = poll_replay_jump(current_time)) {
+    if (auto replay_screen = take_replay_jump()) {
         return replay_screen;
     }
     if (auto join = poll_second_player_join(current_time)) {

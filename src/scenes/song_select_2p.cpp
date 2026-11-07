@@ -4,6 +4,7 @@
 #include <filesystem>
 
 #include "../libs/input/input.h"
+#include "../libs/network/network.h"
 
 void SongSelect2PScreen::on_screen_start() {
     SongSelectScreen::on_screen_start();
@@ -104,6 +105,7 @@ std::optional<Screens> SongSelect2PScreen::update() {
     update_diff_sort(current_time);
 
     poll_song_jump(current_time);
+    network.take_replay_jump_result();  // 2P has no replays; drop it so 1P doesn't start a stale one later
     handle_input(current_time);
 
     player->update(current_time);

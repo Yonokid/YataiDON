@@ -225,10 +225,9 @@ public:
     bool probing() const { return probing_; }
     void update_costume(const std::string& access_code, int head_index, int body_index, int cos_index, bool is_costume);
 
-    void poll_song_jump(const std::string& access_code);
+    // One GET /poll_jump fills both the song and replay jump results
+    void poll_jump(const std::string& access_code);
     std::optional<std::string> take_song_jump_result();
-
-    void poll_replay_jump(const std::string& access_code);
     std::optional<int> take_replay_jump_result();
 
     std::vector<RemoteScore> fetch_scores(const std::string& access_code);
@@ -303,13 +302,11 @@ private:
     int kinotake_leader_ = -1;
 #if defined(NETWORK_ENABLED)
     std::optional<cpr::AsyncResponse> pending_heartbeat;
-    static constexpr double HEARTBEAT_INTERVAL_MS = 30000.0;
+    static constexpr double HEARTBEAT_INTERVAL_MS = 120000.0;
     double last_heartbeat_ms = -HEARTBEAT_INTERVAL_MS;
 
-    std::optional<cpr::AsyncResponse> pending_song_jump;
+    std::optional<cpr::AsyncResponse> pending_jump;
     std::optional<std::string> song_jump_result;
-
-    std::optional<cpr::AsyncResponse> pending_replay_jump;
     std::optional<int> replay_jump_result;
 
     std::optional<cpr::AsyncResponse> pending_replay_fetch;
