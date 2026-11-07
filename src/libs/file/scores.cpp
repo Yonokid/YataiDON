@@ -570,7 +570,7 @@ void ScoresManager::export_to_hiroba(const std::string& access_code, const std::
         const unsigned char* modifiers_text = sqlite3_column_text(stmt, 11);
         std::string modifiers_json = modifiers_text ? reinterpret_cast<const char*>(modifiers_text) : "{}";
 
-        std::map<double, InputLogType> input_log;
+        InputLog input_log;
         network.submit_score(hash, difficulty, access_code, s, input_log, played_at, modifiers_json, false, -1);
         count++;
     }

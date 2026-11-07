@@ -49,6 +49,7 @@ std::string modifiers_to_json(const Modifiers& m) {
     doc.AddMember("inverse", m.inverse, allocator);
     doc.AddMember("random", m.random, allocator);
     doc.AddMember("subdiff", m.subdiff, allocator);
+    doc.AddMember("seed", m.seed, allocator);
 
     rapidjson::StringBuffer buffer;
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
@@ -582,26 +583,37 @@ static ReplayData parse_replay_response(const cpr::Response& response) {
     if (!doc.HasMember("difficulty") || !doc["difficulty"].IsInt()) {
         return result;
     }
-    if (!doc.HasMember("input_log") || !doc["input_log"].IsObject()) {
+    if (!doc.HasMember("input_log") || !(doc["input_log"].IsObject() || doc["input_log"].IsArray())) {
         return result;
     }
 
     result.hash = doc["hash"].GetString();
     result.difficulty = doc["difficulty"].GetInt();
-    for (auto& m : doc["input_log"].GetObject()) {
-        if (!m.value.IsInt()) {
-            continue;
+    if (doc["input_log"].IsArray()) {
+        for (auto& hit : doc["input_log"].GetArray()) {
+            if (!hit.IsArray() || hit.Size() != 2 || !hit[0].IsNumber() || !hit[1].IsInt()) {
+                spdlog::warn("Replay contains an invalid hit");
+                return {};
+            }
+            result.input_log.emplace_back(hit[0].GetDouble(), hit[1].GetInt());
         }
+    } else { // {"ms": type} from clients before the list format; same-frame hits are already lost
+        for (auto& m : doc["input_log"].GetObject()) {
+            if (!m.value.IsInt()) {
+                continue;
+            }
 
-        rapidjson::Document timestamp;
-        timestamp.Parse<rapidjson::kParseFullPrecisionFlag>(m.name.GetString(), m.name.GetStringLength());
+            rapidjson::Document timestamp;
+            timestamp.Parse<rapidjson::kParseFullPrecisionFlag>(m.name.GetString(), m.name.GetStringLength());
 
-        if (timestamp.HasParseError() || !timestamp.IsNumber()) {
-            spdlog::warn("Replay contains an invalid timestamp");
-            return {};
+            if (timestamp.HasParseError() || !timestamp.IsNumber()) {
+                spdlog::warn("Replay contains an invalid timestamp");
+                return {};
+            }
+
+            result.input_log.emplace_back(timestamp.GetDouble(), m.value.GetInt());
         }
-
-        result.input_log.emplace(timestamp.GetDouble(), m.value.GetInt());
+        std::ranges::stable_sort(result.input_log, {}, &std::pair<double, int>::first);
     }
 
     if (doc.HasMember("username") && doc["username"].IsString()) {
@@ -718,16 +730,17 @@ std::string NetworkClient::register_user(const std::string& username, const std:
     return response.text;
 }
 
-static std::string map_to_json_impl(const std::map<double, InputLogType>& my_map) {
+// [[ms, type], ...] in play order
+static std::string map_to_json_impl(const InputLog& log) {
     rapidjson::Document doc;
-    doc.SetObject();
+    doc.SetArray();
     rapidjson::Document::AllocatorType& allocator = doc.GetAllocator();
 
-    for (const auto& pair : my_map) {
-        char keybuf[32];
-        std::snprintf(keybuf, sizeof(keybuf), "%.17g", pair.first);
-        rapidjson::Value key(keybuf, allocator);
-        doc.AddMember(key, static_cast<int>(pair.second), allocator);
+    for (const auto& [ms, type] : log) {
+        rapidjson::Value hit(rapidjson::kArrayType);
+        hit.PushBack(ms, allocator);
+        hit.PushBack(static_cast<int>(type), allocator);
+        doc.PushBack(hit, allocator);
     }
 
     rapidjson::StringBuffer buffer;
@@ -737,12 +750,12 @@ static std::string map_to_json_impl(const std::map<double, InputLogType>& my_map
     return buffer.GetString();
 }
 
-std::string NetworkClient::map_to_json(const std::map<double, InputLogType>& my_map) {
-    return map_to_json_impl(my_map);
+std::string NetworkClient::map_to_json(const InputLog& log) {
+    return map_to_json_impl(log);
 }
 
 void NetworkClient::submit_score(const std::string& hash, int difficulty, const std::string& access_code,
-                                 const Score& score, const std::map<double, InputLogType>& input_log, int64_t played_at,
+                                 const Score& score, const InputLog& input_log, int64_t played_at,
                                  const std::string& modifiers_json, bool chara_is_costume, int chara_cos_index,
                                  const std::string& source_folder, int gauge) {
     if (!network_enabled()) {
@@ -1476,9 +1489,8 @@ void NetworkClient::start_probe() {}
 std::string NetworkClient::register_user(const std::string&, const std::string&) {
     return "";
 }
-void NetworkClient::submit_score(const std::string&, int, const std::string&, const Score&,
-                                 const std::map<double, InputLogType>&, int64_t, const std::string&, bool, int,
-                                 const std::string&, int) {}
+void NetworkClient::submit_score(const std::string&, int, const std::string&, const Score&, const InputLog&, int64_t,
+                                 const std::string&, bool, int, const std::string&, int) {}
 bool NetworkClient::check_import_requested(const std::string&) {
     return false;
 }

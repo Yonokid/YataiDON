@@ -59,7 +59,7 @@ public:
     PlayerNum player_num;
     PlayerNum input_player; // whose drums play this lane: ALL for a solo #PAPAMAMA course
     double last_note_hit;
-    std::map<double, InputLogType> input_log;
+    InputLog input_log;
 
     std::vector<BranchDifficulty> branch_history;
 
@@ -136,8 +136,8 @@ public:
     }
     bool is_auto_play() const { return modifiers.auto_play; }
     bool is_replay() const { return replay_active; }
-    void load_replay(const std::map<double, InputLogType>& log) {
-        replay_log.assign(log.begin(), log.end());
+    void load_replay(const InputLog& log) {
+        replay_log = log;
         replay_cursor = 0;
         replay_active = true;
     }
@@ -207,7 +207,7 @@ private:
     int judgeable_note_count = 0;
     bool skipped_run = false;
     bool replay_active = false;
-    std::vector<std::pair<double, InputLogType>> replay_log;
+    InputLog replay_log;
     size_t replay_cursor = 0;
     bool is_dan{false};
     int difficulty;

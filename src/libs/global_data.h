@@ -241,7 +241,7 @@ struct SessionData {
     std::string genre_label;
     ResultData result_data;
     DanResultData dan_result_data;
-    std::optional<std::map<double, int>> replay_input_log;
+    std::optional<std::vector<std::pair<double, int>>> replay_input_log;
     std::string replay_username;
     std::string replay_title;
     int replay_title_bg = 0;

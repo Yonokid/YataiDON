@@ -36,6 +36,8 @@ enum class InputLogType {
     KAT_R = 3
 };
 
+using InputLog = std::vector<std::pair<double, InputLogType>>;
+
 struct RemoteScore {
     std::string hash;
     int difficulty;
@@ -65,7 +67,7 @@ struct ReplayData {
     bool ok = false;
     std::string hash;
     int difficulty = 0;
-    std::map<double, int> input_log;
+    std::vector<std::pair<double, int>> input_log;
     PlayerData player_data;
 };
 
@@ -194,11 +196,11 @@ public:
     std::vector<std::string> active_campaigns() const;
 
     std::string register_user(const std::string& username, const std::string& idm = "");
-    std::string map_to_json(const std::map<double, InputLogType>& my_map);
+    std::string map_to_json(const InputLog& log);
     void submit_score(const std::string& hash, int difficulty, const std::string& access_code, const Score& score,
-                      const std::map<double, InputLogType>& input_log, int64_t played_at,
-                      const std::string& modifiers_json, bool chara_is_costume, int chara_cos_index,
-                      const std::string& source_folder = "", int gauge = -1);
+                      const InputLog& input_log, int64_t played_at, const std::string& modifiers_json,
+                      bool chara_is_costume, int chara_cos_index, const std::string& source_folder = "",
+                      int gauge = -1);
 
     bool check_import_requested(const std::string& access_code);
     void clear_import_flag(const std::string& access_code);

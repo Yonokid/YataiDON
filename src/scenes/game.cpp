@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <random>
 
 #include "../libs/file/filesystem.h"
 #include "../libs/file/scores.h"
@@ -87,6 +88,9 @@ Modifiers GameScreen::get_player_modifiers(PlayerNum pn) {
     if (global_data.force_auto_play) {
         m.auto_play = true; // `--auto`
     }
+    if (m.random > 0) {
+        m.seed = std::random_device{}();
+    }
     return m;
 }
 
@@ -141,9 +145,9 @@ void GameScreen::create_players() {
 
     SessionData& replay_session_data = global_data.session_data[player_index];
     if (replay_session_data.replay_input_log.has_value()) {
-        std::map<double, InputLogType> typed_log;
+        InputLog typed_log;
         for (const auto& [ms, type] : *replay_session_data.replay_input_log) {
-            typed_log.emplace(ms, static_cast<InputLogType>(type));
+            typed_log.emplace_back(ms, static_cast<InputLogType>(type));
         }
         players.back()->load_replay(typed_log);
 

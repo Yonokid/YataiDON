@@ -1472,7 +1472,7 @@ void modifier_inverse(NoteList& notes) {
     }
 }
 
-void modifier_random(NoteList& notes, int value) {
+void modifier_random(NoteList& notes, int value, uint32_t seed) {
     // value: 1 == kimagure, 2 == detarame
 
     if (value == 0 || notes.notes.empty()) {
@@ -1482,13 +1482,14 @@ void modifier_random(NoteList& notes, int value) {
     int percentage = (notes.notes.size() / 5) * value;
     percentage = std::min(percentage, static_cast<int>(notes.notes.size()));
 
-    std::random_device rd;
-    std::mt19937 gen(rd());
+    std::mt19937 gen(seed);
 
     std::vector<int> indices(notes.notes.size());
     // NOLINTNEXTLINE(modernize-use-ranges): std::ranges::iota is missing from the PS5 and iOS standard libraries
     std::iota(indices.begin(), indices.end(), 0);
-    std::ranges::shuffle(indices, gen);
+    for (size_t i = indices.size() - 1; i > 0; --i) {
+        std::swap(indices[i], indices[gen() % (i + 1)]);
+    }
 
     std::vector<int> selected_notes(indices.begin(), indices.begin() + percentage);
 
@@ -1549,7 +1550,7 @@ void apply_modifiers(NoteList& notes, const Modifiers& modifiers) {
     }
 
     if (modifiers.random > 0) {
-        modifier_random(notes, modifiers.random);
+        modifier_random(notes, modifiers.random, modifiers.seed);
     }
 
     modifier_difficulty(notes, modifiers.subdiff);

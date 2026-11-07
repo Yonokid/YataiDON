@@ -4,6 +4,7 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <deque>
 #include <filesystem>
 #include <functional>
@@ -25,6 +26,7 @@ struct Modifiers {
     bool display = false;
     bool inverse = false;
     int random = 0;
+    uint32_t seed = 0;
     int subdiff = 0;
     bool skip = false;
     bool no_kusudama = false;
@@ -446,6 +448,6 @@ void modifier_moji(NoteList& notes);
 void modifier_speed(NoteList& notes, float value);
 void modifier_display(NoteList& notes);
 void modifier_inverse(NoteList& notes);
-void modifier_random(NoteList& notes, int value);
+void modifier_random(NoteList& notes, int value, uint32_t seed);
 void modifier_difficulty(NoteList& notes, int level);
 void apply_modifiers(NoteList& notes, const Modifiers& modifiers);
