@@ -83,9 +83,11 @@ struct KinotakeSeat {
     int assist = 1;    // highest costume rate seen
     bool duet = false;
 };
-// Kinotake costumes (cos index): wearing one doubles the play's points
-constexpr int KINOTAKE_COSTUME_KINOKO = 105;
-constexpr int KINOTAKE_COSTUME_TAKENOKO = 106;
+// Kinotake costumes (cos index): wearing one doubles the play's points. The package scan's, then the team's ちびどん.
+// Returns the team the costume belongs to, -1 for none.
+constexpr int kinotake_costume_team(int cos_index) {
+    return cos_index == 101 || cos_index == 105 ? 0 : cos_index == 102 || cos_index == 106 ? 1 : -1;
+}
 
 struct KinotakeTally {
     KinotakeSeat seat[2];

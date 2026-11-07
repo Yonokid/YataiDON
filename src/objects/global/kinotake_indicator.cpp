@@ -27,10 +27,9 @@ bool KinotakeIndicator::refresh() {
         const PlayerData* pd = id == scores_manager.player_1   ? &scores_manager.player_1_data
                                : id == scores_manager.player_2 ? &scores_manager.player_2_data
                                                                : nullptr;
-        if (pd && pd->chara_is_costume && pd->chara_cos_index == KINOTAKE_COSTUME_KINOKO) {
-            assist = 0; // kinoko x2
-        } else if (pd && pd->chara_is_costume && pd->chara_cos_index == KINOTAKE_COSTUME_TAKENOKO) {
-            assist = 4; // takenoko x2
+        if (pd && pd->chara_is_costume) {
+            const int team = kinotake_costume_team(pd->chara_cos_index);
+            assist = team == 0 ? 0 : team == 1 ? 4 : -1; // kinoko x2, takenoko x2
         }
         if (assist >= 0) {
             break;

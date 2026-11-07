@@ -24,6 +24,7 @@ public:
     bool is_done();
     int get_reward();
     int get_team(int player);
+    int get_unlock(int player);  // a costume this player also earns, unworn; -1 for none
 
 private:
     sol::protected_function fn_update;
@@ -33,4 +34,5 @@ private:
     sol::protected_function fn_get_reward;
     sol::protected_function fn_close;
     sol::protected_function fn_get_team;
+    sol::protected_function fn_get_unlock;
 };

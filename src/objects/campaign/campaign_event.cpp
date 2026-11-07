@@ -11,6 +11,7 @@ CampaignEvent::CampaignEvent(const std::string& campaign_id, const std::vector<i
     fn_get_reward = lua_object["get_reward"];
     fn_close = lua_object["close"];
     fn_get_team = lua_object["get_team"];
+    fn_get_unlock = lua_object["get_unlock"];
 }
 
 CampaignEvent::~CampaignEvent() {
@@ -36,6 +37,12 @@ int CampaignEvent::get_team(int player) {
         return -1;
     }
     return call_r<int>(fn_get_team, "CampaignEvent:get_team", player).value_or(-1);
+}
+int CampaignEvent::get_unlock(int player) {
+    if (!fn_get_unlock.valid()) {
+        return -1;
+    }
+    return call_r<int>(fn_get_unlock, "CampaignEvent:get_unlock", player).value_or(-1);
 }
 int CampaignEvent::get_reward() {
     return call_r<int>(fn_get_reward, "CampaignEvent:get_reward").value_or(-1);

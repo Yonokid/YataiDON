@@ -85,6 +85,16 @@ std::optional<Screens> CampaignScreen::update() {
         if (const int cos = event->get_reward(); cos >= 0) {
             give_reward(cos);
         }
+        const auto& net = global_data.config->network;
+        for (const PlayerNum seat : global_data.entry_resume_seats) {
+            const std::string& code = seat == PlayerNum::P1 ? net.access_code_1 : net.access_code_2;
+            if (seat == PlayerNum::ALL || code.empty()) {
+                continue;
+            }
+            if (const int cos = event->get_unlock(static_cast<int>(seat)); cos >= 0) {
+                network.unlock_campaign_costume(code, cos);
+            }
+        }
         return on_screen_end(next());
     }
     return std::nullopt;

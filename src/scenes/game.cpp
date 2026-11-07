@@ -434,9 +434,7 @@ void GameScreen::save_score(const std::string& player_id, PlayerNum player_num) 
                     const bool duet = std::ranges::count_if(players, [](const auto& p) {
                                           return p && !p->is_auto_play() && !p->is_replay();
                                       }) == 2;
-                    const bool kinotake_costume =
-                        pd.chara_is_costume && (pd.chara_cos_index == KINOTAKE_COSTUME_KINOKO ||
-                                                pd.chara_cos_index == KINOTAKE_COSTUME_TAKENOKO);
+                    const bool kinotake_costume = pd.chara_is_costume && kinotake_costume_team(pd.chara_cos_index) >= 0;
                     network.submit_kinotake(seat, access_code, global_data.kinotake_team[seat], score.score, duet,
                                             kinotake_costume);
                 }
