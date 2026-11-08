@@ -3,7 +3,9 @@
 #include <cassert>
 #include <chrono>
 #include <mutex>
+#include <set>
 #include <sqlite3.h>
+#include <unordered_map>
 
 #include "../gfx/color_utils.h"
 #include "../global_data.h"
@@ -111,6 +113,9 @@ private:
     std::map<std::tuple<std::string, int, std::string>, Score> score_cache;
     std::map<std::pair<std::string, std::string>, int> play_count_cache; // (diff hash, player_id) -> plays
     void load_score_cache();
+    // guest seats (is_guest_id): player data lives here for the credit, scores.db is never touched
+    std::unordered_map<std::string, PlayerData> guest_data;
+    std::set<std::string> guest_seen; // first_visit for guests: player_id + column
 
 public:
     std::string player_1;
@@ -152,6 +157,7 @@ public:
     std::optional<PlayerData> get_player_data(const std::string& player_id);
     std::vector<std::string> get_player_ids();
     void save_player_data(const PlayerData& player);
+    void clear_guests(); // credit over (title)
     void migrate_player_id(const std::string& old_id, const std::string& new_id);
     // true once per player and column (`practice_help_seen`, `reward_info_seen`, `ai_intro_seen`): the first call marks
     // it as seen

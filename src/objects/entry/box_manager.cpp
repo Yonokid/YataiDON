@@ -23,7 +23,9 @@ BoxManager::BoxManager(bool two_player) : is_2p(two_player) {
 }
 
 bool BoxManager::waiwai_replaces_game() const {
-    const auto is_guest = [](const std::string& code) { return code.empty() || code == "0" || code == "1"; };
+    const auto is_guest = [](const std::string& code) {
+        return code.empty() || code == "0" || code == "1" || is_guest_id(code);
+    };
     const auto& network = global_data.config->network;
     return is_2p && !waiwai_label.empty() && is_guest(network.access_code_1) && is_guest(network.access_code_2);
 }
@@ -38,7 +40,8 @@ void BoxManager::build_board_list() {
     boxes.clear();
     box_locations.clear();
 
-    dan_box_index = (dan_available && !is_2p) ? 1 : -1;
+    guest_board = guests_only(is_2p);
+    dan_box_index = (dan_available && !is_2p && !guest_board) ? 1 : -1;
 
     waiwai_board = waiwai_replaces_game();
     if (waiwai_board) {
@@ -57,6 +60,10 @@ void BoxManager::build_board_list() {
          {std::pair{Screens::AI_SELECT, "entry_ai_battle"}, std::pair{Screens::PRACTICE_SELECT, "entry_practice"},
           std::pair{Screens::ENTRY, "entry_costume"}, std::pair{Screens::REWARD_SHOP, "entry_shop"},
           std::pair{Screens::SETTINGS, "entry_settings"}}) {
+        // guests only get the normal game and costumes
+        if (guest_board && screen != Screens::ENTRY) {
+            continue;
+        }
         // no script, no shop board
         if (screen == Screens::REWARD_SHOP &&
             (tex.options[SCO::DISABLE_REWARD_SHOP] || !script_manager.has_lua_script("reward_shop"))) {
@@ -119,7 +126,8 @@ void BoxManager::build_board_list() {
 }
 
 bool BoxManager::check_board_list_change() const {
-    return (dan_available && !is_2p) != (dan_box_index >= 0) || waiwai_replaces_game() != waiwai_board;
+    return (dan_available && !is_2p && !guests_only(is_2p)) != (dan_box_index >= 0) ||
+           waiwai_replaces_game() != waiwai_board || guests_only(is_2p) != guest_board;
 }
 
 void BoxManager::change_board_list() {

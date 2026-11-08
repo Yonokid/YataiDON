@@ -294,6 +294,7 @@ struct GlobalData {
     std::vector<std::string> credit_titles[2]; // same songs
     bool reward_shop_from_entry = false;       // mode select opened the shop: no reward time, back to entry
     bool credit_seats[2] = {false, false};     // seats that played the credit that just ended
+    bool guest_credit = false;                 // every seat is a guest (set leaving entry): game over shows the ad
     // Card reader
     std::string card_reader_card_id_hex; // 16-char hex card ID
     bool card_reader_card_valid = false;
@@ -316,6 +317,11 @@ struct GlobalData {
 
 void reset_session();
 std::string get_player_id(PlayerNum player_num);
+// Guest seats (network.guest_mode, no card): a temporary id per login slot that scores.db never stores
+std::string guest_id(int slot);
+bool is_guest_id(const std::string& player_id);
+// every seated player is a guest: slot 1, and slot 2 too when two players are in
+bool guests_only(bool two_player);
 void load_skin();
 void unload_skin();
 

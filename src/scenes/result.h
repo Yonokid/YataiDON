@@ -20,6 +20,7 @@ protected:
     std::optional<ResultRetryMessage> retry_message;
     bool retrying = false;
     bool quitting = false;
+    std::optional<Screens> credit_next; // credit_end_screen() result, chosen once per exit
     bool allow_retry = true;
     AllNetIcon allnet_indicator;
     CoinOverlay coin_overlay;
@@ -44,6 +45,7 @@ protected:
     bool retry_pending() const;
     bool exiting() const;
     void begin_exit();
+    void start_fade_out(); // the game over overlay instead when the credit ends there
 
     virtual double reveal_end_ms();
     void update_input_and_timeout(double current_ms);

@@ -523,7 +523,7 @@ std::optional<Screens> AIResultScreen::update() {
     // the base back-key check is gated on reveal_end_ms(), which is 0 while the board is up
     if (fade_out && check_key_pressed(global_data.config->keys.back_key)) {
         quitting = true;
-        fade_out->start();
+        start_fade_out();
         audio.play_sound("don", VolumePreset::SOUND);
         return next;
     }

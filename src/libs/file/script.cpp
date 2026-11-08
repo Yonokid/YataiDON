@@ -1059,6 +1059,7 @@ void ScriptManager::register_lua_bindings() {
     tex.set_function("song_limit", [] -> int { return global_data.config->limits.song_limit; });
 
     tex.set_function("last_input_ms", [] -> double { return get_last_input_ms(); });
+    tex.set_function("guest_credit", [] { return global_data.guest_credit; }); // every seat is a guest
 
     tex.set_function("log", [](const std::string& msg) { spdlog::info("[lua] {}", msg); });
 

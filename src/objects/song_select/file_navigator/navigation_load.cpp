@@ -98,6 +98,7 @@ class NavigationLoad {
     std::string player_1;
     std::string current_search;
     bool hide_dan;
+    bool hide_collections;
     bool waiwai;
     bool waiwai_box;
     bool is_2p;
@@ -211,9 +212,10 @@ public:
         : index(request.index), request(request), emit(std::move(emit)), cancellation_token(stop),
           cancellation(stop, [this] { abort_loading = true; }), root_paths(request.roots), language(request.language),
           player_1(request.player_1), current_search(request.search), hide_dan(request.hide_dan),
-          waiwai(request.waiwai), waiwai_box(request.waiwai_box), is_2p(request.is_2p),
-          ai_assigned(request.ai_assigned), reloading_roots(request.kind == LoadRequest::Kind::ROOTS),
-          inline_back_def(request.back_def), diff_sort_filter(request.difficulty), folder_scanner(stop) {}
+          hide_collections(request.hide_collections), waiwai(request.waiwai), waiwai_box(request.waiwai_box),
+          is_2p(request.is_2p), ai_assigned(request.ai_assigned),
+          reloading_roots(request.kind == LoadRequest::Kind::ROOTS), inline_back_def(request.back_def),
+          diff_sort_filter(request.difficulty), folder_scanner(stop) {}
 
     void run() {
         if (request.kind == LoadRequest::Kind::SUMMARIES) {
@@ -502,6 +504,9 @@ void NavigationLoad::load_current_directory_async(const fs::path& path) {
                 if (folder_scanner.has_def_file(curr_path)) {
                     BoxDef entry_box_def = parse_box_def(curr_path);
                     if (hide_dan && entry_box_def.genre_index == GenreIndex::DAN) {
+                        continue;
+                    }
+                    if (hide_collections && !entry_box_def.collection.empty()) {
                         continue;
                     }
                     if (entry_box_def.genre_index == GenreIndex::TUTORIAL && !fs::exists(curr_path / TUTORIAL_CHART)) {

@@ -1,7 +1,10 @@
 #include "game_over.h"
 
-GameOverSequence::GameOverSequence() {
-    if (!load("GameOver", "game_over")) {
+#include "../../libs/audio/audio.h"
+#include "../../libs/gfx/texture.h"
+
+GameOverSequence::GameOverSequence(bool overlay) {
+    if (!load("GameOver", "game_over", overlay)) {
         return;
     }
     fn_update = lua_object["update"];
@@ -19,4 +22,30 @@ void GameOverSequence::draw() {
 
 bool GameOverSequence::is_finished() {
     return call_r<bool>(fn_is_finished, "GameOver:is_finished").value_or(true);
+}
+
+void GameOverOverlay::start() {
+    if (sequence.has_value()) {
+        return;
+    }
+    // added to the host's assets; the host's on_screen_end unloads them with its own
+    tex.load_folder("game_over", "global");
+    audio.load_screen_sounds("game_over");
+    sequence.emplace(true);
+}
+
+void GameOverOverlay::update(double current_ms) {
+    if (sequence.has_value()) {
+        sequence->update(current_ms);
+    }
+}
+
+bool GameOverOverlay::is_finished() {
+    return sequence.has_value() && sequence->is_finished();
+}
+
+void GameOverOverlay::draw() {
+    if (sequence.has_value()) {
+        sequence->draw();
+    }
 }

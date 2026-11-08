@@ -45,11 +45,11 @@ std::optional<Screens> KinotakeResultScreen::update() {
             return std::nullopt;
         }
         if (!network.kinotake_tally().any()) { // nothing was answered: nothing to show
-            return on_screen_end(next());
+            return end_or_game_over(next());
         }
         start();
         if (tally->unavailable()) {
-            return on_screen_end(next());
+            return end_or_game_over(next());
         }
     }
     tally->update(now);
@@ -62,7 +62,7 @@ std::optional<Screens> KinotakeResultScreen::update() {
         audio.play_sound("don", VolumePreset::SOUND);
     }
     if (tally->is_done()) {
-        return on_screen_end(next());
+        return end_or_game_over(next());
     }
     return std::nullopt;
 }

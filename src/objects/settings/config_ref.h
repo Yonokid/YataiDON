@@ -168,6 +168,9 @@ inline ConfigRef get_config_ref(const std::string& path) {
     if (path == "network/sync_scores") {
         return &c->network.sync_scores;
     }
+    if (path == "network/guest_mode") {
+        return &c->network.guest_mode;
+    }
     // nameplate_1p → player 1 data cache
     if (path.starts_with("nameplate_") && !_scores_manager_ptr) {
         throw std::runtime_error("Scores manager not initialized");

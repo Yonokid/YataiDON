@@ -223,8 +223,8 @@ void Navigator::preload(std::vector<fs::path> songs_paths) {
 void Navigator::init(std::vector<fs::path> songs_paths) {
     t_background = tex.get_texture("box/background");
     emit_wheel_event(WHEEL_EVENT_SCENE_ENTRY);
-    if (is_init && (hide_dan != built_hide_dan || waiwai != built_waiwai || is_2p != built_is_2p ||
-                    ai_assigned != built_ai_assigned)) {
+    if (is_init && (hide_dan != built_hide_dan || hide_collections != built_hide_collections ||
+                    waiwai != built_waiwai || is_2p != built_is_2p || ai_assigned != built_ai_assigned)) {
         cancel_loading();
         is_inline = false;
         inline_state.reset();
@@ -241,6 +241,7 @@ void Navigator::init(std::vector<fs::path> songs_paths) {
         is_init = false;
     }
     built_hide_dan = hide_dan;
+    built_hide_collections = hide_collections;
     built_waiwai = waiwai;
     built_ai_assigned = ai_assigned;
     built_is_2p = is_2p;
@@ -406,6 +407,7 @@ LoadRequest Navigator::make_load_request(LoadRequest::Kind kind, const fs::path&
     request.score_revision = score_revision;
     request.search = current_search;
     request.hide_dan = hide_dan;
+    request.hide_collections = hide_collections;
     request.waiwai = waiwai;
     request.waiwai_box = !tex.options[SCO::DISABLE_WAIWAI];
     request.is_2p = is_2p;
@@ -783,7 +785,7 @@ void Navigator::cancel_diff_sort() {
 }
 
 void Navigator::toggle_favorite(SongBox* song) {
-    if (!favorite_folder_path) {
+    if (!favorite_folder_path || hide_collections) {
         return;
     }
     invalidate_folder_summaries(); // song_list.txt counts change
@@ -818,7 +820,7 @@ void Navigator::toggle_favorite(SongBox* song) {
 }
 
 void Navigator::add_to_recent(const SongBox* song) {
-    if (!recent_folder_path) {
+    if (!recent_folder_path || hide_collections) {
         return;
     }
     invalidate_folder_summaries(); // song_list.txt counts change

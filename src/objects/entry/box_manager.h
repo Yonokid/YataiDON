@@ -17,6 +17,7 @@ private:
     bool is_vertical = false;
     int dan_box_index = -1;
     bool dan_available = false;
+    bool guest_board = false; // built for guests only: normal game + costumes
     std::string dan_text;
     std::string waiwai_label;
     bool waiwai_board = false;

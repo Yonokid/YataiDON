@@ -42,6 +42,7 @@ private:
     bool is_preloaded = false;
     bool reloading_roots = false;
     bool built_hide_dan = false;
+    bool built_hide_collections = false;
     bool built_waiwai = false;
     bool built_is_2p = false;
     bool built_ai_assigned = false;
@@ -130,7 +131,8 @@ public:
 
     std::atomic<bool> is_processing{false};
     bool hide_dan = false;
-    bool ai_assigned = false; // AI battle rank 10: show the assigned songs folder
+    bool hide_collections = false; // guests only: no collection folders, favorites or recent
+    bool ai_assigned = false;      // AI battle rank 10: show the assigned songs folder
     bool waiwai = false;
     bool is_2p = false;
     bool inline_streaming = false;

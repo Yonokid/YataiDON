@@ -33,6 +33,7 @@ void SongSelectScreen::on_screen_start() {
     dan_transition.reset();
 
     navigator.hide_dan = hides_dan();
+    navigator.hide_collections = guests_only(is_2p_screen());
     navigator.ai_assigned = shows_ai_assigned();
     navigator.is_2p = is_2p_screen();
     navigator.waiwai = is_waiwai_screen();

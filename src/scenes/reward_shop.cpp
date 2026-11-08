@@ -120,11 +120,11 @@ std::optional<Screens> RewardShopScreen::update() {
             return std::nullopt;
         }
         if (!network.shop_seat(0).answered && !network.shop_seat(1).answered) {
-            return on_screen_end(next_screen());
+            return end_or_game_over(next_screen());
         }
         start();
         if (shop->unavailable()) {
-            return on_screen_end(next_screen());
+            return end_or_game_over(next_screen());
         }
     }
     shop->update(now);
@@ -166,7 +166,7 @@ std::optional<Screens> RewardShopScreen::update() {
         }
     }
     if (shop->is_done()) {
-        return on_screen_end(next_screen());
+        return end_or_game_over(next_screen());
     }
     return std::nullopt;
 }

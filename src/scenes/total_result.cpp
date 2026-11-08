@@ -94,7 +94,7 @@ std::optional<Screens> TotalResultScreen::update() {
         }
         start();
         if (tally->unavailable()) {
-            return on_screen_end(after_total_result());
+            return end_or_game_over(after_total_result());
         }
     }
     tally->update(now);
@@ -112,7 +112,7 @@ std::optional<Screens> TotalResultScreen::update() {
         audio.play_sound("don", VolumePreset::SOUND);
     }
     if (tally->is_done()) {
-        return on_screen_end(after_total_result());
+        return end_or_game_over(after_total_result());
     }
     return std::nullopt;
 }

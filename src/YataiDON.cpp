@@ -529,7 +529,7 @@ static void run_frame() {
     {
         PROFILE_SCOPE_N("screen update");
         PROFILE_ZONE_TEXT(screen->screen_name);
-        next_screen = screen->update();
+        next_screen = screen->in_game_over() ? screen->update_game_over() : screen->update();
     }
     sync_text_input();
 

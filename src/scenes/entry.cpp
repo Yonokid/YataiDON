@@ -17,11 +17,7 @@ void EntryScreen::on_screen_start() {
     side = 1;
     is_2p = false;
     box_manager = std::make_unique<BoxManager>(global_data.entry_join_pending);
-    if (global_data.config->network.auto_login) {
-        state = EntryState::SELECT_SIDE;
-    } else {
-        state = EntryState::WAITING;
-    }
+    state = EntryState::WAITING;
 
     const bool online = global_data.config->network.online_play;
     pending_card_hex_.clear();
@@ -90,11 +86,6 @@ void EntryScreen::on_screen_start() {
     players.resize(2);
     audio.play_sound("bgm", VolumePreset::MUSIC);
 
-    // Online: auto_login shows side select right away, otherwise wait for Enter/Don
-    if (online && !global_data.config->network.auto_login && !resuming) {
-        state = EntryState::WAITING;
-    }
-
     if (global_data.entry_join_pending) {
         global_data.entry_join_pending = false;
         start_second_player_join();
@@ -132,8 +123,17 @@ bool EntryScreen::login_slot(const std::string& card_hex, std::function<void()> 
     const PlayerData& sm_data = slot == 0 ? scores_manager.player_1_data : scores_manager.player_2_data;
     const bool net = cfg.online_play && network.is_online() && !local_login_;
 
-    // Don after this slot was migrated to a server code: use a fresh local "0"/"1" account instead.
-    // In-memory only (restored on title), so the migrated code stays in the config for Enter logins.
+    if (cfg.guest_mode && card_hex.empty() && local_login_) {
+        if (!global_data.card_override[slot]) {
+            global_data.card_prev_code[slot] = code;
+        }
+        global_data.card_override[slot] = true;
+        code = guest_id(slot);
+        finish_slot(slot, scores_manager.get_player_data(code).value_or(PlayerData{}));
+        then();
+        return true;
+    }
+
     if (cfg.online_play && local_login_ && code != "0" && code != "1") {
         if (!global_data.card_override[slot]) {
             global_data.card_prev_code[slot] = code;
@@ -143,7 +143,6 @@ bool EntryScreen::login_slot(const std::string& card_hex, std::function<void()> 
     }
 
     if (!net) {
-        // Case 1 / offline: scores.db keyed by config code. Cards can't resolve without server (case 4).
         if (!card_hex.empty()) {
             return false;
         }
@@ -154,7 +153,6 @@ bool EntryScreen::login_slot(const std::string& card_hex, std::function<void()> 
         return true;
     }
 
-    // Cases 2/3, never registered: get a code from server, replace the placeholder
     const bool placeholder = card_hex.empty() && (code.empty() || code == "0" || code == "1");
     const std::string name = sm_data.username.empty() ? "Player" : sm_data.username;
     pending_login_slot_ = slot;
@@ -333,6 +331,7 @@ void EntryScreen::join_with_card(const std::string& card_hex) {
     if (login_ready_) {
         return;
     }
+    local_login_ = false; // a card is an online account, even after a drum join set this
     login_slot(card_hex, [this] { on_card_login(); });
 }
 
@@ -396,6 +395,7 @@ void EntryScreen::reload_preview_chara(PlayerNum player_num) {
 }
 
 Screens EntryScreen::on_screen_end(Screens next_screen) {
+    global_data.guest_credit = next_screen != Screens::TITLE && guests_only(is_2p);
     audio.stop_sound("bgm");
     audio.stop_sound("name_select_bgm");
     // Leaving with a login in flight (input and the timer wait for it, so this is an edge case):
@@ -419,8 +419,18 @@ Screens EntryScreen::on_screen_end(Screens next_screen) {
     return Screen::on_screen_end(next_screen);
 }
 
-bool EntryScreen::arcade_credit() const {
-    return tex.options[SCO::ENTRY_CREDIT_ARCADE];
+bool EntryScreen::join_by_drum() {
+    static constexpr std::array seats{PlayerNum::P1, PlayerNum::P2};
+    const auto* hit = std::ranges::find_if(seats, [this](PlayerNum seat) {
+        return !seat_joined(seat) && (is_l_don_pressed(seat) || is_r_don_pressed(seat));
+    });
+    if (hit == seats.end()) {
+        return false;
+    }
+    const auto& network_cfg = global_data.config->network;
+    local_login_ = network_cfg.guest_mode || !network_cfg.auto_login;
+    join_player(*hit);
+    return true;
 }
 
 bool EntryScreen::seat_joined(PlayerNum player_num) const {
@@ -468,7 +478,7 @@ void EntryScreen::join_player(PlayerNum player_num, bool do_login) {
     }
     audio.play_player_sound("cloud", PlayerNum::ALL, VolumePreset::SOUND);
     audio.play_sound("entry_start_" + std::to_string(static_cast<int>(player_num)) + "p", VolumePreset::VOICE);
-    if (state == EntryState::SELECT_SIDE) {
+    if (state == EntryState::SELECT_SIDE || state == EntryState::WAITING) {
         lua_entry->decide_side_select(side);
     }
     state = EntryState::SELECT_MODE;
@@ -538,14 +548,14 @@ std::optional<Screens> EntryScreen::handle_input() {
     }
     if (state == EntryState::WAITING) {
         const bool enter = key_pressed(SDL_SCANCODE_RETURN);
-        const bool don = is_l_don_pressed() || is_r_don_pressed();
-        if (enter || don || menu_left_pressed() || menu_right_pressed()) {
+        const bool joined = !enter && join_by_drum();
+        if (enter || joined || menu_left_pressed() || menu_right_pressed()) {
             wait_idle_since_ = get_current_ms();
         }
-        if (!enter && !don) {
+        if (!enter) {
             return std::nullopt;
         }
-        local_login_ = !enter; // Enter: register/fetch online; Don: local db only
+        local_login_ = false;
         login_slot("", [this] {
             login_ready_ = true;
             audio.play_sound("don", VolumePreset::SOUND);
@@ -560,15 +570,6 @@ std::optional<Screens> EntryScreen::handle_input() {
         seat_joined(PlayerNum::P1) != seat_joined(PlayerNum::P2)) {
         local_login_ = false;
         join_player(seat_joined(PlayerNum::P1) ? PlayerNum::P2 : PlayerNum::P1);
-        return std::nullopt;
-    }
-    if (arcade_credit() && state == EntryState::SELECT_SIDE) {
-        if (!seat_joined(PlayerNum::P1) && (is_l_don_pressed(PlayerNum::P1) || is_r_don_pressed(PlayerNum::P1))) {
-            join_player(PlayerNum::P1);
-        } else if (!seat_joined(PlayerNum::P2) &&
-                   (is_l_don_pressed(PlayerNum::P2) || is_r_don_pressed(PlayerNum::P2))) {
-            join_player(PlayerNum::P2);
-        }
         return std::nullopt;
     }
     if (state == EntryState::SELECT_SIDE) {
@@ -610,23 +611,7 @@ std::optional<Screens> EntryScreen::handle_input() {
             }
         }
     } else if (state == EntryState::SELECT_MODE) {
-        if (arcade_credit()) {
-            if (!seat_joined(PlayerNum::P1) && (is_l_don_pressed(PlayerNum::P1) || is_r_don_pressed(PlayerNum::P1))) {
-                join_player(PlayerNum::P1);
-                return std::nullopt;
-            }
-            if (!seat_joined(PlayerNum::P2) && (is_l_don_pressed(PlayerNum::P2) || is_r_don_pressed(PlayerNum::P2))) {
-                join_player(PlayerNum::P2);
-                return std::nullopt;
-            }
-            if (!mode_select_ready()) {
-                return std::nullopt;
-            }
-            for (auto& player : players) {
-                if (player) {
-                    player->handle_input();
-                }
-            }
+        if (join_by_drum()) { // the free side joins from its own drum
             return std::nullopt;
         }
         if (!mode_select_ready()) {
@@ -636,31 +621,6 @@ std::optional<Screens> EntryScreen::handle_input() {
             if (player) {
                 player->handle_input();
             }
-        }
-        if (players[0] && players[0]->player_num == PlayerNum::P1 &&
-            (is_l_don_pressed(PlayerNum::P2) || is_r_don_pressed(PlayerNum::P2))) {
-            audio.play_sound("don", VolumePreset::SOUND);
-            state = EntryState::SELECT_SIDE;
-            {
-                auto pd = scores_manager.get_player_data(global_data.config->network.access_code_2);
-                nameplate = Nameplate(pd ? pd->username : "", pd ? pd->title : "", PlayerNum::ALL, pd ? pd->dan : -1,
-                                      pd ? pd->gold : false, pd ? pd->rainbow : false, pd ? pd->title_bg : 0);
-            }
-            lua_entry->restart_side_select();
-            side = 1;
-            reload_preview_chara(PlayerNum::P2);
-        } else if (players[0] && players[0]->player_num == PlayerNum::P2 &&
-                   (is_l_don_pressed(PlayerNum::P1) || is_r_don_pressed(PlayerNum::P1))) {
-            audio.play_sound("don", VolumePreset::SOUND);
-            state = EntryState::SELECT_SIDE;
-            {
-                auto pd = scores_manager.get_player_data(global_data.config->network.access_code_1);
-                nameplate = Nameplate(pd ? pd->username : "", pd ? pd->title : "", PlayerNum::ALL, pd ? pd->dan : -1,
-                                      pd ? pd->gold : false, pd ? pd->rainbow : false, pd ? pd->title_bg : 0);
-            }
-            lua_entry->restart_side_select();
-            side = 1;
-            reload_preview_chara(PlayerNum::P1);
         }
     }
     return std::nullopt;
@@ -735,7 +695,7 @@ std::optional<Screens> EntryScreen::update() {
     box_manager->update(current_time, is_2p);
     if (state != EntryState::WAITING && state != EntryState::NAME_ENTRY && state != EntryState::CAMPAIGN &&
         state != EntryState::BNCOIN && state != EntryState::PRACTICE_HELP && state != EntryState::ENTRY_INFO &&
-        !(arcade_credit() && state == EntryState::SELECT_SIDE) && !login_pending() && !box_manager->is_box_selected()) {
+        !login_pending() && !box_manager->is_box_selected()) {
         timer->update(current_time);
     }
     nameplate.update(current_time);
@@ -960,15 +920,10 @@ void EntryScreen::draw_background() {
 void EntryScreen::draw_side_select(float fade) {
     lua_entry->draw_side_select();
 
-    const bool show_preview = !arcade_credit() || seat_joined(PlayerNum::P1) || seat_joined(PlayerNum::P2);
-    if (show_preview) {
-        chara->draw(tex.chara_xy("entry").first, tex.chara_xy("entry").second);
-    }
+    chara->draw(tex.chara_xy("entry").first, tex.chara_xy("entry").second);
     lua_entry->draw_side_select_buttons(side);
-    if (show_preview) {
-        auto [nx, ny] = tex.nameplate_xy("entry");
-        nameplate.draw(nx, ny, fade);
-    }
+    auto [nx, ny] = tex.nameplate_xy("entry");
+    nameplate.draw(nx, ny, fade);
 }
 
 void EntryScreen::draw_player_drum() {

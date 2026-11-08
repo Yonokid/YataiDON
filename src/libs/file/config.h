@@ -52,6 +52,7 @@ struct NetworkConfig {
     bool online_play = false;
     bool sync_scores = false;
     bool auto_login = false;
+    bool guest_mode = false; // seats joined without a card play as guests: nothing is saved
 };
 
 struct PathsConfig {

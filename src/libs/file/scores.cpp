@@ -618,6 +618,9 @@ Score ScoresManager::save_score(const std::string& hash, int difficulty, const s
     if (out_score_id) {
         *out_score_id = -1;
     }
+    if (is_guest_id(player_id)) {
+        return score;
+    }
     sqlite3_stmt* stmt;
 
     char query[512];
@@ -945,6 +948,20 @@ void ScoresManager::remap_hashes(const std::unordered_map<std::string, std::stri
 }
 
 std::optional<PlayerData> ScoresManager::get_player_data(const std::string& player_id) {
+    if (is_guest_id(player_id)) {
+        auto [it, fresh] = guest_data.try_emplace(player_id);
+        if (fresh) {
+            PlayerData& pd = it->second;
+            pd.player_id = player_id;
+            pd.username = global_data.config->general.language == "ja" ? "ゲスト" : "Guest";
+            pd.title = "Donder Debut!";
+            if (player_id == guest_id(1)) { // the second seat gets the 2P colours, as a fresh "1" account does
+                pd.title_bg = 2;
+                std::swap(pd.chara_color_1, pd.chara_color_2);
+            }
+        }
+        return it->second;
+    }
     sqlite3_stmt* stmt;
     const char* query = "SELECT player_id, username, title, title_bg, dan, gold, rainbow,"
                         " modifier_auto, modifier_speed, modifier_display, modifier_inverse, modifier_random,"
@@ -1052,7 +1069,16 @@ std::vector<std::string> ScoresManager::get_player_ids() {
     return ids;
 }
 
+void ScoresManager::clear_guests() {
+    guest_data.clear();
+    guest_seen.clear();
+}
+
 void ScoresManager::save_player_data(const PlayerData& player) {
+    if (is_guest_id(player.player_id)) {
+        guest_data[player.player_id] = player;
+        return;
+    }
     sqlite3_stmt* stmt;
     const char* query =
         "UPDATE players SET"
@@ -1191,6 +1217,9 @@ std::optional<DanRecord> ScoresManager::get_dan_record(const std::string& player
 
 void ScoresManager::save_ai_section_wins(const std::string& hash, int difficulty, const std::string& player_id, int won,
                                          int total) {
+    if (is_guest_id(player_id)) {
+        return;
+    }
     sqlite3_exec(db_fsd,
                  "CREATE TABLE IF NOT EXISTS ai_section_wins"
                  "(hash TEXT NOT NULL, difficulty INTEGER NOT NULL, player_id TEXT NOT NULL,"
@@ -1219,6 +1248,9 @@ void ScoresManager::save_ai_section_wins(const std::string& hash, int difficulty
 
 void ScoresManager::save_dan_score(const std::string& player_id, const std::string& course_id, const DanResultData& rd,
                                    int arrival) {
+    if (is_guest_id(player_id)) {
+        return;
+    }
     sqlite3_stmt* stmt;
     const char* query = "INSERT INTO dan_scores (player_id, course_id, title, dan_index, odai_result, score, "
                         "max_combo, gauge_length, arrival, played_at)"
@@ -1268,6 +1300,9 @@ void ScoresManager::save_dan_score(const std::string& player_id, const std::stri
 }
 
 bool ScoresManager::first_visit(const std::string& player_id, const char* seen_column) {
+    if (is_guest_id(player_id)) {
+        return guest_seen.insert(player_id + seen_column).second;
+    }
     sqlite3_stmt* stmt;
     const std::string query = std::format("UPDATE players SET {0} = 1 WHERE player_id = ? AND {0} = 0;", seen_column);
     if (sqlite3_prepare_v2(db_fsd, query.c_str(), -1, &stmt, nullptr) != SQLITE_OK) {

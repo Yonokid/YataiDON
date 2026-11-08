@@ -120,6 +120,19 @@ void reset_session() {
     global_data.session_data[static_cast<int>(PlayerNum::P2)] = SessionData();
 }
 
+std::string guest_id(int slot) {
+    return "guest:" + std::to_string(slot + 1);
+}
+
+bool is_guest_id(const std::string& player_id) {
+    return player_id.starts_with("guest:");
+}
+
+bool guests_only(bool two_player) {
+    const auto& network = global_data.config->network;
+    return is_guest_id(network.access_code_1) && (!two_player || is_guest_id(network.access_code_2));
+}
+
 std::string get_player_id(PlayerNum player_num) {
     if (!global_data.config) {
         spdlog::error("get_player_id() called before config was initialized");

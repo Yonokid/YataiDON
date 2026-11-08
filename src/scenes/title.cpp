@@ -41,6 +41,8 @@ void TitleScreen::on_screen_start() {
             global_data.card_prev_code[i];
         global_data.card_override[i] = false;
     }
+    scores_manager.clear_guests();
+    global_data.guest_credit = false;
     scores_manager.player_1 = global_data.config->network.access_code_1;
     scores_manager.player_2 = global_data.config->network.access_code_2;
     global_data.card_reader_card_valid = false;

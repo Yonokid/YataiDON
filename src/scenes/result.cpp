@@ -7,6 +7,7 @@
 
 void ResultScreen::on_screen_start() {
     Screen::on_screen_start();
+    credit_next.reset();
     SessionData& session_data = global_data.session_data[static_cast<int>(global_data.player_num)];
     song_title = session_data.song_title;
     song_subtitle = (session_data.song_subtitle_full_display && !session_data.song_subtitle.empty())
@@ -74,8 +75,18 @@ void ResultScreen::begin_exit() {
         audio.play_sound("retry_transition", VolumePreset::SOUND);
         fade_in->start_reverse();
     } else {
-        fade_out->start();
+        start_fade_out();
     }
+}
+
+void ResultScreen::start_fade_out() {
+    const bool credit_end = quitting || (global_data.config->limits.song_limit > 0 &&
+                                         global_data.config->limits.song_limit == global_data.songs_played);
+    if (credit_end && credit_end_screen() == Screens::GAME_OVER && game_over_overlay()) {
+        game_over.start();
+        return;
+    }
+    fade_out->start();
 }
 
 void ResultScreen::handle_input(double current_ms) {
@@ -115,7 +126,7 @@ void ResultScreen::update_input_and_timeout(double current_ms) {
     if (skip_enabled_ms > 0 && current_ms >= skip_enabled_ms) {
         if (check_key_pressed(global_data.config->keys.back_key) && reveal_end_ms() > 0) {
             quitting = true;
-            fade_out->start();
+            start_fade_out();
             audio.play_sound("don", VolumePreset::SOUND);
             return;
         }
@@ -129,13 +140,18 @@ void ResultScreen::update_input_and_timeout(double current_ms) {
 }
 
 Screens ResultScreen::credit_end_screen() {
-    const Screens next = begin_total_result();
+    if (credit_next) {
+        return *credit_next;
+    }
+    credit_next = begin_total_result();
+    const Screens next = *credit_next;
     if (!(network.kinotake_pending() || network.kinotake_tally().any()) ||
         !script_manager.has_lua_script("kinotake_result")) {
         return next;
     }
     global_data.kinotake_next = static_cast<int>(next);
-    return Screens::KINOTAKE_RESULT;
+    credit_next = Screens::KINOTAKE_RESULT;
+    return *credit_next;
 }
 
 std::optional<Screens> ResultScreen::update() {

@@ -83,7 +83,7 @@ private:
 
     std::unique_ptr<Chara3D> make_preview_chara(PlayerNum player_num);
     void reload_preview_chara(PlayerNum player_num);
-    bool arcade_credit() const;
+    bool join_by_drum();
     bool seat_joined(PlayerNum player_num) const;
     void open_reward_shop();
     void join_player(PlayerNum player_num, bool do_login = true);

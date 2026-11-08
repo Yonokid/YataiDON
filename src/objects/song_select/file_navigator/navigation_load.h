@@ -98,6 +98,7 @@ struct LoadRequest {
     std::vector<fs::path> summary_paths;
     std::string search;
     bool hide_dan = false;
+    bool hide_collections = false;
     bool waiwai = false;
     bool waiwai_box = true;
     bool is_2p = false;
