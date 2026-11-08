@@ -72,6 +72,18 @@ void Player::use_costume(int cos_index) {
     chara->set_anim(AnimIndex::DON_NORMAL);
 }
 
+void Player::draw_lane_course_name(int frame, int index, float y) {
+    const SkinInfo* cfg = font_manager.get_text_info("lane_course_name");
+    if (!cfg || !t_lane_difficulty || frame < 0 || static_cast<size_t>(frame) >= lane_course_names.size() ||
+        !lane_course_names[frame] || static_cast<size_t>(index) >= t_lane_difficulty->x.size() ||
+        t_lane_difficulty->x2[index] <= 0.0f) {
+        return;
+    }
+    OutlinedText& name = *lane_course_names[frame];
+    name.draw({.x = t_lane_difficulty->x[index] + cfg->x - name.width / 2.0f,
+               .y = y + t_lane_difficulty->y[index] + cfg->y - name.height / 2.0f});
+}
+
 void Player::init_player_textures() {
     t_lane_background = tex.get_texture("lane/lane_background");
     t_ai_lane_background = tex.get_texture("lane/ai_lane_background");
@@ -79,6 +91,17 @@ void Player::init_player_textures() {
     t_dan_lane_cover = tex.get_texture("lane/dan_lane_cover");
     t_drum = tex.get_texture("lane/drum");
     t_lane_difficulty = tex.get_texture("lane/lane_difficulty");
+    lane_course_names = {};
+    if (const SkinInfo* cfg = font_manager.get_text_info("lane_course_name")) {
+        for (size_t f = 0; f < lane_course_names.size(); f++) {
+            std::string key = "lane_course_name_" + std::to_string(f);
+            std::string label = font_manager.get_text_info(key) ? font_manager.get_text_label(key) : "";
+            if (!label.empty()) {
+                lane_course_names[f] = std::make_unique<OutlinedText>(label, cfg->font_size, Color::WHITE, Color::BLACK,
+                                                                      false, cfg->outline >= 0 ? cfg->outline : 3.0f);
+            }
+        }
+    }
     t_timer = tex.get_texture("lane/timer");
     t_auto_icon = tex.get_texture("lane/auto_icon_" + global_data.config->general.language);
     t_lane_score_cover = tex.get_texture("lane/lane_score_cover");
@@ -1796,6 +1819,7 @@ void Player::draw_overlays(float y) {
         tex.draw_texture(lane_mark, {.y = y});
     } else if (!ai_lane) {
         tex.draw_texture(t_lane_difficulty, {.frame = frame, .y = y, .index = index});
+        draw_lane_course_name(frame, index, y);
     }
     if (show_lane_badges) {
         draw_modifiers(y);
