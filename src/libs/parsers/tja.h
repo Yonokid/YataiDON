@@ -414,6 +414,8 @@ private:
     std::map<std::string, CommandHandler> build_command_registry();
     void register_extended_commands(std::map<std::string, CommandHandler>& registry);
     std::vector<std::pair<std::string, CommandHandler>> cached_cmds;
+    // handlers capture `this`, so a copied or moved parser must not reuse the original's
+    const TJAParser* cached_cmds_owner = nullptr;
 
     void handle_MEASURE(const std::string& value, ParserState& state);
     void handle_SCROLL(const std::string& value, ParserState& state);

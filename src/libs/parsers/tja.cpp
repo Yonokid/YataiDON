@@ -447,7 +447,8 @@ TJAParser::notes_to_position(int diff) {
     branch_m = std::deque<NoteList>();
     branch_e = std::deque<NoteList>();
     branch_n = std::deque<NoteList>();
-    if (cached_cmds.empty()) {
+    if (cached_cmds.empty() || cached_cmds_owner != this) {
+        cached_cmds_owner = this;
         auto cmds = build_command_registry();
         cached_cmds = std::vector<std::pair<std::string, CommandHandler>>(cmds.begin(), cmds.end());
         std::ranges::sort(cached_cmds,
