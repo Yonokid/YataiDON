@@ -383,6 +383,24 @@ void AIGameScreen::record_match(const SessionData& session) {
     const auto& courses = parser->metadata.course_data;
     const auto course = courses.find(session.selected_difficulty);
     match.stars = std::clamp(course == courses.end() ? 1 : static_cast<int>(course->second.level), 1, 10);
+    network.reset_ai_battle();
+    if (!match.saves) {
+        return;
+    }
+    scores_manager.save_ai_section_wins(session.song_hash, session.selected_difficulty,
+                                        get_player_id(global_data.player_num), sections_won, section_count);
+    const std::string& code = global_data.player_num == PlayerNum::P1 ? global_data.config->network.access_code_1
+                                                                      : global_data.config->network.access_code_2;
+    if (code.empty()) {
+        return;
+    }
+    std::string sections;
+    for (const AISectionTally& s : match.sections) {
+        sections += fmt::format("{}{}:{}:{}:{}:{}", sections.empty() ? "" : ",", s.good, s.ok, s.bad, s.drumroll,
+                                s.won ? 1 : 0);
+    }
+    network.submit_ai_battle(code, session.song_hash, session.selected_difficulty, match.stars, match.won,
+                             session.ai_assigned, sections);
 }
 
 std::optional<Screens> AIGameScreen::update() {
@@ -439,35 +457,9 @@ void AIGameScreen::draw() {
     }
 }
 
-void AIResultScreen::submit_match() {
-    network.reset_ai_battle();
-    const AIMatchResult& match = global_data.ai_match;
-    if (match.sections.empty() || !match.saves) {
-        return;
-    }
-    const SessionData& session = global_data.session_data[static_cast<int>(global_data.player_num)];
-    const auto won = std::ranges::count_if(match.sections, [](const AISectionTally& s) { return s.won; });
-    scores_manager.save_ai_section_wins(session.song_hash, session.selected_difficulty,
-                                        get_player_id(global_data.player_num), static_cast<int>(won),
-                                        static_cast<int>(match.sections.size()));
-    const std::string& code = global_data.player_num == PlayerNum::P1 ? global_data.config->network.access_code_1
-                                                                      : global_data.config->network.access_code_2;
-    if (code.empty()) {
-        return;
-    }
-    std::string sections;
-    for (const AISectionTally& s : match.sections) {
-        sections += fmt::format("{}{}:{}:{}:{}:{}", sections.empty() ? "" : ",", s.good, s.ok, s.bad, s.drumroll,
-                                s.won ? 1 : 0);
-    }
-    network.submit_ai_battle(code, session.song_hash, session.selected_difficulty, match.stars, match.won,
-                             session.ai_assigned, sections);
-}
-
 void AIResultScreen::on_screen_start() {
     ResultScreen::on_screen_start();
     allow_retry = false;
-    submit_match();
     board.reset();
     flow.reset();
     board_started = false;

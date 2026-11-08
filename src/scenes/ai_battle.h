@@ -97,8 +97,6 @@ class AIResultScreen : public ResultScreen {
     std::optional<AIRewardFlow> flow;
     bool board_started = false;
 
-    void submit_match();
-
 protected:
     Screens select_screen() const override { return Screens::AI_SELECT; }
     double reveal_end_ms() override;
