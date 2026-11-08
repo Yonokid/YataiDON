@@ -740,6 +740,10 @@ void GameScreen::draw_players() {
     } else if (players.size() == 2) {
         players[0]->draw(clock.position(), 0, 184 * tex.screen_scale);
         players[1]->draw(clock.position(), 0, tex.get_skin_config(SC::GAME_P2_Y)->y);
+        // the shared kusudama covers both lanes, so it goes over the 2P lane too
+        for (const auto& player : players) {
+            player->draw_shared_kusudama();
+        }
     } else {
         float gap = (tex.screen_height - (players.size() * 176 * tex.screen_scale)) / (players.size() + 1);
         for (int i = 0; i < players.size(); i++) {

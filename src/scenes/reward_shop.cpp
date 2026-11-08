@@ -174,10 +174,10 @@ std::optional<Screens> RewardShopScreen::update() {
 void RewardShopScreen::draw() {
     if (shop) {
         shop->draw();
-        auto [nx, ny] = tex.nameplate_xy("reward_shop");
         for (int i = 0; i < 2; i++) {
             if (nameplates[i]) {
-                nameplates[i]->draw(nx + (i == 1 ? 640.0f * tex.screen_scale : 0.0f), ny, 1.0f);
+                auto [nx, ny] = tex.nameplate_xy(i == 1 ? "reward_shop_2p" : "reward_shop");
+                nameplates[i]->draw(nx, ny, 1.0f);
             }
         }
     }

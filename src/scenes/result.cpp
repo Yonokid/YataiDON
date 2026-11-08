@@ -12,7 +12,7 @@ void ResultScreen::on_screen_start() {
     song_subtitle = (session_data.song_subtitle_full_display && !session_data.song_subtitle.empty())
                         ? session_data.song_subtitle
                         : std::string();
-    song_number = global_data.songs_played + 1;
+    song_number = global_data.songs_played; // the game already counted this song
     audio.play_sound("bgm", VolumePreset::MUSIC);
     fade_out = dynamic_cast<FadeAnimation*>(tex.get_animation(0));
     retry_message.reset();

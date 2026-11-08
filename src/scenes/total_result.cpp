@@ -122,15 +122,14 @@ void TotalResultScreen::draw() {
         tally->draw();
         const float fade = tally->nameplate_fade();
         if (fade > 0) {
-            auto [nx, ny] = tex.nameplate_xy("total_result");
             auto [cx, cy] = tex.chara_xy("total_result");
             for (int i = 0; i < 2; i++) {
-                const float dx = i == 1 ? 640.0f * tex.screen_scale : 0.0f;
+                auto [nx, ny] = tex.nameplate_xy(i == 1 ? "total_result_2p" : "total_result");
                 if (charas[i]) {
                     charas[i]->draw(cx + (i == 1 ? 610.0f * tex.screen_scale : 0.0f), cy); // panels are 610 apart
                 }
                 if (nameplates[i]) {
-                    nameplates[i]->draw(nx + dx, ny, fade);
+                    nameplates[i]->draw(nx, ny, fade);
                 }
             }
         }

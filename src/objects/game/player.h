@@ -183,6 +183,11 @@ public:
     void draw_lyric(float y); // practice scene draws it after the large drums
 
     void draw_overlays(float y);
+    void draw_shared_kusudama() {
+        if (kusudama_counter.has_value() && kusudama_partner != nullptr) {
+            kusudama_counter->draw();
+        }
+    }
     void draw_lane_cover(float y);
 
 protected:

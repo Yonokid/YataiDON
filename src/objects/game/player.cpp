@@ -1837,7 +1837,7 @@ void Player::draw_overlays(float y) {
     if (papamama_popup.has_value()) {
         papamama_popup->draw();
     }
-    if (kusudama_counter.has_value()) {
+    if (kusudama_counter.has_value() && kusudama_partner == nullptr) { // shared ones: GameScreen::draw_players
         kusudama_counter->draw();
     }
     // Practice mode draws the lyric itself, after the large drums, so it is not hidden.
