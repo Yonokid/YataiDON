@@ -1742,8 +1742,18 @@ void Player::place_chara_on_stage(float x, float y) {
     chara->use_default_pose(is_2p);
 }
 
-void Player::draw_stage_chara(float scale) {
+void Player::draw_stage_chara(float scale, std::optional<float> rot_y) {
     if (stage_chara) {
+        // the balloon's Don is never mirrored: while it shows, the stage's AI is turned the other way instead
+        const bool at_balloon =
+            is_2p && chara_on_balloon && is_balloon && (!balloon_idle || balloon_counter.has_value());
+        if (chara_on_balloon) {
+            chara->set_mirror(is_2p && !at_balloon);
+        }
+        if (rot_y) {
+            const Chara3DConfig& cfg = tex.chara_3d_config;
+            chara->set_rotation(cfg.rot_x, at_balloon ? -*rot_y : *rot_y, cfg.rot_z);
+        }
         chara->draw(stage_chara->first, stage_chara->second, scale);
     }
 }
@@ -1846,14 +1856,19 @@ void Player::draw_overlays(float y) {
                 rig_2p_y = p2->y;
             }
         }
-        if (!stage_chara && (!balloon_idle || balloon_counter.has_value())) {
+        if ((!stage_chara || chara_on_balloon) && (!balloon_idle || balloon_counter.has_value())) {
             auto [cx, cy] = tex.chara_xy("game_balloon");
+            if (stage_chara) { // back from the stage's facing
+                const Chara3DConfig& cfg = tex.chara_3d_config;
+                chara->set_rotation(cfg.rot_x, cfg.rot_y, cfg.rot_z);
+            }
             chara->draw(cx, y + cy + rig_2p_y, 1.0f);
         }
     }
 
     if (drumroll_counter.has_value()) {
-        drumroll_counter->draw(y + (tex.get_skin_config(SC::GAME_COMBO_ANNOUNCE_P2_Y_OFFSET)->y * is_2p));
+        drumroll_counter->draw(y + (tex.get_skin_config(SC::GAME_COMBO_ANNOUNCE_P2_Y_OFFSET)->y * is_2p),
+                               stage_chara.has_value(), ai_lane);
     }
     if (balloon_counter.has_value()) {
         balloon_counter->draw(y);

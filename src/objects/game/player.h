@@ -94,6 +94,7 @@ public:
     bool hide_gogo_flame = false;
     bool hide_score_counter = false;
     bool hide_ending_anim = false;
+    bool chara_on_balloon = false; // a stage character still shows at the balloon
     bool rainbow_arc = false;
     // decides how autoplay lands each note; unset means every note is a Good
     std::function<Judgments(const Note&)> autoplay_judge;
@@ -106,7 +107,7 @@ public:
 
     void place_chara_on_stage(float x, float y);
     void move_stage_chara(float x, float y) { stage_chara = {x, y}; }
-    void draw_stage_chara(float scale = 1.0f);
+    void draw_stage_chara(float scale = 1.0f, std::optional<float> rot_y = std::nullopt);
     void draw_arcs();
 
     std::optional<Note> get_first_note();

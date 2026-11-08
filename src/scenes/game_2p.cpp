@@ -84,8 +84,9 @@ std::optional<Screens> Game2PScreen::update() {
     }
 
     if (clock.position() >= end_time) {
-        const double transition_delay =
-            global_data.config->general.fast_transitions ? kFastResultTransitionDelayMs : 8533.34;
+        const double transition_delay = global_data.config->general.fast_transitions ? kFastResultTransitionDelayMs
+                                        : skipped                                    ? 2800.0
+                                                                                     : 8533.34;
 
         end_song(end_time, transition_delay, BackgroundNotification::Disabled);
     }

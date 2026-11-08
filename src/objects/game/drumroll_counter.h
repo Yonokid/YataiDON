@@ -9,6 +9,11 @@ private:
     FadeAnimation* fade = nullptr;
     TextStretchAnimation* stretch = nullptr;
     TextureObject* t_bubble = nullptr;
+    TextureObject* t_bubble_ai = nullptr;
+    TextureObject* t_unfold = nullptr; // optional: the fan opening
+    TextureObject* t_unfold_ai = nullptr;
+    double start_ms = -1.0;
+    double now_ms = 0.0;
     TextureObject* t_counter = nullptr;
 
 public:
@@ -20,7 +25,9 @@ public:
 
     void update_animations(double current_ms);
 
-    void draw(float y);
+    // ai_stage: the AI battle's stage (skin_config ai_game_drumroll / ai_game_drumroll_ai place it); ai_lane: the AI's
+    // own
+    void draw(float y, bool ai_stage = false, bool ai_lane = false);
 
     bool is_finished() const;
 };

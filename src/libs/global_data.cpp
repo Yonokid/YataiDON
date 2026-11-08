@@ -6,6 +6,7 @@
 #include <utility>
 
 #include "../objects/global/debug_menu.h"
+#include "../objects/song_select/ai_vs_chara.h"
 #include "../objects/song_select/file_navigator/navigator.h"
 #include "../platform/platform.h"
 #include "audio/audio.h"
@@ -105,6 +106,7 @@ void unload_skin() {
     navigator.reset_for_skin_reload();
     debug_menu.clear_selection();
     debug_menu.unload_fonts();
+    ai_vs_chara_release();
     tex.unload_textures();
     global_tex.unload_textures();
     script_manager.shutdown();

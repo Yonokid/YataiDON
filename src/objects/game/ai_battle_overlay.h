@@ -12,6 +12,7 @@ class AIBattleOverlay : public LuaScript {
     sol::protected_function fn_draw_finale;
     sol::protected_function fn_set_match_result;
     sol::protected_function fn_border_x;
+    sol::protected_function fn_handle_skip;
 
 public:
     AIBattleOverlay();
@@ -25,4 +26,6 @@ public:
     void draw_finale(double ms);
     void set_match_result(bool won, bool full_combo);
     float border_x(int territory);
+    bool wants_skip() const { return fn_handle_skip.valid(); }
+    void handle_skip(int count, int total, bool skipped);
 };

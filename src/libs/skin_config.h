@@ -55,6 +55,9 @@ enum class SC : unsigned int {
     SONG_SELECT_ROW_PITCH,
     SONG_SELECT_ROW_CURVE,
     AI_GAME_SONG_INFO,
+    AI_GAME_DRUMROLL,
+    AI_GAME_DRUMROLL_AI,
+    GAME_AI_DRUMROLL_COUNTER_SCALE,
 };
 
 namespace std {
@@ -86,6 +89,9 @@ const std::unordered_map<std::string, SC> skin_config_map{
     {"song_select_row_pitch", SC::SONG_SELECT_ROW_PITCH},
     {"song_select_row_curve", SC::SONG_SELECT_ROW_CURVE},
     {"ai_game_song_info", SC::AI_GAME_SONG_INFO},
+    {"ai_game_drumroll", SC::AI_GAME_DRUMROLL},
+    {"ai_game_drumroll_ai", SC::AI_GAME_DRUMROLL_AI},
+    {"game_ai_drumroll_counter_scale", SC::GAME_AI_DRUMROLL_COUNTER_SCALE},
     {"dan_select_exam_info", SC::DAN_SELECT_EXAM_INFO},
     {"dan_select_subtitle", SC::DAN_SELECT_SUBTITLE},
     {"dan_select_title", SC::DAN_SELECT_TITLE},
@@ -130,6 +136,11 @@ enum class SCO : unsigned int {
     HIDDEN_ONI,
     DISABLE_CAMPAIGNS,
     DISABLE_REWARD_SHOP,
+    AI_WAIT_LOADING_CARD,  // the AI battle's chart waits for the loading card
+    AI_BALLOON_CHARA,      // the AI battle's Don also pops balloons beside the lane, not only on the stage
+    AI_STAGE_CHARA_TURNED, // the AI battle's two Dons face each other
+    AI_NO_SUPPORT_LEVELS,  // the AI select plays the chosen chart as it is: no easier support levels
+
     DISABLE_TOTAL_RESULT,
     DISABLE_WAIWAI,
 };
@@ -157,4 +168,8 @@ const std::unordered_map<std::string, SCO> screen_options_map{
     {"disable_reward_shop", SCO::DISABLE_REWARD_SHOP},
     {"disable_total_result", SCO::DISABLE_TOTAL_RESULT},
     {"disable_waiwai", SCO::DISABLE_WAIWAI},
+    {"ai_no_support_levels", SCO::AI_NO_SUPPORT_LEVELS},
+    {"ai_stage_chara_turned", SCO::AI_STAGE_CHARA_TURNED},
+    {"ai_balloon_chara", SCO::AI_BALLOON_CHARA},
+    {"ai_wait_loading_card", SCO::AI_WAIT_LOADING_CARD},
 };

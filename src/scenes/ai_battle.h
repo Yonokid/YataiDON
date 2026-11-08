@@ -66,6 +66,8 @@ class AIGameScreen : public Game2PScreen {
     int current_section = 0;
     int sections_won = 0;
     bool match_recorded = false;
+    bool card_hold = false;
+    size_t ai_hits_seen = 0;
     std::vector<bool> section_won;
 
     Player* human() const;
@@ -74,6 +76,8 @@ class AIGameScreen : public Game2PScreen {
     void start_match();
     void apply_overlay_layout();
     void update_tallies();
+    void update_loading_hold();
+    void update_ai_skip();
     void close_finished_sections();
     void record_match(const SessionData& session);
     double section_end_ms(int section) const;
