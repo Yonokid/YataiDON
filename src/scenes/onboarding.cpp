@@ -25,6 +25,12 @@ namespace {
     };
     constexpr int kSkinCount = static_cast<int>(std::size(kSkins));
 
+    struct LanguageEntry {
+        const char* code;
+        const char* label;
+    };
+    constexpr LanguageEntry kLanguages[] = {{"en", "English"}, {"ja", "日本語"}, {"zh", "中文"}, {"ko", "한국어"}};
+
     int index_of(const std::string& name) {
         for (int i = 0; i < kSkinCount; i++) {
             if (name == kSkins[i].name) {
@@ -73,6 +79,7 @@ void OnboardingScreen::on_screen_start() {
         toggle_skin(current);
     }
     online = global_data.config->network.online_play;
+    language = global_data.config->general.language;
     row = 0;
     downloading = download_started = false;
     skinless_start = global_data.skinless;
@@ -99,6 +106,14 @@ void OnboardingScreen::toggle_skin(int skin) {
     }
 }
 
+void OnboardingScreen::cycle_language() {
+    size_t i = 0;
+    while (i < std::size(kLanguages) && language != kLanguages[i].code) {
+        i++;
+    }
+    language = kLanguages[(i + 1) % std::size(kLanguages)].code; // unknown code starts at the first entry
+}
+
 void OnboardingScreen::begin_download() {
     error.clear();
     if (std::ranges::none_of(selected, [](bool b) { return b; })) {
@@ -123,6 +138,7 @@ bool OnboardingScreen::apply() {
     Config& cfg = *global_data.config;
     const std::string before = cfg.paths.skin.string();
     const bool before_online = cfg.network.online_play;
+    const std::string before_language = cfg.general.language;
 
     // active skin: the one already configured if it is a leaf, else the first leaf
     auto usable = [&](int i) {
@@ -139,11 +155,12 @@ bool OnboardingScreen::apply() {
         active = current;
     }
     cfg.network.online_play = online;
+    cfg.general.language = language;
     if (active >= 0) {
         cfg.paths.skin = kSkins[active].name;
     }
 
-    if (global_data.skinless || cfg.paths.skin.string() != before) {
+    if (global_data.skinless || cfg.paths.skin.string() != before || language != before_language) {
         drop_other_screens_for_skin_reload();
         try {
             load_skin();
@@ -151,6 +168,7 @@ bool OnboardingScreen::apply() {
             spdlog::error("Onboarding: skin {} failed to load: {}", cfg.paths.skin.string(), e.what());
             cfg.paths.skin = before;
             cfg.network.online_play = before_online;
+            cfg.general.language = before_language;
             error = "Could not load the skin. Try again.";
             return false;
         }
@@ -170,10 +188,13 @@ void OnboardingScreen::handle_tap(Vec2 tap) {
     if (y >= 165 && y < 165 + kSkinCount * 42) {
         row = static_cast<int>((y - 165) / 42);
         toggle_skin(row);
-    } else if (y >= 430 && y < 490) {
+    } else if (y >= 420 && y < 470) {
+        row = language_row();
+        cycle_language();
+    } else if (y >= 470 && y < 530) {
         row = online_row();
         online = !online;
-    } else if (y >= 490 && y < 550) {
+    } else if (y >= 530 && y < 590) {
         row = continue_row();
         begin_download();
     }
@@ -231,7 +252,7 @@ std::optional<Screens> OnboardingScreen::update() {
     }
 
     // Up/Down (arrows or D-pad) move between rows; the drum-only scheme below still works
-    const int rows = kSkinCount + 2;
+    const int rows = kSkinCount + 3;
     if (key_pressed(SDL_SCANCODE_UP) || check_key_pressed(10000 + 1)) {
         row = (row + rows - 1) % rows;
         return std::nullopt;
@@ -250,6 +271,8 @@ std::optional<Screens> OnboardingScreen::update() {
                 begin_download();
             } else if (row < kSkinCount) {
                 toggle_skin(row);
+            } else if (row == language_row()) {
+                cycle_language();
             } else if (row == online_row()) {
                 online = !online;
             }
@@ -266,6 +289,8 @@ std::optional<Screens> OnboardingScreen::update() {
     } else if (menu_left_pressed() || menu_right_pressed()) {
         if (row < kSkinCount) {
             toggle_skin(row);
+        } else if (row == language_row()) {
+            cycle_language();
         } else if (row == online_row()) {
             online = !online;
         } else {
@@ -314,11 +339,14 @@ void OnboardingScreen::draw() {
         Color c = i == row ? Color::YELLOW : (selected[i] ? Color::WHITE : Color::LIGHTGRAY);
         draw_line(line, (165 + i * 42) * s, static_cast<int>(28 * s), c);
     }
-    draw_line(std::string("Online mode: ") + (online ? "ON" : "OFF"), 440 * s, static_cast<int>(32 * s),
+    const auto* lang = std::ranges::find(kLanguages, language, &LanguageEntry::code);
+    draw_line(std::string("Language: ") + (lang != std::end(kLanguages) ? lang->label : language.c_str()), 430 * s,
+              static_cast<int>(32 * s), row == language_row() ? Color::YELLOW : Color::LIGHTGRAY);
+    draw_line(std::string("Online mode: ") + (online ? "ON" : "OFF"), 480 * s, static_cast<int>(32 * s),
               row == online_row() ? Color::YELLOW : Color::LIGHTGRAY);
-    draw_line("Continue", 500 * s, static_cast<int>(32 * s), row == continue_row() ? Color::YELLOW : Color::LIGHTGRAY);
+    draw_line("Continue", 540 * s, static_cast<int>(32 * s), row == continue_row() ? Color::YELLOW : Color::LIGHTGRAY);
     if (!error.empty()) {
-        draw_line(error, 565 * s, static_cast<int>(22 * s), Color::RED);
+        draw_line(error, 600 * s, static_cast<int>(22 * s), Color::RED);
     }
     const char* hint = global_data.config->general.touch_input ? "Tap a skin to select it, then tap Continue"
                        : global_data.config->keys.gamepad_menu_layout

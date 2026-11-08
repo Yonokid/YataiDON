@@ -11,6 +11,7 @@ private:
     std::vector<bool> selected;
     std::vector<bool> installed;
     bool online = false;
+    std::string language;
     int row = 0;
 
     bool downloading = false;
@@ -19,8 +20,10 @@ private:
     bool skinless_start = false;
 
     int skin_count() const;
-    int online_row() const { return skin_count(); }
-    int continue_row() const { return skin_count() + 1; }
+    int language_row() const { return skin_count(); }
+    int online_row() const { return skin_count() + 1; }
+    int continue_row() const { return skin_count() + 2; }
+    void cycle_language();
     int required_by(int skin) const;
     void toggle_skin(int skin);
     void begin_download();
