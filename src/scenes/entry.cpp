@@ -68,7 +68,7 @@ void EntryScreen::on_screen_start() {
                               pd ? pd->gold : false, pd ? pd->rainbow : false, pd ? pd->title_bg : 0);
     }
 
-    timer = std::make_unique<Timer>(60, get_current_ms(), [this] {
+    timer = std::make_unique<Timer>(15, get_current_ms(), [this] {
         if (box_manager->is_costume_box()) {
             box_manager->open_costume_menu(players[0] ? players[0]->player_num : PlayerNum::P1);
         } else {

@@ -27,10 +27,13 @@ protected:
 private:
     static constexpr int SKIP_HITS = 5;
     static constexpr float LANE_Y = 276.0f;
+    static constexpr double FOLLOW_ALONG_MS = 250.0;
 
     std::optional<TutorialOverlay> overlay;
     std::vector<Hit> hits;
     int rim_count = 0;
+    std::vector<double> pending_rims;
+    double last_kat_ms = 0;
     fs::path prev_song;
     int prev_difficulty = 0;
     Screens return_screen = Screens::SONG_SELECT;

@@ -45,6 +45,8 @@ void TutorialScreen::on_screen_start() {
         exists(session_data.selected_tutorial) ? session_data.selected_tutorial : DEFAULT_TUTORIAL_PATH;
     session_data.selected_difficulty = static_cast<int>(Difficulty::EASY);
     hits.clear();
+    pending_rims.clear();
+    last_kat_ms = -FOLLOW_ALONG_MS;
     rim_count = 0;
 
     return_screen = global_data.previous_screen == "SONG_SELECT_2P"       ? Screens::SONG_SELECT_2P
@@ -79,12 +81,20 @@ std::optional<Screens> TutorialScreen::update() {
     overlay->update(ms);
     for (const Hit& hit : hits) {
         overlay->hit(hit.kat, hit.right, ms);
+        if (hit.kat) {
+            last_kat_ms = ms;
+            std::erase_if(pending_rims, [&](double t) { return ms - t < FOLLOW_ALONG_MS; });
+        }
     }
     hits.clear();
 
+    // players drumming along with the autoplay kats must not count toward the skip
     while (is_l_kat_pressed(skip_player) || is_r_kat_pressed(skip_player)) {
-        rim_count++;
+        if (ms - last_kat_ms >= FOLLOW_ALONG_MS) {
+            pending_rims.push_back(ms);
+        }
     }
+    rim_count += static_cast<int>(std::erase_if(pending_rims, [&](double t) { return ms - t >= FOLLOW_ALONG_MS; }));
     bool finished = overlay->loaded() ? overlay->is_finished(ms) : clock.position() >= players[0]->end_time;
     if (rim_count >= SKIP_HITS || finished) {
         return on_screen_end(return_screen);

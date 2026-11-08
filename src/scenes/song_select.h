@@ -53,6 +53,9 @@ protected:
     std::optional<SearchBox> search_box;
 
     virtual void select_song(SongBox* song);
+    virtual void on_select_timeout();
+    void on_diff_select_timeout();
+    virtual SongSelectPlayer* second_player() { return nullptr; }
 
     virtual void handle_input(double current_ms);
 

@@ -1555,11 +1555,11 @@ void apply_modifiers(NoteList& notes, const Modifiers& modifiers) {
 
     modifier_difficulty(notes, modifiers.subdiff);
 
-    if (modifiers.no_kusudama) {
-        for (Note& note : notes.notes) {
-            if (note.type == NoteType::KUSUDAMA) {
-                note.type = NoteType::BALLOON_HEAD;
-            }
+    for (Note& note : notes.notes) {
+        if (note.type == NoteType::KUSUDAMA &&
+            (modifiers.no_kusudama ||
+             (modifiers.shared_kusudamas && !modifiers.shared_kusudamas->contains(std::llround(note.hit_ms))))) {
+            note.type = NoteType::BALLOON_HEAD;
         }
     }
 

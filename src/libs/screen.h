@@ -10,6 +10,7 @@
 #include "audio/audio.h"
 #include "gfx/texture.h"
 #include "global_data.h"
+#include "input/input.h"
 #include "time.h"
 
 inline int virtual_to_screen_x(float virtual_x) {
@@ -157,6 +158,8 @@ protected:
             screen_init = true;
             try {
                 on_screen_start();
+                // hits made during the previous screen's fade-out or this load must not act here
+                clear_input_buffers();
                 g_frame_ms = get_current_ms();
                 spdlog::info("{} initialized", screen_name);
             } catch (const std::exception& e) {

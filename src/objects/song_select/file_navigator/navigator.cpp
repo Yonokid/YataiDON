@@ -1598,7 +1598,7 @@ void Navigator::draw_score_history() {
 // Course clear counts for the difficulty sort. The levels come from the startup scan (the library's course levels),
 // not a parse of every chart on disk: song select waits for this before it opens the difficulty
 // sort and before it hands over to the next screen.
-Statistics Navigator::get_statistics(const fs::path& path, const std::stop_token& stop,
+Statistics Navigator::get_statistics(const std::vector<fs::path>& paths, const std::stop_token& stop,
                                      const std::set<fs::path>* scope) {
     std::atomic<bool> cancelled{stop.stop_requested()};
     std::stop_callback cancellation(stop, [&cancelled] { cancelled = true; });
@@ -1621,7 +1621,9 @@ Statistics Navigator::get_statistics(const fs::path& path, const std::stop_token
             songs.emplace_back(song_path, index->course_levels(song_path));
         }
     } else {
-        songs = song_library.course_levels_in_subfolders(path, &cancelled);
+        for (const fs::path& path : paths) {
+            std::ranges::move(song_library.course_levels_in_subfolders(path, &cancelled), std::back_inserter(songs));
+        }
     }
 
     for (const auto& [song_path, levels] : songs) {

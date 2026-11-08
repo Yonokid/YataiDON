@@ -47,6 +47,18 @@ void SongSelect2PScreen::handle_input_browsing(double current_ms) {
     }
 }
 
+void SongSelect2PScreen::on_select_timeout() {
+    if (state != SongSelectState::BROWSING) {
+        return;
+    }
+    state = player->select_song();
+    if (state == SongSelectState::SONG_SELECTED) {
+        if (auto* song = dynamic_cast<SongBox*>(navigator.get_current_item())) {
+            init_player_diffs(player_2.get(), song);
+        }
+    }
+}
+
 void SongSelect2PScreen::handle_input_selecting() {
     bool ura_1p = player->is_ura;
     bool ura_2p = player_2->is_ura;
@@ -137,7 +149,8 @@ std::optional<Screens> SongSelect2PScreen::update() {
         }
     }
 
-    if (check_key_pressed(global_data.config->keys.back_key) && !game_transition.has_value()) {
+    if (check_key_pressed(global_data.config->keys.back_key) && !game_transition.has_value() &&
+        global_data.config->limits.song_limit <= 0) {
         return on_screen_end(Screens::ENTRY);
     }
 
@@ -158,6 +171,10 @@ std::optional<Screens> SongSelect2PScreen::update() {
         script->restart_text_fade();
         if (state == SongSelectState::SEARCHING) {
             start_search();
+        } else if (state == SongSelectState::SONG_SELECTED) {
+            diff_select_timer = std::make_unique<Timer>(60, current_time, [this] { on_diff_select_timeout(); });
+        } else if (state == SongSelectState::BROWSING) {
+            diff_select_timer.reset();
         }
     }
 

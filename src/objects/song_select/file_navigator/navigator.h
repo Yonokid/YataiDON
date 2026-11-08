@@ -164,7 +164,7 @@ public:
     bool is_directory(BaseBox* item);
     bool is_song(BaseBox* item);
     BaseBox* get_current_item();
-    Statistics get_statistics(const fs::path& path, const std::stop_token& stop,
+    Statistics get_statistics(const std::vector<fs::path>& paths, const std::stop_token& stop,
                               const std::set<fs::path>* scope = nullptr);
 
     void move_left();

@@ -12,6 +12,7 @@
 #include <map>
 #include <optional>
 #include <regex>
+#include <set>
 #include <spdlog/spdlog.h>
 #include <string>
 #include <string_view>
@@ -30,6 +31,8 @@ struct Modifiers {
     int subdiff = 0;
     bool skip = false;
     bool no_kusudama = false;
+    // 2P: kusudamas only stay where both charts have one (llround(hit_ms)); the rest become balloons
+    std::optional<std::set<long long>> shared_kusudamas;
 };
 
 enum class NoteType : int {

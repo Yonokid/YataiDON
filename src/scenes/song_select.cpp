@@ -48,10 +48,10 @@ void SongSelectScreen::on_screen_start() {
     stats_stop = std::stop_source{};
 
     if (!global_data.config->paths.tja_path.empty()) {
-        stats_future = std::async(std::launch::async,
-                                  [path = global_data.config->paths.tja_path[0], stop = stats_stop.get_token()] {
-                                      return navigator.get_statistics(path, stop);
-                                  });
+        stats_future =
+            std::async(std::launch::async, [paths = global_data.config->paths.tja_path, stop = stats_stop.get_token()] {
+                return navigator.get_statistics(paths, stop);
+            });
     }
 #endif
     navigator.refresh_scores();
@@ -61,7 +61,7 @@ void SongSelectScreen::on_screen_start() {
 
     indicator = std::make_unique<Indicator>(Indicator::State::SELECT);
     song_num = std::make_unique<SongNum>(global_data.songs_played + 1);
-    select_timer = std::make_unique<Timer>(100, get_current_ms(), [this] { player->select_song(); });
+    select_timer = std::make_unique<Timer>(100, get_current_ms(), [this] { on_select_timeout(); });
     diff_select_timer = nullptr;
     join_request_ms = -1.0;
 }
@@ -82,6 +82,26 @@ void SongSelectScreen::select_song(SongBox* song) {
         game_transition->add_loading_graphic((session_data.selected_song.parent_path() / "Loading.png").string());
     }
     game_transition->start();
+}
+
+void SongSelectScreen::on_select_timeout() {
+    if (state == SongSelectState::BROWSING) {
+        state = player->select_song();
+    }
+}
+
+void SongSelectScreen::on_diff_select_timeout() {
+    auto* item = dynamic_cast<SongBox*>(navigator.get_current_item());
+    if (item == nullptr || game_transition.has_value()) {
+        return;
+    }
+    // the cursor may rest on back/options when time runs out
+    for (SongSelectPlayer* p : {player.get(), second_player()}) {
+        if (p != nullptr && p->selected_difficulty < Difficulty::EASY && !p->curr_diffs.empty()) {
+            p->selected_difficulty = p->curr_diffs.front();
+        }
+    }
+    select_song(item);
 }
 
 void SongSelectScreen::handle_input_browsing(double current_ms) {
@@ -392,11 +412,9 @@ std::optional<Screens> SongSelectScreen::update() {
             set_keyboard_visible(false);
         }
         if (state == SongSelectState::SONG_SELECTED) {
-            diff_select_timer = std::make_unique<Timer>(60, current_time, [this] {
-                if (auto* item = dynamic_cast<SongBox*>(navigator.get_current_item())) {
-                    select_song(item);
-                }
-            });
+            diff_select_timer = std::make_unique<Timer>(60, current_time, [this] { on_diff_select_timeout(); });
+        } else if (state == SongSelectState::BROWSING) {
+            diff_select_timer.reset();
         } else if (state == SongSelectState::SEARCHING) {
             start_search();
         } else if (state == SongSelectState::DAN_SELECTED) {

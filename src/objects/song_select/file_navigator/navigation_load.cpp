@@ -162,6 +162,22 @@ class NavigationLoad {
     void parse_song_list(const fs::path& path, const BoxDef& box_def, bool inline_mode);
     void load_current_directory_async(const fs::path& path);
     std::vector<fs::path> find_new_songs(const fs::path& path) const;
+    // folders a collection draws songs from: its parent, or every root when it sits at one (the roots list as one)
+    std::vector<fs::path> collection_scope(const fs::path& path) const {
+        const fs::path parent = path.parent_path();
+        return std::ranges::contains(root_paths, parent) ? root_paths : std::vector<fs::path>{parent};
+    }
+    // the folder beside the collection that holds song_path; empty if none or the collection itself
+    fs::path collection_sibling(const fs::path& song_path, const fs::path& path) const {
+        for (const fs::path& base : collection_scope(path)) {
+            fs::path rel = song_path.lexically_relative(base);
+            if (!rel.empty() && rel.begin()->string() != "..") {
+                fs::path sibling = base / *rel.begin();
+                return sibling == path ? fs::path{} : sibling;
+            }
+        }
+        return {};
+    }
     void load_collection_new(const fs::path& path, const BoxDef& box_def);
     void load_collection_difficulty(const fs::path& path, const BoxDef& box_def, int course, int level, int order = 1);
     void load_from_song_list(const fs::path& path, const fs::path& list_folder, const BoxDef& box_def,
@@ -556,24 +572,22 @@ void NavigationLoad::load_current_directory_async(const fs::path& path) {
 
 std::vector<fs::path> NavigationLoad::find_new_songs(const fs::path& path) const {
     std::vector<fs::path> hits;
-    const fs::path parent = path.parent_path();
     const auto two_weeks_ago = fs::file_time_type::clock::now() - ch::weeks(2);
-    for (const auto& song_path : index->song_paths_under(parent, &abort_loading)) {
-        if (abort_loading) {
-            break;
+    for (const fs::path& base : collection_scope(path)) {
+        for (const auto& song_path : index->song_paths_under(base, &abort_loading)) {
+            if (abort_loading) {
+                return hits;
+            }
+            if (collection_sibling(song_path, path).empty()) {
+                continue;
+            }
+            std::error_code ec;
+            auto last_write = fs::last_write_time(song_path.parent_path(), ec);
+            if (ec || last_write < two_weeks_ago) {
+                continue;
+            }
+            hits.push_back(song_path);
         }
-
-        fs::path rel = song_path.lexically_relative(parent);
-        fs::path sibling = parent / *rel.begin();
-        if (sibling == path) {
-            continue;
-        }
-        std::error_code ec;
-        auto last_write = fs::last_write_time(song_path.parent_path(), ec);
-        if (ec || last_write < two_weeks_ago) {
-            continue;
-        }
-        hits.push_back(song_path);
     }
     return hits;
 }
@@ -598,7 +612,7 @@ void NavigationLoad::load_collection_new(const fs::path& path, const BoxDef& box
             enqueue_inline_box(make_back_box(parent, &inline_back_def));
         }
         auto song = make_song_box(h, box_def, take_parser(preparsed, h));
-        apply_song_genre(song.get(), parse_box_def(parent / *h.lexically_relative(parent).begin()));
+        apply_song_genre(song.get(), parse_box_def(collection_sibling(h, path)));
         song->fade_in(266);
         enqueue_inline_box(std::move(song));
         songs_added++;
@@ -638,12 +652,8 @@ void NavigationLoad::load_collection_difficulty(const fs::path& path, const BoxD
             sibling = navigation_scan::find_box_def_folder(song_path);
         } else {
             // at a root: the song must sit below one of the collection folder's siblings
-            fs::path rel = song_path.lexically_relative(parent);
-            if (rel.empty() || rel.begin()->string() == "..") {
-                continue;
-            }
-            sibling = parent / *rel.begin();
-            if (sibling == path || !fs::is_directory(sibling)) {
+            sibling = collection_sibling(song_path, path);
+            if (sibling.empty() || !fs::is_directory(sibling)) {
                 continue;
             }
         }

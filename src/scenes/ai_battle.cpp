@@ -87,7 +87,7 @@ std::optional<Screens> AISongSelectScreen::update() {
         intro.reset();
         audio.play_sound("bgm", VolumePreset::MUSIC);
         play_call_voice();
-        select_timer = std::make_unique<Timer>(100, current_ms, [this] { player->select_song(); });
+        select_timer = std::make_unique<Timer>(100, current_ms, [this] { on_select_timeout(); });
     }
     return std::nullopt;
 }
@@ -518,6 +518,13 @@ std::optional<Screens> AIResultScreen::update() {
         skipped_time = skipped_time > 0 ? skipped_time : now;
         board->begin(network.ai_battle_progress());
         clear_input_buffers();
+        return next;
+    }
+    // the base back-key check is gated on reveal_end_ms(), which is 0 while the board is up
+    if (fade_out && check_key_pressed(global_data.config->keys.back_key)) {
+        quitting = true;
+        fade_out->start();
+        audio.play_sound("don", VolumePreset::SOUND);
         return next;
     }
     const PlayerNum seat = global_data.player_num;
