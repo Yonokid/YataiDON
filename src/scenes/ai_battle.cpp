@@ -13,7 +13,7 @@ static constexpr std::array<int, 4> FIRST_LEVEL = {1, 2, 6, 10};
 static constexpr std::array<int, 4> LEVEL_COUNT = {1, 4, 4, 4};
 
 int AISongSelectScreen::hovered_course() const {
-    if (!menu || !menu->loaded() || state != SongSelectState::SONG_SELECTED) {
+    if (!menu || !menu->loaded() || state != SongSelectState::SONG_SELECTED || tex.options[SCO::AI_NO_SUPPORT_LEVELS]) {
         return -1;
     }
     const auto course = static_cast<int>(player->selected_difficulty);
@@ -239,6 +239,7 @@ void AIGameScreen::start_match() {
     current_section = 0;
     sections_won = 0;
     match_recorded = false;
+    ai_hits_seen = 0;
     section_won.clear();
     global_data.ai_match = {};
 
@@ -346,9 +347,10 @@ int AIGameScreen::current_territory() const {
 }
 
 void AIGameScreen::close_finished_sections() {
-    while (current_section < section_count && clock.position() >= section_end_ms(current_section) + Timing::BAD_EASY) {
+    while (current_section < section_count &&
+           (skipped || clock.position() >= section_end_ms(current_section) + Timing::BAD_EASY)) {
         const int margin = current_territory();
-        const bool won = margin >= 0; // a tie goes to the player
+        const bool won = margin >= 0 && !skipped; // a tie goes to the player; a skip leaves the rest to the AI
         sections_won += won;
         section_won.push_back(won);
         brain.on_section_end(margin);
@@ -403,11 +405,44 @@ void AIGameScreen::record_match(const SessionData& session) {
                              session.ai_assigned, sections);
 }
 
+// screen option ai_wait_loading_card: the chart waits behind the loading card, and nothing typed meanwhile reaches the
+// drums
+void AIGameScreen::update_loading_hold() {
+    const bool card_up = tex.options[SCO::AI_WAIT_LOADING_CARD] && transition && !transition->is_finished();
+    if (card_up != card_hold) {
+        card_hold = card_up;
+        card_up ? clock.pause(get_current_ms()) : clock.resume(get_current_ms());
+        clear_input_buffers();
+    } else if (card_up) {
+        clear_input_buffers();
+    }
+}
+
+// a skin whose overlay has handle_skip offers the skip: read from the AI's unplayed lane, as in a solo play
+void AIGameScreen::update_ai_skip() {
+    if (!overlay_active() || !overlay->wants_skip()) {
+        return;
+    }
+    if (skip_lane == PlayerNum::ALL && !skipped && human()->is_skip_enabled()) {
+        skip_lane = other_seat(global_data.player_num);
+    }
+    const size_t ai_hits = ai()->input_log.size();
+    skip_play_hits += ai_hits - ai_hits_seen; // only the player's own hits cancel a skip
+    ai_hits_seen = ai_hits;
+    update_skip();
+    skip_text.reset();
+    if (skip_lane != PlayerNum::ALL) {
+        overlay->handle_skip(skip_count, SKIP_HITS, skipped);
+    }
+}
+
 std::optional<Screens> AIGameScreen::update() {
+    update_loading_hold();
     auto next = Game2PScreen::update();
     if (next || players.size() != 2) {
         return next;
     }
+    update_ai_skip();
     // recounts every note each frame;
     update_tallies();
     close_finished_sections();

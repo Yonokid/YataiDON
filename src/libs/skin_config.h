@@ -130,6 +130,9 @@ enum class SCO : unsigned int {
     HIDDEN_ONI,
     DISABLE_CAMPAIGNS,
     DISABLE_REWARD_SHOP,
+    AI_WAIT_LOADING_CARD, // the AI battle's chart waits for the loading card
+    AI_NO_SUPPORT_LEVELS, // the AI select plays the chosen chart as it is: no easier support levels
+
     DISABLE_TOTAL_RESULT,
     DISABLE_WAIWAI,
 };
@@ -157,4 +160,6 @@ const std::unordered_map<std::string, SCO> screen_options_map{
     {"disable_reward_shop", SCO::DISABLE_REWARD_SHOP},
     {"disable_total_result", SCO::DISABLE_TOTAL_RESULT},
     {"disable_waiwai", SCO::DISABLE_WAIWAI},
+    {"ai_no_support_levels", SCO::AI_NO_SUPPORT_LEVELS},
+    {"ai_wait_loading_card", SCO::AI_WAIT_LOADING_CARD},
 };

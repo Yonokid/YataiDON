@@ -1213,7 +1213,7 @@ void Player::drumroll_counter_manager(double current_ms) {
     // a roll with no hits yet must not overwrite the previous roll's count, which may still be fading out
     const bool hit_active_roll = is_drumroll && curr_drumroll_count > 0;
     if (hit_active_roll && drumroll_counter == std::nullopt) {
-        drumroll_counter = DrumrollCounter();
+        drumroll_counter = DrumrollCounter(player_num);
     }
 
     if (drumroll_counter.has_value()) {
@@ -1744,6 +1744,12 @@ void Player::place_chara_on_stage(float x, float y) {
 
 void Player::draw_stage_chara(float scale) {
     if (stage_chara) {
+        // one model serves both places and the balloon's Don is never mirrored: while it shows, the stage's AI is
+        // turned the other way instead, so it still faces the player
+        const bool at_balloon = is_2p && is_balloon && (!balloon_idle || balloon_counter.has_value());
+        const Chara3DConfig pose{};
+        chara->set_mirror(is_2p && !at_balloon);
+        chara->set_rotation(pose.rot_x, at_balloon ? -pose.rot_y : pose.rot_y, pose.rot_z);
         chara->draw(stage_chara->first, stage_chara->second, scale);
     }
 }
@@ -1846,8 +1852,12 @@ void Player::draw_overlays(float y) {
                 rig_2p_y = p2->y;
             }
         }
-        if (!stage_chara && (!balloon_idle || balloon_counter.has_value())) {
+        if (!balloon_idle || balloon_counter.has_value()) {
             auto [cx, cy] = tex.chara_xy("game_balloon");
+            if (stage_chara) { // back from the stage's facing
+                const Chara3DConfig& cfg = tex.chara_3d_config;
+                chara->set_rotation(cfg.rot_x, cfg.rot_y, cfg.rot_z);
+            }
             chara->draw(cx, y + cy + rig_2p_y, 1.0f);
         }
     }

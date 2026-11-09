@@ -822,6 +822,18 @@ void Chara3D::set_rotation(float x, float y, float z) {
     render_dirty = true;
 }
 
+void Chara3D::set_mirror(bool value) {
+    if (mirror == value) {
+        return;
+    }
+    mirror = value;
+    const int frame = anim_frame;
+    const double frame_ms = last_frame_ms;
+    set_anim(anim_index);
+    anim_frame = frame;
+    last_frame_ms = frame_ms;
+}
+
 void Chara3D::use_default_pose(bool new_mirror) {
     const Chara3DConfig cfg{};
     scale = cfg.scale;

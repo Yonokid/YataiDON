@@ -12,6 +12,7 @@
 #include <string_view>
 
 #include "../../objects/enums.h"
+#include "../../objects/song_select/ai_vs_chara.h"
 #include "../../objects/song_select/file_navigator/box_lua_bindings.h"
 #include "../audio/audio.h"
 #include "../color_shader.h"
@@ -827,6 +828,7 @@ void ScriptManager::register_lua_bindings() {
     });
 
     tex.set_function("end_scissor", [] { end_scissor_mode(); });
+    ai_vs_chara_bind(tex);
 
     // Textures drawn until end_recolor have the colour `from` replaced by `to` ({r, g, b}, 0-255)
     tex.set_function("begin_recolor", [](std::array<int, 3> from, std::array<int, 3> to) {

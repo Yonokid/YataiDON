@@ -6,7 +6,7 @@
 static constexpr int DRUMROLL_COUNTER_FADE_ANIM_ID = 8;
 static constexpr int DRUMROLL_COUNTER_STRETCH_ANIM_ID = 9;
 
-DrumrollCounter::DrumrollCounter() {
+DrumrollCounter::DrumrollCounter(PlayerNum player_num) {
     drumroll_count = 0;
     fade = dynamic_cast<FadeAnimation*>(tex.get_animation(DRUMROLL_COUNTER_FADE_ANIM_ID));
     stretch = dynamic_cast<TextStretchAnimation*>(tex.get_animation(DRUMROLL_COUNTER_STRETCH_ANIM_ID));
@@ -15,6 +15,9 @@ DrumrollCounter::DrumrollCounter() {
     }
     t_bubble = tex.get_texture("drumroll_counter/bubble");
     t_counter = tex.get_texture("drumroll_counter/counter");
+    if (load("DrumrollCounter", "drumroll_counter", static_cast<int>(player_num))) {
+        fn_draw = lua_object["draw"];
+    }
 }
 
 void DrumrollCounter::update_count(int count) {
@@ -39,6 +42,10 @@ void DrumrollCounter::update_animations(double current_ms) {
 }
 
 void DrumrollCounter::draw(float y) {
+    if (fn_draw.valid()) {
+        call(fn_draw, "DrumrollCounter:draw", y, drumroll_count, fade->attribute, stretch->attribute);
+        return;
+    }
     tex.draw_texture(t_bubble, {.y = y, .fade = fade->attribute});
     std::string counter = std::to_string(drumroll_count);
     const float margin = tex.get_skin_config(SC::GAME_DRUMROLL_COUNTER_MARGIN)->x;
