@@ -53,8 +53,9 @@ void TitleScreen::on_screen_start() {
     // Card reader only matters when online (case 4: offline scan does nothing)
     // Opened on a worker thread; update() starts polling once it is ready
     if (global_data.config && global_data.config->network.online_play && global_data.config->card_reader.enabled) {
-        card_reader::reader_opener().request(global_data.config->card_reader.port,
-                                             global_data.config->card_reader.baudrate);
+        card_reader::reader_opener().request(
+            global_data.config->card_reader.port, global_data.config->card_reader.baudrate,
+            global_data.config->card_reader.backend, global_data.config->card_reader.device);
     }
 #endif
 }

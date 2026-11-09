@@ -53,8 +53,9 @@ void EntryScreen::on_screen_start() {
     next_card_start_ms_ = 0;
     // Opened on a worker thread; update() starts polling once it is ready
     if (online && global_data.config->card_reader.enabled) {
-        card_reader::reader_opener().request(global_data.config->card_reader.port,
-                                             global_data.config->card_reader.baudrate);
+        card_reader::reader_opener().request(
+            global_data.config->card_reader.port, global_data.config->card_reader.baudrate,
+            global_data.config->card_reader.backend, global_data.config->card_reader.device);
     }
 #endif
 

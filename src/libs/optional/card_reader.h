@@ -21,12 +21,13 @@ namespace card_reader {
         NONE = 0,
         MIFARE = 1, // Aime card (MIFARE)
         FELICA = 2, // FeliCa card
-        ERROR = 3
+        ERROR = 3,
+        NFC_UID = 4
     };
 
     struct CardInfo {
         CardType type = CardType::NONE;
-        std::string card_id;     // 16 hex characters (FeliCa) or 20 hex characters (MIFARE)
+        std::string card_id;     // Uppercase hex arcade ID or NFC UID (see README)
         uint32_t mifare_uid = 0; // For MIFARE cards
         bool valid = false;
     };
@@ -101,6 +102,10 @@ namespace card_reader {
         bool accepting_ = false;
         uint64_t generation_ = 0;
     };
+
+#ifdef YATAIDON_HAS_LIBNFC
+    std::unique_ptr<Reader> open_libnfc_reader(const std::string& device);
+#endif
 
     class CardReader : public Reader {
     public:
@@ -197,7 +202,8 @@ namespace card_reader {
     class ReaderOpener {
     public:
         // Starts an attempt unless one is running or has a result nobody has taken yet
-        void request(const std::string& port, int baudrate);
+        void request(const std::string& port, int baudrate, const std::string& backend = "serial",
+                     const std::string& device = "");
         // The attempt's reader once it has finished (nullptr if none was found); nullopt while it runs
         // or when nothing was requested
         std::optional<std::unique_ptr<Reader>> take();

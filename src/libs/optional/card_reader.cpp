@@ -785,12 +785,27 @@ namespace card_reader {
         send_command(CMD_LED_RESET, {}, false);
     }
 
-    void ReaderOpener::request(const std::string& port, int baudrate) {
+    void ReaderOpener::request(const std::string& port, int baudrate, const std::string& backend,
+                               const std::string& device) {
         if (pending_.valid()) {
             return;
         }
 
-        pending_ = std::async(std::launch::async, [port, baudrate] -> std::unique_ptr<Reader> {
+        pending_ = std::async(std::launch::async, [port, baudrate, backend, device] -> std::unique_ptr<Reader> {
+            if (backend == "libnfc") {
+#ifdef YATAIDON_HAS_LIBNFC
+                return open_libnfc_reader(device);
+#else
+                spdlog::error("libnfc card reader support was not built");
+                return nullptr;
+#endif
+            }
+
+            if (backend != "serial") {
+                spdlog::error("Unknown card reader backend: {}", backend);
+                return nullptr;
+            }
+
             auto reader = std::make_unique<CardReader>();
             if (!reader->initialize(port, baudrate)) {
                 return nullptr;

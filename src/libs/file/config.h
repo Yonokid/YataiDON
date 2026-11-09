@@ -40,6 +40,8 @@ struct LimitsConfig {
 };
 
 struct CardReaderConfig {
+    std::string backend = "serial";
+    std::string device;
     bool enabled = true;
     std::string port = "/dev/ttyUSB0";
     int baudrate = 38400;
