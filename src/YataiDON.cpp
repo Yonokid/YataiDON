@@ -120,40 +120,6 @@ static std::filesystem::path path_from_arg(const std::string& arg) {
 #endif
 }
 
-// Consumes reader options before check_args.
-static void parse_card_reader_args(int& argc, char* argv[], CardReaderConfig& cr) {
-    int out = 1;
-    for (int i = 1; i < argc; i++) {
-        std::string arg = argv[i];
-        const bool known = arg == "--card-port" || arg == "--card-baud";
-        if (!known) {
-            argv[out++] = argv[i];
-            continue;
-        }
-        if (i + 1 >= argc) {
-            std::cerr << "Error: " << arg << " requires a value\n";
-            exit_now(1);
-        }
-        std::string val = argv[++i];
-        if (arg == "--card-port") {
-            cr.port = val;
-            continue;
-        }
-        try {
-            size_t pos = 0;
-            int n = std::stoi(val, &pos);
-            if (pos != val.size() || n <= 0) {
-                throw std::invalid_argument(val);
-            }
-            cr.baudrate = n;
-        } catch (const std::exception&) {
-            std::cerr << "Error: Invalid value for " << arg << ": " << val << "\n";
-            exit_now(1);
-        }
-    }
-    argc = out;
-}
-
 Screens check_args(int argc, char* argv[]) {
     if (argc == 1) {
         return Screens::LOADING;
@@ -177,9 +143,6 @@ Screens check_args(int argc, char* argv[]) {
             std::cout << "  difficulty  : Difficulty level (optional, defaults to max difficulty)\n";
             std::cout << "  --auto      : Enable auto mode\n";
             std::cout << "  --practice  : Start in practice mode\n";
-            std::cout << "Card reader (valid with or without song_path):\n";
-            std::cout << "  --card-port <path>   : Serial port (default /dev/ttyUSB0)\n";
-            std::cout << "  --card-baud <rate>   : Baud rate (default 38400)\n";
             exit_now(0);
         } else if (!arg.empty() && arg[0] == '-') {
             std::cerr << "Error: Unknown option: " << arg << "\n";
@@ -658,7 +621,6 @@ static int game_main(int argc, char* argv[]) {
 
     save_config(*global_data.config);
     ensure_config_file(*global_data.config);
-    parse_card_reader_args(argc, argv, global_data.config->card_reader);
     Screens initial_screen = check_args(argc, argv);
     init_scores_manager(global_data.config->general.score_method == ScoreMethod::GEN3);
     unsigned int flags = platform_window_flags(0);
