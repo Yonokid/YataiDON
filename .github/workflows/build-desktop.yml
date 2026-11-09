@@ -59,6 +59,7 @@ jobs:
             pkg-config \
             patchelf \
             libssl-dev \
+            libnfc-dev \
             libx11-dev \
             libxrandr-dev \
             libxinerama-dev \
@@ -110,6 +111,7 @@ jobs:
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER=g++ \
             -DCMAKE_C_COMPILER=gcc \
+            -DYATAIDON_LIBNFC=ON \
             -DNETWORK_URL="${{ secrets.NETWORK_URL }}" \
             -DNETWORK_AUTH_KEY="${{ secrets.NETWORK_AUTH_KEY }}"
 
@@ -137,6 +139,21 @@ jobs:
           # Bundle SDL3 shared library
           ldd build/bin/YataiDON | grep -E "libSDL3.*=>" | awk '{print $3}' | \
             grep -v "^$" | xargs -I{} cp -L {} release/YataiDON-Linux/lib/ 2>/dev/null || true
+
+          # libnfc and its full dependency tree, excluding the host's glibc/loader.
+          nfc_library=$(ldd build/bin/YataiDON | awk '$1 ~ /^libnfc\.so/ && $2 == "=>" {print $3}')
+          if [ -n "$nfc_library" ]; then
+            cp -L "$nfc_library" release/YataiDON-Linux/lib/
+            nfc_dependencies=$(ldd "$nfc_library")
+            if grep -q 'not found' <<< "$nfc_dependencies"; then
+              echo "Unresolved libnfc dependencies:" >&2
+              echo "$nfc_dependencies" >&2
+              exit 1
+            fi
+            while IFS= read -r dependency; do
+              cp -L "$dependency" release/YataiDON-Linux/lib/
+            done < <(awk '$2 == "=>" && $3 ~ /^\// && $1 !~ /^lib(c|m|dl|rt|pthread|resolv|util|anl|nsl)\.so/ {print $3}' <<< "$nfc_dependencies")
+          fi
 
           # Bundle transitive deps of FFmpeg AND sndfile codec libs
           for so in release/YataiDON-Linux/lib/lib{av,sw,ogg,vorbis,FLAC,opus,mp3lame,mpg123,speex,SDL3}*.so*; do
@@ -228,6 +245,7 @@ jobs:
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER=g++ \
             -DCMAKE_C_COMPILER=gcc \
+            -DYATAIDON_LIBNFC=OFF \
             -DNETWORK_URL="${{ secrets.NETWORK_URL }}" \
             -DNETWORK_AUTH_KEY="${{ secrets.NETWORK_AUTH_KEY }}"
 
@@ -291,6 +309,7 @@ jobs:
             ffmpeg \
             sdl3 \
             dylibbundler \
+            libnfc \
             libogg \
             libvorbis \
             flac \
@@ -320,6 +339,7 @@ jobs:
             -DCMAKE_C_COMPILER=clang \
             -DCMAKE_PREFIX_PATH="$(brew --prefix)" \
             -DCMAKE_EXE_LINKER_FLAGS="-L$(brew --prefix)/lib" \
+            -DYATAIDON_LIBNFC=ON \
             -DNETWORK_URL="${{ secrets.NETWORK_URL }}" \
             -DNETWORK_AUTH_KEY="${{ secrets.NETWORK_AUTH_KEY }}"
 
@@ -341,6 +361,27 @@ jobs:
             -x release/YataiDON-macOS/YataiDON \
             -d release/YataiDON-macOS/lib \
             -p @executable_path/lib
+
+          if otool -L build/bin/YataiDON | grep -q 'libnfc'; then
+            test -n "$(find release/YataiDON-macOS/lib -name 'libnfc*.dylib' -print -quit)"
+          fi
+
+          # Reject packages that still depend on libraries from the build machine.
+          for binary in release/YataiDON-macOS/YataiDON release/YataiDON-macOS/lib/*.dylib; do
+            dependencies=$(otool -L "$binary")
+            while IFS= read -r dependency; do
+              case "$dependency" in
+                /usr/lib/*|/System/Library/*) ;;
+                @executable_path/lib/*)
+                  test -f "release/YataiDON-macOS/${dependency#@executable_path/}"
+                  ;;
+                *)
+                  echo "Unbundled dependency in $binary: $dependency" >&2
+                  exit 1
+                  ;;
+              esac
+            done < <(awk 'NR > 1 {print $1}' <<< "$dependencies")
+          done
 
           # Checksums — binary + updater + shader + lib
           (
