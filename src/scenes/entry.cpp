@@ -50,10 +50,12 @@ void EntryScreen::on_screen_start() {
     global_data.card_reader_card_id_hex.clear();
 
 #ifdef CARD_READER_ENABLED
+    next_card_start_ms_ = 0;
     // Opened on a worker thread; update() starts polling once it is ready
     if (online && global_data.config->card_reader.enabled) {
-        card_reader::reader_opener().request(global_data.config->card_reader.port,
-                                             global_data.config->card_reader.baudrate);
+        card_reader::reader_opener().request(
+            global_data.config->card_reader.port, global_data.config->card_reader.baudrate,
+            global_data.config->card_reader.backend, global_data.config->card_reader.device);
     }
 #endif
 
@@ -412,7 +414,6 @@ Screens EntryScreen::on_screen_end(Screens next_screen) {
         card_reader_->stop_polling();
         card_reader_->led_reset();
         card_reader_.reset();
-        card_reader_initialized_ = false;
     }
 #endif
 
@@ -650,28 +651,32 @@ std::optional<Screens> EntryScreen::update() {
     if (!card_reader_) {
         if (auto opened = card_reader::reader_opener().take()) {
             card_reader_ = std::move(*opened);
-            if (card_reader_) {
-                card_reader_->start_polling();
-                card_reader_->set_led_color(255, 255, 255);
-                last_card_poll_ms_ = current_time;
-                card_reader_initialized_ = true;
-            }
         }
     }
+    if (card_reader_ && !card_reader_->is_polling() && current_time >= next_card_start_ms_) {
+        if (card_reader_->start_polling()) {
+            card_reader_->set_led_color(255, 255, 255);
+        }
+
+        next_card_start_ms_ = get_current_ms() + 1000;
+    }
+
     // Case 6: any card while a seat is free (P1 first, then P2)
-    if (card_reader_ && card_reader_->is_polling() && !login_ready_ && !login_pending() && !network.probing() &&
-        state != EntryState::SELECT_COSTUME && state != EntryState::NAME_ENTRY && state != EntryState::CAMPAIGN &&
-        state != EntryState::BNCOIN && state != EntryState::PRACTICE_HELP && state != EntryState::ENTRY_INFO &&
-        !(seat_joined(PlayerNum::P1) && seat_joined(PlayerNum::P2))) {
-        if (current_time - last_card_poll_ms_ >= global_data.config->card_reader.poll_interval_ms) {
-            last_card_poll_ms_ = current_time;
-            if (card_reader_->poll_once()) {
-                const auto& ci = card_reader_->get_card_info();
-                if (ci.valid && !ci.card_id_hex.empty() && !std::ranges::contains(used_cards_, ci.card_id_hex)) {
-                    used_cards_.push_back(ci.card_id_hex);
-                    card_reader_->set_led_color(0, 255, 0);
-                    join_with_card(ci.card_id_hex);
-                }
+    if (card_reader_ && card_reader_->is_polling()) {
+        const bool accepts_card = !login_ready_ && !login_pending() && !network.probing() &&
+                                  state != EntryState::SELECT_COSTUME && state != EntryState::NAME_ENTRY &&
+                                  state != EntryState::CAMPAIGN && state != EntryState::BNCOIN &&
+                                  state != EntryState::PRACTICE_HELP && state != EntryState::ENTRY_INFO &&
+                                  !(seat_joined(PlayerNum::P1) && seat_joined(PlayerNum::P2));
+        card_reader_->set_accepting_cards(accepts_card);
+
+        if (auto event = card_reader_->take_event(); accepts_card && event) {
+            const auto& card_id = event->card.card_id;
+            if (!std::ranges::contains(used_cards_, card_id)) {
+                used_cards_.push_back(card_id);
+                card_reader_->set_accepting_cards(false);
+                card_reader_->set_led_color(0, 255, 0);
+                join_with_card(card_id);
             }
         }
     }
