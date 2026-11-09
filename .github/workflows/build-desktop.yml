@@ -66,6 +66,7 @@ jobs:
             libxi-dev \
             libxtst-dev \
             libgl1-mesa-dev \
+            libvulkan-dev \
             libasound2-dev \
             libpulse-dev \
             libjack-dev \
@@ -111,7 +112,8 @@ jobs:
             -DCMAKE_CXX_COMPILER=g++ \
             -DCMAKE_C_COMPILER=gcc \
             -DNETWORK_URL="${{ secrets.NETWORK_URL }}" \
-            -DNETWORK_AUTH_KEY="${{ secrets.NETWORK_AUTH_KEY }}"
+            -DNETWORK_AUTH_KEY="${{ secrets.NETWORK_AUTH_KEY }}" \
+            -DYATAIDON_GFX_BACKEND=bgfx
 
       - name: Build
         run: cmake --build build --config Release

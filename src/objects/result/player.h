@@ -9,8 +9,8 @@
 #include "score_animator.h"
 
 class ResultPlayer : public LuaScript {
-    sol::protected_function fn_update, fn_draw, fn_draw_gauge, fn_draw_front, fn_chara_pos, fn_nameplate_pos,
-        fn_draw_song_info;
+    sol::protected_function fn_update, fn_draw, fn_draw_gauge, fn_draw_front, fn_chara_pos, fn_chara_mirror,
+        fn_nameplate_pos, fn_draw_song_info;
     PlayerNum player_num = PlayerNum::P1;
     bool has_2p = false;
     bool is_2p = false;

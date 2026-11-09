@@ -101,6 +101,7 @@ ResultPlayer::ResultPlayer(PlayerNum player_num, bool has_2p, bool is_2p)
     fn_draw_gauge = lua_object["draw_gauge"];
     fn_draw_front = lua_object["draw_front"];
     fn_chara_pos = lua_object["chara_pos"];
+    fn_chara_mirror = lua_object["chara_mirror"];
     fn_nameplate_pos = lua_object["nameplate_pos"];
     fn_draw_song_info = lua_object["draw_song_info"];
 }
@@ -273,6 +274,12 @@ void ResultPlayer::draw() {
             cx = px.value_or(cx);
             cy = py.value_or(cy);
             cs = ps.value_or(cs);
+        }
+    }
+    if (fn_chara_mirror.valid()) {
+        auto mirror_opt = call_r<bool>(fn_chara_mirror, "ResultPlayer:chara_mirror");
+        if (mirror_opt) {
+            chara->set_mirror(mirror_opt.value());
         }
     }
     chara->draw(cx, cy, cs);

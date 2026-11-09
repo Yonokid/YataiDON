@@ -375,7 +375,9 @@ void DanSelectScreen::draw() {
     dan_navigator.draw();
 
     // Lumen DonModel rests in the same 200x200 box as song select, so share its slots
-    const bool p1 = global_data.player_num == PlayerNum::P1;
+    // Dan select is single-player: always place the chara and nameplate on the left (P1) side,
+    // even when a lone player is seated as P2. (issue #100 sub-bug 1)
+    const bool p1 = true;
     const auto chara_pos = tex.chara_xy(p1 ? "song_select_1p" : "song_select_2p");
     const auto plate_pos = tex.nameplate_xy(p1 ? "song_select_1p" : "song_select_2p");
     if (chara) {

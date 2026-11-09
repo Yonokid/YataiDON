@@ -529,7 +529,14 @@ static void run_frame() {
     {
         PROFILE_SCOPE_N("screen update");
         PROFILE_ZONE_TEXT(screen->screen_name);
-        next_screen = screen->in_game_over() ? screen->update_game_over() : screen->update();
+        if (screen->in_game_over()) {
+            // The game over overlay plays over the live host screen: keep the host updating so it is
+            // not frozen under the overlay, and stay in the scene until the overlay finishes.
+            screen->update();
+            next_screen = screen->update_game_over();
+        } else {
+            next_screen = screen->update();
+        }
     }
     sync_text_input();
 
