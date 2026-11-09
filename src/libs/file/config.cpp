@@ -360,6 +360,12 @@ Config get_config() {
 
     config.card_reader.enabled = config_file["card_reader"]["enabled"].value_or(false);
 
+    config.card_reader.backend = config_file["card_reader"]["backend"].value_or("serial");
+    config.card_reader.device = config_file["card_reader"]["device"].value_or("");
+    config.card_reader.port = config_file["card_reader"]["port"].value_or("/dev/ttyUSB0");
+    const int baudrate = config_file["card_reader"]["baudrate"].value_or(38400);
+    config.card_reader.baudrate = (baudrate == 38400 || baudrate == 115200) ? baudrate : 38400;
+
     // Parse paths
     config.paths.tja_path = parsePathArrayOrDefault(config_file, "paths", "tja_path", {fs::path("Songs")});
     config.paths.start_path = fs::path(config_file["paths"]["start_path"].value_or(""));
@@ -489,7 +495,11 @@ void save_config(const Config& config) {
                                     {"auto_login", config.network.auto_login},
                                     {"guest_mode", config.network.guest_mode}});
 
-    config_table.insert("card_reader", toml::table{{"enabled", config.card_reader.enabled}});
+    config_table.insert("card_reader", toml::table{{"enabled", config.card_reader.enabled},
+                                                   {"backend", config.card_reader.backend},
+                                                   {"device", config.card_reader.device},
+                                                   {"port", config.card_reader.port},
+                                                   {"baudrate", config.card_reader.baudrate}});
 
     // Paths
     toml::array tja_path_array;

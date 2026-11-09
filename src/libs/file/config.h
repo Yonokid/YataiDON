@@ -40,10 +40,11 @@ struct LimitsConfig {
 };
 
 struct CardReaderConfig {
+    std::string backend = "serial";
+    std::string device;
     bool enabled = true;
     std::string port = "/dev/ttyUSB0";
     int baudrate = 38400;
-    int poll_interval_ms = 1000;
 };
 
 struct NetworkConfig {

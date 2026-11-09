@@ -546,22 +546,25 @@ namespace card_reader {
 
         is_polling_ = true;
         card_info_ = CardInfo{};
-        snapshot_ = CardInfo{};
+        reset_detection();
         stop_ = false;
         worker_ = std::thread([this] {
             while (!stop_) {
-                bool ok;
+                const auto generation = detection_generation();
+                std::optional<CardInfo> card;
                 {
                     std::scoped_lock lk(io_mutex_);
-                    ok = poll_blocking();
+                    card = poll_blocking();
                 }
-                {
-                    std::scoped_lock lk(snap_mutex_);
-                    snapshot_ = ok ? card_info_ : CardInfo{};
+
+                if (card && !stop_) {
+                    report_card(*card, generation);
                 }
+
                 std::this_thread::sleep_for(std::chrono::milliseconds(50));
             }
         });
+
         return true;
     }
 
@@ -574,23 +577,15 @@ namespace card_reader {
         if (worker_.joinable()) {
             worker_.join();
         }
+
         send_command(CMD_RADIO_OFF);
         is_polling_ = false;
+        reset_detection();
     }
 
-    bool CardReader::poll_once() {
-        std::scoped_lock lk(snap_mutex_);
-        return snapshot_.valid;
-    }
-
-    CardInfo CardReader::get_card_info() const {
-        std::scoped_lock lk(snap_mutex_);
-        return snapshot_;
-    }
-
-    bool CardReader::poll_blocking() {
+    std::optional<CardInfo> CardReader::poll_blocking() {
         if (!is_polling_ || serial_fd_ < 0) {
-            return false;
+            return std::nullopt;
         }
 
         uint8_t expected_sequence = sequence_;
@@ -611,7 +606,7 @@ namespace card_reader {
         std::vector<uint8_t> encoded = encode_packet(frame);
 
         if (!serial_write(encoded)) {
-            return false;
+            return std::nullopt;
         }
 
         sleep_us(50000);
@@ -644,7 +639,7 @@ namespace card_reader {
                 if (card_info_.valid) {
                     card_info_ = CardInfo{};
                 }
-                return false;
+                return std::nullopt;
             }
 
             uint8_t resp_payload_len = (*decoded)[5];
@@ -652,12 +647,17 @@ namespace card_reader {
                 if (card_info_.valid) {
                     card_info_ = CardInfo{};
                 }
-                return false;
+                return std::nullopt;
             }
 
             const uint8_t* resp_payload = decoded->data() + 6;
 
             uint8_t count = resp_payload[0];
+            if (count == 0) {
+                card_info_ = {};
+                return CardInfo{};
+            }
+
             size_t offset = 1;
 
             for (uint8_t i = 0; i < count; i++) {
@@ -677,20 +677,20 @@ namespace card_reader {
 
                 if (card_type == CARD_TYPE_MIFARE && card_size == 4) {
                     if (handle_mifare_card(card_data)) {
-                        return true;
+                        return card_info_;
                     }
                 } else if (card_type == CARD_TYPE_FELICA && card_size == 16 && handle_felica_card(card_data)) {
-                    return true;
+                    return card_info_;
                 }
             }
 
             if (card_info_.valid) {
                 card_info_ = CardInfo{};
             }
-            return false;
+            return std::nullopt;
         }
 
-        return false;
+        return std::nullopt;
     }
 
     bool CardReader::handle_mifare_card(const std::vector<uint8_t>& uid_bytes) {
@@ -748,10 +748,10 @@ namespace card_reader {
             hex += buf;
         }
 
-        if (!card_info_.valid || card_info_.card_id_hex != hex) {
+        if (!card_info_.valid || card_info_.card_id != hex) {
             spdlog::info("Card detected: Aime (MIFARE)");
         }
-        card_info_ = CardInfo{.type = CardType::MIFARE, .card_id_hex = hex, .mifare_uid = uid, .valid = true};
+        card_info_ = CardInfo{.type = CardType::MIFARE, .card_id = hex, .mifare_uid = uid, .valid = true};
 
         return true;
     }
@@ -769,10 +769,10 @@ namespace card_reader {
             hex += buf;
         }
 
-        if (!card_info_.valid || card_info_.card_id_hex != hex) {
+        if (!card_info_.valid || card_info_.card_id != hex) {
             spdlog::info("Card detected: FeliCa");
         }
-        card_info_ = CardInfo{.type = CardType::FELICA, .card_id_hex = hex, .mifare_uid = 0, .valid = true};
+        card_info_ = CardInfo{.type = CardType::FELICA, .card_id = hex, .mifare_uid = 0, .valid = true};
 
         return true;
     }
@@ -785,20 +785,37 @@ namespace card_reader {
         send_command(CMD_LED_RESET, {}, false);
     }
 
-    void ReaderOpener::request(const std::string& port, int baudrate) {
+    void ReaderOpener::request(const std::string& port, int baudrate, const std::string& backend,
+                               const std::string& device) {
         if (pending_.valid()) {
             return;
         }
-        pending_ = std::async(std::launch::async, [port, baudrate] -> std::unique_ptr<CardReader> {
+
+        pending_ = std::async(std::launch::async, [port, baudrate, backend, device] -> std::unique_ptr<Reader> {
+            if (backend == "libnfc") {
+#ifdef YATAIDON_HAS_LIBNFC
+                return open_libnfc_reader(device);
+#else
+                spdlog::error("libnfc card reader support was not built");
+                return nullptr;
+#endif
+            }
+
+            if (backend != "serial") {
+                spdlog::error("Unknown card reader backend: {}", backend);
+                return nullptr;
+            }
+
             auto reader = std::make_unique<CardReader>();
             if (!reader->initialize(port, baudrate)) {
                 return nullptr;
             }
+
             return reader;
         });
     }
 
-    std::optional<std::unique_ptr<CardReader>> ReaderOpener::take() {
+    std::optional<std::unique_ptr<Reader>> ReaderOpener::take() {
         if (!pending_.valid() || pending_.wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
             return std::nullopt;
         }
