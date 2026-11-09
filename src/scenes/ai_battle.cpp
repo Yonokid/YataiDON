@@ -267,7 +267,6 @@ void AIGameScreen::apply_overlay_layout() {
         player->place_chara_on_stage(0.0f, 0.0f);
         player->rainbow_arc = true;
         player->hide_ending_anim = true;
-        player->chara_on_balloon = tex.options[SCO::AI_BALLOON_CHARA];
     }
     human()->gauge->use_script("AIGauge", "ai_battle");
     ai()->hide_gauge = true;
@@ -449,11 +448,8 @@ void AIGameScreen::draw() {
     const float front = overlay->border_x(territory);
     human()->move_stage_chara((front - HUMAN_CHARA_GAP) * tex.screen_scale, CHARA_Y * tex.screen_scale);
     ai()->move_stage_chara((front + AI_CHARA_GAP) * tex.screen_scale, CHARA_Y * tex.screen_scale);
-    static constexpr float CHARA_TURN_DEGREES = 35.0f;
-    const bool turned = tex.options[SCO::AI_STAGE_CHARA_TURNED];
-    human()->draw_stage_chara(CHARA_SCALE, turned ? std::optional<float>(CHARA_TURN_DEGREES) : std::nullopt);
-    // the AI is mirrored (Player::place_chara_on_stage), which turns it the other way by itself
-    ai()->draw_stage_chara(CHARA_SCALE, turned ? std::optional<float>(CHARA_TURN_DEGREES) : std::nullopt);
+    human()->draw_stage_chara(CHARA_SCALE);
+    ai()->draw_stage_chara(CHARA_SCALE);
     overlay->draw_clash(ms, territory, brain.anger > 0);
 
     const int shown_section = std::min(current_section, section_count - 1);
