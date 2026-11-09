@@ -1089,7 +1089,9 @@ AIBattleStatus NetworkClient::fetch_ai_battle_status(const std::string& access_c
 
 OwnedCosmetics NetworkClient::fetch_owned_cosmetics(const std::string& access_code) {
     OwnedCosmetics owned;
-    if (!network_enabled() || !online) {
+    // No server account to read rewards for: offline, local ("0"/"1") and guest play get the whole skin set.
+    if (!network_enabled() || !online || access_code.empty() || access_code == "0" || access_code == "1" ||
+        is_guest_id(access_code)) {
         return owned;
     }
     cpr::Response response = cpr::Get(cpr::Url{network_url("/rewards")}, cpr::Parameters{{"access_code", access_code}},
