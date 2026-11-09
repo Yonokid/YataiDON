@@ -193,6 +193,8 @@ public:
                       const InputLog& input_log, int64_t played_at, const std::string& modifiers_json,
                       bool chara_is_costume, int chara_cos_index, const std::string& source_folder = "", int gauge = -1,
                       const std::optional<JudgeParams>& judge_params = std::nullopt);
+    void submit_dan(const std::string& access_code, const std::string& course_id, const DanResultData& rd,
+                    const std::vector<DanSongEntry>& dan_songs, int arrival);
 
     bool check_import_requested(const std::string& access_code);
     void clear_import_flag(const std::string& access_code);
@@ -315,6 +317,7 @@ private:
     std::vector<std::pair<int, cpr::AsyncResponse>> pending_medals;
     std::vector<cpr::AsyncResponse> pending_ai_battle;
     std::vector<cpr::AsyncResponse> pending_revive;
+    std::vector<cpr::AsyncResponse> pending_dan;
     std::vector<std::pair<int, cpr::AsyncResponse>> pending_shop;
     std::vector<std::pair<int, cpr::AsyncResponse>> pending_shop_buy;
 

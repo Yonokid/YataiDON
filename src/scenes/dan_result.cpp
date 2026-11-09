@@ -7,6 +7,7 @@
 #include "../libs/file/filesystem.h"
 #include "../libs/file/scores.h"
 #include "../libs/input/input.h"
+#include "../libs/network/network.h"
 
 // the shoudan celebration and the congrats popup are skin art: a skin without the folder skips them
 static bool has_dan_result_art(const char* subset) {
@@ -160,6 +161,16 @@ void DanResultScreen::apply_reward() {
     }
 
     scores_manager.save_dan_score(pid, course_id, rd, arrival);
+
+    std::string access_code;
+    if (pid == scores_manager.player_1) {
+        access_code = global_data.config->network.access_code_1;
+    } else if (pid == scores_manager.player_2) {
+        access_code = global_data.config->network.access_code_2;
+    }
+    if (!access_code.empty() && !is_guest_id(pid)) {
+        network.submit_dan(access_code, course_id, rd, sd.selected_dan, arrival);
+    }
 }
 
 void DanResultScreen::build_page2_timeline() {
