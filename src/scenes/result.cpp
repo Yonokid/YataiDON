@@ -180,8 +180,9 @@ std::optional<Screens> ResultScreen::update() {
     } else if (fade_out) {
         fade_out->update(current_time);
         if (fade_out->is_finished) {
-            if (quitting || (global_data.config->limits.song_limit > 0 &&
-                             global_data.config->limits.song_limit == global_data.songs_played)) {
+            // credit_next is set by start_fade_out() when the credit ends; songs_played was reset by
+            // begin_total_result() by then, so re-checking the limit here would send us back to song select
+            if (quitting || credit_next.has_value()) {
                 return on_screen_end(credit_end_screen());
             }
             global_data.returned_from_result = true;

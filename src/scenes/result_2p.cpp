@@ -42,8 +42,7 @@ std::optional<Screens> Result2PScreen::update() {
     if (fade_out) {
         fade_out->update(current_time);
         if (fade_out->is_finished) {
-            if (quitting || (global_data.config->limits.song_limit > 0 &&
-                             global_data.config->limits.song_limit == global_data.songs_played)) {
+            if (quitting || credit_next.has_value()) {
                 return on_screen_end(credit_end_screen());
             }
             global_data.returned_from_result = true;
