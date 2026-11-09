@@ -72,9 +72,8 @@ private:
     std::vector<std::unique_ptr<EntryPlayer>> players;
 
 #ifdef CARD_READER_ENABLED
-    std::unique_ptr<card_reader::CardReader> card_reader_;
-    double last_card_poll_ms_ = 0;
-    bool card_reader_initialized_ = false;
+    std::unique_ptr<card_reader::Reader> card_reader_;
+    double next_card_start_ms_ = 0;
 #endif
     std::vector<std::string> used_cards_; // held card must not log in twice
     std::string pending_card_hex_;        // scanned on title, consumed on first update

@@ -120,12 +120,12 @@ static std::filesystem::path path_from_arg(const std::string& arg) {
 #endif
 }
 
-// Consumes --card-port/--card-baud/--card-poll-ms (and removes them from argv) so check_args never sees them.
+// Consumes reader options before check_args.
 static void parse_card_reader_args(int& argc, char* argv[], CardReaderConfig& cr) {
     int out = 1;
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
-        const bool known = arg == "--card-port" || arg == "--card-baud" || arg == "--card-poll-ms";
+        const bool known = arg == "--card-port" || arg == "--card-baud";
         if (!known) {
             argv[out++] = argv[i];
             continue;
@@ -145,7 +145,7 @@ static void parse_card_reader_args(int& argc, char* argv[], CardReaderConfig& cr
             if (pos != val.size() || n <= 0) {
                 throw std::invalid_argument(val);
             }
-            (arg == "--card-baud" ? cr.baudrate : cr.poll_interval_ms) = n;
+            cr.baudrate = n;
         } catch (const std::exception&) {
             std::cerr << "Error: Invalid value for " << arg << ": " << val << "\n";
             exit_now(1);
@@ -180,7 +180,6 @@ Screens check_args(int argc, char* argv[]) {
             std::cout << "Card reader (valid with or without song_path):\n";
             std::cout << "  --card-port <path>   : Serial port (default /dev/ttyUSB0)\n";
             std::cout << "  --card-baud <rate>   : Baud rate (default 38400)\n";
-            std::cout << "  --card-poll-ms <ms>  : Poll interval (default 100)\n";
             exit_now(0);
         } else if (!arg.empty() && arg[0] == '-') {
             std::cerr << "Error: Unknown option: " << arg << "\n";

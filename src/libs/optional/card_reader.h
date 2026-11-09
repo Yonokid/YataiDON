@@ -8,6 +8,7 @@
 #include <optional>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #ifdef ERROR // wingdi.h's ERROR macro would clobber CardType::ERROR
@@ -25,15 +26,86 @@ namespace card_reader {
 
     struct CardInfo {
         CardType type = CardType::NONE;
-        std::string card_id_hex; // 16 hex characters (FeliCa) or 20 hex chars (MIFARE)
+        std::string card_id;     // 16 hex characters (FeliCa) or 20 hex characters (MIFARE)
         uint32_t mifare_uid = 0; // For MIFARE cards
         bool valid = false;
     };
 
-    class CardReader {
+    struct CardDetected {
+        CardInfo card;
+    };
+
+    class Reader {
+    public:
+        virtual ~Reader() = default;
+        virtual bool start_polling() = 0;
+        virtual void stop_polling() = 0;
+
+        // Main thread: transitions discard old taps and invalidate scans already in flight.
+        void set_accepting_cards(bool accepting) {
+            std::scoped_lock lock(event_mutex_);
+            if (accepting_ != accepting) {
+                accepting_ = accepting;
+                pending_.reset();
+                present_card_.clear();
+                ++generation_;
+            }
+        }
+
+        std::optional<CardDetected> take_event() {
+            std::scoped_lock lock(event_mutex_);
+            return std::exchange(pending_, std::nullopt);
+        }
+
+        virtual bool is_polling() const = 0;
+        virtual void set_led_color(uint8_t, uint8_t, uint8_t) {}
+        virtual void led_reset() {}
+
+    protected:
+        uint64_t detection_generation() {
+            std::scoped_lock lock(event_mutex_);
+            return generation_;
+        }
+
+        // Worker thread: report confirmed presence/absence; skip communication errors.
+        void report_card(const CardInfo& card, uint64_t generation) {
+            std::scoped_lock lock(event_mutex_);
+            if (!accepting_ || generation != generation_) {
+                return;
+            }
+
+            if (!card.valid || card.card_id.empty()) {
+                present_card_.clear();
+                return;
+            }
+
+            if (card.card_id != present_card_) {
+                pending_ = CardDetected{card};
+                present_card_ = card.card_id;
+            }
+        }
+
+        // Called before starting the worker or after joining it.
+        void reset_detection() {
+            std::scoped_lock lock(event_mutex_);
+            accepting_ = false;
+            pending_.reset();
+            present_card_.clear();
+            ++generation_;
+        }
+
+    private:
+        std::mutex event_mutex_;
+        std::optional<CardDetected> pending_;
+        std::string present_card_;
+        bool accepting_ = false;
+        uint64_t generation_ = 0;
+    };
+
+    class CardReader : public Reader {
     public:
         CardReader();
-        ~CardReader();
+        ~CardReader() override;
 
         // Initialize the card reader with the serial port path
         // port: e.g., "/dev/ttyUSB0" on Linux, "COM3" on Windows
@@ -41,26 +113,19 @@ namespace card_reader {
         bool initialize(const std::string& port, int baudrate = 38400);
 
         // Start polling for cards (turns on NFC radio)
-        bool start_polling();
+        bool start_polling() override;
 
         // Stop polling (turns off NFC radio)
-        void stop_polling();
-
-        // Non-blocking: polling runs on a background thread.
-        // Returns true if a card is currently detected
-        bool poll_once();
-
-        // Get the last detected card info (snapshot copy)
-        CardInfo get_card_info() const;
+        void stop_polling() override;
 
         // Check if currently polling
-        bool is_polling() const { return is_polling_; }
+        bool is_polling() const override { return is_polling_; }
 
         // Set LED color (r, g, b in 0-255)
-        void set_led_color(uint8_t r, uint8_t g, uint8_t b);
+        void set_led_color(uint8_t r, uint8_t g, uint8_t b) override;
 
         // Reset LEDs
-        void led_reset();
+        void led_reset() override;
 
     private:
         // Serial communication
@@ -79,7 +144,7 @@ namespace card_reader {
         std::vector<uint8_t> encode_packet(const std::vector<uint8_t>& payload);
         std::optional<std::vector<uint8_t>> decode_packet(const std::vector<uint8_t>& data);
 
-        bool poll_blocking(); // does serial I/O, worker thread only
+        std::optional<CardInfo> poll_blocking(); // nullopt on errors; empty CardInfo when no card is present
 
         // Card handling
         bool handle_mifare_card(const std::vector<uint8_t>& uid_bytes);
@@ -94,9 +159,7 @@ namespace card_reader {
 
         // State
         bool is_polling_ = false;
-        CardInfo card_info_; // worker-owned
-        CardInfo snapshot_;  // guarded by snap_mutex_
-        mutable std::mutex snap_mutex_;
+        CardInfo card_info_;            // worker-owned
         std::recursive_mutex io_mutex_; // serializes serial transactions
         std::thread worker_;
         std::atomic<bool> stop_{false};
@@ -137,10 +200,10 @@ namespace card_reader {
         void request(const std::string& port, int baudrate);
         // The attempt's reader once it has finished (nullptr if none was found); nullopt while it runs
         // or when nothing was requested
-        std::optional<std::unique_ptr<CardReader>> take();
+        std::optional<std::unique_ptr<Reader>> take();
 
     private:
-        std::future<std::unique_ptr<CardReader>> pending_;
+        std::future<std::unique_ptr<Reader>> pending_;
     };
 
     ReaderOpener& reader_opener();
