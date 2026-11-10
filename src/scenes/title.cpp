@@ -7,6 +7,7 @@
 #include "../libs/global_data.h"
 #include "../libs/input/input.h"
 #include "../libs/network/network.h"
+#include "../libs/network/skin_updater.h"
 
 #ifdef CARD_READER_ENABLED
 #include "../libs/optional/card_reader.h"
@@ -58,6 +59,11 @@ void TitleScreen::on_screen_start() {
             global_data.config->card_reader.backend, global_data.config->card_reader.device);
     }
 #endif
+
+    // Re-check for skin updates every time the title screen opens.
+    if (global_data.config && global_data.config->general.skin_updater) {
+        skin_updater.start();
+    }
 }
 
 void TitleScreen::load_videos() {
