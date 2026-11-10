@@ -1,8 +1,9 @@
 #include "filesystem.h"
 
-#include "miniz.h" // IWYU pragma: keep
 #include <rapidjson/prettywriter.h>
 #include <rapidjson/stringbuffer.h>
+
+#include "miniz.h" // IWYU pragma: keep
 #ifdef SUPPORT_FUMEN
 #include "../optional/gen3.h"
 #include "../optional/gen4.h"

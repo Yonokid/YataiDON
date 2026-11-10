@@ -84,6 +84,9 @@ void ResultScreen::start_fade_out() {
                                          global_data.config->limits.song_limit == global_data.songs_played);
     if (credit_end && credit_end_screen() == Screens::GAME_OVER && game_over_overlay()) {
         game_over.start();
+        if (audio.has_sound("bgm")) {
+            audio.stop_sound("bgm");
+        }
         return;
     }
     fade_out->start();

@@ -884,28 +884,28 @@ void NetworkClient::submit_dan(const std::string& access_code, const std::string
         {"songs", buffer.GetString()},
         {"played_at", std::to_string(unix_now())},
     };
-    pending_dan.push_back(cpr::PostAsync(
-        cpr::Url{network_url("/submit_dan")}, signed_headers("POST", "/submit_dan", params),
-        cpr::Parameters{
-            {"access_code", params["access_code"]},
-            {"course_id", params["course_id"]},
-            {"title", params["title"]},
-            {"dan_index", params["dan_index"]},
-            {"dan_index_max", params["dan_index_max"]},
-            {"dan_color", params["dan_color"]},
-            {"dan_rank", params["dan_rank"]},
-            {"is_gaiden", params["is_gaiden"]},
-            {"odai_result", params["odai_result"]},
-            {"score", params["score"]},
-            {"max_combo", params["max_combo"]},
-            {"gauge_length", params["gauge_length"]},
-            {"arrival", params["arrival"]},
-        },
-        cpr::Payload{
-            {"songs", params["songs"]},
-            {"played_at", params["played_at"]},
-        },
-        cpr::Timeout{5000} NETWORK_CA_OPT));
+    pending_dan.push_back(cpr::PostAsync(cpr::Url{network_url("/submit_dan")},
+                                         signed_headers("POST", "/submit_dan", params),
+                                         cpr::Parameters{
+                                             {"access_code", params["access_code"]},
+                                             {"course_id", params["course_id"]},
+                                             {"title", params["title"]},
+                                             {"dan_index", params["dan_index"]},
+                                             {"dan_index_max", params["dan_index_max"]},
+                                             {"dan_color", params["dan_color"]},
+                                             {"dan_rank", params["dan_rank"]},
+                                             {"is_gaiden", params["is_gaiden"]},
+                                             {"odai_result", params["odai_result"]},
+                                             {"score", params["score"]},
+                                             {"max_combo", params["max_combo"]},
+                                             {"gauge_length", params["gauge_length"]},
+                                             {"arrival", params["arrival"]},
+                                         },
+                                         cpr::Payload{
+                                             {"songs", params["songs"]},
+                                             {"played_at", params["played_at"]},
+                                         },
+                                         cpr::Timeout{5000} NETWORK_CA_OPT));
 }
 
 void NetworkClient::poll_jump(const std::string& access_code) {
