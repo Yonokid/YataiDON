@@ -413,6 +413,26 @@ void reload_current_screen_scripts() {
     populate_screens(g_loop->screens);
 }
 
+static void apply_pending_skin_reload() {
+    if (!global_data.skin_reload_pending) {
+        return;
+    }
+    global_data.skin_reload_pending = false;
+    spdlog::info("Reloading for this credit: skin {}, language {}", global_data.config->paths.skin.string(),
+                 global_data.config->general.language);
+    g_loop->screens.clear();
+    try {
+        load_skin();
+    } catch (const std::exception& e) {
+        // The folder is there but unusable: lose the account's skin rather than the cabinet.
+        spdlog::error("Skin reload failed ({}); falling back to the instance skin", e.what());
+        revert_user_appearance();
+        global_data.skin_reload_pending = false;
+        load_skin();
+    }
+    populate_screens(g_loop->screens);
+}
+
 static std::chrono::steady_clock::duration frame_duration(double fps) {
     return fps > 0.0 ? std::chrono::duration_cast<std::chrono::steady_clock::duration>(
                            std::chrono::duration<double>(1.0 / fps))
@@ -455,6 +475,8 @@ static void run_frame() {
         toggle_borderless_windowed();
         spdlog::info("Toggled borderless windowed mode");
     }
+
+    apply_pending_skin_reload();
 
     { // new sol metatables (see ScriptManager::refresh_method_cache)
         static double last_method_cache_ms = 0.0;

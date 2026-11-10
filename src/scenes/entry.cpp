@@ -33,6 +33,7 @@ void EntryScreen::on_screen_start() {
     const bool resuming = global_data.entry_join_pending || global_data.entry_campaign_resume;
     campaign_shown_ = resuming;
     if (!resuming) {
+        clear_user_appearance();
         global_data.campaign.clear();
         global_data.kinotake_team[0] = global_data.kinotake_team[1] = -1;
     }
@@ -242,6 +243,7 @@ void EntryScreen::finish_login(RemoteLogin remote) {
             scores_manager.export_to_hiroba(code, code);
             network.clear_import_flag(code);
         }
+        set_user_appearance(u.skin.value_or(""), u.language.value_or(""));
     }
     if (pd.username.empty()) {
         pd.username = "Player";
@@ -398,6 +400,10 @@ void EntryScreen::reload_preview_chara(PlayerNum player_num) {
 
 Screens EntryScreen::on_screen_end(Screens next_screen) {
     global_data.guest_credit = next_screen != Screens::TITLE && guests_only(is_2p);
+    // Not on the 2P join restart: that credit has not started yet.
+    if (next_screen != Screens::TITLE && next_screen != Screens::ENTRY) {
+        apply_user_appearance();
+    }
     audio.stop_sound("bgm");
     audio.stop_sound("name_select_bgm");
     // Leaving with a login in flight (input and the timer wait for it, so this is an edge case):

@@ -19,7 +19,21 @@ GlobalData global_data;
 
 namespace {
     std::optional<std::pair<int, int>> queued_window_resize;
-}
+
+    std::string user_skin;
+    std::string user_language;
+    std::string instance_default_skin;
+    std::string instance_default_language;
+    bool instance_defaults_known = false;
+    bool user_appearance_applied = false;
+    bool user_appearance_set = false;
+
+    // The name becomes Skins/<name>, so it has to be a plain folder this cabinet actually has.
+    bool skin_installed(const std::string& name) {
+        return !name.empty() && name.find_first_of("/\\") == std::string::npos &&
+               fs::is_directory(fs::path("Skins") / name / "Graphics");
+    }
+} // namespace
 
 void queue_window_resize(int width, int height) {
     queued_window_resize = std::make_pair(width, height);
@@ -115,6 +129,74 @@ void unload_skin() {
     audio.unload_all_sounds();
     audio.unload_all_music();
     audio.close_audio_device();
+}
+
+void set_user_appearance(const std::string& skin, const std::string& language) {
+    if (global_data.config->general.ignore_account_appearance || user_appearance_set) {
+        return;
+    }
+    user_appearance_set = true;
+    user_skin = skin;
+    user_language = language;
+}
+
+void clear_user_appearance() {
+    user_appearance_set = false;
+    user_skin.clear();
+    user_language.clear();
+}
+
+void apply_user_appearance() {
+    if (user_skin.empty() && user_language.empty()) {
+        return;
+    }
+    Config& cfg = *global_data.config;
+    if (!instance_defaults_known) {
+        instance_default_skin = cfg.paths.skin.string();
+        instance_default_language = cfg.general.language;
+        instance_defaults_known = true;
+    }
+    std::string skin = cfg.paths.skin.string();
+    if (!user_skin.empty()) {
+        if (skin_installed(user_skin)) {
+            skin = user_skin;
+        } else {
+            spdlog::warn("Account skin '{}' is not installed here; keeping {}", user_skin, skin);
+        }
+    }
+    const std::string language = user_language.empty() ? cfg.general.language : user_language;
+    if (skin == cfg.paths.skin.string() && language == cfg.general.language) {
+        return;
+    }
+    cfg.paths.skin = skin;
+    cfg.general.language = language;
+    user_appearance_applied = true;
+    global_data.skin_reload_pending = true;
+    spdlog::info("Account appearance for this credit: skin {}, language {}", skin, language);
+}
+
+// shortcut: a skin or language edited in settings during a credit that overrides it is lost when
+// that credit ends; fine while these only get changed at setup time.
+void revert_user_appearance() {
+    if (!user_appearance_applied) {
+        return;
+    }
+    user_appearance_applied = false;
+    clear_user_appearance();
+    global_data.config->paths.skin = instance_default_skin;
+    global_data.config->general.language = instance_default_language;
+    instance_defaults_known = false;
+    global_data.skin_reload_pending = true;
+    spdlog::info("Credit over: back to the instance skin {}, language {}", instance_default_skin,
+                 instance_default_language);
+}
+
+std::string instance_skin() {
+    return instance_defaults_known ? instance_default_skin : global_data.config->paths.skin.string();
+}
+
+std::string instance_language() {
+    return instance_defaults_known ? instance_default_language : global_data.config->general.language;
 }
 
 void reset_session() {

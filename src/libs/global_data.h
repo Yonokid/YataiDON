@@ -278,6 +278,7 @@ struct GlobalData {
     bool live_skip_used = false;
     bool force_auto_play = false;
     bool skinless = false;
+    bool skin_reload_pending = false;
     bool needs_onboarding = false;
     bool returned_from_result = false;
     bool entry_join_pending = false;
@@ -324,6 +325,13 @@ bool is_guest_id(const std::string& player_id);
 bool guests_only(bool two_player);
 void load_skin();
 void unload_skin();
+
+void set_user_appearance(const std::string& skin, const std::string& language);
+void clear_user_appearance();
+void apply_user_appearance();
+void revert_user_appearance();
+std::string instance_skin();
+std::string instance_language();
 
 void queue_window_resize(int width, int height);
 bool apply_queued_window_resize();

@@ -127,6 +127,9 @@ public:
         screen_init = false;
         game_over.reset(); // its Lua object holds textures unloaded below
         spdlog::info("{} ended, transitioning to {} screen", screen_name, next_screen);
+        if (next_screen == Screens::TITLE) {
+            revert_user_appearance();
+        }
 
         audio.unload_all_sounds();
         audio.unload_all_music();

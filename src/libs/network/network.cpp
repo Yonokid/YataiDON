@@ -453,6 +453,15 @@ std::optional<RemoteUser> NetworkClient::fetch_user(const std::string& access_co
     if (doc.HasMember("puchichara")) {
         user.acce_index = doc["puchichara"].IsInt() ? doc["puchichara"].GetInt() : 0;
     }
+    if (doc.HasMember("settings") && doc["settings"].IsObject()) {
+        const rapidjson::Value& settings = doc["settings"];
+        if (settings.HasMember("skin") && settings["skin"].IsString()) {
+            user.skin = settings["skin"].GetString();
+        }
+        if (settings.HasMember("language") && settings["language"].IsString()) {
+            user.language = settings["language"].GetString();
+        }
+    }
     user.import_requested =
         doc.HasMember("import_requested") && doc["import_requested"].IsBool() && doc["import_requested"].GetBool();
     return user;

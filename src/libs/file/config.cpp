@@ -296,6 +296,7 @@ Config get_config() {
     config.general.touch_drum_size = config_file["general"]["touch_drum_size"].value_or(1.0f);
     config.general.skin_updater = config_file["general"]["skin_updater"].value_or(true);
     config.general.fast_transitions = config_file["general"]["fast_transitions"].value_or(false);
+    config.general.ignore_account_appearance = config_file["general"]["ignore_account_appearance"].value_or(false);
 
     // limits (timer_frozen / song_limit used to live under [general])
     config.limits.timer_frozen =
@@ -463,22 +464,24 @@ void save_config(const Config& config) {
     toml::table config_table;
 
     // General
-    config_table.insert("general", toml::table{{"fps_counter", config.general.fps_counter},
-                                               {"audio_offset", config.general.audio_offset},
-                                               {"visual_offset", config.general.visual_offset},
-                                               {"language", config.general.language},
-                                               {"song_timer", config.general.song_timer},
-                                               {"judge_counter", config.general.judge_counter},
-                                               {"show_timing_offset", config.general.show_timing_offset},
-                                               {"log_level", config.general.log_level},
-                                               {"practice_mode_bar_delay", config.general.practice_mode_bar_delay},
-                                               {"score_method", config.general.score_method},
-                                               {"display_bpm", config.general.display_bpm},
-                                               {"webcam_number", config.general.webcam_number},
-                                               {"touch_input", config.general.touch_input},
-                                               {"touch_drum_size", config.general.touch_drum_size},
-                                               {"skin_updater", config.general.skin_updater},
-                                               {"fast_transitions", config.general.fast_transitions}});
+    config_table.insert("general",
+                        toml::table{{"fps_counter", config.general.fps_counter},
+                                    {"audio_offset", config.general.audio_offset},
+                                    {"visual_offset", config.general.visual_offset},
+                                    {"language", instance_language()},
+                                    {"song_timer", config.general.song_timer},
+                                    {"judge_counter", config.general.judge_counter},
+                                    {"show_timing_offset", config.general.show_timing_offset},
+                                    {"log_level", config.general.log_level},
+                                    {"practice_mode_bar_delay", config.general.practice_mode_bar_delay},
+                                    {"score_method", config.general.score_method},
+                                    {"display_bpm", config.general.display_bpm},
+                                    {"webcam_number", config.general.webcam_number},
+                                    {"touch_input", config.general.touch_input},
+                                    {"touch_drum_size", config.general.touch_drum_size},
+                                    {"skin_updater", config.general.skin_updater},
+                                    {"fast_transitions", config.general.fast_transitions},
+                                    {"ignore_account_appearance", config.general.ignore_account_appearance}});
 
     config_table.insert("limits", toml::table{{"timer_frozen", config.limits.timer_frozen},
                                               {"song_limit", config.limits.song_limit},
@@ -508,7 +511,7 @@ void save_config(const Config& config) {
     }
     config_table.insert("paths", toml::table{{"tja_path", tja_path_array},
                                              {"start_path", config.paths.start_path.string()},
-                                             {"skin", config.paths.skin.string()}});
+                                             {"skin", instance_skin()}});
 
     // Keys
     config_table.insert("keys", toml::table{{"exit_key", getKeyStringSafe(config.keys.exit_key)},
