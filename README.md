@@ -67,11 +67,11 @@ Download the latest release for your operating system from the [releases page](h
 
 ## Building from Source
 
-- [Linux](https://github.com/Yonokid/YataiDON/wiki/Linux)
-- [macOS](https://github.com/Yonokid/YataiDON/wiki/Mac-OS)
-- [Windows (MSYS2/MinGW64)](<https://github.com/Yonokid/YataiDON/wiki/Windows-(MSYS2-MingW64)>)
-- [Windows (MSVC)](<https://github.com/Yonokid/YataiDON/wiki/Windows-(MSVC)>) *(page pending)*
-- [Android](https://github.com/Yonokid/YataiDON/wiki/Android)
+- [Linux](https://github.com/Yonokid/YataiDON/wiki/Building-Linux)
+- [macOS](https://github.com/Yonokid/YataiDON/wiki/Building-macOS)
+- [Windows (MSYS2/MinGW64)](https://github.com/Yonokid/YataiDON/wiki/Building-Windows-MSYS2)
+- [Windows (MSVC)](https://github.com/Yonokid/YataiDON/wiki/Building-Windows-MSVC) — not supported
+- [Android](https://github.com/Yonokid/YataiDON/wiki/Building-Android)
 - [iOS](platform/ios/README.md)
 - [PS5 homebrew (experimental)](platform/ps5/README.md)
 - [Switch homebrew (experimental)](platform/switch/README.md)
@@ -124,6 +124,7 @@ exception, build it with `-DLEGACY=ON` to run through X11.
 Contributions are welcome! Please keep in mind:
 - Check the [issues page](https://github.com/Yonokid/YataiDON/issues) for enhancements and bugs before starting work
 - Feel free to open new issues for bugs or feature requests
+- If you want to contribute changes to the TJA parser, you must uphold the standards of [IID's reference](https://github.com/IepIweidieng/TJAPlayer3/blob/gh-pages/tja.md)
 
 ## Known Issues
 
