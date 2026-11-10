@@ -1,14 +1,9 @@
 #pragma once
 #include "../../libs/file/script.h"
 
-// function `fn_name` of the Lua module `module`, searched along the skin chain; invalid if absent
 sol::protected_function load_skin_module_fn(const char* module, const char* fn_name);
-// The same, kept in a Lua global so a long-lived C++ object does not hold a reference into the
-// Lua state (which dies on a skin reload). Look it up again each frame; it is a table read.
 sol::protected_function cached_skin_module_fn(const char* module, const char* fn_name, const char* global_name);
 
-// The y the option panel (and the character) sit at while it slides in (negative) or out: the
-// skin's song_select/option_panel `slide_out()` is how far past the top it leaves.
 class MoveAnimation;
 float option_panel_offset(const MoveAnimation* move, bool confirmed);
 
@@ -78,6 +73,7 @@ private:
     sol::protected_function fn_draw_search_box;
     sol::protected_function fn_default_search_box;
     sol::protected_function fn_draw_background_diffs;
+    sol::protected_function fn_draw_song_num;
 
     sol::object box_to_lua(BaseBox* box);
 
@@ -107,4 +103,5 @@ public:
 
     bool has_sort_window() const { return fn_draw_sort_window.valid(); }
     bool draw_sort_window(DiffSortSelect* window);
+    bool draw_song_num();
 };

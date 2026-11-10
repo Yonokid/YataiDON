@@ -17,16 +17,19 @@ set(BGFX_CONFIG_RENDERER_VULKAN 1 CACHE STRING "" FORCE)
 set(BGFX_CONFIG_MAX_TEXTURES 16384 CACHE STRING "" FORCE)
 include_directories(SYSTEM "${PS5_VULKAN_PREFIX}/include")
 add_subdirectory("${BGFX_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/bgfx")
-target_compile_definitions(bgfx PRIVATE BGFX_PLATFORM_SUPPORTS_PSSL=0 BGFX_PLATFORM_SUPPORTS_SPIRV=1 BGFX_CONFIG_RENDERER_VULKAN=1)
+target_compile_definitions(bgfx PRIVATE BGFX_PLATFORM_SUPPORTS_PSSL=0 BGFX_PLATFORM_SUPPORTS_SPIRV=1
+  BGFX_CONFIG_RENDERER_VULKAN=1)
 add_library(yataidon_vulkan STATIC native-vulkan.c)
 target_include_directories(yataidon_vulkan PUBLIC "${PS5_VULKAN_PREFIX}/include")
-target_link_libraries(yataidon_vulkan PUBLIC "-Wl,--whole-archive" "${PS5_VULKAN_PREFIX}/lib/libvulkan_radeon.ps5.a" "-Wl,--no-whole-archive")
+target_link_libraries(yataidon_vulkan PUBLIC "-Wl,--whole-archive"
+  "${PS5_VULKAN_PREFIX}/lib/libvulkan_radeon.ps5.a" "-Wl,--no-whole-archive")
 set(SDL_SHARED OFF CACHE BOOL "" FORCE)
 set(SDL_STATIC ON CACHE BOOL "" FORCE)
 set(SDL_STATIC_PIC ON CACHE BOOL "" FORCE)
 set(SDL_TEST OFF CACHE BOOL "" FORCE)
 set(SDL2_DISABLE_SDL2MAIN ON CACHE BOOL "" FORCE)
-foreach(feature AUDIO RENDER HAPTIC SENSOR OPENGL OPENGLES VULKAN X11 WAYLAND KMSDRM OFFSCREEN JACK PULSEAUDIO DBUS IBUS FCITX LIBUDEV HIDAPI)
+foreach(feature AUDIO RENDER HAPTIC SENSOR OPENGL OPENGLES VULKAN X11 WAYLAND KMSDRM OFFSCREEN JACK
+    PULSEAUDIO DBUS IBUS FCITX LIBUDEV HIDAPI)
   set(SDL_${feature} OFF CACHE BOOL "" FORCE)
 endforeach()
 foreach(symbol WCSLCPY WCSLCAT WCSCASECMP WCSNCASECMP)
@@ -36,9 +39,11 @@ add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/vendor/SDL" "${CMAKE_BINARY_DIR}/s
 get_target_property(sdl_sources SDL2-static SOURCES)
 list(FILTER sdl_sources EXCLUDE REGEX "/video/ps5/")
 set_property(TARGET SDL2-static PROPERTY SOURCES "${sdl_sources}")
-target_sources(SDL2-static PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/native-sdl-video.c" "${CMAKE_CURRENT_SOURCE_DIR}/native-ime.c")
+target_sources(SDL2-static PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/native-sdl-video.c"
+  "${CMAKE_CURRENT_SOURCE_DIR}/native-ime.c")
 target_include_directories(SDL2-static PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/vendor/SDL/src")
-set_property(TARGET SDL2-static PROPERTY INTERFACE_LINK_LIBRARIES "ScePad;SceUserService;SceSystemService;SceImeDialog;SceSysmodule")
+set_property(TARGET SDL2-static PROPERTY INTERFACE_LINK_LIBRARIES
+  "ScePad;SceUserService;SceSystemService;SceImeDialog;SceSysmodule")
 
 foreach(pair "SceAgc;agc_canary_link_stub.c" "SceAgcDriver;agc_driver_canary_link_stub.c")
   list(GET pair 0 name)

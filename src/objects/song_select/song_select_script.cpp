@@ -28,6 +28,7 @@ SongSelectScript::SongSelectScript() {
     fn_default_option_panel = load_default_hook("song_select/option_panel", "draw_option_panel");
     fn_default_sort_window = load_default_hook("song_select/sort_window", "draw_sort_window");
     fn_draw_background_diffs = lua_object["draw_background_diffs"];
+    fn_draw_song_num = lua_object["draw_song_num"];
     fn_draw_search_box = lua_object["draw_search_box"];
     fn_default_search_box = load_default_hook("song_select/player_ui", "draw_search_box");
     fn_default_selector = load_default_hook("song_select/player_ui", "draw_selector");
@@ -210,6 +211,10 @@ bool SongSelectScript::draw_sort_window(DiffSortSelect* window) {
     }
     call(fn_default_sort_window, "sort_window.draw_sort_window", window);
     return false;
+}
+
+bool SongSelectScript::draw_song_num() {
+    return fn_draw_song_num.valid() && call_handled(fn_draw_song_num, "SongSelect:draw_song_num");
 }
 
 // The text box player_ui.draw_search_box draws (the skin's search_box_layout, centered on screen)

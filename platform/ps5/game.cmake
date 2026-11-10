@@ -61,10 +61,12 @@ target_compile_options(yataidon_ps5_game PRIVATE -O1 -ffunction-sections -fdata-
 # Link descriptions only: the native title imports the console's firmware
 # decoder. These stub bodies are never packaged or executed.
 add_library(yataidon_videodec_stub SHARED ${CMAKE_CURRENT_SOURCE_DIR}/videodec-link-stub.c)
-set_target_properties(yataidon_videodec_stub PROPERTIES OUTPUT_NAME SceVideodec2 NO_SONAME TRUE LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
+set_target_properties(yataidon_videodec_stub PROPERTIES
+  OUTPUT_NAME SceVideodec2 NO_SONAME TRUE LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
 target_link_options(yataidon_videodec_stub PRIVATE -nostdlib LINKER:-soname,libSceVideodec2.prx)
 target_link_libraries(yataidon_ps5_game PUBLIC
-  bgfx bx SDL2-static yataidon_vulkan yataidon_lua yataidon_sqlite sndfile samplerate miniz ebur128 SceAudioOut SceSysmodule yataidon_videodec_stub yataidon_SceAgc_stub yataidon_SceAgcDriver_stub)
+  bgfx bx SDL2-static yataidon_vulkan yataidon_lua yataidon_sqlite sndfile samplerate miniz
+  ebur128 SceAudioOut SceSysmodule yataidon_videodec_stub yataidon_SceAgc_stub yataidon_SceAgcDriver_stub)
 foreach(lib avformat avcodec swscale swresample avutil opus)
   target_link_libraries(yataidon_ps5_game PUBLIC ${PS5_FFMPEG_PREFIX}/lib/lib${lib}.a)
 endforeach()
@@ -72,8 +74,12 @@ endforeach()
 # executable is not a valid validation target for this delivery format.
 add_custom_target(YataiDON-PS5 DEPENDS yataidon_ps5_game
   yataidon_videodec_stub yataidon_SceAgc_stub yataidon_SceAgcDriver_stub)
-file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/native-archives.txt CONTENT
-"$<TARGET_FILE:yataidon_ps5_game>\n$<TARGET_FILE:bgfx>\n$<TARGET_FILE:bx>\n$<TARGET_FILE:bimg>\n$<TARGET_FILE:yataidon_vulkan>\n$<TARGET_FILE:yataidon_lua>\n$<TARGET_FILE:yataidon_sqlite>\n$<TARGET_FILE:sndfile>\n$<TARGET_FILE:samplerate>\n$<TARGET_FILE:miniz>\n$<TARGET_FILE:ebur128>\n$<TARGET_FILE:SDL2-static>\n")
+string(CONCAT _native_archives
+  "$<TARGET_FILE:yataidon_ps5_game>\n$<TARGET_FILE:bgfx>\n$<TARGET_FILE:bx>\n"
+  "$<TARGET_FILE:bimg>\n$<TARGET_FILE:yataidon_vulkan>\n$<TARGET_FILE:yataidon_lua>\n"
+  "$<TARGET_FILE:yataidon_sqlite>\n$<TARGET_FILE:sndfile>\n$<TARGET_FILE:samplerate>\n"
+  "$<TARGET_FILE:miniz>\n$<TARGET_FILE:ebur128>\n$<TARGET_FILE:SDL2-static>\n")
+file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/native-archives.txt CONTENT "${_native_archives}")
 
 file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/generated/shaders/spirv")
 file(GLOB shader_files CONFIGURE_DEPENDS "${game_root}/shader/bgfx/[fv]s_*.sc")
@@ -95,6 +101,7 @@ foreach(shader_file ${shader_files})
 endforeach()
 set(font_output "${CMAKE_BINARY_DIR}/generated/default_font.cpp")
 add_custom_command(OUTPUT "${font_output}"
-  COMMAND ${CMAKE_COMMAND} -DIN=${game_root}/src/libs/gfx/default.ttf -DOUT=${font_output} -DNAME=default_font_ttf_data -P ${game_root}/cmake/embed.cmake
+  COMMAND ${CMAKE_COMMAND} -DIN=${game_root}/src/libs/gfx/default.ttf -DOUT=${font_output}
+    -DNAME=default_font_ttf_data -P ${game_root}/cmake/embed.cmake
   DEPENDS ${game_root}/src/libs/gfx/default.ttf ${game_root}/cmake/embed.cmake VERBATIM)
 target_sources(yataidon_ps5_game PRIVATE "${font_output}")

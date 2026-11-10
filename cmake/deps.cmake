@@ -151,9 +151,11 @@ else()
   endif()
   FetchContent_MakeAvailable(bgfx)
   if(CMAKE_CROSSCOMPILING)
-    set(YATAIDON_HOST_SHADERC "${CMAKE_SOURCE_DIR}/.cmake-deps/bgfx-build/cmake/bgfx/shaderc" CACHE FILEPATH "Host shaderc")
+    set(YATAIDON_HOST_SHADERC "${CMAKE_SOURCE_DIR}/.cmake-deps/bgfx-build/cmake/bgfx/shaderc"
+        CACHE FILEPATH "Host shaderc")
     if(NOT EXISTS "${YATAIDON_HOST_SHADERC}")
-      message(FATAL_ERROR "Host shaderc not found at ${YATAIDON_HOST_SHADERC}: build a desktop bgfx tree first or set YATAIDON_HOST_SHADERC")
+      message(FATAL_ERROR "Host shaderc not found at ${YATAIDON_HOST_SHADERC}: "
+        "build a desktop bgfx tree first or set YATAIDON_HOST_SHADERC")
     endif()
     add_executable(bgfx::shaderc IMPORTED GLOBAL)
     set_target_properties(bgfx::shaderc PROPERTIES IMPORTED_LOCATION "${YATAIDON_HOST_SHADERC}")
@@ -200,7 +202,9 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/marovira/lua.git
     GIT_TAG 5.4.8
     GIT_SHALLOW TRUE
-    PATCH_COMMAND ${CMAKE_COMMAND} -DPATCH_FILE=CMakeLists.txt -DOLD_VERSION=3.30 -P ${CMAKE_CURRENT_LIST_DIR}/patch_min_cmake_version.cmake
+    PATCH_COMMAND
+      ${CMAKE_COMMAND} -DPATCH_FILE=CMakeLists.txt -DOLD_VERSION=3.30
+      -P ${CMAKE_CURRENT_LIST_DIR}/patch_min_cmake_version.cmake
 )
 FetchContent_MakeAvailable(lua)
 if(IOS)
@@ -221,8 +225,10 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/ThePhD/sol2.git
     GIT_TAG v3.5.0
     GIT_SHALLOW TRUE
-    PATCH_COMMAND ${CMAKE_COMMAND} -DPATCH_FILE=${CMAKE_SOURCE_DIR}/cmake/patches/sol2-android-noexcept.patch -P ${CMAKE_CURRENT_LIST_DIR}/apply_git_patch.cmake
-        COMMAND ${CMAKE_COMMAND} -DPATCH_FILE=CMakeLists.txt -DOLD_VERSION=3.26.0 -P ${CMAKE_CURRENT_LIST_DIR}/patch_min_cmake_version.cmake
+    PATCH_COMMAND ${CMAKE_COMMAND} -DPATCH_FILE=${CMAKE_SOURCE_DIR}/cmake/patches/sol2-android-noexcept.patch
+        -P ${CMAKE_CURRENT_LIST_DIR}/apply_git_patch.cmake
+    COMMAND ${CMAKE_COMMAND} -DPATCH_FILE=CMakeLists.txt -DOLD_VERSION=3.26.0
+        -P ${CMAKE_CURRENT_LIST_DIR}/patch_min_cmake_version.cmake
 )
 FetchContent_MakeAvailable(sol2)
 
@@ -233,6 +239,12 @@ if(NOT ANDROID AND NOT IOS AND NOT EMSCRIPTEN)
     set(CPPTRACE_GET_SYMBOLS_WITH_LIBDWARF  ON  CACHE BOOL "" FORCE)
     set(CPPTRACE_GET_SYMBOLS_WITH_DBGHELP   ON  CACHE BOOL "" FORCE)
     set(CPPTRACE_UNWIND_WITH_DBGHELP        ON  CACHE BOOL "" FORCE)
+  elseif(UNIX AND NOT APPLE)
+    find_program(_yataidon_addr2line addr2line)
+    if(_yataidon_addr2line)
+      set(CPPTRACE_GET_SYMBOLS_WITH_ADDR2LINE ON  CACHE BOOL "" FORCE)
+      set(CPPTRACE_GET_SYMBOLS_WITH_LIBDWARF  OFF CACHE BOOL "" FORCE)
+    endif()
   endif()
   FetchContent_Declare(
       cpptrace
@@ -251,7 +263,9 @@ if(ANDROID OR APPLE OR EMSCRIPTEN OR WIN32 OR YATAIDON_STATIC_DEPS)
       GIT_REPOSITORY https://github.com/xiph/ogg.git
       GIT_TAG v1.3.5
       GIT_SHALLOW TRUE
-      PATCH_COMMAND ${CMAKE_COMMAND} -DPATCH_FILE=CMakeLists.txt -DOLD_VERSION=2.8.12 -P ${CMAKE_CURRENT_LIST_DIR}/patch_min_cmake_version.cmake
+      PATCH_COMMAND
+        ${CMAKE_COMMAND} -DPATCH_FILE=CMakeLists.txt -DOLD_VERSION=2.8.12
+        -P ${CMAKE_CURRENT_LIST_DIR}/patch_min_cmake_version.cmake
   )
   FetchContent_MakeAvailable(ogg)
   set(OGG_INCLUDE_DIR "${ogg_SOURCE_DIR}/include" CACHE PATH "" FORCE)
@@ -262,7 +276,9 @@ if(ANDROID OR APPLE OR EMSCRIPTEN OR WIN32 OR YATAIDON_STATIC_DEPS)
       GIT_REPOSITORY https://github.com/xiph/vorbis.git
       GIT_TAG v1.3.7
       GIT_SHALLOW TRUE
-      PATCH_COMMAND ${CMAKE_COMMAND} -DPATCH_FILE=CMakeLists.txt -DOLD_VERSION=2.8.12 -P ${CMAKE_CURRENT_LIST_DIR}/patch_min_cmake_version.cmake
+      PATCH_COMMAND
+        ${CMAKE_COMMAND} -DPATCH_FILE=CMakeLists.txt -DOLD_VERSION=2.8.12
+        -P ${CMAKE_CURRENT_LIST_DIR}/patch_min_cmake_version.cmake
   )
   FetchContent_MakeAvailable(vorbis)
   set(Vorbis_Vorbis_INCLUDE_DIR "${vorbis_SOURCE_DIR}/include" CACHE PATH "" FORCE)
@@ -323,8 +339,10 @@ if(ANDROID OR APPLE OR EMSCRIPTEN OR WIN32 OR YATAIDON_STATIC_DEPS)
   message(STATUS "Fetching libsndfile from source (${CMAKE_SYSTEM_NAME}, OGG/Vorbis/FLAC/Opus)")
   set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
   set(ENABLE_EXTERNAL_LIBS ON CACHE BOOL "" FORCE)
+  set(BUILD_PROGRAMS OFF CACHE BOOL "" FORCE)
+  set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
   if(YATAIDON_STATIC_DEPS)
-    set(ENABLE_MPEG OFF CACHE BOOL "" FORCE)  # FFmpeg decodes MP3, so skip the mpg123/lame shared libs
+    set(ENABLE_MPEG OFF CACHE BOOL "" FORCE)
   else()
     set(ENABLE_MPEG ON CACHE BOOL "" FORCE)
   endif()
@@ -339,6 +357,8 @@ if(ANDROID OR APPLE OR EMSCRIPTEN OR WIN32 OR YATAIDON_STATIC_DEPS)
 else()
   message(STATUS "Fetching libsndfile from source")
   set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+  set(BUILD_PROGRAMS OFF CACHE BOOL "" FORCE)
+  set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
   set(ENABLE_EXTERNAL_LIBS ON CACHE BOOL "" FORCE)
   set(ENABLE_MPEG ON CACHE BOOL "" FORCE)
   set(ENABLE_OPUS ON CACHE BOOL "" FORCE)
@@ -462,14 +482,16 @@ elseif(IOS)
   foreach(_lib avformat avcodec avutil swscale swresample)
     set(_libfile "${IOS_FFMPEG_PREFIX}/lib/lib${_lib}.a")
     if(NOT EXISTS "${_libfile}")
-      message(FATAL_ERROR "Missing ${_libfile}. Run tools/build_ffmpeg_ios.sh for the target SDK and set IOS_FFMPEG_PREFIX.")
+      message(FATAL_ERROR "Missing ${_libfile}. Run tools/build_ffmpeg_ios.sh for the target SDK "
+        "and set IOS_FFMPEG_PREFIX.")
     endif()
     add_library(FFmpeg::${_lib} STATIC IMPORTED)
     set_target_properties(FFmpeg::${_lib} PROPERTIES
       IMPORTED_LOCATION "${_libfile}"
       INTERFACE_INCLUDE_DIRECTORIES "${IOS_FFMPEG_PREFIX}/include")
   endforeach()
-  set_property(TARGET FFmpeg::avformat APPEND PROPERTY INTERFACE_LINK_LIBRARIES FFmpeg::avcodec FFmpeg::avutil z bz2 iconv)
+  set_property(TARGET FFmpeg::avformat APPEND PROPERTY INTERFACE_LINK_LIBRARIES
+    FFmpeg::avcodec FFmpeg::avutil z bz2 iconv)
   set_property(TARGET FFmpeg::avcodec APPEND PROPERTY INTERFACE_LINK_LIBRARIES FFmpeg::swresample FFmpeg::avutil)
   set_property(TARGET FFmpeg::swresample APPEND PROPERTY INTERFACE_LINK_LIBRARIES FFmpeg::avutil)
   set_property(TARGET FFmpeg::swscale APPEND PROPERTY INTERFACE_LINK_LIBRARIES FFmpeg::avutil)
@@ -555,9 +577,11 @@ endif()
 # Prebuilt OpenSSL for Android -- needed by libgit2 and CPR/curl.
 # Set up once, shared by both.
 if(ANDROID AND NOT EMSCRIPTEN)
-  set(ANDROID_OPENSSL_PREFIX "" CACHE PATH "Prebuilt OpenSSL for Android (include/ + lib/), see tools/build_openssl_android.sh")
+  set(ANDROID_OPENSSL_PREFIX ""
+    CACHE PATH "Prebuilt OpenSSL for Android (include/ + lib/), see tools/build_openssl_android.sh")
   if(NOT ANDROID_OPENSSL_PREFIX)
-    message(FATAL_ERROR "Android builds require -DANDROID_OPENSSL_PREFIX=<path> (used by libgit2 and CPR/curl). Run tools/build_openssl_android.sh first.")
+    message(FATAL_ERROR "Android builds require -DANDROID_OPENSSL_PREFIX=<path> (used by libgit2 and "
+      "CPR/curl). Run tools/build_openssl_android.sh first.")
   endif()
   set(OPENSSL_ROOT_DIR "${ANDROID_OPENSSL_PREFIX}" CACHE PATH "" FORCE)
   set(OPENSSL_USE_STATIC_LIBS ON CACHE BOOL "" FORCE)
@@ -614,6 +638,19 @@ if(APPLE AND NOT IOS)
 endif()
 
 if(NOT EMSCRIPTEN)  # no curl/SSL on web; browser build has no cpr users
+  if(NOT YATAIDON_STATIC_DEPS AND UNIX AND NOT APPLE AND NOT ANDROID)
+    option(YATAIDON_USE_SYSTEM_CURL "Use the system libcurl for CPR instead of building one" ON)
+    if(YATAIDON_USE_SYSTEM_CURL)
+      find_package(CURL QUIET COMPONENTS HTTP HTTPS)
+      if(CURL_FOUND)
+        set(CPR_USE_SYSTEM_CURL ON CACHE BOOL "" FORCE)
+        message(STATUS "Using system libcurl ${CURL_VERSION_STRING} for CPR")
+      endif()
+    else()
+      set(CPR_USE_SYSTEM_CURL OFF CACHE BOOL "" FORCE)
+    endif()
+  endif()
+
   FetchContent_Declare(
       cpr
       GIT_REPOSITORY https://github.com/libcpr/cpr.git
@@ -630,7 +667,9 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/richgel999/miniz.git
     GIT_TAG        3.0.0
     GIT_SHALLOW    TRUE
-    PATCH_COMMAND ${CMAKE_COMMAND} -DPATCH_FILE=CMakeLists.txt -DOLD_VERSION=3.0 -P ${CMAKE_CURRENT_LIST_DIR}/patch_min_cmake_version.cmake
+    PATCH_COMMAND
+      ${CMAKE_COMMAND} -DPATCH_FILE=CMakeLists.txt -DOLD_VERSION=3.0
+      -P ${CMAKE_CURRENT_LIST_DIR}/patch_min_cmake_version.cmake
 )
 FetchContent_MakeAvailable(miniz)
 
@@ -715,26 +754,28 @@ else()
   add_library(portaudio INTERFACE IMPORTED)
 endif()
 
-# G.719 (Siren 22)
-FetchContent_Declare(
-  libg719
-  GIT_REPOSITORY https://github.com/kode54/libg719_decode.git
-  GIT_TAG master
-  GIT_SHALLOW TRUE
-)
-FetchContent_Populate(libg719)
+# G.719 (Siren 22) -- decoded from gen 4 nus3bank, so only with Fumen support
+if(SUPPORT_FUMEN)
+  FetchContent_Declare(
+    libg719
+    GIT_REPOSITORY https://github.com/kode54/libg719_decode.git
+    GIT_TAG master
+    GIT_SHALLOW TRUE
+  )
+  FetchContent_Populate(libg719)
 
-file(GLOB G719_SOURCES
-     ${libg719_SOURCE_DIR}/g719.c
-     ${libg719_SOURCE_DIR}/reference_code/common/*.c
-     ${libg719_SOURCE_DIR}/reference_code/decoder/*.c)
+  file(GLOB G719_SOURCES
+       ${libg719_SOURCE_DIR}/g719.c
+       ${libg719_SOURCE_DIR}/reference_code/common/*.c
+       ${libg719_SOURCE_DIR}/reference_code/decoder/*.c)
 
-add_library(g719 STATIC ${G719_SOURCES})
-target_include_directories(g719 PUBLIC
-                           ${libg719_SOURCE_DIR}
-                           ${libg719_SOURCE_DIR}/reference_code/include)
-set_target_properties(g719 PROPERTIES C_STANDARD 99)
-target_compile_definitions(g719 PRIVATE VAR_ARRAYS)
+  add_library(g719 STATIC ${G719_SOURCES})
+  target_include_directories(g719 PUBLIC
+                             ${libg719_SOURCE_DIR}
+                             ${libg719_SOURCE_DIR}/reference_code/include)
+  set_target_properties(g719 PROPERTIES C_STANDARD 99)
+  target_compile_definitions(g719 PRIVATE VAR_ARRAYS)
+endif()
 
 option(YATAIDON_PROFILER "Build with the Tracy profiler client (see src/libs/profiler.h)" OFF)
 if(YATAIDON_PROFILER)

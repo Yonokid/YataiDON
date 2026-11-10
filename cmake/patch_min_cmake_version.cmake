@@ -16,11 +16,14 @@ if(NOT DEFINED NEW_VERSION OR NEW_VERSION STREQUAL "")
 endif()
 file(READ "${PATCH_FILE}" _content)
 set(_original "${_content}")
-string(REGEX REPLACE
-       "[Cc][Mm][Aa][Kk][Ee]_[Mm][Ii][Nn][Ii][Mm][Uu][Mm]_[Rr][Ee][Qq][Uu][Ii][Rr][Ee][Dd][ \t]*\\([ \t]*VERSION[ \t]+${OLD_VERSION}([ \t]*\\.\\.\\.[0-9.]+)?"
+string(CONCAT _pattern
+       "[Cc][Mm][Aa][Kk][Ee]_[Mm][Ii][Nn][Ii][Mm][Uu][Mm]_[Rr][Ee][Qq][Uu][Ii][Rr][Ee][Dd]"
+       "[ \t]*\\([ \t]*VERSION[ \t]+${OLD_VERSION}([ \t]*\\.\\.\\.[0-9.]+)?")
+string(REGEX REPLACE "${_pattern}"
        "cmake_minimum_required(VERSION ${NEW_VERSION}"
        _content "${_content}")
 if(_content STREQUAL _original)
-    message(WARNING "patch_min_cmake_version: no 'cmake_minimum_required(VERSION ${OLD_VERSION})' found in '${PATCH_FILE}' - upstream may have changed")
+    message(WARNING "patch_min_cmake_version: no 'cmake_minimum_required(VERSION ${OLD_VERSION})' "
+        "found in '${PATCH_FILE}' - upstream may have changed")
 endif()
 file(WRITE "${PATCH_FILE}" "${_content}")

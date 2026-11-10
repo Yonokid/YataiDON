@@ -135,13 +135,15 @@ if(WIN32)
 elseif(ANDROID)
     file(GLOB PLATFORM_SOURCES src/platform/*_android.cpp src/platform/platform_mobile.cpp)
 elseif(APPLE AND NOT IOS)
-    file(GLOB PLATFORM_SOURCES src/platform/*_macos.cpp src/platform/platform_posix.cpp src/platform/platform_desktop.cpp)
+    file(GLOB PLATFORM_SOURCES src/platform/*_macos.cpp src/platform/platform_posix.cpp
+        src/platform/platform_desktop.cpp)
 elseif(IOS)
     file(GLOB PLATFORM_SOURCES src/platform/*_ios.mm src/platform/*_ios.cpp src/platform/platform_mobile.cpp)
 elseif(EMSCRIPTEN)
     file(GLOB PLATFORM_SOURCES src/platform/*_emscripten.cpp src/platform/platform_desktop.cpp)
 elseif(UNIX)
-    file(GLOB PLATFORM_SOURCES src/platform/*_linux.cpp src/platform/platform_posix.cpp src/platform/platform_desktop.cpp)
+    file(GLOB PLATFORM_SOURCES src/platform/*_linux.cpp src/platform/platform_posix.cpp
+        src/platform/platform_desktop.cpp)
 endif()
 list(APPEND PLATFORM_SOURCES src/platform/platform_defaults.cpp)
 
@@ -375,10 +377,8 @@ if(NOT IOS AND NOT EMSCRIPTEN)
 endif()
 target_link_libraries(${PROJECT_NAME} PRIVATE portaudio)
 
-target_link_libraries(${PROJECT_NAME} PRIVATE g719)
-target_compile_definitions(${PROJECT_NAME} PRIVATE YATAIDON_G719)
-
 if(SUPPORT_FUMEN)
+  target_link_libraries(${PROJECT_NAME} PRIVATE g719)
   target_compile_definitions(${PROJECT_NAME} PRIVATE
     SUPPORT_FUMEN
     DATATABLE_SEED="${DATATABLE_SEED}"

@@ -13,7 +13,7 @@ SongInfo::SongInfo(const std::string& song_name, const std::string& subtitle, bo
                                                                                         : Color{101, 0, 82, 255};
 
     if (load("SongInfo", "song_info", song_name, show_subtitle ? subtitle : std::string(), song_num, genre_label,
-             sol::as_table(std::array<int, 3>{color.r, color.g, color.b}))) {
+             sol::as_table(std::array<int, 3>{color.r, color.g, color.b}), genre)) {
         fn_update = lua_object["update"];
         fn_draw = lua_object["draw"];
     }

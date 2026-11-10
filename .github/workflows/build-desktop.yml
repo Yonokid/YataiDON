@@ -71,9 +71,6 @@ jobs:
             libpulse-dev \
             libjack-dev \
             liblua5.4-dev \
-            libmp3lame-dev \
-            libmpg123-dev \
-            libdw-dev \
             nasm \
             libxext-dev \
             libxfixes-dev \
@@ -135,11 +132,11 @@ jobs:
           cp update.sh release/YataiDON-Linux/
           chmod +x release/YataiDON-Linux/YataiDON release/YataiDON-Linux/update.sh
 
-          # FFmpeg, SDL3 and the audio codecs are static; only libsndfile's
-          # samplerate/mpg123 and libnfc still ship as shared libraries.
+          # FFmpeg, SDL3, libsndfile and its codecs are static; only
+          # libsamplerate and libnfc still ship as shared libraries.
           mkdir -p release/YataiDON-Linux/lib
           ldd build/bin/YataiDON | awk '$2 == "=>" && $3 ~ /^\// {print $3}' | \
-            grep -E '/(libsamplerate|libmpg123|libmp3lame|libnfc)\.so' | \
+            grep -E '/(libsamplerate|libnfc)\.so' | \
             xargs -r -I{} cp -L {} release/YataiDON-Linux/lib/
 
           # libnfc and its dependency tree, excluding the host's glibc/loader.

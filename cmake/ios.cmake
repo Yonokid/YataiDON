@@ -62,7 +62,8 @@ add_custom_target(ios_assets
 add_dependencies(${PROJECT_NAME} ios_assets)
 file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/ios-resources/GameData")
 if(NOT CMAKE_GENERATOR STREQUAL "Xcode")
-  message(FATAL_ERROR "iOS builds require the Xcode generator (folder-reference resource copying is Xcode-only); got '${CMAKE_GENERATOR}'.")
+  message(FATAL_ERROR "iOS builds require the Xcode generator (folder-reference resource copying "
+    "is Xcode-only); got '${CMAKE_GENERATOR}'.")
 endif()
 target_sources(${PROJECT_NAME} PRIVATE "${CMAKE_BINARY_DIR}/ios-resources/GameData")
 set_source_files_properties("${CMAKE_BINARY_DIR}/ios-resources/GameData" PROPERTIES
