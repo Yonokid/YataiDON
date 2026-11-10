@@ -16,6 +16,8 @@ echo ""
 rm -rf build
 find .cmake-deps -maxdepth 1 -name '*-subbuild' -type d -exec rm -rf {} + 2>/dev/null || true
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DYATAIDON_GFX_BACKEND="$backend" -G Ninja \
+  -DYATAIDON_STATIC_DEPS="${YATAIDON_STATIC_DEPS:-OFF}" \
+  ${YATAIDON_FFMPEG_PREFIX:+-DYATAIDON_FFMPEG_PREFIX="$YATAIDON_FFMPEG_PREFIX"} \
   $(command -v ccache &>/dev/null && echo "-DCMAKE_CXX_COMPILER_LAUNCHER=ccache")
 cmake --build build -j"${JOBS:-$(( $(nproc) / 2 ))}"
 

@@ -71,29 +71,35 @@ jobs:
             libpulse-dev \
             libjack-dev \
             liblua5.4-dev \
-            libavcodec-dev \
-            libavformat-dev \
-            libavutil-dev \
-            libswscale-dev \
-            libswresample-dev \
-            libavfilter-dev \
-            libavdevice-dev \
-            libogg-dev \
-            libvorbis-dev \
-            libflac-dev \
-            libopus-dev \
             libmp3lame-dev \
             libmpg123-dev \
-            libspeex-dev \
-            libdw-dev
+            libdw-dev \
+            nasm \
+            libxext-dev \
+            libxfixes-dev \
+            libxss-dev \
+            libxkbcommon-dev \
+            libdrm-dev \
+            libgbm-dev \
+            libegl1-mesa-dev \
+            libgles2-mesa-dev \
+            libdbus-1-dev \
+            libibus-1.0-dev \
+            libudev-dev \
+            libpipewire-0.3-dev \
+            libwayland-dev \
+            wayland-protocols \
+            libdecor-0-dev \
+            liburing-dev
 
-      - name: Setup SDL3
-        id: sdl
-        uses: libsdl-org/setup-sdl@main
+      - name: Cache static FFmpeg
+        uses: actions/cache@v4
         with:
-          install-linux-dependencies: true
-          version: 3-head
-          build-type: Release
+          path: .linux-ffmpeg
+          key: ffmpeg-linux-${{ hashFiles('tools/build_ffmpeg_linux.sh') }}
+
+      - name: Build static FFmpeg
+        run: test -d .linux-ffmpeg/lib || bash tools/build_ffmpeg_linux.sh
 
       - name: Cache ccache
         uses: actions/cache@v4
@@ -112,6 +118,8 @@ jobs:
             -DCMAKE_CXX_COMPILER=g++ \
             -DCMAKE_C_COMPILER=gcc \
             -DYATAIDON_LIBNFC=ON \
+            -DYATAIDON_STATIC_DEPS=ON \
+            -DYATAIDON_FFMPEG_PREFIX="$PWD/.linux-ffmpeg" \
             -DNETWORK_URL="${{ secrets.NETWORK_URL }}" \
             -DNETWORK_AUTH_KEY="${{ secrets.NETWORK_AUTH_KEY }}"
 
@@ -127,23 +135,16 @@ jobs:
           cp update.sh release/YataiDON-Linux/
           chmod +x release/YataiDON-Linux/YataiDON release/YataiDON-Linux/update.sh
 
-          # Bundle FFmpeg shared libraries into lib/
+          # FFmpeg, SDL3 and the audio codecs are static; only libsndfile's
+          # samplerate/mpg123 and libnfc still ship as shared libraries.
           mkdir -p release/YataiDON-Linux/lib
-          ldd build/bin/YataiDON | grep -E "(libav|libsw).*=>" | awk '{print $3}' | \
-            xargs -I{} cp -L {} release/YataiDON-Linux/lib/
+          ldd build/bin/YataiDON | awk '$2 == "=>" && $3 ~ /^\// {print $3}' | \
+            grep -E '/(libsamplerate|libmpg123|libmp3lame|libnfc)\.so' | \
+            xargs -r -I{} cp -L {} release/YataiDON-Linux/lib/
 
-          # Bundle sndfile codec dependencies (ogg, vorbis, FLAC, opus, mp3, etc.)
-          ldd build/bin/YataiDON | grep -E "(libsndfile|libogg|libvorbis|libFLAC|libopus|libmp3lame|libmpg123|libspeex).*=>" | awk '{print $3}' | \
-            grep -v "^$" | xargs -I{} cp -L {} release/YataiDON-Linux/lib/ 2>/dev/null || true
-
-          # Bundle SDL3 shared library
-          ldd build/bin/YataiDON | grep -E "libSDL3.*=>" | awk '{print $3}' | \
-            grep -v "^$" | xargs -I{} cp -L {} release/YataiDON-Linux/lib/ 2>/dev/null || true
-
-          # libnfc and its full dependency tree, excluding the host's glibc/loader.
+          # libnfc and its dependency tree, excluding the host's glibc/loader.
           nfc_library=$(ldd build/bin/YataiDON | awk '$1 ~ /^libnfc\.so/ && $2 == "=>" {print $3}')
           if [ -n "$nfc_library" ]; then
-            cp -L "$nfc_library" release/YataiDON-Linux/lib/
             nfc_dependencies=$(ldd "$nfc_library")
             if grep -q 'not found' <<< "$nfc_dependencies"; then
               echo "Unresolved libnfc dependencies:" >&2
@@ -154,14 +155,6 @@ jobs:
               cp -L "$dependency" release/YataiDON-Linux/lib/
             done < <(awk '$2 == "=>" && $3 ~ /^\// && $1 !~ /^lib(c|m|dl|rt|pthread|resolv|util|anl|nsl)\.so/ {print $3}' <<< "$nfc_dependencies")
           fi
-
-          # Bundle transitive deps of FFmpeg AND sndfile codec libs
-          for so in release/YataiDON-Linux/lib/lib{av,sw,ogg,vorbis,FLAC,opus,mp3lame,mpg123,speex,SDL3}*.so*; do
-            ldd "$so" 2>/dev/null | grep "=>" | awk '{print $3}' | grep -v "^$" | \
-              grep -vE "lib(c\.so|m\.so|dl\.so|rt\.so|resolv\.so|nsl\.so|util\.so|anl\.so|pthread\.so|gcc_s\.so|stdc\+\+\.so|X11\.so|GL\.so|asound\.so|pulse\.so|jack\.so|Xi\.so|Xrandr\.so|xcb)" | \
-              grep -v "ld-linux" | \
-              xargs -I{} cp -L {} release/YataiDON-Linux/lib/ 2>/dev/null || true
-          done
 
           # Patch rpath: binary looks in $ORIGIN/lib, bundled .so files look in $ORIGIN
           patchelf --set-rpath '$ORIGIN/lib' release/YataiDON-Linux/YataiDON

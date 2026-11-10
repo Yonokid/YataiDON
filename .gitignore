@@ -13,6 +13,7 @@ build
 YataiDON
 YataiDON.exe
 /.cmake-deps
+/.linux-ffmpeg
 /Skins/*
 /.claude
 .version

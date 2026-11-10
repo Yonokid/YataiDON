@@ -1008,6 +1008,7 @@ void ScriptManager::register_lua_bindings() {
                                                              outline_thickness, spacing, 1.0f, font.value_or(""));
                           ptr->x_offset = cfg->x;
                           ptr->y_offset = cfg->y;
+                          ptr->position_key = skin_config_key;
                           return ptr;
                       });
 

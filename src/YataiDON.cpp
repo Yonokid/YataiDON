@@ -35,6 +35,7 @@
 
 #include "objects/global/debug_menu.h"
 #include "objects/global/fps_counter.h"
+#include "objects/song_select/file_navigator/navigator.h"
 #include "scenes/ai_battle.h"
 #include "scenes/campaign.h"
 #include "scenes/dan_result.h"
@@ -399,6 +400,19 @@ void reload_skin_screens() {
     populate_screens(g_loop->screens, g_loop->current_screen);
 }
 
+void reload_current_screen_scripts() {
+    if (!g_loop) {
+        return;
+    }
+    // Every screen holds sol::tables created by the state we are about to replace,
+    // and the navigator keeps its own Lua-backed boxes across screens.
+    g_loop->screens.clear();
+    navigator.reset_for_skin_reload();
+    script_manager.shutdown();
+    script_manager.init(fs::path("Skins") / global_data.config->paths.skin / "Scripts");
+    populate_screens(g_loop->screens);
+}
+
 static std::chrono::steady_clock::duration frame_duration(double fps) {
     return fps > 0.0 ? std::chrono::duration_cast<std::chrono::steady_clock::duration>(
                            std::chrono::duration<double>(1.0 / fps))
@@ -501,6 +515,21 @@ static void run_frame() {
         }
     }
     sync_text_input();
+
+    if (debug_menu.reload_scripts) {
+        debug_menu.reload_scripts = false;
+        clear_asset_caches(); // re-read the skin from disk, so edits show up
+        screen->on_screen_end(L.current_screen);
+        reload_current_screen_scripts();
+        screen_it = L.screens.find(L.current_screen);
+        screen = (screen_it != L.screens.end()) ? screen_it->second.get() : nullptr;
+        if (!screen) {
+            end_blend_mode();
+            end_mode_2d();
+            end_drawing();
+            return;
+        }
+    }
 
     if (!next_screen.has_value() && debug_menu.requested_screen.has_value()) {
         clear_asset_caches(); // a debug jump re-reads the skin from disk, so edits show up

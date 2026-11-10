@@ -58,6 +58,10 @@ struct SkinInfo {
     std::map<std::string, std::string> text;
     float outline = -1.0f;
 
+    // Where this entry came from, so the debug menu can write edits back.
+    std::filesystem::path json_path;
+    float json_scale = 1.0f;
+
     SkinInfo(float x = 0, float y = 0, int font_size = 0, float width = 0, float height = 0,
              const std::map<std::string, std::string>& text = {}, float outline = -1.0f)
         : x(x), y(y), font_size(font_size), width(width), height(height), text(text), outline(outline) {}
@@ -138,10 +142,13 @@ struct FramedTexture : public TextureObject {
 // Writes obj's x/y/x2/y2 at index back into the texture.json it was loaded from.
 bool save_texture_position(const TextureObject& obj, int index);
 
+class OutlinedText;
+
 struct DrawLogEntry {
     std::string name;
     Rect rect;
     TextureObject* tex_obj = nullptr;
+    OutlinedText* text_obj = nullptr;
     int index = 0;
     float offset_x = 0.0f;
     float offset_y = 0.0f;

@@ -12,6 +12,7 @@
 #include "../../libs/file/script.h"
 #include "../../libs/gfx.h"
 #include "../../libs/gfx/color_utils.h"
+#include "../../libs/gfx/text.h"
 #include "../../libs/gfx/texture.h"
 #include "../../libs/input/input.h"
 #include "../../libs/math/animation.h"
@@ -91,6 +92,7 @@ public:
     std::string edit_buffer;
 
     std::optional<Screens> requested_screen;
+    bool reload_scripts = false;
 
     static constexpr Screens ALL_SCREENS[] = {
         Screens::TITLE,         Screens::ENTRY,         Screens::SONG_SELECT,     Screens::GAME,
@@ -171,9 +173,14 @@ public:
             return;
         }
         int* value = field_ptr(editing_field);
-        if (value && !edit_buffer.empty() && edit_buffer != "-") {
+        float* float_value = field_float_ptr(editing_field);
+        if ((value || float_value) && !edit_buffer.empty() && edit_buffer != "-") {
             try {
-                *value = std::stoi(edit_buffer);
+                if (float_value) {
+                    *float_value = std::stof(edit_buffer);
+                } else {
+                    *value = std::stoi(edit_buffer);
+                }
             } catch (...) {
             }
         }
@@ -265,7 +272,7 @@ public:
         debug_draw_log.clear();
 
         const bool textures_tab_active = open && active_tab == 0;
-        debug_log_draws = open && (active_tab == 0 || active_tab == 2);
+        debug_log_draws = open; // click-to-select needs a log on every tab
         if (!open) {
             commit_edit();
             commit_data_edit();
@@ -282,6 +289,15 @@ public:
         if (clicked) {
             commit_edit();
             commit_data_edit();
+        }
+
+        if (clicked && !mouse_over_panel) {
+            for (auto i = std::ssize(debug_draw_log_prev) - 1; i >= 0; i--) {
+                if (in_rect(mouse, debug_draw_log_prev[i].rect)) {
+                    focus_entry(static_cast<int>(i));
+                    break;
+                }
+            }
         }
 
         // Releasing the mouse always ends an in-progress scrollbar drag.
@@ -421,17 +437,20 @@ public:
         }
 
         if (active_tab == 2) {
-            const DrawLogEntry* entry = clicked && mouse_over_panel ? find_selected_entry() : nullptr;
-            if (entry && entry->from_lua && !entry->lua_source.empty()) {
+            if (clicked && mouse_over_panel) {
                 LuaButtons buttons = lua_buttons(panel_x, tex.screen_height);
-                std::string path = resolve_lua_path(entry->lua_source).string();
-                if (path.empty()) {
-                    return;
-                }
-                if (in_rect(mouse, buttons.copy_path)) {
-                    SDL_SetClipboardText(path.c_str());
-                } else if (in_rect(mouse, buttons.copy_path_line)) {
-                    SDL_SetClipboardText((path + ":" + std::to_string(entry->lua_line)).c_str());
+                const DrawLogEntry* entry = find_selected_entry();
+                if (in_rect(mouse, buttons.reload)) {
+                    reload_scripts = true;
+                } else if (entry && entry->from_lua && !entry->lua_source.empty()) {
+                    std::string path = resolve_lua_path(entry->lua_source).string();
+                    if (!path.empty()) {
+                        if (in_rect(mouse, buttons.copy_path)) {
+                            SDL_SetClipboardText(path.c_str());
+                        } else if (in_rect(mouse, buttons.copy_path_line)) {
+                            SDL_SetClipboardText((path + ":" + std::to_string(entry->lua_line)).c_str());
+                        }
+                    }
                 }
             }
             return;
@@ -494,27 +513,32 @@ public:
         }
 
         if (clicked && has_selection && mouse_over_panel && mouse.y >= list_bottom) {
-            TextureObject* obj = selected_obj();
-            if (obj && !obj->json_path.empty() && in_rect(mouse, save_button(panel_x, list_bottom))) {
-                const bool ok = save_texture_position(*obj, selected_tex_index);
-                save_status = ok ? "saved to " + obj->json_path.parent_path().filename().string() + "/texture.json"
-                                 : "save failed, see log";
-                save_status_at = get_current_ms();
+            if (can_save() && in_rect(mouse, save_button(panel_x, list_bottom))) {
+                do_save();
             }
             const int step = key_down(SDL_SCANCODE_LSHIFT) ? 10 : 1;
             for (int i = 0; i < 4; i++) {
                 int* value = field_ptr(i);
-                if (!value) {
+                float* float_value = field_float_ptr(i);
+                if (!value && !float_value) {
                     continue;
                 }
                 FieldButtons b = field_buttons(i, panel_x, list_bottom);
                 if (in_rect(mouse, b.minus)) {
-                    *value -= step;
+                    if (value) {
+                        *value -= step;
+                    } else {
+                        *float_value -= step;
+                    }
                 } else if (in_rect(mouse, b.plus)) {
-                    *value += step;
+                    if (value) {
+                        *value += step;
+                    } else {
+                        *float_value += step;
+                    }
                 } else if (in_rect(mouse, b.value)) {
                     editing_field = i;
-                    edit_buffer = std::to_string(*value);
+                    edit_buffer = value ? std::to_string(*value) : text_format("%g", *float_value);
                 }
             }
         }
@@ -550,10 +574,12 @@ public:
         }
 
         if (editing_field >= 0) {
+            const bool allow_decimal = field_float_ptr(editing_field) != nullptr;
             TextEditAction action = poll_text_edit(edit_buffer, [&](int ch) {
                 bool is_digit = ch >= '0' && ch <= '9';
                 bool is_sign = ch == '-' && edit_buffer.empty();
-                return (is_digit || is_sign) && edit_buffer.size() < 8;
+                bool is_point = ch == '.' && allow_decimal;
+                return (is_digit || is_sign || is_point) && edit_buffer.size() < 8;
             });
             if (action == TextEditAction::Cancel) {
                 editing_field = -1;
@@ -604,15 +630,16 @@ public:
 
 private:
     struct LuaButtons {
-        Rect copy_path, copy_path_line;
+        Rect reload, copy_path, copy_path_line;
     };
 
     static LuaButtons lua_buttons(float panel_x, float screen_h) {
-        float width = (PANEL_WIDTH - LUA_BTN_GAP * 3) / 2;
+        float width = (PANEL_WIDTH - LUA_BTN_GAP * 4) / 3;
         float row_y = screen_h - LUA_BTN_HEIGHT - LUA_BTN_GAP;
-        Rect left = {panel_x + LUA_BTN_GAP, row_y, width, LUA_BTN_HEIGHT};
+        Rect reload = {panel_x + LUA_BTN_GAP, row_y, width, LUA_BTN_HEIGHT};
+        Rect left = {reload.x + width + LUA_BTN_GAP, row_y, width, LUA_BTN_HEIGHT};
         Rect right = {left.x + width + LUA_BTN_GAP, row_y, width, LUA_BTN_HEIGHT};
-        return {left, right};
+        return {reload, left, right};
     }
 
     static fs::path resolve_lua_path(const std::string& source) {
@@ -736,6 +763,8 @@ private:
     void draw_lua_tab(float panel_x, float screen_h) {
         const float x = panel_x + 6.0f;
         float y = TAB_HEIGHT + 8.0f;
+        const LuaButtons buttons = lua_buttons(panel_x, screen_h);
+        draw_lua_button(buttons.reload, "reload scripts", true);
 
         if (!has_selection) {
             draw_lua_rows("Select an element on the Textures tab.", x, y, 1, Color::GRAY);
@@ -782,7 +811,6 @@ private:
             }
         }
 
-        LuaButtons buttons = lua_buttons(panel_x, screen_h);
         draw_lua_button(buttons.copy_path, "copy path", !path.empty());
         draw_lua_button(buttons.copy_path_line, "copy path:line", !path.empty());
     }
@@ -1119,12 +1147,16 @@ private:
     enum class Position {
         Json,
         JsonPlusOffset,
+        Text,
         NoJson,
         Unknown
     };
 
     static Position position_of(const DrawLogEntry& entry) {
         if (!entry.tex_obj) {
+            if (entry.text_obj && font_manager.get_text_info(entry.text_obj->position_key)) {
+                return Position::Text;
+            }
             return Position::NoJson;
         }
         if (entry.origin.x != 0 || entry.origin.y != 0 || entry.rotation != 0) {
@@ -1147,6 +1179,11 @@ private:
         case Position::JsonPlusOffset:
             color = Color::ORANGE;
             headline = text_format("caller adds x%+.0f y%+.0f to the json base", entry.offset_x, entry.offset_y);
+            break;
+        case Position::Text:
+            color = Color::GREEN;
+            headline = "x/y are the skin text offset";
+            advice = "added to the x/y the draw call passes";
             break;
         case Position::NoJson:
             color = Color::RED;
@@ -1219,27 +1256,94 @@ private:
         }
     }
 
+    // Selects a texture clicked on screen, expanding its group and scrolling it into view.
+    void focus_entry(int log_index) {
+        const DrawLogEntry& e = debug_draw_log_prev[log_index];
+        has_selection = true;
+        selected_name = e.name;
+        selected_tex_index = e.index;
+        selected_log_index = log_index;
+        active_tab = 0;
+        expanded_subsets.insert(split_subset(e).first);
+        rebuild_visible_rows();
+
+        int row = 0;
+        for (int i = 0; i < std::ssize(visible_rows); i++) {
+            if (!visible_rows[i].is_header && is_selected_entry(debug_draw_log_prev[visible_rows[i].log_index])) {
+                row = i;
+                selected_log_index = visible_rows[i].log_index;
+                break;
+            }
+        }
+        const float list_bottom = tex.screen_height - edit_panel_height();
+        const int rows_shown = std::max(1, static_cast<int>((list_bottom - TAB_HEIGHT) / ROW_HEIGHT));
+        const int max_scroll = std::max(0, static_cast<int>(visible_rows.size()) - rows_shown);
+        scroll_offset = std::clamp(row - rows_shown / 2, 0, max_scroll);
+    }
+
     static bool in_rect(Vec2 p, const Rect& r) {
         return p.x >= r.x && p.x <= r.x + r.width && p.y >= r.y && p.y <= r.y + r.height;
     }
 
     int* field_ptr(int field_idx) {
-        TextureObject* obj = selected_obj();
-        if (!obj) {
+        if (TextureObject* obj = selected_obj()) {
+            size_t idx = static_cast<size_t>(selected_tex_index);
+            switch (field_idx) {
+            case 0:
+                return idx < obj->x.size() ? &obj->x[idx] : nullptr;
+            case 1:
+                return idx < obj->y.size() ? &obj->y[idx] : nullptr;
+            case 2:
+                return idx < obj->x2.size() ? &obj->x2[idx] : nullptr;
+            case 3:
+                return idx < obj->y2.size() ? &obj->y2[idx] : nullptr;
+            }
             return nullptr;
         }
-        size_t idx = static_cast<size_t>(selected_tex_index);
-        switch (field_idx) {
-        case 0:
-            return idx < obj->x.size() ? &obj->x[idx] : nullptr;
-        case 1:
-            return idx < obj->y.size() ? &obj->y[idx] : nullptr;
-        case 2:
-            return idx < obj->x2.size() ? &obj->x2[idx] : nullptr;
-        case 3:
-            return idx < obj->y2.size() ? &obj->y2[idx] : nullptr;
-        }
         return nullptr;
+    }
+
+    float* field_float_ptr(int field_idx) {
+        SkinInfo* cfg = selected_text_config();
+        if (!cfg || field_idx > 1) {
+            return nullptr;
+        }
+        return field_idx == 0 ? &cfg->x : &cfg->y;
+    }
+
+    SkinInfo* selected_text_config() const {
+        const DrawLogEntry* entry = find_selected_entry();
+        if (!entry || !entry->text_obj || entry->text_obj->position_key.empty()) {
+            return nullptr;
+        }
+        return font_manager.get_text_info_mut(entry->text_obj->position_key);
+    }
+
+    bool can_save() const {
+        if (TextureObject* obj = selected_obj()) {
+            return !obj->json_path.empty();
+        }
+        const SkinInfo* cfg = selected_text_config();
+        return cfg && !cfg->json_path.empty();
+    }
+
+    const char* save_label() const { return selected_obj() ? "save to texture.json" : "save to text config"; }
+
+    void do_save() {
+        if (TextureObject* obj = selected_obj()) {
+            save_status = save_texture_position(*obj, selected_tex_index)
+                              ? "saved to " + obj->json_path.parent_path().filename().string() + "/texture.json"
+                              : "save failed, see log";
+        } else if (SkinInfo* cfg = selected_text_config()) {
+            save_status = save_text_position(selected_text_key()) ? "saved to " + cfg->json_path.filename().string()
+                                                                  : "save failed, see log";
+        }
+        save_status_at = get_current_ms();
+    }
+
+    std::string selected_text_key() const {
+        const DrawLogEntry* entry = find_selected_entry();
+        return entry && entry->text_obj ? entry->text_obj->position_key : "";
     }
 
     static const char* field_label(int field_idx) {
@@ -1264,12 +1368,12 @@ private:
         return {panel_x + 180, edit_top + EDIT_FIELDS_TOP + 3, PANEL_WIDTH - 186, EDIT_ROW_HEIGHT * 2 - 6};
     }
 
-    void draw_save_button(const TextureObject& obj, float panel_x, float edit_top) const {
-        const bool enabled = !obj.json_path.empty();
+    void draw_save_button(float panel_x, float edit_top) const {
+        const bool enabled = can_save();
         Rect box = save_button(panel_x, edit_top);
         draw_rectangle(box, fade(Color::WHITE, enabled ? 0.2f : 0.05f));
         draw_rectangle_lines_ex(box, 1.0f, enabled ? Color(Color::GREEN) : fade(Color::WHITE, 0.3f));
-        const char* label = enabled ? "save to texture.json" : "no texture.json";
+        const char* label = enabled ? save_label() : "no source json";
         int label_w = measure_text(label, 14);
         draw_text(label, static_cast<int>(box.x + (box.width - label_w) * 0.5f),
                   static_cast<int>(box.y + (box.height - 14) * 0.5f), 14, enabled ? Color::GREEN : Color::GRAY);
@@ -1409,16 +1513,24 @@ private:
         draw_verdict(*entry, panel_x, edit_top + VERDICT_TOP);
 
         TextureObject* obj = entry->tex_obj;
-        if (!obj) {
+        const SkinInfo* text_cfg =
+            entry->text_obj ? font_manager.get_text_info(entry->text_obj->position_key) : nullptr;
+        if (!obj && !text_cfg) {
             return;
         }
 
-        const char* info = text_format("%dx%d px, %d frame(s)", obj->width, obj->height, obj->frame_count());
-        draw_text(info, static_cast<int>(panel_x) + 8, static_cast<int>(edit_top) + 26, 14, Color::GRAY);
+        if (obj) {
+            const char* info = text_format("%dx%d px, %d frame(s)", obj->width, obj->height, obj->frame_count());
+            draw_text(info, static_cast<int>(panel_x) + 8, static_cast<int>(edit_top) + 26, 14, Color::GRAY);
+        } else {
+            draw_text(text_format("text offset: %s", entry->text_obj->position_key.c_str()),
+                      static_cast<int>(panel_x) + 8, static_cast<int>(edit_top) + 26, 14, Color::GRAY);
+        }
 
         for (int i = 0; i < 4; i++) {
             int* value = field_ptr(i);
-            if (!value) {
+            float* float_value = field_float_ptr(i);
+            if (!value && !float_value) {
                 continue;
             }
             FieldButtons b = field_buttons(i, panel_x, edit_top);
@@ -1435,14 +1547,15 @@ private:
             draw_rectangle(b.value, fade(Color::WHITE, is_editing ? 0.25f : 0.1f));
             draw_rectangle_lines_ex(b.value, 1.0f, is_editing ? Color(Color::SKYBLUE) : fade(Color::WHITE, 0.4f));
 
-            std::string text = is_editing ? edit_buffer : std::to_string(*value);
+            std::string text =
+                is_editing ? edit_buffer : (value ? std::to_string(*value) : text_format("%g", *float_value));
             if (is_editing && std::fmod(get_current_ms(), 1000.0) < 500.0) {
                 text += '|';
             }
             draw_text(text.c_str(), static_cast<int>(b.value.x) + 4, static_cast<int>(b.value.y) + 4, 14, Color::WHITE);
         }
 
-        draw_save_button(*obj, panel_x, edit_top);
+        draw_save_button(panel_x, edit_top);
         draw_frames_section(panel_x, edit_top);
     }
 

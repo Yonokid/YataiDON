@@ -87,6 +87,9 @@ static void read_text_entries(const fs::path& file, float scale) {
                                                         static_cast<float>(json_member(v, "width", 0.0)) * scale,
                                                         static_cast<float>(json_member(v, "height", 0.0)) * scale,
                                                         labels, json_member(v, "outline", -1.0));
+            SkinInfo& entry = text_entries[m.name.GetString()];
+            entry.json_path = file;
+            entry.json_scale = scale;
         }
     } catch (const std::exception& e) {
         spdlog::warn("text_config {}: {}", file.string(), e.what());
@@ -118,6 +121,46 @@ void FontManager::load_text_config(const fs::path& skin_root) {
 const SkinInfo* FontManager::get_text_info(const std::string& key) {
     auto it = text_entries.find(key);
     return it == text_entries.end() ? nullptr : &it->second;
+}
+
+SkinInfo* FontManager::get_text_info_mut(const std::string& key) {
+    auto it = text_entries.find(key);
+    return it == text_entries.end() ? nullptr : &it->second;
+}
+
+bool save_text_position(const std::string& key) {
+    SkinInfo* info = font_manager.get_text_info_mut(key);
+    if (!info || info->json_path.empty()) {
+        return false;
+    }
+    try {
+        rapidjson::Document doc = read_json_file(info->json_path);
+        if (!doc.IsObject() || !doc.HasMember(key.c_str()) || !doc[key.c_str()].IsObject()) {
+            return false;
+        }
+        rapidjson::Value& entry = doc[key.c_str()];
+        auto& alloc = doc.GetAllocator();
+        const float values[2] = {info->x, info->y};
+        const char* names[2] = {"x", "y"};
+        for (int i = 0; i < 2; i++) {
+            const double raw = values[i] / info->json_scale;
+            rapidjson::Value v;
+            if (raw == std::round(raw)) {
+                v.SetInt(static_cast<int>(raw));
+            } else {
+                v.SetDouble(raw);
+            }
+            if (entry.HasMember(names[i])) {
+                entry[names[i]] = v;
+            } else {
+                entry.AddMember(rapidjson::Value(names[i], alloc), v, alloc);
+            }
+        }
+        return write_json_file(info->json_path, doc);
+    } catch (const std::exception& e) {
+        spdlog::error("Failed to save {}: {}", info->json_path.string(), e.what());
+        return false;
+    }
 }
 
 std::string FontManager::get_text_label(const std::string& key) {
@@ -1118,8 +1161,9 @@ void OutlinedText::draw(const DrawTextureParams& params) {
     }
 
     Rect src = params.src.value_or(Rect{0, 0, static_cast<float>(texture->width), static_cast<float>(texture->height)});
-    float dx = params.x + x_offset;
-    float dy = params.y + y_offset - top_extra;
+    const SkinInfo* pos = position_key.empty() ? nullptr : font_manager.get_text_info(position_key);
+    float dx = params.x + (pos ? pos->x : x_offset);
+    float dy = params.y + (pos ? pos->y : y_offset) - top_extra;
 
     if (params.x2 == 0.0f && params.y2 == 0.0f) {
         dx = roundf(dx);
@@ -1140,6 +1184,7 @@ void OutlinedText::draw(const DrawTextureParams& params) {
     if (debug_log_draws) {
         std::string label = text.size() > 40 ? text.substr(0, 40) + "..." : text;
         debug_draw_log.push_back({"\"" + label + "\"", dst});
+        debug_draw_log.back().text_obj = this;
         log_lua_site(debug_draw_log.back(), script_lua_state());
     }
 

@@ -330,5 +330,7 @@ bool apply_queued_window_resize();
 
 void drop_other_screens_for_skin_reload();
 void reload_skin_screens();
+// Rebuilds the current screen against a fresh Lua state, so script edits on disk take effect.
+void reload_current_screen_scripts();
 
 extern GlobalData global_data;

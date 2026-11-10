@@ -63,6 +63,7 @@ public:
     std::string get_text_label(const std::string& key);
 
     const SkinInfo* get_text_info(const std::string& key);
+    SkinInfo* get_text_info_mut(const std::string& key);
 };
 
 enum class LocalizedTextFallback {
@@ -143,6 +144,8 @@ public:
     float x_offset = 0.0f;
     float y_offset = 0.0f;
     int top_extra = 0;
+    // Skin config entry this text takes its x/y offset from (empty for code-placed text).
+    std::string position_key;
 
     OutlinedText(std::string text, int font_size, Color color, Color outline_color, bool is_vertical,
                  float outline_thickness = 5.0f, float spacing = 2.0f, float v_advance = 1.0f,
@@ -166,3 +169,6 @@ extern FontManager font_manager;
 // Skin font by name ("Fonts/<name>[.ttf]"); empty or unloadable -> the default font_manager.
 FontManager& named_font_manager(const std::string& name);
 void unload_named_fonts();
+
+// Writes the entry's current x/y back into the skin json it was loaded from.
+bool save_text_position(const std::string& key);
