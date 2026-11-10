@@ -12,8 +12,15 @@ case "$MODE" in
 esac
 CMAKE="${CMAKE:-cmake}"
 command -v "$CMAKE" >/dev/null || { echo "CMake is required (brew install cmake)." >&2; exit 1; }
-xcrun --sdk "$SDK" --show-sdk-path >/dev/null
+SDK_PATH="$(xcrun --sdk "$SDK" --show-sdk-path)"
 BUILD_DIR="${BUILD_DIR:-$REPO_ROOT/build-ios-$MODE}"
+# After an Xcode update the cached compiler checks still name the old SDK, so CMake stops
+# filtering the new SDK's usr/include and passes it as -isystem, which breaks libc++ headers.
+CXX_INFO=("$BUILD_DIR"/CMakeFiles/*/CMakeCXXCompiler.cmake)
+if [[ -f "${CXX_INFO[0]}" ]] && ! grep -qF "$SDK_PATH/" "${CXX_INFO[@]}"; then
+    echo "iOS SDK changed ($SDK_PATH); clearing the CMake cache in $BUILD_DIR"
+    rm -rf "$BUILD_DIR/CMakeCache.txt" "$BUILD_DIR/CMakeFiles"
+fi
 FFMPEG_PREFIX="${IOS_FFMPEG_PREFIX:-$REPO_ROOT/.ios-ffmpeg/$SDK-$ARCH}"
 NEEDS_FFMPEG=0
 for lib in avformat avcodec avutil swscale swresample; do
