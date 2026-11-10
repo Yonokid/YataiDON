@@ -114,7 +114,7 @@ jobs:
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER=g++ \
             -DCMAKE_C_COMPILER=gcc \
-            -DYATAIDON_LIBNFC=ON \
+            -DYATAIDON_LIBNFC=${{ secrets.NETWORK_URL != '' && secrets.NETWORK_AUTH_KEY != '' && 'ON' || 'OFF' }} \
             -DYATAIDON_STATIC_DEPS=ON \
             -DYATAIDON_FFMPEG_PREFIX="$PWD/.linux-ffmpeg" \
             -DNETWORK_URL="${{ secrets.NETWORK_URL }}" \
@@ -329,7 +329,7 @@ jobs:
             -DCMAKE_C_COMPILER=clang \
             -DCMAKE_PREFIX_PATH="$(brew --prefix)" \
             -DCMAKE_EXE_LINKER_FLAGS="-L$(brew --prefix)/lib" \
-            -DYATAIDON_LIBNFC=ON \
+            -DYATAIDON_LIBNFC=${{ secrets.NETWORK_URL != '' && secrets.NETWORK_AUTH_KEY != '' && 'ON' || 'OFF' }} \
             -DNETWORK_URL="${{ secrets.NETWORK_URL }}" \
             -DNETWORK_AUTH_KEY="${{ secrets.NETWORK_AUTH_KEY }}"
 
