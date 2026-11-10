@@ -110,7 +110,7 @@ struct JudgeResult {
 
 class JudgeCore {
 public:
-    JudgeCore(int difficulty, const Modifiers& modifiers, bool gen3, bool is_2p = false);
+    JudgeCore(int difficulty, Modifiers modifiers, bool gen3, bool is_2p = false);
     virtual ~JudgeCore() = default;
 
     std::vector<BranchDifficulty> branch_history;

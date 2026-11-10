@@ -29,6 +29,7 @@ Gauge Gauge::dan(const std::vector<DanSongEntry>& songs, int total_notes, Player
         throw std::runtime_error("Gauge::dan: songs is empty");
     }
     std::vector<std::pair<int, int>> courses;
+    courses.reserve(songs.size());
     for (const DanSongEntry& s : songs) {
         courses.emplace_back(s.difficulty, s.level);
     }

@@ -4,8 +4,10 @@
 #include <cmath>
 #include <iterator>
 #include <limits>
+#include <ranges>
 #include <spdlog/spdlog.h>
 #include <sstream>
+#include <utility>
 
 void compute_load_time(Note& note, ScrollType scroll_type, const TempoMap& tempo_map) {
     const int note_half_w = Lane::NOTE_HALF_W;
@@ -181,8 +183,8 @@ void GaugeCore::apply_points_clamped(double delta) {
     }
 }
 
-JudgeCore::JudgeCore(int difficulty, const Modifiers& modifiers, bool gen3, bool is_2p)
-    : is_2p(is_2p), difficulty(difficulty), modifiers(modifiers), gen3(gen3) {}
+JudgeCore::JudgeCore(int difficulty, Modifiers modifiers, bool gen3, bool is_2p)
+    : is_2p(is_2p), difficulty(difficulty), modifiers(std::move(modifiers)), gen3(gen3) {}
 
 void JudgeCore::load_chart(const NoteList& notes, std::deque<NoteList> branch_m_param,
                            std::deque<NoteList> branch_e_param, std::deque<NoteList> branch_n_param,
@@ -313,8 +315,8 @@ void JudgeCore::handle_judge_timeline(double ms_from_start) {
         due.push_back(judge_timeline.front());
         judge_timeline.pop_front();
     }
-    for (auto it = due.rbegin(); it != due.rend(); ++it) {
-        handle_judge_entry(ms_from_start, *it);
+    for (auto& it : std::views::reverse(due)) {
+        handle_judge_entry(ms_from_start, it);
     }
 }
 
