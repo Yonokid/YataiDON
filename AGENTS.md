@@ -45,14 +45,14 @@ Do not compile using cmake/ninja yourself. Always use the provided shell scripts
 
 There is no unit test suite. Before finishing a change:
 
-1. It builds (`cmake --build build`).
+1. It builds incrementally: `./build_re.sh`.
 2. Formatting passes — CI runs clang-format **23.1.3**:
    ```sh
    find src -type f \( -name '*.cpp' -o -name '*.h' \) -exec clang-format -i {} +
    ```
 3. Lint: `run-clang-tidy -quiet -j 4 -p build "^$(pwd)/src/"`.
-4. For behavior changes, run the game (`./YataiDON`) and exercise the affected screen.
-   Use the `PyTaikoGreen` skin for test runs.
+4. For behavior changes, do not launch or drive the game yourself. Give the user concrete
+   steps for the affected screen; they test. Use `PyTaikoGreen` for their test runs.
 
 ## Conventions
 
@@ -78,6 +78,7 @@ There is no unit test suite. Before finishing a change:
 
 ## Don't
 
+- Commit or push unless asked; the user commits.
 - Commit `.env`, `config.toml`, `scores.db`, build outputs, keystores, or anything under `Skins/`.
 - Add a dependency for something a few lines (or an existing dep in `cmake/deps.cmake`) can do.
 - Edit vendored/fetched code in `.cmake-deps/`; patch it via `cmake/patches/` instead.
