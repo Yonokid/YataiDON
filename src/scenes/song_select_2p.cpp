@@ -140,6 +140,7 @@ std::optional<Screens> SongSelect2PScreen::update() {
 
     if (screen_init) {
         navigator.update(current_time);
+        update_box_bgm();
     }
 
     if (game_transition.has_value()) {

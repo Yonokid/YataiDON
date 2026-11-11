@@ -6,7 +6,32 @@
 #include "../libs/network/network.h"
 #include "../objects/global/practice_timer.h"
 
+void SongSelectScreen::update_box_bgm() {
+    const fs::path& dir = navigator.current_path;
+    if (dir == bgm_dir) {
+        return;
+    }
+    bgm_dir = dir;
+    std::error_code ec;
+    const fs::path box_bgm = dir / "box.ogg";
+    const bool has_box_bgm = !dir.empty() && fs::exists(dir / "box.def", ec) && fs::exists(box_bgm, ec);
+    if (!has_box_bgm && !bgm_is_box) {
+        return;
+    }
+    fs::path file = box_bgm;
+    if (!has_box_bgm) {
+        file = bgm_override();
+        file = resolve_skin_path(file.empty() ? fs::path("Sounds/song_select/bgm.ogg") : file);
+    }
+    audio.stop_sound("bgm");
+    audio.load_sound(file, "bgm");
+    audio.play_sound("bgm", VolumePreset::MUSIC);
+    bgm_is_box = has_box_bgm;
+}
+
 void SongSelectScreen::on_screen_start() {
+    bgm_dir.clear();
+    bgm_is_box = false;
     Screen::on_screen_start();
     audio.set_sound_volume("ura_switch", 0.25f);
     audio.set_sound_volume("add_favorite", 3.0f);
@@ -380,6 +405,7 @@ std::optional<Screens> SongSelectScreen::update() {
 
     if (screen_init) {
         navigator.update(current_time);
+        update_box_bgm();
     }
 
     if (game_transition.has_value() && join_request_ms < 0.0) {

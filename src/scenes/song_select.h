@@ -84,6 +84,9 @@ protected:
     virtual bool is_2p_screen() { return false; }
     virtual bool is_waiwai_screen() { return false; }
     virtual fs::path bgm_override() { return {}; }
+    fs::path bgm_dir;
+    bool bgm_is_box = false;
+    void update_box_bgm();
     virtual Screens get_game_screen_target() { return Screens::GAME; }
 
 public:

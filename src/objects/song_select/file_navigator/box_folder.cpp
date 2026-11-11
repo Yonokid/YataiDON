@@ -8,6 +8,9 @@ FolderBox::FolderBox(const fs::path& path, const BoxDef& box_def) : BaseBox(path
 }
 
 FolderBox::~FolderBox() {
+    if (!custom_voice.empty()) {
+        audio.unload_sound(custom_voice);
+    }
     if (box_texture.has_value()) {
         unload_texture(box_texture.value());
     }
@@ -34,6 +37,9 @@ void FolderBox::load_text() {
     if (!is_osu_folder && fs::exists(path / "box_icon.png") && !box_icon.has_value()) {
         box_icon = load_texture_mipmapped((path / "box_icon.png").string().c_str());
     }
+    if (!is_osu_folder && custom_voice.empty() && fs::exists(path / "box.ogg")) {
+        custom_voice = audio.load_sound(path / "box.ogg", "box_voice_" + path.string());
+    }
     text_loaded = true;
 }
 
@@ -43,6 +49,9 @@ std::string FolderBox::hover_voice() const {
     }
     if (collection == WAIWAI_NORMAL_COLLECTION) {
         return "voice_waiwai_exit";
+    }
+    if (!custom_voice.empty()) {
+        return custom_voice;
     }
     return "genre_voice_" + std::to_string(static_cast<int>(genre_index));
 }
