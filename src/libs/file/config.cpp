@@ -388,10 +388,10 @@ Config get_config() {
     config.keys_1p.right_kat = parseKeyArrayOrDefault(config_file, "keys_1p", "right_kat", {SDL_SCANCODE_K});
 
     // Parse keys_2p
-    config.keys_2p.left_kat = parseKeyArrayOrDefault(config_file, "keys_2p", "left_kat", {SDL_SCANCODE_Z});
-    config.keys_2p.left_don = parseKeyArrayOrDefault(config_file, "keys_2p", "left_don", {SDL_SCANCODE_X});
-    config.keys_2p.right_don = parseKeyArrayOrDefault(config_file, "keys_2p", "right_don", {SDL_SCANCODE_C});
-    config.keys_2p.right_kat = parseKeyArrayOrDefault(config_file, "keys_2p", "right_kat", {SDL_SCANCODE_V});
+    config.keys_2p.left_kat = parseKeyArrayOrDefault(config_file, "keys_2p", "left_kat", {});
+    config.keys_2p.left_don = parseKeyArrayOrDefault(config_file, "keys_2p", "left_don", {});
+    config.keys_2p.right_don = parseKeyArrayOrDefault(config_file, "keys_2p", "right_don", {});
+    config.keys_2p.right_kat = parseKeyArrayOrDefault(config_file, "keys_2p", "right_kat", {});
 
     // Parse gamepad_1p (fallback to legacy [gamepad] if missing)
     const toml::table* gamepad_1p_node = config_file["gamepad_1p"].as_table();
