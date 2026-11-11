@@ -22,9 +22,12 @@ void TitleScreen::on_screen_start() {
     reset_attract_objects();
     load_videos();
     state = TitleState::OP_VIDEO;
-    hit_taiko_text = std::make_unique<OutlinedText>(font_manager.get_text_label("hit_taiko_to_start"),
-                                                    font_manager.get_text_info("hit_taiko_to_start")->font_size,
-                                                    Color::WHITE, Color::BLACK, false, 4);
+    // A skin without this key just draws nothing rather than dereferencing a null SkinInfo.
+    if (const SkinInfo* hit_taiko_info = font_manager.get_text_info("hit_taiko_to_start")) {
+        hit_taiko_text =
+            std::make_unique<OutlinedText>(font_manager.get_text_label("hit_taiko_to_start"), hit_taiko_info->font_size,
+                                           Color::WHITE, Color::BLACK, false, 4);
+    }
     fade_out = dynamic_cast<FadeAnimation*>(tex.get_animation(13));
     text_overlay_fade = dynamic_cast<FadeAnimation*>(tex.get_animation(14));
     if (!fade_out || !text_overlay_fade) {
@@ -370,10 +373,13 @@ void TitleScreen::draw() {
     allnet_indicator.draw();
     entry_overlay.draw(true);
 
-    hit_taiko_text->draw({.x = static_cast<float>(tex.screen_width * 0.25 - hit_taiko_text->width / 2),
-                          .y = font_manager.get_text_info("hit_taiko_to_start")->y,
-                          .fade = text_overlay_fade->attribute});
-    hit_taiko_text->draw({.x = static_cast<float>(tex.screen_width * 0.75 - hit_taiko_text->width / 2),
-                          .y = font_manager.get_text_info("hit_taiko_to_start")->y,
-                          .fade = text_overlay_fade->attribute});
+    if (const SkinInfo* hit_taiko_info = font_manager.get_text_info("hit_taiko_to_start");
+        hit_taiko_info && hit_taiko_text) {
+        hit_taiko_text->draw({.x = static_cast<float>(tex.screen_width * 0.25 - hit_taiko_text->width / 2),
+                              .y = hit_taiko_info->y,
+                              .fade = text_overlay_fade->attribute});
+        hit_taiko_text->draw({.x = static_cast<float>(tex.screen_width * 0.75 - hit_taiko_text->width / 2),
+                              .y = hit_taiko_info->y,
+                              .fade = text_overlay_fade->attribute});
+    }
 }
