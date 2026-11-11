@@ -63,7 +63,7 @@ FolderSummary scan_folder(const fs::path& path, const std::string& player_1_id, 
     };
 
     auto add_entry = [&](const fs::path& file) {
-        if (file.filename() == "song_list.txt") {
+        if (is_song_list_file(file)) {
             auto entries = read_song_list(file);
             tja_count += static_cast<int>(entries.size());
             for (const auto& e : entries) {

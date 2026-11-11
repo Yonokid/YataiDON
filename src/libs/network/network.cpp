@@ -372,6 +372,61 @@ void NetworkClient::update_username(const std::string& access_code, const std::s
     }
 }
 
+void NetworkClient::update_settings(const std::string& access_code, const std::string& key, const std::string& value) {
+    if (!network_enabled()) {
+        return;
+    }
+    cpr::Response response = cpr::Post(
+        cpr::Url{network_url("/update_settings")},
+        signed_headers("POST", "/update_settings", {{"access_code", access_code}, {"key", key}, {"value", value}}),
+        cpr::Parameters{{"access_code", access_code}}, cpr::Payload{{"key", key}, {"value", value}},
+        cpr::Timeout{5000} NETWORK_CA_OPT);
+    if (response.status_code != 200) {
+        spdlog::error("Failed to update setting {}: HTTP {} - {}", key, response.status_code, response.text);
+    }
+}
+
+void NetworkClient::push_modifiers(const std::string& access_code, const PlayerData& player) {
+    if (!network_enabled() || access_code.empty() || access_code == "0" || access_code == "1" ||
+        is_guest_id(access_code)) {
+        return;
+    }
+    const std::pair<const char*, std::string> settings[] = {
+        {"modifier_auto", player.modifier_auto ? "1" : "0"},
+        {"modifier_speed", std::to_string(player.modifier_speed)},
+        {"modifier_display", player.modifier_display ? "1" : "0"},
+        {"modifier_inverse", player.modifier_inverse ? "1" : "0"},
+        {"modifier_random", std::to_string(player.modifier_random)},
+        {"modifier_skip", player.modifier_skip ? "1" : "0"},
+        {"neiro_index", std::to_string(player.neiro_index)},
+    };
+    for (const auto& [key, value] : settings) {
+        update_settings(access_code, key, value);
+    }
+}
+
+void NetworkClient::update_song_list(const std::string& access_code, const std::string& kind,
+                                     const std::vector<std::string>& hashes) {
+    if (!network_enabled()) {
+        return;
+    }
+    std::string json = "[";
+    for (size_t i = 0; i < hashes.size(); i++) {
+        json += i == 0 ? "\"" : ",\"";
+        json += hashes[i];
+        json += '"';
+    }
+    json += ']';
+    cpr::Response response = cpr::Post(
+        cpr::Url{network_url("/update_song_list")},
+        signed_headers("POST", "/update_song_list", {{"access_code", access_code}, {"kind", kind}, {"hashes", json}}),
+        cpr::Parameters{{"access_code", access_code}}, cpr::Payload{{"kind", kind}, {"hashes", json}},
+        cpr::Timeout{5000} NETWORK_CA_OPT);
+    if (response.status_code != 200) {
+        spdlog::error("Failed to update the {} list: HTTP {} - {}", kind, response.status_code, response.text);
+    }
+}
+
 bool NetworkClient::fetch_costume(const std::string& access_code, int& head_index, int& body_index, int& cos_index,
                                   bool& is_costume) {
     if (!network_enabled()) {
@@ -455,13 +510,26 @@ std::optional<RemoteUser> NetworkClient::fetch_user(const std::string& access_co
     }
     if (doc.HasMember("settings") && doc["settings"].IsObject()) {
         const rapidjson::Value& settings = doc["settings"];
-        if (settings.HasMember("skin") && settings["skin"].IsString()) {
-            user.skin = settings["skin"].GetString();
-        }
-        if (settings.HasMember("language") && settings["language"].IsString()) {
-            user.language = settings["language"].GetString();
+        for (auto it = settings.MemberBegin(); it != settings.MemberEnd(); ++it) {
+            if (it->value.IsString()) {
+                user.settings[it->name.GetString()] = it->value.GetString();
+            }
         }
     }
+    auto read_hashes = [&doc](const char* key) {
+        std::vector<std::string> hashes;
+        if (!doc.HasMember(key) || !doc[key].IsArray()) {
+            return hashes;
+        }
+        for (const auto& entry : doc[key].GetArray()) {
+            if (entry.IsString()) {
+                hashes.emplace_back(entry.GetString());
+            }
+        }
+        return hashes;
+    };
+    user.favorites = read_hashes("favorites");
+    user.recent = read_hashes("recent");
     user.import_requested =
         doc.HasMember("import_requested") && doc["import_requested"].IsBool() && doc["import_requested"].GetBool();
     return user;
@@ -1615,6 +1683,9 @@ bool NetworkClient::fetch_username(const std::string&, std::string&) {
     return false;
 }
 void NetworkClient::update_username(const std::string&, const std::string&) {}
+void NetworkClient::update_settings(const std::string&, const std::string&, const std::string&) {}
+void NetworkClient::push_modifiers(const std::string&, const PlayerData&) {}
+void NetworkClient::update_song_list(const std::string&, const std::string&, const std::vector<std::string>&) {}
 bool NetworkClient::fetch_title(const std::string&, std::string&) {
     return false;
 }

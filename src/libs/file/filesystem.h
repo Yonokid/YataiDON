@@ -51,6 +51,14 @@ std::vector<SongListEntry> read_song_list(const fs::path& path);
 
 void queue_song_list_write(const fs::path& path, const std::vector<SongListEntry>& entries);
 
+void set_song_list_account(const std::string& access_code);
+std::string song_list_account();
+void set_song_list_folders(const fs::path& favorites, const fs::path& recent);
+fs::path song_list_file(const fs::path& folder);
+bool is_song_list_file(const fs::path& file);
+void write_account_song_lists(const std::string& access_code, const std::vector<std::string>& favorites,
+                              const std::vector<std::string>& recent);
+
 fs::path resolve_parent_graphics_path(const fs::path& graphics_path);
 
 // the skin's Graphics path followed by each ancestor's ("screen.parent", followed up to 8 deep)

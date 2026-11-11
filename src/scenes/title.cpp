@@ -43,6 +43,7 @@ void TitleScreen::on_screen_start() {
         global_data.card_override[i] = false;
     }
     scores_manager.clear_guests();
+    set_song_list_account("");
     global_data.guest_credit = false;
     scores_manager.player_1 = global_data.config->network.access_code_1;
     scores_manager.player_2 = global_data.config->network.access_code_2;

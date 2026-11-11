@@ -86,4 +86,6 @@ private:
     void navigate_difficulty_right();
     void toggle_ura_mode();
     void start_background_diffs();
+    // The panel just closed: keep the account's server-side copy in step
+    void push_modifiers();
 };

@@ -7,6 +7,7 @@
 
 #include "../../../libs/file/filesystem.h"
 #include "../../../libs/gfx/text.h"
+#include "../../../libs/network/network.h"
 #include "../../../libs/song_library_loader.h"
 #include "../song_select_script.h"
 #include "box_back.h"
@@ -20,6 +21,7 @@
 #include <chrono>
 #include <cmath>
 #include <ranges>
+#include <thread>
 #include <type_traits>
 #include <utility>
 
@@ -211,13 +213,22 @@ void Navigator::preload(std::vector<fs::path> songs_paths) {
             }
             if (bd.collection == "FAVORITE" && !favorite_folder_path) {
                 favorite_folder_path = entry.path();
-                for (const auto& e : read_song_list(entry.path() / "song_list.txt")) {
-                    favorite_songs.insert(e.title + "|" + e.subtitle);
-                }
             }
         }
     }
+    set_song_list_folders(favorite_folder_path.value_or(fs::path()), recent_folder_path.value_or(fs::path()));
+    reload_favorites();
     is_preloaded = true;
+}
+
+void Navigator::reload_favorites() {
+    favorite_songs.clear();
+    if (!favorite_folder_path) {
+        return;
+    }
+    for (const auto& e : read_song_list(song_list_file(*favorite_folder_path))) {
+        favorite_songs.insert(e.title + "|" + e.subtitle);
+    }
 }
 
 void Navigator::init(std::vector<fs::path> songs_paths) {
@@ -250,6 +261,7 @@ void Navigator::init(std::vector<fs::path> songs_paths) {
         if (!is_preloaded) {
             preload(std::move(songs_paths));
         }
+        reload_favorites();
 
         load_start_folder();
         is_init = true;
@@ -391,8 +403,9 @@ LoadRequest Navigator::make_load_request(LoadRequest::Kind kind, const fs::path&
     request.box_def = pending_inline_box_def;
 
     auto has_song_list = [](const fs::path& folder) {
+        const fs::path file = song_list_file(folder);
         std::error_code ec;
-        return fs::exists(folder / "song_list.txt", ec);
+        return fs::exists(file, ec) || !read_song_list(file).empty();
     };
 
     if (kind == LoadRequest::Kind::DIRECTORY || kind == LoadRequest::Kind::INLINE) {
@@ -784,6 +797,21 @@ void Navigator::cancel_diff_sort() {
     pending_inline_folder = nullptr;
 }
 
+static void push_song_list(const std::vector<SongListEntry>& entries, const char* kind) {
+    const std::string account = song_list_account();
+    if (account.empty()) {
+        return;
+    }
+    std::vector<std::string> hashes;
+    hashes.reserve(entries.size());
+    for (const auto& entry : entries) {
+        hashes.push_back(entry.hash);
+    }
+    std::thread([account, kind = std::string(kind), hashes = std::move(hashes)] {
+        network.update_song_list(account, kind, hashes);
+    }).detach();
+}
+
 void Navigator::toggle_favorite(SongBox* song) {
     if (!favorite_folder_path || hide_collections) {
         return;
@@ -795,7 +823,7 @@ void Navigator::toggle_favorite(SongBox* song) {
     std::string subtitle = s.contains("en") ? s.at("en") : s.begin()->second;
     std::string key = title + "|" + subtitle;
 
-    fs::path song_list_path = *favorite_folder_path / "song_list.txt";
+    fs::path song_list_path = song_list_file(*favorite_folder_path);
     auto entries = read_song_list(song_list_path);
 
     bool was_favorite = favorite_songs.contains(key);
@@ -817,6 +845,7 @@ void Navigator::toggle_favorite(SongBox* song) {
     }
 
     queue_song_list_write(song_list_path, entries);
+    push_song_list(entries, "favorites");
 }
 
 void Navigator::add_to_recent(const SongBox* song) {
@@ -824,7 +853,7 @@ void Navigator::add_to_recent(const SongBox* song) {
         return;
     }
     invalidate_folder_summaries(); // song_list.txt counts change
-    fs::path song_list_path = *recent_folder_path / "song_list.txt";
+    fs::path song_list_path = song_list_file(*recent_folder_path);
 
     auto& titles = song->parser.metadata.title;
     auto& subtitles = song->parser.metadata.subtitle;
@@ -845,6 +874,7 @@ void Navigator::add_to_recent(const SongBox* song) {
     }
 
     queue_song_list_write(song_list_path, entries);
+    push_song_list(entries, "recent");
     promote_recent_box(song);
 }
 

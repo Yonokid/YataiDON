@@ -456,7 +456,7 @@ void NavigationLoad::load_current_directory_async(const fs::path& path) {
             const fs::path& curr_path = entry.path();
             try {
                 if (!fs::is_directory(curr_path)) {
-                    if (curr_path.filename() == "song_list.txt") {
+                    if (is_song_list_file(curr_path)) {
                         if (!ensure_index()) {
                             break;
                         }
@@ -726,7 +726,7 @@ std::optional<std::set<fs::path>> surrounding_songs(const fs::path& path, const 
             if (scanner.has_def_file(entry) && !parse_navigation_box_def(entry, "").collection.empty()) {
                 it.disable_recursion_pending();
             }
-        } else if (entry.filename() == "song_list.txt") {
+        } else if (is_song_list_file(entry)) {
             for (const auto& song_entry : read_song_list(entry)) {
                 if (fs::path song_path = resolve_song_entry(index, song_entry); !song_path.empty()) {
                     songs.insert(std::move(song_path));
@@ -743,7 +743,7 @@ void NavigationLoad::load_from_song_list(const fs::path& path, const fs::path& l
                                          bool mark_favorite, const std::optional<std::set<fs::path>>& scope,
                                          int max_songs) {
     int songs_added = 0;
-    for (const auto& entry : read_song_list(list_folder / "song_list.txt")) {
+    for (const auto& entry : read_song_list(song_list_file(list_folder))) {
         if (abort_loading || songs_added >= max_songs) {
             break;
         }
@@ -1061,7 +1061,7 @@ void NavigationLoad::load_songs_inline_async(const fs::path& path, const BoxDef&
             try {
                 std::error_code tec;
                 if (!entry.is_directory(tec)) {
-                    if (curr_path.filename() == "song_list.txt") {
+                    if (is_song_list_file(curr_path)) {
                         parse_song_list(curr_path, box_def, true);
                         continue;
                     }

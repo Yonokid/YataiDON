@@ -5,10 +5,12 @@
 #include <thread>
 
 #include "../libs/file/config.h"
+#include "../libs/file/filesystem.h"
 #include "../libs/file/scores.h"
 #include "../libs/global_data.h"
 #include "../libs/input/input.h"
 #include "../libs/network/network.h"
+#include "../objects/song_select/neiro.h"
 
 void EntryScreen::on_screen_start() {
     Screen::on_screen_start();
@@ -187,6 +189,36 @@ bool EntryScreen::login_slot(const std::string& card_hex, std::function<void()> 
     return true;
 }
 
+static void apply_account_modifiers(PlayerData& pd, const std::map<std::string, std::string>& settings) {
+    auto flag = [&settings](const char* key, bool& target) {
+        if (auto it = settings.find(key); it != settings.end()) {
+            target = it->second == "1";
+        }
+    };
+    auto number = [&settings](const char* key, int& target) {
+        auto it = settings.find(key);
+        if (it == settings.end()) {
+            return;
+        }
+        try {
+            target = std::stoi(it->second);
+        } catch (const std::exception&) {
+            spdlog::warn("Ignoring a bad {} from the server: {}", key, it->second);
+        }
+    };
+    flag("modifier_auto", pd.modifier_auto);
+    number("modifier_speed", pd.modifier_speed);
+    flag("modifier_display", pd.modifier_display);
+    flag("modifier_inverse", pd.modifier_inverse);
+    number("modifier_random", pd.modifier_random);
+    flag("modifier_skip", pd.modifier_skip);
+    number("neiro_index", pd.neiro_index);
+    const int neiro_count = static_cast<int>(read_neiro_names().size());
+    if (neiro_count > 0) {
+        pd.neiro_index = std::clamp(pd.neiro_index, -1, neiro_count - 1);
+    }
+}
+
 // Main-thread half of an online login: the config, scores.db and the slot's player data.
 void EntryScreen::finish_login(RemoteLogin remote) {
     std::function<void()> then = std::move(after_login_);
@@ -243,7 +275,12 @@ void EntryScreen::finish_login(RemoteLogin remote) {
             scores_manager.export_to_hiroba(code, code);
             network.clear_import_flag(code);
         }
-        set_user_appearance(u.skin.value_or(""), u.language.value_or(""));
+        set_user_appearance(u.settings.contains("skin") ? u.settings.at("skin") : std::string(),
+                            u.settings.contains("language") ? u.settings.at("language") : std::string());
+        apply_account_modifiers(pd, u.settings);
+        if (cfg.guest_mode && !is_guest_id(code)) {
+            write_account_song_lists(code, u.favorites, u.recent);
+        }
     }
     if (pd.username.empty()) {
         pd.username = "Player";

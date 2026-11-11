@@ -120,6 +120,7 @@ private:
     void load_start_folder();
     void request_inline(const fs::path& path, BoxDef box_def);
     void promote_recent_box(const SongBox* song);
+    void reload_favorites();
     void collapse_inline_now();
     void flush_pending_boxes();
     void exit_inline();

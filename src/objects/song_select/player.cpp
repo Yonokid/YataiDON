@@ -3,11 +3,13 @@
 #include <algorithm>
 #include <iterator>
 #include <string_view>
+#include <thread>
 
 #include "../../libs/audio/audio.h"
 #include "../../libs/file/scores.h"
 #include "../../libs/gfx/text.h"
 #include "../../libs/input/input.h"
+#include "../../libs/network/network.h"
 #include "song_select_script.h"
 
 void SongSelectPlayer::try_lua_selector(bool is_half, float fade_in, int pass) {
@@ -73,6 +75,7 @@ void SongSelectPlayer::update(double current_time) {
         if (neiro_selector->is_finished) {
             neiro_selector.reset();
             scores_manager.save_player_data(player_data);
+            push_modifiers();
             chara->set_anim(AnimIndex::DON_SELECT_PANELDOWN);
         }
     }
@@ -82,6 +85,7 @@ void SongSelectPlayer::update(double current_time) {
         if (modifier_selector->is_finished) {
             modifier_selector.reset();
             scores_manager.save_player_data(player_data);
+            push_modifiers();
             chara->set_anim(AnimIndex::DON_SELECT_PANELDOWN);
         }
     }
@@ -91,6 +95,18 @@ void SongSelectPlayer::update(double current_time) {
     if (voice_played && (global_data.config->general.fast_transitions || !is_voice_playing())) {
         is_ready = true;
     }
+}
+
+void SongSelectPlayer::push_modifiers() {
+    if (!global_data.config->network.online_play || !network.is_online()) {
+        return;
+    }
+    const std::string code = get_player_id(player_num);
+    if (code.empty()) {
+        return;
+    }
+    const PlayerData data = player_data;
+    std::thread([code, data] { network.push_modifiers(code, data); }).detach();
 }
 
 bool SongSelectPlayer::is_voice_playing() {

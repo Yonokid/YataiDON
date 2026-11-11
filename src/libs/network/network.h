@@ -52,8 +52,9 @@ struct RemoteUser {
     };
     std::optional<Costume> costume;
     std::optional<int> acce_index;
-    std::optional<std::string> skin;
-    std::optional<std::string> language;
+    std::map<std::string, std::string> settings;
+    std::vector<std::string> favorites;
+    std::vector<std::string> recent;
     bool import_requested = false;
 };
 
@@ -205,6 +206,12 @@ public:
 
     bool fetch_username(const std::string& access_code, std::string& username);
     void update_username(const std::string& access_code, const std::string& username);
+
+    void update_settings(const std::string& access_code, const std::string& key, const std::string& value);
+
+    void push_modifiers(const std::string& access_code, const PlayerData& player);
+    void update_song_list(const std::string& access_code, const std::string& kind,
+                          const std::vector<std::string>& hashes);
 
     bool fetch_title(const std::string& access_code, std::string& title);
     bool fetch_title_bg(const std::string& access_code, int& title_bg);
