@@ -296,7 +296,7 @@ Config get_config() {
     config.general.touch_drum_size = config_file["general"]["touch_drum_size"].value_or(1.0f);
     config.general.skin_updater = config_file["general"]["skin_updater"].value_or(true);
     config.general.fast_transitions = config_file["general"]["fast_transitions"].value_or(false);
-    config.general.ignore_account_appearance = config_file["general"]["ignore_account_appearance"].value_or(false);
+    config.general.ignore_account_appearance = config_file["general"]["ignore_account_appearance"].value_or(true);
 
     // limits (timer_frozen / song_limit used to live under [general])
     config.limits.timer_frozen =

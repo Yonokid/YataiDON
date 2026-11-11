@@ -31,7 +31,7 @@ struct GeneralConfig {
     float touch_drum_size = 1.0f;
     bool skin_updater = true;
     bool fast_transitions = false;
-    bool ignore_account_appearance = false;
+    bool ignore_account_appearance = true;
 };
 
 struct LimitsConfig {
