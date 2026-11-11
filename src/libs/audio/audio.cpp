@@ -295,7 +295,8 @@ static void unload_music_stream_from_map(std::unordered_map<std::string, music>&
         music_streams.erase(it);
         spdlog::debug("Unloaded music stream: {}", name);
     } else {
-        spdlog::warn("Music stream {} not found", name);
+        // load_* call this to release a previous entry; nothing to unload is normal
+        spdlog::debug("Music stream {} not found", name);
     }
 }
 
@@ -1321,7 +1322,7 @@ void AudioEngine::load_screen_sounds(const std::string& screen_name) {
             has_screen_sounds = has_screen_sounds || fs::exists(dir / screen_name);
         }
         if (!has_screen_sounds) {
-            spdlog::warn("Sounds for screen {} not found", screen_name);
+            spdlog::debug("Sounds for screen {} not found", screen_name);
         }
 
         want(sounds_path / "don.wav", "don");
