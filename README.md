@@ -36,7 +36,7 @@ A TJA player and Taiko simulator written in C++ using the [raylib](https://www.r
 
 - **Windows**: Windows 10 or higher
 - **macOS**: Built via CI, largely untested
-- **Linux**: Ubuntu 20.04 or higher (other distributions may work but are untested)
+- **Linux**: Ubuntu 24.04 or higher (needs glibc 2.39+; other distributions may work but are untested)
 - **Android**: Android 10 (API 29) or higher
 - **iOS**: iOS 16.3 or higher; install via [TestFlight](https://testflight.apple.com/join/ZzrXBUsb) or build from source with Xcode (see [iOS guide](platform/ios/README.md))
 

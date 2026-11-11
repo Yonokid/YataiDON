@@ -8,7 +8,8 @@ jobs:
   build-linux:
     name: Build on Linux
     runs-on: ubuntu-26.04
-    container: ubuntu:26.04
+    # Build in the oldest image with GCC 14 (C++23) so the binary only needs glibc 2.39.
+    container: ubuntu:24.04
     defaults:
       run:
         shell: bash
@@ -21,7 +22,7 @@ jobs:
         run: |
           apt-get update
           DEBIAN_FRONTEND=noninteractive apt-get install -y \
-            sudo git ca-certificates curl python3 build-essential
+            sudo git ca-certificates curl python3 build-essential g++-14 gcc-14
 
       - name: Configure Git credentials
         run: |
@@ -112,8 +113,8 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-            -DCMAKE_CXX_COMPILER=g++ \
-            -DCMAKE_C_COMPILER=gcc \
+            -DCMAKE_CXX_COMPILER=g++-14 \
+            -DCMAKE_C_COMPILER=gcc-14 \
             -DYATAIDON_LIBNFC=${{ secrets.NETWORK_URL != '' && secrets.NETWORK_AUTH_KEY != '' && 'ON' || 'OFF' }} \
             -DYATAIDON_STATIC_DEPS=ON \
             -DYATAIDON_FFMPEG_PREFIX="$PWD/.linux-ffmpeg" \
