@@ -55,12 +55,12 @@ Color darken_color(const Color& rgb) {
                  static_cast<unsigned char>(std::round(rgb.b * darkening_factor)), rgb.a);
 }
 
-BoxColors resolve_box_colors(const std::optional<Color>& box_color, const std::optional<Color>& back_color,
+BoxColors resolve_box_colors(const std::vector<Color>& box_color, const std::vector<Color>& back_color,
                              const std::optional<Color>& fore_color) {
     BoxColors result;
-    result.box = box_color.has_value() ? box_color : back_color;
-    Color default_outline = result.box.has_value() ? darken_color(result.box.value()) : Color(101, 0, 82, 255);
-    if (box_color.has_value()) {
+    result.box = !box_color.empty() ? box_color : back_color;
+    Color default_outline = !result.box.empty() ? darken_color(result.box.front()) : Color(101, 0, 82, 255);
+    if (!box_color.empty()) {
         result.outline = fore_color.value_or(default_outline);
         result.text = fore_color.value_or(Color::WHITE);
     } else {
@@ -76,7 +76,7 @@ BoxColors resolve_box_colors(const std::optional<Color>& box_color, const std::o
 const std::map<GenreIndex, std::array<std::optional<Color>, 2>> DEFAULT_COLORS = {
     {GenreIndex::JPOP, {Color(32, 160, 186, 255), Color(0, 77, 104, 255)}},
     {GenreIndex::ANIME, {Color(255, 152, 0, 255), Color(156, 64, 2, 255)}},
-    {GenreIndex::VOCALOID, {std::nullopt, Color(84, 101, 126, 255)}},
+    {GenreIndex::VOCALOID, {Color(222, 235, 245, 255), Color(84, 101, 126, 255)}},
     {GenreIndex::CHILDREN, {Color(255, 82, 134, 255), Color(153, 4, 46, 255)}},
     {GenreIndex::VARIETY, {Color(142, 212, 30, 255), Color(60, 104, 0, 255)}},
     {GenreIndex::CLASSICAL, {Color(209, 162, 19, 255), Color(134, 88, 0, 255)}},

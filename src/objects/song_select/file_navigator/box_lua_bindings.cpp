@@ -120,9 +120,9 @@ void register_song_select_lua_bindings(sol::state& lua) {
             t["a"] = c.a;
             return t;
         },
-        "name", &BaseBox::horizontal_name, "collection", &BaseBox::collection, "genre_index",
+        "name", &BaseBox::horizontal_name, "collection", &BaseBox::collection, "collab", &BaseBox::collab, "genre_index",
         [](BaseBox& self) { return static_cast<int>(self.genre_index); }, "texture_index",
-        [](BaseBox& self) { return static_cast<int>(self.texture_index); }, "has_recolor", &BaseBox::has_recolor,
+        [](BaseBox& self) { return self.texture_index; }, "has_recolor", &BaseBox::has_recolor, "has_gradient", &BaseBox::has_gradient, "has_flat_recolor", &BaseBox::has_flat_recolor, "gradient_texture", &BaseBox::gradient_texture,
         "begin_recolor", &BaseBox::begin_recolor, "end_recolor", &BaseBox::end_recolor);
 
     lua.new_usertype<SongBox>(
@@ -491,7 +491,8 @@ void register_song_select_lua_bindings(sol::state& lua) {
         }));
 
     lua.new_usertype<GenreBG>("GenreBG", "texture_frame", &GenreBG::texture_frame, "name", &GenreBG::name_text,
-                              "has_recolor", &GenreBG::has_recolor, "begin_recolor", &GenreBG::begin_recolor,
+                              "has_recolor", &GenreBG::has_recolor, "has_gradient", &GenreBG::has_gradient,
+                              "gradient_texture", &GenreBG::gradient_texture, "begin_recolor", &GenreBG::begin_recolor,
                               "end_recolor", &GenreBG::end_recolor, "stretch",
                               sol::property([](GenreBG& self) { return self.stretch.get(); }), "scale",
                               sol::property([](GenreBG& self) { return self.scale.get(); }), "move",

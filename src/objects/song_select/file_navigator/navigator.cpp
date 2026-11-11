@@ -35,9 +35,8 @@ static std::unique_ptr<SongBox> make_song_box(const fs::path& path, const BoxDef
 
 static std::unique_ptr<BackBox> make_back_box(const fs::path& parent_path, const BoxDef* folder = nullptr) {
     BoxDef d;
-    d.back_color = BackBox::COLOR;
+    d.back_color = {BackBox::COLOR};
     d.fore_color = BackBox::COLOR;
-    d.texture_index = TextureIndex::NONE;
     d.genre_index = folder ? folder->genre_index : GenreIndex::NAMCO;
     return std::make_unique<BackBox>(parent_path, d);
 }
@@ -57,7 +56,7 @@ static bool alpha_less(const std::string& a, const std::string& b) {
 static void apply_song_genre(SongBox* song, const BoxDef& box_def) {
     song->song_genre_index = box_def.genre_index;
     song->song_genre_label = box_def.genre_label;
-    if (!box_def.box_color.has_value() && !box_def.back_color.has_value() && !box_def.fore_color.has_value()) {
+    if (box_def.box_color.empty() && box_def.back_color.empty() && !box_def.fore_color.has_value()) {
         return;
     }
     BoxColors colors = resolve_box_colors(box_def.box_color, box_def.back_color, box_def.fore_color);

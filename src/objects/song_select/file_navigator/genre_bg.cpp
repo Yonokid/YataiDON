@@ -2,8 +2,8 @@
 
 #include "../../../libs/color_shader.h"
 
-GenreBG::GenreBG(const std::string& text_name, std::optional<Color> color, TextureIndex texture_index, float distance)
-    : texture_index(texture_index) {
+GenreBG::GenreBG(const std::string& text_name, std::vector<Color> colors, int texture_index, float distance)
+    : texture_index(texture_index), gradients(colors) {
     float base_font_size = tex.get_skin_config(SC::SONG_SELECT_BOX_NAME)->font_size;
     float font_size = base_font_size;
     float name_outline = 5.0f;
@@ -14,8 +14,8 @@ GenreBG::GenreBG(const std::string& text_name, std::optional<Color> color, Textu
     name = make_unique<OutlinedText>(text_name, static_cast<int>(font_size), Color::WHITE, Color::BLACK, false,
                                      name_outline);
 
-    if (color.has_value()) {
-        shader_owner = load_color_shader(color.value());
+    if (!colors.empty()) {
+        shader_owner = load_color_shader(colors.front());
         shader = *shader_owner;
         shader_loaded = is_shader_valid(shader);
     }

@@ -7,6 +7,7 @@
 #include "../../../libs/gfx/text.h"
 #include "../../../libs/latest_worker.h"
 #include "../../../platform/platform.h"
+#include "color_utils.h"
 #include "navigator.h"
 
 // Decodes previews off the UI thread; a newer request replaces a pending one, never joined.
@@ -47,6 +48,13 @@ SongBox::SongBox(const fs::path& path, const BoxDef& box_def, SongParser parser,
     song_genre_label = box_def.genre_label;
 
     parser.get_metadata();
+    if (box_def.collab) {
+        auto colors = DEFAULT_COLORS.find(get_genre_index(parser.metadata.genre));
+        if (colors != DEFAULT_COLORS.end() && colors->second[1].has_value()) {
+            fore_color = colors->second[1].value();
+            text_color = Color::WHITE;
+        }
+    }
     auto& titles = parser.metadata.title;
     const std::string& lang = global_data.config->general.language;
     text_name = localized_text(titles, lang, LocalizedTextFallback::ENGLISH_OR_FIRST);

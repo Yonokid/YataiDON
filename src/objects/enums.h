@@ -66,14 +66,10 @@ inline std::string branch_diff_to_string(BranchDifficulty difficulty) {
     return names[index];
 }
 
-enum class TextureIndex : int {
-    NONE = 0,
-    VOCALOID = 1,
-    DEFAULT = 2,
-    RECOMMENDED = 3,
-    FAVORITE = 4,
-    RECENT = 5
-};
+// Frames of the skin's box textures that are painted, not recoloured
+inline constexpr int TEXTURE_FLAT = 0;
+inline constexpr int TEXTURE_RECOMMENDED = 1;
+inline constexpr int TEXTURE_FAVORITE = 2;
 
 // Chart inside a GENRE:TUTORIAL folder (box.def); song select plays it as the tutorial
 inline constexpr const char* TUTORIAL_CHART = "Tutorial.tja";
@@ -107,12 +103,6 @@ inline int genre_to_ref_frame(GenreIndex genre) {
     auto it = GENRE_TO_REF_FRAME.find(genre);
     return it != GENRE_TO_REF_FRAME.end() ? it->second : 0;
 }
-
-inline const std::map<std::string, TextureIndex> TEXTURE_MAP = {
-    {"VOCALOID", TextureIndex::VOCALOID},       {"ボーカロイド", TextureIndex::VOCALOID},
-    {"RECOMMENDED", TextureIndex::RECOMMENDED}, {"FAVORITE", TextureIndex::FAVORITE},
-    {"RECENT", TextureIndex::RECENT},
-};
 
 inline const std::map<GenreIndex, std::set<std::string>> GENRE_MAP = {
     {GenreIndex::TUTORIAL, {"TUTORIAL"}},

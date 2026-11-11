@@ -1,16 +1,38 @@
 #include "box_dan.h"
 
 #include <algorithm>
+#include <array>
 #include <string>
 
 #include "../../../libs/file/scores.h"
 #include "../../../libs/gfx/text.h"
 #include "../../../libs/parsers/song_parser.h"
 
+static BoxDef dan_box_def(const std::string& title, int color) {
+    static const std::array<std::vector<const char*>, 5> GRADIENTS = {{
+        {"#D3DBEC", "#D3DBEC", "#DEE3EF", "#E4EBF4", "#E9F0F7", "#E7F3F4", "#E7F3F4", "#E1F3F4", "#DEF3F1", "#DCF3F1", "#DBF3F1", "#D6EBEF", "#CEE1EC", "#C6D7E7", "#BDCFE7", "#B5C5E7", "#B5C5E7"},
+        {"#F79242", "#F79242", "#F7A860", "#FFC17E", "#FFD999", "#FFEDAD", "#FFECAF", "#FFE0A7", "#FFD19C", "#FFC494", "#FFB68C", "#F79C84", "#E9777B", "#DE5673", "#D0356B", "#C61863", "#C61863"},
+        {"#FF596E", "#FF596E", "#FF4682", "#ED35A8", "#D228D9", "#AE2DFF", "#756BFF", "#3FA6FF", "#24CCB7", "#0AF16F", "#2CFF4E", "#78FF44", "#B9F938", "#E3EA28", "#FFD823", "#FFC431", "#FFC431"},
+        {"#D2A60D", "#D2A60D", "#C0A100", "#B5A200", "#CEB80D", "#E8D329", "#FFEC47", "#FDE240", "#EFC92D", "#DCAC1C", "#EFC931", "#FFF552", "#FFFF72", "#FFFF95", "#E8DE58", "#CAB11F", "#CAB11F"},
+        {"#5AFD8E", "#5AFD8E", "#57FB94", "#52F79C", "#4CF3A5", "#4AF3AD", "#44EFB5", "#42EBBD", "#42E7C3", "#39E7CE", "#39E3D3", "#31DFD8", "#31DFE4", "#29DBEC", "#21D7EF", "#21D3F7", "#21D3F7"},
+    }};
+    BoxDef def;
+    def.name = title;
+    def.genre_index = GenreIndex::DAN;
+    if (color == 3 || color == 4) {
+        def.texture_index = color - 2;
+    } else if (color >= 1 && color <= 5) {
+        for (const char* hex : GRADIENTS[color - 1]) {
+            def.box_color.push_back(parse_hex_color(hex));
+        }
+    }
+    return def;
+}
+
 DanBox::DanBox(const fs::path& path, const std::string& title, int color, const std::vector<DanSongEntry>& songs_in,
                const std::vector<Exam>& exams_in, int total_notes_in)
     : BaseBox(path,
-              BoxDef{title, static_cast<TextureIndex>(color), GenreIndex::DAN, "", "", std::nullopt, std::nullopt}),
+              dan_box_def(title, color)),
       dan_title(title), dan_color(color), songs(songs_in), exams(exams_in), total_notes(total_notes_in) {
     text_name = title;
 }

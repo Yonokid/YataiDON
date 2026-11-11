@@ -6,6 +6,7 @@
 #include <random>
 #include <ranges>
 #include <set>
+#include <sstream>
 #include <type_traits>
 #include <utility>
 
@@ -250,34 +251,33 @@ public:
         }
 
         if (ai_assigned && !abort_loading && (reloading_roots || std::ranges::contains(root_paths, request.path))) {
-            add_mode_box("ai_assigned_folder", "00 AI Mission", AI_ASSIGNED_COLLECTION, TextureIndex::NONE, "#e6be32",
+            add_mode_box("ai_assigned_folder", "00 AI Mission", AI_ASSIGNED_COLLECTION, "#e6be32",
                          "#8c6a10");
         }
         if (is_2p && !abort_loading && (reloading_roots || std::ranges::contains(root_paths, request.path))) {
             if (waiwai) {
-                add_mode_box("entry_game", "00 Waiwai Normal", WAIWAI_NORMAL_COLLECTION, TextureIndex::NONE, "#3ca0ff",
+                add_mode_box("entry_game", "00 Waiwai Normal", WAIWAI_NORMAL_COLLECTION, "#3ca0ff",
                              "#2366aa");
                 add_mode_box("waiwai_tutorial_box", "00 Waiwai Tutorial", WAIWAI_TUTORIAL_COLLECTION,
-                             TextureIndex::NONE, "#28b932", "#106018");
+                             "#28b932", "#106018");
             } else if (waiwai_box) {
-                add_mode_box("entry_waiwai", "00 Waiwai Mode", WAIWAI_MODE_COLLECTION, TextureIndex::NONE, "#3ca0ff",
+                add_mode_box("entry_waiwai", "00 Waiwai Mode", WAIWAI_MODE_COLLECTION, "#3ca0ff",
                              "#2366aa");
             }
         }
     }
 
 private:
-    void add_mode_box(const char* label, const char* path, const std::string& collection, TextureIndex texture_index,
+    void add_mode_box(const char* label, const char* path, const std::string& collection,
                       const char* box_color, const char* fore_color) {
         BoxDef def;
         def.name = font_manager.get_text_label(label);
         if (def.name.empty()) {
             return;
         }
-        def.texture_index = texture_index;
         def.genre_index = GenreIndex::DEFAULT;
         def.collection = collection;
-        def.box_color = parse_hex_color(box_color);
+        def.box_color = {parse_hex_color(box_color)};
         def.fore_color = parse_hex_color(fore_color);
         PreparedFolder folder{fs::path(path), def};
         folder.tja_count = 0;
@@ -351,6 +351,14 @@ void NavigationLoad::parse_song_list(const fs::path& path, const BoxDef& box_def
 
         auto box = make_song_box(final_path, box_def, std::move(parser));
         box->preserve_order = true;
+        if (box_def.collab) {
+            fs::path genre_folder = navigation_scan::find_box_def_folder(final_path);
+            if (!genre_folder.empty()) {
+                if (BoxDef genre = parse_box_def(genre_folder); !genre.collab) {
+                    apply_song_genre(box.get(), genre);
+                }
+            }
+        }
 
         if (inline_mode && songs_added > 0 && songs_added % 10 == 0) {
             enqueue_inline_box(make_back_box(path.parent_path().parent_path(), &inline_back_def));
@@ -1126,12 +1134,30 @@ BoxDef cached_navigation_box_def(std::unordered_map<std::string, BoxDef>& cache,
     return definition;
 }
 
+static std::vector<Color> as_stops(const std::optional<Color>& color) {
+    return color ? std::vector<Color>{*color} : std::vector<Color>{};
+}
+
+static std::vector<Color> parse_color_stops(const std::string& value) {
+    std::vector<Color> stops;
+    std::stringstream ss(value);
+    std::string item;
+    while (std::getline(ss, item, ',')) {
+        item.erase(0, item.find_first_not_of(" \t"));
+        item.erase(item.find_last_not_of(" \t") + 1);
+        stops.push_back(parse_hex_color(item));
+    }
+    if (stops.empty()) {
+        throw std::invalid_argument("Empty colour list");
+    }
+    return stops;
+}
+
 BoxDef parse_navigation_box_def(const fs::path& path, const std::string& language) {
     std::ifstream boxDef(path / "box.def");
     std::string line;
     BoxDef result;
     result.name = path.filename().string();
-    result.texture_index = TextureIndex::DEFAULT;
     result.genre_index = GenreIndex::DEFAULT;
     result.collection = "";
     bool title_localized = false;
@@ -1149,10 +1175,6 @@ BoxDef parse_navigation_box_def(const fs::path& path, const std::string& languag
 
         if (line.starts_with("#GENRE:")) {
             std::string genre = get_value("#GENRE:");
-            auto it = TEXTURE_MAP.find(genre);
-            if (it != TEXTURE_MAP.end()) {
-                result.texture_index = it->second;
-            }
             result.genre_index = get_genre_index(genre);
             result.genre_label = genre;
         } else if (line.starts_with("#TITLE:")) {
@@ -1169,18 +1191,24 @@ BoxDef parse_navigation_box_def(const fs::path& path, const std::string& languag
                 title_localized = true;
             }
         } else if (line.starts_with("#COLLECTION:")) {
-            result.collection = get_value("#COLLECTION:");
-            auto it = TEXTURE_MAP.find(result.collection);
-            if (it != TEXTURE_MAP.end()) {
-                result.texture_index = it->second;
+            std::string value = get_value("#COLLECTION:");
+            if (value == "RECOMMENDED") {
+                result.texture_index = TEXTURE_RECOMMENDED;
+            } else if (value == "FAVORITE") {
+                result.texture_index = TEXTURE_FAVORITE;
             }
-            result.genre_index = get_genre_index(result.collection);
+            if (value == "COLLAB") {
+                result.collab = true;
+            } else {
+                result.collection = value;
+                result.genre_index = get_genre_index(value);
+            }
         } else if (line.starts_with("#BOXCOLOR:")) {
-            result.box_color = parse_hex_color(get_value("#BOXCOLOR:"));
-            result.texture_index = TextureIndex::NONE;
+            result.texture_index = TEXTURE_FLAT;
+            result.box_color = parse_color_stops(get_value("#BOXCOLOR:"));
         } else if (line.starts_with("#BACKCOLOR:")) {
-            result.back_color = parse_hex_color(get_value("#BACKCOLOR:"));
-            result.texture_index = TextureIndex::NONE;
+            result.texture_index = TEXTURE_FLAT;
+            result.back_color = parse_color_stops(get_value("#BACKCOLOR:"));
         } else if (line.starts_with("#FORECOLOR:")) {
             result.fore_color = parse_hex_color(get_value("#FORECOLOR:"));
         } else if (line.starts_with("#BOXEXPLANATION")) {
@@ -1285,9 +1313,8 @@ void NavigationLoad::load_gen4_genres(const fs::path& data_root) {
         if (const BoxDef* like = box_def_for_genre(genre)) {
             def = *like;
         } else {
-            def.texture_index = (genre == GenreIndex::VOCALOID) ? TextureIndex::VOCALOID : TextureIndex::NONE;
-            if (auto colors = DEFAULT_COLORS.find(genre); colors != DEFAULT_COLORS.end()) {
-                def.back_color = colors->second[0];
+                if (auto colors = DEFAULT_COLORS.find(genre); colors != DEFAULT_COLORS.end()) {
+                def.back_color = as_stops(colors->second[0]);
                 def.fore_color = colors->second[1];
             }
         }
@@ -1326,8 +1353,7 @@ bool NavigationLoad::load_gen4_genre_songs(const fs::path& path, const BoxDef& b
     if (const BoxDef* like = box_def_for_genre(genre)) {
         def = *like;
     } else if (auto colors = DEFAULT_COLORS.find(genre); colors != DEFAULT_COLORS.end()) {
-        def.texture_index = (genre == GenreIndex::VOCALOID) ? TextureIndex::VOCALOID : TextureIndex::NONE;
-        def.back_color = colors->second[0];
+        def.back_color = as_stops(colors->second[0]);
         def.fore_color = colors->second[1];
     }
     def.name = box_def.name;
@@ -1393,9 +1419,8 @@ void NavigationLoad::load_gen3_genres(const fs::path& data_root) {
         if (const BoxDef* like = box_def_for_genre(genre)) {
             def = *like;
         } else {
-            def.texture_index = (genre == GenreIndex::VOCALOID) ? TextureIndex::VOCALOID : TextureIndex::NONE;
-            if (auto colors = DEFAULT_COLORS.find(genre); colors != DEFAULT_COLORS.end()) {
-                def.back_color = colors->second[0];
+                if (auto colors = DEFAULT_COLORS.find(genre); colors != DEFAULT_COLORS.end()) {
+                def.back_color = as_stops(colors->second[0]);
                 def.fore_color = colors->second[1];
             }
         }
@@ -1434,8 +1459,7 @@ bool NavigationLoad::load_gen3_genre_songs(const fs::path& path, const BoxDef& b
     if (const BoxDef* like = box_def_for_genre(genre)) {
         def = *like;
     } else if (auto colors = DEFAULT_COLORS.find(genre); colors != DEFAULT_COLORS.end()) {
-        def.texture_index = (genre == GenreIndex::VOCALOID) ? TextureIndex::VOCALOID : TextureIndex::NONE;
-        def.back_color = colors->second[0];
+        def.back_color = as_stops(colors->second[0]);
         def.fore_color = colors->second[1];
     }
     def.name = box_def.name;

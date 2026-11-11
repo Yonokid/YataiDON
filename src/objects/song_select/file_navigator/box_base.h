@@ -6,16 +6,18 @@
 #include "../../../libs/gfx/color_utils.h"
 #include "../../../libs/gfx/text.h"
 #include "../../enums.h"
+#include "gradient_textures.h"
 
 struct BoxDef {
     std::string name;
-    TextureIndex texture_index;
+    int texture_index = TEXTURE_FLAT;
     GenreIndex genre_index;
     std::string genre_label;
     std::string collection;
-    std::optional<Color> back_color;
+    bool collab = false;
+    std::vector<Color> back_color;
     std::optional<Color> fore_color;
-    std::optional<Color> box_color;
+    std::vector<Color> box_color;
     std::array<std::string, 3> explanation;
 };
 
@@ -35,11 +37,13 @@ public:
     GenreIndex genre_index;
     std::string genre_label;
     std::string text_name;
+    int texture_index = TEXTURE_FLAT;
     std::string collection;
+    bool collab = false;
     std::array<std::string, 3> explanation;
 
-    TextureIndex texture_index;
-    std::optional<Color> back_color;
+    std::vector<Color> back_color;
+    GradientTextures gradients;
     Color fore_color;
     Color text_color = Color::WHITE;
 
@@ -121,7 +125,10 @@ public:
     // genre carries a custom box/back colour. Lua skins cannot express a shader, so the
     // recolor is exposed as begin/end guards wrapping the same draw_texture calls the skin
     // already makes (see draw_closed() / draw_open_bg()).
-    bool has_recolor() const { return shader_loaded && texture_index == TextureIndex::NONE; }
+    bool has_recolor() const { return shader_loaded && texture_index == TEXTURE_FLAT && !gradients.active(); }
+    bool has_flat_recolor() const { return shader_loaded && texture_index == TEXTURE_FLAT; }
+    bool has_gradient() const { return gradients.active(); }
+    std::shared_ptr<TextureObject> gradient_texture(const std::string& name) { return gradients.get(name); }
     void begin_recolor() {
         if (shader_loaded) {
             begin_shader_mode(shader);
