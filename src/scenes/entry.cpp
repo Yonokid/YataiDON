@@ -378,7 +378,7 @@ void EntryScreen::join_with_card(const std::string& card_hex) {
 
 void EntryScreen::on_card_login() {
     login_ready_ = true;
-    audio.play_sound("don", VolumePreset::SOUND);
+    audio.play_sound("don", VolumePreset::HITSOUND);
     if (players[0]) {
         // Second player: same screen as pressing Don for the free seat
         const PlayerNum free_seat = (players[0]->player_num == PlayerNum::P1) ? PlayerNum::P2 : PlayerNum::P1;
@@ -526,7 +526,7 @@ void EntryScreen::join_player(PlayerNum player_num, bool do_login) {
         lua_entry->decide_side_select(side);
     }
     state = EntryState::SELECT_MODE;
-    audio.play_sound("don", VolumePreset::SOUND);
+    audio.play_sound("don", VolumePreset::HITSOUND);
     if (name_pending_ >= 0 && players[name_pending_]) {
         const int slot = name_pending_;
         name_pending_ = -1;
@@ -540,13 +540,13 @@ std::optional<Screens> EntryScreen::handle_input() {
     }
     if (state == EntryState::NAME_ENTRY) {
         if (menu_left_pressed()) {
-            audio.play_sound("kat", VolumePreset::SOUND);
+            audio.play_sound("kat", VolumePreset::HITSOUND);
             name_entry_->input(NameEntry::LEFT);
         } else if (menu_right_pressed()) {
-            audio.play_sound("kat", VolumePreset::SOUND);
+            audio.play_sound("kat", VolumePreset::HITSOUND);
             name_entry_->input(NameEntry::RIGHT);
         } else if (menu_confirm_pressed()) {
-            audio.play_sound("don", VolumePreset::SOUND);
+            audio.play_sound("don", VolumePreset::HITSOUND);
             name_entry_->input(NameEntry::DECIDE);
         }
         if (name_entry_->is_done()) {
@@ -556,37 +556,37 @@ std::optional<Screens> EntryScreen::handle_input() {
     }
     if (state == EntryState::BNCOIN) {
         if (menu_left_pressed() && bncoin_popup_->input(BanaCoinPopup::LEFT)) {
-            audio.play_sound("kat", VolumePreset::SOUND);
+            audio.play_sound("kat", VolumePreset::HITSOUND);
         } else if (menu_right_pressed() && bncoin_popup_->input(BanaCoinPopup::RIGHT)) {
-            audio.play_sound("kat", VolumePreset::SOUND);
+            audio.play_sound("kat", VolumePreset::HITSOUND);
         } else if (menu_confirm_pressed() && bncoin_popup_->input(BanaCoinPopup::DECIDE)) {
-            audio.play_sound("don", VolumePreset::SOUND);
+            audio.play_sound("don", VolumePreset::HITSOUND);
         }
         return std::nullopt;
     }
     if (state == EntryState::PRACTICE_HELP) {
         if (menu_left_pressed() && practice_help_->input(PracticeHelp::LEFT)) {
-            audio.play_sound("kat", VolumePreset::SOUND);
+            audio.play_sound("kat", VolumePreset::HITSOUND);
         } else if (menu_right_pressed() && practice_help_->input(PracticeHelp::RIGHT)) {
-            audio.play_sound("kat", VolumePreset::SOUND);
+            audio.play_sound("kat", VolumePreset::HITSOUND);
         } else if (menu_confirm_pressed() && practice_help_->input(PracticeHelp::DECIDE)) {
-            audio.play_sound("don", VolumePreset::SOUND);
+            audio.play_sound("don", VolumePreset::HITSOUND);
         }
         return std::nullopt;
     }
     if (state == EntryState::ENTRY_INFO) {
         if (menu_confirm_pressed() && entry_info_->input()) {
-            audio.play_sound("don", VolumePreset::SOUND);
+            audio.play_sound("don", VolumePreset::HITSOUND);
         }
         return std::nullopt;
     }
     if (state == EntryState::CAMPAIGN) {
         if (menu_left_pressed() && campaign_menu_->input(CampaignMenu::LEFT)) {
-            audio.play_sound("kat", VolumePreset::SOUND);
+            audio.play_sound("kat", VolumePreset::HITSOUND);
         } else if (menu_right_pressed() && campaign_menu_->input(CampaignMenu::RIGHT)) {
-            audio.play_sound("kat", VolumePreset::SOUND);
+            audio.play_sound("kat", VolumePreset::HITSOUND);
         } else if (menu_confirm_pressed() && campaign_menu_->input(CampaignMenu::DECIDE)) {
-            audio.play_sound("don", VolumePreset::SOUND);
+            audio.play_sound("don", VolumePreset::HITSOUND);
         }
         return std::nullopt;
     }
@@ -602,7 +602,7 @@ std::optional<Screens> EntryScreen::handle_input() {
         local_login_ = false;
         login_slot("", [this] {
             login_ready_ = true;
-            audio.play_sound("don", VolumePreset::SOUND);
+            audio.play_sound("don", VolumePreset::HITSOUND);
             state = EntryState::SELECT_SIDE;
             lua_entry->restart_side_select();
         });
@@ -620,7 +620,7 @@ std::optional<Screens> EntryScreen::handle_input() {
         if (menu_confirm_pressed()) {
             if (side == 1) {
                 if (players[0]) {
-                    audio.play_sound("don", VolumePreset::SOUND);
+                    audio.play_sound("don", VolumePreset::HITSOUND);
                     state = EntryState::SELECT_MODE;
                     return std::nullopt;
                 }
@@ -629,7 +629,7 @@ std::optional<Screens> EntryScreen::handle_input() {
             join_player((side == 0) ? PlayerNum::P1 : PlayerNum::P2);
         }
         if (menu_left_pressed()) {
-            audio.play_sound("kat", VolumePreset::SOUND);
+            audio.play_sound("kat", VolumePreset::HITSOUND);
             if (players[0] && players[0]->player_num == PlayerNum::P1) {
                 side = 1;
             } else if (players[0] && players[0]->player_num == PlayerNum::P2) {
@@ -639,7 +639,7 @@ std::optional<Screens> EntryScreen::handle_input() {
             }
         }
         if (menu_right_pressed()) {
-            audio.play_sound("kat", VolumePreset::SOUND);
+            audio.play_sound("kat", VolumePreset::HITSOUND);
             if (players[0] && players[0]->player_num == PlayerNum::P1) {
                 side = 2;
             } else if (players[0] && players[0]->player_num == PlayerNum::P2) {
@@ -867,7 +867,7 @@ void EntryScreen::open_reward_shop() {
     }
     auto popup = std::make_unique<BanaCoinPopup>("cantshop", global_data.bncoin, 0);
     if (popup->unavailable()) {
-        audio.play_sound("kat", VolumePreset::SOUND);
+        audio.play_sound("kat", VolumePreset::HITSOUND);
         return;
     }
     bncoin_popup_ = std::move(popup);
@@ -880,7 +880,7 @@ void EntryScreen::open_bncoin_popup() {
     auto popup = std::make_unique<BanaCoinPopup>(kind, global_data.bncoin, BNCOIN_PRACTICE_COST);
     if (popup->unavailable()) { // skin without the popups: practice as before
         if (two_players) {
-            audio.play_sound("kat", VolumePreset::SOUND);
+            audio.play_sound("kat", VolumePreset::HITSOUND);
         } else {
             audio.play_sound("mode_practice", VolumePreset::VOICE);
             start_practice();

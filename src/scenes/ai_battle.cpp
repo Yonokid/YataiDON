@@ -108,13 +108,13 @@ void AISongSelectScreen::handle_input_selecting() {
         }
         const int last = LEVEL_COUNT[chosen_course] - 1;
         if (is_l_kat_pressed(global_data.player_num)) {
-            audio.play_player_sound("kat", global_data.player_num, VolumePreset::SOUND);
+            audio.play_player_sound("kat", global_data.player_num, VolumePreset::HITSOUND);
             level_cursor = std::max(level_cursor - 1, 0);
         } else if (is_r_kat_pressed(global_data.player_num)) {
-            audio.play_player_sound("kat", global_data.player_num, VolumePreset::SOUND);
+            audio.play_player_sound("kat", global_data.player_num, VolumePreset::HITSOUND);
             level_cursor = std::min(level_cursor + 1, last);
         } else if (is_l_don_pressed(global_data.player_num) || is_r_don_pressed(global_data.player_num)) {
-            audio.play_player_sound("don", global_data.player_num, VolumePreset::SOUND);
+            audio.play_player_sound("don", global_data.player_num, VolumePreset::HITSOUND);
             level_decided = true;
         }
         return;
@@ -551,7 +551,7 @@ std::optional<Screens> AIResultScreen::update() {
     if (fade_out && check_key_pressed(global_data.config->keys.back_key)) {
         quitting = true;
         start_fade_out();
-        audio.play_sound("don", VolumePreset::SOUND);
+        audio.play_sound("don", VolumePreset::HITSOUND);
         return next;
     }
     const PlayerNum seat = global_data.player_num;
@@ -560,9 +560,9 @@ std::optional<Screens> AIResultScreen::update() {
     if (flow) {
         flow->update(now);
         if (don && flow->input(AIRewardFlow::DON)) {
-            audio.play_sound("don", VolumePreset::SOUND);
+            audio.play_sound("don", VolumePreset::HITSOUND);
         } else if (kat && flow->input(AIRewardFlow::KATSU)) {
-            audio.play_sound("kat", VolumePreset::SOUND);
+            audio.play_sound("kat", VolumePreset::HITSOUND);
         }
         if (flow->is_done()) {
             begin_exit();
@@ -570,9 +570,9 @@ std::optional<Screens> AIResultScreen::update() {
         return next;
     }
     if (don && board->decide()) {
-        audio.play_sound("don", VolumePreset::SOUND);
+        audio.play_sound("don", VolumePreset::HITSOUND);
     } else if (kat && board->toggle()) {
-        audio.play_sound("kat", VolumePreset::SOUND);
+        audio.play_sound("kat", VolumePreset::HITSOUND);
     }
     if (board->is_done()) {
         const AIBattleProgress& progress = network.ai_battle_progress();

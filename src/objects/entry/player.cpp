@@ -224,7 +224,7 @@ void EntryPlayer::handle_input() {
     }
 
     if (menu_confirm_pressed(player_num)) {
-        audio.play_player_sound("don", player_num, VolumePreset::SOUND);
+        audio.play_player_sound("don", player_num, VolumePreset::HITSOUND);
         if (box_manager->is_costume_box()) {
             box_manager->open_costume_menu(player_num);
         } else {
@@ -232,11 +232,11 @@ void EntryPlayer::handle_input() {
         }
     }
     if (menu_left_pressed(player_num)) {
-        audio.play_player_sound("kat", player_num, VolumePreset::SOUND);
+        audio.play_player_sound("kat", player_num, VolumePreset::HITSOUND);
         box_manager->move_left();
     }
     if (menu_right_pressed(player_num)) {
-        audio.play_player_sound("kat", player_num, VolumePreset::SOUND);
+        audio.play_player_sound("kat", player_num, VolumePreset::HITSOUND);
         box_manager->move_right();
     }
 }

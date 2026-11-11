@@ -55,11 +55,11 @@ void CampaignScreen::handle_input() {
         const PlayerNum keys = two ? seat : PlayerNum::ALL;
         const int player = static_cast<int>(seat);
         if (menu_left_pressed(keys) && event->input(CampaignEvent::LEFT, player)) {
-            audio.play_sound("kat", VolumePreset::SOUND);
+            audio.play_sound("kat", VolumePreset::HITSOUND);
         } else if (menu_right_pressed(keys) && event->input(CampaignEvent::RIGHT, player)) {
-            audio.play_sound("kat", VolumePreset::SOUND);
+            audio.play_sound("kat", VolumePreset::HITSOUND);
         } else if (menu_confirm_pressed(keys) && event->input(CampaignEvent::DECIDE, player)) {
-            audio.play_sound("don", VolumePreset::SOUND);
+            audio.play_sound("don", VolumePreset::HITSOUND);
         }
         if (!two) {
             break;

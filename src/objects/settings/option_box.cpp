@@ -469,7 +469,7 @@ void KeybindOptionBox::update(double current_time) {
         if (key > 0) {
             value = {key};
             confirm();
-            audio.play_sound("don", VolumePreset::SOUND);
+            audio.play_sound("don", VolumePreset::HITSOUND);
             rebuild_text();
             is_highlighted = false;
         }
@@ -537,7 +537,7 @@ void KeyBindControllerOptionBox::update(double current_time) {
         if (btn >= 0) {
             value = {btn};
             confirm();
-            audio.play_sound("don", VolumePreset::SOUND);
+            audio.play_sound("don", VolumePreset::HITSOUND);
             rebuild_text();
             is_highlighted = false;
         }

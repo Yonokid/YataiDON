@@ -120,7 +120,7 @@ void DiffSortSelect::one_menu_sort_change_param(int move) {
     if (one_menu_sort_input_locked()) {
         return;
     }
-    audio.play_sound("kat", VolumePreset::SOUND);
+    audio.play_sound("kat", VolumePreset::HITSOUND);
     int& v = sort_param[session];
     v += move;
     if (session == 1) {
@@ -172,7 +172,7 @@ std::optional<std::pair<int, int>> DiffSortSelect::input_select() {
             audio.play_sound("cancel", VolumePreset::SOUND);
             return std::nullopt;
         }
-        audio.play_sound("don", VolumePreset::SOUND);
+        audio.play_sound("don", VolumePreset::HITSOUND);
         session++;
         if (session > 2) {
             t_end = now_ms;

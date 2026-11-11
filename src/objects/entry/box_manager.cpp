@@ -156,7 +156,7 @@ void BoxManager::select_box() {
         return;
     }
     if (!selection_allowed()) {
-        audio.play_sound("kat", VolumePreset::SOUND);
+        audio.play_sound("kat", VolumePreset::HITSOUND);
         return;
     }
     if (location == Screens::SONG_SELECT) {

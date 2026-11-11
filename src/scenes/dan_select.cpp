@@ -137,7 +137,7 @@ std::optional<Screens> DanSelectScreen::tick_timer(double current_ms) {
         if (dan_navigator.get_current()->is_back) {
             return start_dan_transition();
         }
-        audio.play_sound("don_big", VolumePreset::SOUND);
+        audio.play_sound("don_big", VolumePreset::HITSOUND);
         open_confirm(current_ms);
         return std::nullopt;
     }
@@ -146,7 +146,7 @@ std::optional<Screens> DanSelectScreen::tick_timer(double current_ms) {
     }
     confirm_index = CONFIRM_YES;
     select_timer.reset();
-    audio.play_sound("don", VolumePreset::SOUND);
+    audio.play_sound("don", VolumePreset::HITSOUND);
     return on_screen_end(Screens::GAME_DAN);
 }
 
@@ -232,17 +232,17 @@ void DanSelectScreen::handle_input_browsing(double current_ms) {
         dan_navigator.skip(10);
         last_moved = current_ms;
     } else if (!wheel_locked && nav_left) {
-        audio.play_sound("kat", VolumePreset::SOUND);
+        audio.play_sound("kat", VolumePreset::HITSOUND);
         dan_navigator.move_left();
         last_moved = current_ms;
         wheel_locked = true;
     } else if (!wheel_locked && nav_right) {
-        audio.play_sound("kat", VolumePreset::SOUND);
+        audio.play_sound("kat", VolumePreset::HITSOUND);
         dan_navigator.move_right();
         last_moved = current_ms;
         wheel_locked = true;
     } else if (!wheel_locked && confirm) {
-        audio.play_sound("don", VolumePreset::SOUND);
+        audio.play_sound("don", VolumePreset::HITSOUND);
         if (dan_navigator.get_current()->is_back) {
             back_requested = true;
         } else {
@@ -263,15 +263,15 @@ std::optional<Screens> DanSelectScreen::handle_input_selected() {
 
     if (modifier_selector.has_value()) {
         if (l_kat) {
-            audio.play_sound("kat", VolumePreset::SOUND);
+            audio.play_sound("kat", VolumePreset::HITSOUND);
             modifier_selector->left();
         }
         if (r_kat) {
-            audio.play_sound("kat", VolumePreset::SOUND);
+            audio.play_sound("kat", VolumePreset::HITSOUND);
             modifier_selector->right();
         }
         if (don) {
-            audio.play_sound("don", VolumePreset::SOUND);
+            audio.play_sound("don", VolumePreset::HITSOUND);
             modifier_selector->confirm();
         }
         return std::nullopt;
@@ -289,11 +289,11 @@ std::optional<Screens> DanSelectScreen::handle_input_selected() {
     const int order[3] = {CONFIRM_OPTION, yes_right ? CONFIRM_NO : CONFIRM_YES, yes_right ? CONFIRM_YES : CONFIRM_NO};
     int slot = static_cast<int>(std::find(order, order + 3, confirm_index) - order);
     if (l_kat) {
-        audio.play_sound("kat", VolumePreset::SOUND);
+        audio.play_sound("kat", VolumePreset::HITSOUND);
         slot = std::max(slot - 1, 0);
     }
     if (r_kat) {
-        audio.play_sound("kat", VolumePreset::SOUND);
+        audio.play_sound("kat", VolumePreset::HITSOUND);
         slot = std::min(slot + 1, 2);
     }
     confirm_index = order[slot];
@@ -303,12 +303,12 @@ std::optional<Screens> DanSelectScreen::handle_input_selected() {
     }
 
     if (confirm_index == CONFIRM_OPTION) {
-        audio.play_sound("don", VolumePreset::SOUND);
+        audio.play_sound("don", VolumePreset::HITSOUND);
         modifier_selector.emplace(pn, &dan_player_data);
         return std::nullopt;
     }
     if (confirm_index == CONFIRM_YES) {
-        audio.play_sound("don", VolumePreset::SOUND);
+        audio.play_sound("don", VolumePreset::HITSOUND);
         return on_screen_end(Screens::GAME_DAN);
     }
     audio.play_sound("cancel", VolumePreset::SOUND);

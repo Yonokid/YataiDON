@@ -262,7 +262,7 @@ void DanResultScreen::handle_input(double current_ms) {
     }
 
     if (don) {
-        audio.play_sound("don", VolumePreset::SOUND);
+        audio.play_sound("don", VolumePreset::HITSOUND);
     }
 
     if (celebrating) {

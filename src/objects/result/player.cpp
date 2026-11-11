@@ -151,7 +151,7 @@ void ResultPlayer::update_score_animation(double current_ms, bool is_skipped) {
             audio.play_player_sound("num_up", player_num, VolumePreset::SOUND);
         }
         if (score_animator->is_finished) {
-            audio.play_player_sound("don", player_num, VolumePreset::SOUND);
+            audio.play_player_sound("don", player_num, VolumePreset::HITSOUND);
             score_delay.value() += 750;
             if (update_index == std::ssize(update_list) - 1) {
                 rows_done_ms = current_ms;

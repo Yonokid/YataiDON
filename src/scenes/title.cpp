@@ -268,7 +268,7 @@ std::optional<Screens> TitleScreen::update() {
             if (!fade_out->is_started) {
                 fade_out->start();
                 fade_out->unlock_input();
-                audio.play_sound("don", VolumePreset::SOUND);
+                audio.play_sound("don", VolumePreset::HITSOUND);
             }
         }
     }
@@ -286,7 +286,7 @@ void TitleScreen::start_entry() {
         fade_out->start();
     }
     fade_out->unlock_input();
-    audio.play_sound("don", VolumePreset::SOUND);
+    audio.play_sound("don", VolumePreset::HITSOUND);
 }
 
 bool TitleScreen::update_gacha(double current_ms) {
@@ -326,7 +326,7 @@ bool TitleScreen::update_gacha(double current_ms) {
         return false;
     }
     gacha_busy = true;
-    audio.play_sound("don", VolumePreset::SOUND);
+    audio.play_sound("don", VolumePreset::HITSOUND);
     const std::string& code = global_data.config->network.access_code_1;
     if (code.empty() || code == "0" || code == "1") {
         network_msg.show("error_not_play");

@@ -59,7 +59,7 @@ std::optional<Screens> KinotakeResultScreen::update() {
         }
     }
     if (menu_confirm_pressed() && tally->skip()) {
-        audio.play_sound("don", VolumePreset::SOUND);
+        audio.play_sound("don", VolumePreset::HITSOUND);
     }
     if (tally->is_done()) {
         return end_or_game_over(next());

@@ -104,7 +104,7 @@ void ResultScreen::handle_input(double current_ms) {
     if (reveal_end == 0) {
         if (skipped_time == 0) {
             skipped_time = current_ms;
-            audio.play_sound("don", VolumePreset::SOUND);
+            audio.play_sound("don", VolumePreset::HITSOUND);
         }
         return;
     }
@@ -112,7 +112,7 @@ void ResultScreen::handle_input(double current_ms) {
         global_data.config->general.fast_transitions ? kFastInputDelayMs : kWaitEffectEndMs + kWaitNextSceneMs;
     if (current_ms >= reveal_end + advance_delay && !exiting()) {
         begin_exit();
-        audio.play_sound("don", VolumePreset::SOUND);
+        audio.play_sound("don", VolumePreset::HITSOUND);
     }
 }
 
@@ -130,7 +130,7 @@ void ResultScreen::update_input_and_timeout(double current_ms) {
         if (check_key_pressed(global_data.config->keys.back_key) && reveal_end_ms() > 0) {
             quitting = true;
             start_fade_out();
-            audio.play_sound("don", VolumePreset::SOUND);
+            audio.play_sound("don", VolumePreset::HITSOUND);
             return;
         }
         handle_input(current_ms);

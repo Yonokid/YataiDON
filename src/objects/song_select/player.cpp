@@ -233,7 +233,7 @@ void SongSelectPlayer::sync_ura(bool ura) {
 }
 
 SongSelectState SongSelectPlayer::select_song() {
-    audio.play_player_sound("don", player_num, VolumePreset::SOUND);
+    audio.play_player_sound("don", player_num, VolumePreset::HITSOUND);
     BaseBox* item = navigator.get_current_item();
     if (navigator.is_directory(item) && item->genre_index == GenreIndex::DAN) {
         const auto player_index = static_cast<int>(player_num);
@@ -298,7 +298,7 @@ SongSelectState SongSelectPlayer::handle_input_browsing(double current_ms) {
         last_moved = current_ms;
         navigated = true;
     } else if (l_kat || wheel > 0) {
-        audio.play_player_sound("kat", player_num, VolumePreset::SOUND);
+        audio.play_player_sound("kat", player_num, VolumePreset::HITSOUND);
         navigator.move_left();
         last_moved = current_ms;
         navigated = true;
@@ -310,7 +310,7 @@ SongSelectState SongSelectPlayer::handle_input_browsing(double current_ms) {
         last_moved = current_ms;
         navigated = true;
     } else if (r_kat || wheel < 0) {
-        audio.play_player_sound("kat", player_num, VolumePreset::SOUND);
+        audio.play_player_sound("kat", player_num, VolumePreset::HITSOUND);
         navigator.move_right();
         last_moved = current_ms;
         navigated = true;
@@ -325,7 +325,7 @@ SongSelectState SongSelectPlayer::handle_input_browsing(double current_ms) {
         hold_dir = 0;
     }
     if (hold_dir && !navigated && current_ms >= next_repeat) {
-        audio.play_player_sound("kat", player_num, VolumePreset::SOUND);
+        audio.play_player_sound("kat", player_num, VolumePreset::HITSOUND);
         if (hold_dir < 0) {
             navigator.move_left();
         } else {
@@ -375,18 +375,18 @@ std::optional<std::pair<int, int>> SongSelectPlayer::handle_input_diff_sort(Diff
     if (is_l_kat_pressed(player_num)) {
         diff_sort_selector->input_left();
         if (!tex.options[SCO::ONE_MENU_SORT]) {
-            audio.play_player_sound("kat", player_num, VolumePreset::SOUND);
+            audio.play_player_sound("kat", player_num, VolumePreset::HITSOUND);
         }
     }
     if (is_r_kat_pressed(player_num)) {
         diff_sort_selector->input_right();
         if (!tex.options[SCO::ONE_MENU_SORT]) {
-            audio.play_player_sound("kat", player_num, VolumePreset::SOUND);
+            audio.play_player_sound("kat", player_num, VolumePreset::HITSOUND);
         }
     }
     if (is_l_don_pressed(player_num) || is_r_don_pressed(player_num)) {
         if (!tex.options[SCO::ONE_MENU_SORT]) {
-            audio.play_player_sound("don", player_num, VolumePreset::SOUND);
+            audio.play_player_sound("don", player_num, VolumePreset::HITSOUND);
         }
         return diff_sort_selector->input_select();
     }
@@ -504,12 +504,12 @@ SongSelectState SongSelectPlayer::handle_input_selecting() {
 
     if (l_kat) {
         if (modifier_selector.has_value()) {
-            audio.play_player_sound("kat", player_num, VolumePreset::SOUND);
+            audio.play_player_sound("kat", player_num, VolumePreset::HITSOUND);
             modifier_selector->left();
         } else if (neiro_selector.has_value()) {
             neiro_selector->left();
         } else {
-            audio.play_player_sound("kat", player_num, VolumePreset::SOUND);
+            audio.play_player_sound("kat", player_num, VolumePreset::HITSOUND);
             navigate_difficulty_left();
             if (selected_difficulty >= Difficulty::EASY) {
                 selected_diff_bounce->start();
@@ -518,12 +518,12 @@ SongSelectState SongSelectPlayer::handle_input_selecting() {
         }
     } else if (r_kat) {
         if (modifier_selector.has_value()) {
-            audio.play_player_sound("kat", player_num, VolumePreset::SOUND);
+            audio.play_player_sound("kat", player_num, VolumePreset::HITSOUND);
             modifier_selector->right();
         } else if (neiro_selector.has_value()) {
             neiro_selector->right();
         } else {
-            audio.play_player_sound("kat", player_num, VolumePreset::SOUND);
+            audio.play_player_sound("kat", player_num, VolumePreset::HITSOUND);
             Difficulty prev_difficulty = selected_difficulty;
             navigate_difficulty_right();
             if (selected_difficulty >= Difficulty::EASY) {
@@ -534,7 +534,7 @@ SongSelectState SongSelectPlayer::handle_input_selecting() {
             }
         }
     } else if (l_don || r_don) {
-        audio.play_player_sound("don", player_num, VolumePreset::SOUND);
+        audio.play_player_sound("don", player_num, VolumePreset::HITSOUND);
         if (modifier_selector.has_value()) {
             modifier_selector->confirm();
         } else if (neiro_selector.has_value()) {

@@ -49,7 +49,7 @@ std::optional<Screens> RetryGameScreen::update() {
     int hits = is_l_don_pressed() + is_r_don_pressed();
     for (int i = 0; i < hits; i++) {
         scene->hit();
-        audio.play_sound("don", VolumePreset::SOUND);
+        audio.play_sound("don", VolumePreset::HITSOUND);
         if (scene->phase() == "count") {
             chara_target += 0.5f;
         }
