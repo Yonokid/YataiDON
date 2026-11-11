@@ -1199,16 +1199,11 @@ void set_keyboard_visible(bool visible, const std::string& initial_text) {
     screen_keyboard_started.store(visible, std::memory_order_relaxed);
 }
 
-// Unified keyboard text-field editing. See the declaration in input.h.
-// raylib's SDL platform starts text input with the window (for typed characters). With an IME
-// such as a Chinese one, every key press then goes through the IME, and PollInputEvents took
-// 5-150 ms on the frame after a drum hit on a keyboard-type controller. Text input is only on
-// while poll_text_edit is in use.
 static bool text_input_wanted = false;
-static bool text_input_active = true; // raylib started it
+static bool text_input_active = true; // assume on so the first sync stops it (raylib starts it with the window)
 
 void sync_text_input() {
-#if defined(PLATFORM_DESKTOP_SDL)
+#if defined(YATAIDON_HAS_SDL_TEXT_INPUT)
     if (text_input_wanted != text_input_active) {
         if (SDL_Window* win = main_window()) {
             if (text_input_wanted) {
@@ -1346,9 +1341,12 @@ namespace {
 void poll_input_events() {
     if (!frame_watch_registered) {
         SDL_AddEventWatch(frame_event_watch, nullptr);
+#if defined(YATAIDON_HAS_SDL_TEXT_INPUT)
+        SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0"); // raylib sets this; set it for every backend
+#endif
         frame_watch_registered = true;
     }
-    poll_window_events();
+    poll_window_events(); // the backend only drains SDL's queue; input reads it through event watches
     std::scoped_lock lock(frame_mutex);
     frame = std::move(pending);
     pending = FrameInput{};

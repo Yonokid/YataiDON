@@ -1069,7 +1069,7 @@ void close_window() {
 
 void poll_window_events() {
     SDL_Event e;
-    while (SDL_PollEvent(&e)) { // the game's input reads events through SDL event watches
+    while (SDL_PollEvent(&e)) { // window events only; input reads SDL through event watches
         if (e.type == SDL_EVENT_QUIT) {
             should_close = true;
 #ifdef YATAIDON_USE_SDL2

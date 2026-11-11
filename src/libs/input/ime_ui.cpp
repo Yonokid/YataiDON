@@ -10,7 +10,7 @@
 #include "../gfx/texture.h"
 #include "../global_data.h"
 
-#if defined(PLATFORM_DESKTOP_SDL)
+#if defined(YATAIDON_HAS_SDL_TEXT_INPUT)
 #include "../gfx/sdl_compat.h"
 #if !defined(YATAIDON_USE_SDL2)
 #define YATAIDON_IME_UI 1

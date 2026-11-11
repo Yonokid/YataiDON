@@ -310,6 +310,8 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 
 # Optional libraries: shared code checks these YATAIDON_HAS_* macros, never platform names.
 # (platform/ps5/game.cmake builds without any of them.)
+# SDL text input / IME; consoles use their own keyboards.
+target_compile_definitions(${PROJECT_NAME} PRIVATE YATAIDON_HAS_SDL_TEXT_INPUT)
 if(NOT EMSCRIPTEN)
   target_link_libraries(${PROJECT_NAME} PRIVATE cpr::cpr)
   target_compile_definitions(${PROJECT_NAME} PRIVATE YATAIDON_HAS_HTTP)

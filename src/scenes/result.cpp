@@ -66,7 +66,7 @@ bool ResultScreen::retry_pending() const {
 }
 
 bool ResultScreen::exiting() const {
-    return retrying || (fade_out && fade_out->is_started);
+    return retrying || in_game_over() || (fade_out && fade_out->is_started);
 }
 
 void ResultScreen::begin_exit() {
