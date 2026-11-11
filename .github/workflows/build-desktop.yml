@@ -95,7 +95,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .linux-ffmpeg
-          key: ffmpeg-linux-${{ hashFiles('tools/build_ffmpeg_linux.sh') }}
+          key: ffmpeg-linux-ubuntu24.04-${{ hashFiles('tools/build_ffmpeg_linux.sh') }}
 
       - name: Build static FFmpeg
         run: test -d .linux-ffmpeg/lib || bash tools/build_ffmpeg_linux.sh
