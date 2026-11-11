@@ -8,8 +8,9 @@ jobs:
   build-linux:
     name: Build on Linux
     runs-on: ubuntu-26.04
-    # Build in the oldest image with GCC 14 (C++23) so the binary only needs glibc 2.39.
-    container: ubuntu:24.04
+    container:
+      image: ubuntu:24.04
+      options: --dns 1.1.1.1 --dns 8.8.8.8
     defaults:
       run:
         shell: bash
