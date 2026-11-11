@@ -64,6 +64,12 @@ private:
     NetworkMsg network_msg; // login / probe wait banner
     EntryOverlay entry_overlay;
     std::unique_ptr<Timer> timer;
+    static constexpr int WAIT_SECONDS = 60; // nobody joined: back to title
+    static constexpr int SIDE_SECONDS = 15;
+    static constexpr int MODE_SECONDS = 60;
+    bool timer_fired_ = false;
+    void start_timer(int seconds);
+    std::optional<Screens> on_timeout();
 
     std::unique_ptr<Chara3D> chara;
     std::unique_ptr<Chara3D> wait_chara[2]; // wait panels, P1 / P2

@@ -69,16 +69,7 @@ void EntryScreen::on_screen_start() {
                               pd ? pd->gold : false, pd ? pd->rainbow : false, pd ? pd->title_bg : 0);
     }
 
-    timer = std::make_unique<Timer>(15, get_current_ms(), [this] {
-        if (box_manager->is_costume_box()) {
-            box_manager->open_costume_menu(players[0] ? players[0]->player_num : PlayerNum::P1);
-        } else {
-            if (!box_manager->selection_allowed()) {
-                box_manager->move_left();
-            }
-            box_manager->select_box();
-        }
-    });
+    start_timer(WAIT_SECONDS);
 
     wait_idle_since_ = get_current_ms();
     lua_entry = std::make_unique<EntryScript>();
@@ -100,6 +91,35 @@ void EntryScreen::on_screen_start() {
     }
 }
 
+void EntryScreen::start_timer(int seconds) {
+    timer_fired_ = false;
+    timer = std::make_unique<Timer>(seconds, get_current_ms(), [this] { timer_fired_ = true; });
+}
+
+// Run after timer->update(), never from the Lua callback: this may replace the timer
+std::optional<Screens> EntryScreen::on_timeout() {
+    timer_fired_ = false;
+    if (state == EntryState::WAITING) {
+        return on_screen_end(Screens::TITLE);
+    }
+    if (state == EntryState::SELECT_SIDE) {
+        if (!players[0]) { // logged in but no side picked: take the highlighted one, P1 for the middle
+            join_player(side == 2 ? PlayerNum::P2 : PlayerNum::P1);
+            return std::nullopt;
+        }
+        state = EntryState::SELECT_MODE; // second player shares the mode timer; it ran out
+    }
+    if (box_manager->is_costume_box()) {
+        box_manager->open_costume_menu(players[0] ? players[0]->player_num : PlayerNum::P1);
+    } else {
+        if (!box_manager->selection_allowed()) {
+            box_manager->move_left();
+        }
+        box_manager->select_box();
+    }
+    return std::nullopt;
+}
+
 void EntryScreen::resume_from_campaign() {
     int n = 0;
     for (const PlayerNum seat : global_data.entry_resume_seats) {
@@ -116,6 +136,7 @@ void EntryScreen::resume_from_campaign() {
     global_data.player_num = is_2p ? PlayerNum::P1 : global_data.entry_resume_seats[0];
     side = 1;
     state = EntryState::SELECT_MODE;
+    start_timer(MODE_SECONDS);
 }
 
 bool EntryScreen::login_slot(const std::string& card_hex, std::function<void()> then) {
@@ -386,6 +407,8 @@ void EntryScreen::on_card_login() {
         nameplate = Nameplate(name_pending_ == 1 ? "" : pd.username, pd.title, PlayerNum::ALL, pd.dan, pd.gold,
                               pd.rainbow, pd.title_bg);
         reload_preview_chara(free_seat);
+    } else {
+        start_timer(SIDE_SECONDS); // a second player keeps the running mode timer
     }
     state = EntryState::SELECT_SIDE;
     side = 1;
@@ -414,6 +437,7 @@ void EntryScreen::start_second_player_join() {
     is_2p = true;
     side = 1;
     state = EntryState::SELECT_MODE;
+    start_timer(MODE_SECONDS);
     spdlog::info("[2P join] ENTRY resumed: {}P kept (first_login {}P), {}P entered, mode select",
                  static_cast<int>(first), static_cast<int>(global_data.first_login_player), static_cast<int>(second));
 }
@@ -518,6 +542,7 @@ void EntryScreen::join_player(PlayerNum player_num, bool do_login) {
         players[0] = std::make_unique<EntryPlayer>(global_data.player_num, side, box_manager.get());
         players[0]->start_animations(loading && !network_msg.available);
         is_2p = false;
+        start_timer(MODE_SECONDS);
         audio.set_two_player_mode(false);
     }
     audio.play_player_sound("cloud", PlayerNum::ALL, VolumePreset::SOUND);
@@ -604,6 +629,7 @@ std::optional<Screens> EntryScreen::handle_input() {
             login_ready_ = true;
             audio.play_sound("don", VolumePreset::HITSOUND);
             state = EntryState::SELECT_SIDE;
+            start_timer(SIDE_SECONDS);
             lua_entry->restart_side_select();
         });
         return std::nullopt;
@@ -741,10 +767,17 @@ std::optional<Screens> EntryScreen::update() {
         name_entry_->update(current_time);
     }
     box_manager->update(current_time, is_2p);
-    if (state != EntryState::WAITING && state != EntryState::NAME_ENTRY && state != EntryState::CAMPAIGN &&
-        state != EntryState::BNCOIN && state != EntryState::PRACTICE_HELP && state != EntryState::ENTRY_INFO &&
-        !login_pending() && !box_manager->is_box_selected()) {
+    if (state != EntryState::NAME_ENTRY && state != EntryState::CAMPAIGN && state != EntryState::BNCOIN &&
+        state != EntryState::PRACTICE_HELP && state != EntryState::ENTRY_INFO && !login_pending() &&
+        !network.probing() && !box_manager->is_box_selected()) {
         timer->update(current_time);
+        if (timer_fired_) {
+            if (auto next = on_timeout()) {
+                return next;
+            }
+        }
+    } else {
+        timer->hold(current_time);
     }
     nameplate.update(current_time);
     chara->update(current_time);

@@ -17,6 +17,11 @@ void Timer::update(double current_ms) {
 void Timer::draw(float x, float y) {
     call(fn_draw, "Timer:draw", x, y);
 }
+void Timer::hold(double current_ms) {
+    if (lua_object.valid()) {
+        lua_object["last_time"] = current_ms;
+    }
+}
 int Timer::time() const {
     if (!lua_object.valid()) {
         return -1;
