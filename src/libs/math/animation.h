@@ -20,6 +20,7 @@ enum class EaseType {
 
 bool is_input_locked();
 void reset_input_lock();
+void set_modal_input_lock(bool locked);
 
 class BaseAnimation {
 protected:

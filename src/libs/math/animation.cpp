@@ -11,6 +11,7 @@ using std::runtime_error;
 
 namespace {
     std::atomic<int> input_lock_count{0};
+    std::atomic<bool> modal_input_lock{false};
 
     void release_input_lock() {
         int prev = input_lock_count.fetch_sub(1, std::memory_order_relaxed);
@@ -21,11 +22,16 @@ namespace {
 } // namespace
 
 bool is_input_locked() {
-    return input_lock_count.load(std::memory_order_relaxed) > 0;
+    return modal_input_lock.load(std::memory_order_relaxed) || input_lock_count.load(std::memory_order_relaxed) > 0;
 }
 
 void reset_input_lock() {
     input_lock_count.store(0, std::memory_order_relaxed);
+    modal_input_lock.store(false, std::memory_order_relaxed);
+}
+
+void set_modal_input_lock(bool locked) {
+    modal_input_lock.store(locked, std::memory_order_relaxed);
 }
 
 BaseAnimation::BaseAnimation(double duration, double delay, bool loop, bool lock_input)
