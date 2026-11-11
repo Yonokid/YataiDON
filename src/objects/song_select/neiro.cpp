@@ -1,9 +1,39 @@
 #include "neiro.h"
 
+#include <fstream>
 #include <iterator>
 
 #include "../../libs/audio/audio.h"
 #include "../../libs/file/filesystem.h"
+
+std::vector<std::string> read_neiro_names() {
+    const std::string& language = global_data.config->general.language;
+    const std::vector<fs::path> candidates{
+        fs::path("Sounds/hit_sounds") / ("neiro_list_" + language + ".txt"),
+        fs::path("Sounds/hit_sounds/neiro_list_ja.txt"),
+        fs::path("Sounds/hit_sounds/neiro_list_en.txt"),
+        fs::path("Sounds/hit_sounds/neiro_list.txt"),
+    };
+    for (const fs::path& candidate : candidates) {
+        std::ifstream neiro_list(resolve_skin_path(candidate));
+        if (!neiro_list.is_open()) {
+            continue;
+        }
+        std::vector<std::string> names;
+        std::string line;
+        while (std::getline(neiro_list, line)) {
+            if (!line.empty() && line.back() == '\r') {
+                line.pop_back();
+            }
+            if (!line.empty()) {
+                names.push_back(line);
+            }
+        }
+        return names;
+    }
+    spdlog::error("Failed to open neiro_list.txt");
+    return {};
+}
 
 NeiroSelector::NeiroSelector(PlayerNum player_num, PlayerData* player) : player_num(player_num), player(player) {
     PlayerSoundScope audio_owner(player_num);
@@ -14,22 +44,8 @@ NeiroSelector::NeiroSelector(PlayerNum player_num, PlayerData* player) : player_
     is_confirmed = false;
     direction = -1;
 
-    std::filesystem::path neiro_list_path = resolve_skin_path("Sounds/hit_sounds/neiro_list.txt");
-
-    std::ifstream neiro_list(neiro_list_path);
-
-    if (!neiro_list.is_open()) {
-        spdlog::error("Failed to open neiro_list.txt");
-    } else {
-        std::string line;
-        while (std::getline(neiro_list, line)) {
-            if (!line.empty() && line.back() == '\r') {
-                line.pop_back();
-            }
-            sounds.push_back(line);
-        }
-    }
-    sounds.emplace_back("無音");
+    sounds = read_neiro_names();
+    sounds.emplace_back(tex.skin_text("modifier_text_muon", global_data.config->general.language));
     if (selected_sound == -1) {
         selected_sound = static_cast<int>(sounds.size()) - 1;
     }

@@ -4,6 +4,9 @@
 #include "../../libs/gfx/text.h"
 #include "../../libs/global_data.h"
 
+// Display names for the hit sound sets, in folder order.
+std::vector<std::string> read_neiro_names();
+
 class NeiroSelector {
 private:
     PlayerNum player_num;

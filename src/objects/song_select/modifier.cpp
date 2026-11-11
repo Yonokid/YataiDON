@@ -5,6 +5,8 @@
 #include <string_view>
 
 #include "../../libs/audio/audio.h"
+#include "../../libs/file/filesystem.h"
+#include "neiro.h"
 
 const std::array<std::string, 5> ModifierSelector::BASE_MOD_NAMES = {"auto", "speed", "display", "inverse", "random"};
 
@@ -74,24 +76,8 @@ ModifierSelector::~ModifierSelector() {
 }
 
 void ModifierSelector::load_neiro_names() {
-    std::filesystem::path neiro_list_path =
-        std::filesystem::path("Skins") / global_data.config->paths.skin / "Sounds" / "hit_sounds" / "neiro_list.txt";
-
-    std::ifstream neiro_list(neiro_list_path);
-    if (!neiro_list.is_open()) {
-        spdlog::error("Failed to open neiro_list.txt");
-    } else {
-        std::string line;
-        while (std::getline(neiro_list, line)) {
-            if (!line.empty() && line.back() == '\r') {
-                line.pop_back();
-            }
-            if (!line.empty()) {
-                neiro_names.push_back(line);
-            }
-        }
-    }
-    neiro_names.push_back(tex.skin_text("modifier_text_muon", language, "無音"));
+    neiro_names = read_neiro_names();
+    neiro_names.push_back(tex.skin_text("modifier_text_muon", language));
 
     neiro_index = player->neiro_index;
     if (neiro_index == -1) {
@@ -114,9 +100,8 @@ void ModifierSelector::step_neiro(int dir) {
         return;
     }
 
-    std::filesystem::path base = std::filesystem::path("Skins") / global_data.config->paths.skin / "Sounds" /
-                                 "hit_sounds" / std::to_string(neiro_index);
-    neiro_preview = audio.load_sound(base / (neiro_index == 0 ? "don.wav" : "don.ogg"), "hit_sound");
+    fs::path base = fs::path("Sounds/hit_sounds") / std::to_string(neiro_index);
+    neiro_preview = audio.load_sound(resolve_skin_path(base / (neiro_index == 0 ? "don.wav" : "don.ogg")), "hit_sound");
     if (!neiro_preview.empty()) {
         audio.play_player_sound(neiro_preview, player_num, VolumePreset::HITSOUND);
     }
