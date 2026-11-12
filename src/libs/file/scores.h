@@ -101,7 +101,7 @@ struct SongCacheEntry {
 constexpr int SONG_CACHE_VERSION = 4; // 4: title keeps -Old/New Audio-
 
 struct RecordCounts {
-    std::array<int, 7> ranks{}; // Rank::_WHITE.._RAINBOW
+    std::array<int, 7> ranks{};  // Rank::_WHITE.._RAINBOW
     std::array<int, 3> crowns{}; // cumulative: a DFC also counts as FC and clear
 };
 
