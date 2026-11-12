@@ -275,10 +275,7 @@ void SongBox::draw_score_history() {
     if (!yellow_box_opened) {
         return;
     }
-    if (get_current_ms() < box_opened_at + 3000.0) {
-        return;
-    }
-    score_history->draw();
+    score_history->draw(get_current_ms() - box_opened_at);
 }
 
 void SongBox::enter_box() {

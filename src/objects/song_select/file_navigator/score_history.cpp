@@ -67,6 +67,6 @@ void ScoreHistory::update(double current_ms) {
     }
     call(fn_update, "ScoreHistory:update", current_ms);
 }
-void ScoreHistory::draw() {
-    call(fn_draw, "ScoreHistory:draw");
+void ScoreHistory::draw(double open_ms) {
+    call(fn_draw, "ScoreHistory:draw", open_ms);
 }

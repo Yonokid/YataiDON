@@ -12,7 +12,7 @@ public:
                  double current_ms);
 
     void update(double current_ms);
-    void draw();
+    void draw(double open_ms);
 
 private:
     sol::protected_function fn_update, fn_draw, fn_set_ranking;

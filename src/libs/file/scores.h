@@ -100,6 +100,11 @@ struct SongCacheEntry {
 // so every chart is parsed again.
 constexpr int SONG_CACHE_VERSION = 4; // 4: title keeps -Old/New Audio-
 
+struct RecordCounts {
+    std::array<int, 7> ranks{}; // Rank::_WHITE.._RAINBOW
+    std::array<int, 3> crowns{}; // cumulative: a DFC also counts as FC and clear
+};
+
 struct RemoteScore;
 
 class ScoresManager {
@@ -131,6 +136,8 @@ public:
 
     int apply_remote_scores(const std::vector<RemoteScore>& scores, const std::string& player_id);
     std::optional<Score> get_score(const std::string& hash, int difficulty, const std::string& player_id);
+    // Best-score ranks and crowns over every chart of player_id with difficulty >= min_difficulty.
+    RecordCounts get_record_counts(const std::string& player_id, int min_difficulty);
     // diff hash -> number of saved plays for player_id
     std::unordered_map<std::string, int> get_play_counts(const std::string& player_id);
     // out_score_id (optional) receives the new scores row id, or -1 if the insert failed.

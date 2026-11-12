@@ -22,6 +22,7 @@
 #include "../screen.h"
 #include "../video/webcam.h"
 #include "filesystem.h"
+#include "scores.h"
 
 namespace {
     namespace lua_metadata {
@@ -1034,6 +1035,22 @@ void ScriptManager::register_lua_bindings() {
     });
 
     tex.set_function("player_num", [] -> int { return static_cast<int>(global_data.player_num); });
+
+    tex.set_function("record_counts", [](int player_num, int min_course) -> sol::table {
+        const auto& net = global_data.config->network;
+        const RecordCounts rc =
+            scores_manager.get_record_counts(player_num == 2 ? net.access_code_2 : net.access_code_1, min_course);
+        sol::table t = script_manager.lua->create_table(0, 2);
+        t["ranks"] = script_manager.lua->create_table_with();
+        t["crowns"] = script_manager.lua->create_table_with();
+        for (size_t i = 0; i < rc.ranks.size(); i++) {
+            t["ranks"][i + 1] = rc.ranks[i];
+        }
+        for (size_t i = 0; i < rc.crowns.size(); i++) {
+            t["crowns"][i + 1] = rc.crowns[i];
+        }
+        return t;
+    });
 
     tex.set_function("display_bpm", [] -> bool { return global_data.config->general.display_bpm; });
 
