@@ -107,6 +107,13 @@ jobs:
           key: ccache-linux-baseline-${{ github.sha }}
           restore-keys: ccache-linux-baseline-
 
+      - name: Cache CMake dependencies
+        uses: actions/cache@v4
+        with:
+          path: .cmake-deps
+          key: cmake-deps-${{ runner.os }}-${{ hashFiles('cmake/deps.cmake') }}
+          restore-keys: cmake-deps-${{ runner.os }}-
+
       - name: Configure CMake
         run: |
           cmake -B build \
@@ -228,6 +235,13 @@ jobs:
           key: ccache-${{ runner.os }}-${{ github.sha }}
           restore-keys: ccache-${{ runner.os }}-
 
+      - name: Cache CMake dependencies
+        uses: actions/cache@v4
+        with:
+          path: .cmake-deps
+          key: cmake-deps-${{ runner.os }}-${{ hashFiles('cmake/deps.cmake') }}
+          restore-keys: cmake-deps-${{ runner.os }}-
+
       - name: Configure CMake
         run: |
           cmake -B build \
@@ -318,6 +332,13 @@ jobs:
           path: .ccache
           key: ccache-${{ runner.os }}-${{ github.sha }}
           restore-keys: ccache-${{ runner.os }}-
+
+      - name: Cache CMake dependencies
+        uses: actions/cache@v4
+        with:
+          path: .cmake-deps
+          key: cmake-deps-${{ runner.os }}-${{ hashFiles('cmake/deps.cmake') }}
+          restore-keys: cmake-deps-${{ runner.os }}-
 
       - name: Configure CMake
         run: |

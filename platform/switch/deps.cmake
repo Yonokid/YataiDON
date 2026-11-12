@@ -33,3 +33,6 @@ endforeach()
 add_library(yataidon_sqlite STATIC ${vendor}/sqlite/sqlite3.c)
 target_include_directories(yataidon_sqlite PUBLIC ${vendor}/sqlite PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(yataidon_sqlite PRIVATE SQLITE_THREADSAFE=1 SQLITE_CUSTOM_INCLUDE=sqlite-config.h)
+
+add_library(yataidon_qrcodegen STATIC ${vendor}/qrcodegen/cpp/qrcodegen.cpp)
+target_include_directories(yataidon_qrcodegen PUBLIC ${vendor}/qrcodegen/cpp)

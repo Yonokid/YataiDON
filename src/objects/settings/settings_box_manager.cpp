@@ -93,6 +93,30 @@ std::optional<Screens> SettingsBoxManager::pending_screen_change() {
     return std::nullopt;
 }
 
+bool SettingsBoxManager::tap(Vec2 world) {
+    if (box_selected) {
+        const float third = tex.screen_width / 3.0f;
+        if (world.x < third) {
+            move_left();
+        } else if (world.x > 2.0f * third) {
+            move_right();
+        } else {
+            return select_box();
+        }
+        return false;
+    }
+    const float offset = world.y - boxes[selected_box_index]->center_y();
+    const float half_step = BOX_STEP_BASE * tex.screen_scale / 2.0f;
+    if (offset < -half_step) {
+        move_left();
+    } else if (offset > half_step) {
+        move_right();
+    } else {
+        return select_box();
+    }
+    return false;
+}
+
 bool SettingsBoxManager::select_box() {
     if (boxes[selected_box_index]->box_name == "exit") {
         return true;

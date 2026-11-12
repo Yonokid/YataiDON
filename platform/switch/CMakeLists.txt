@@ -75,7 +75,7 @@ target_compile_definitions(YataiDON PRIVATE YATAIDON_USE_SDL2 SDL_MAIN_HANDLED
   YATAIDON_GFX_BGFX=1 YATAIDON_SNDFILE_PCM_ONLY
   $<$<CONFIG:Debug>:SOL_ALL_SAFETIES_ON=1>)
 target_link_directories(YataiDON PRIVATE ${SWITCH_MEDIA_STATIC_LIBRARY_DIRS})
-target_link_libraries(YataiDON PRIVATE bgfx bx yataidon_lua yataidon_sqlite
+target_link_libraries(YataiDON PRIVATE bgfx bx yataidon_lua yataidon_sqlite yataidon_qrcodegen
   sndfile samplerate miniz ebur128 SDL2-static ${switch_media_libraries} Vulkan::Vulkan)
 target_compile_options(YataiDON PRIVATE ${SWITCH_MEDIA_CFLAGS_OTHER})
 target_link_options(YataiDON PRIVATE ${SWITCH_MEDIA_STATIC_LDFLAGS_OTHER})

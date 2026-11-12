@@ -22,6 +22,7 @@ DEPS = {
     "sol2": ("ThePhD/sol2", "9190880c593dfb018ccf5cc9729ab87739709862"),
     "miniz": ("richgel999/miniz", "39f65158c7e5a830e390f3aece08de654c763981"),
     "libsamplerate": ("libsndfile/libsamplerate", "c96f5e3de9c4488f4e6c97f59f5245f22fda22f7"),
+    "qrcodegen": ("nayuki/QR-Code-generator", "7ad95cedd8464a87f82221283612732ae4f3f305"),
     "libsndfile": ("libsndfile/libsndfile", "72f6af15e8f85157bd622ed45b979025828b7001"),
 }
 

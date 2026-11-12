@@ -24,6 +24,9 @@ public:
 
     std::optional<Screens> pending_screen_change();
 
+    // world-space tap; returns true if the exit box was selected
+    bool tap(Vec2 world);
+
     void move_left();
     void move_right();
     void update(double current_time_ms);

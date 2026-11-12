@@ -72,6 +72,13 @@ jobs:
       - name: Build static FFmpeg
         run: test -d .linux-ffmpeg/lib || bash tools/build_ffmpeg_linux.sh
 
+      - name: Cache CMake dependencies
+        uses: actions/cache@v4
+        with:
+          path: .cmake-deps
+          key: cmake-deps-${{ runner.os }}-${{ hashFiles('cmake/deps.cmake') }}
+          restore-keys: cmake-deps-${{ runner.os }}-
+
       - name: Configure CMake
         run: |
           cmake -B build \
@@ -174,6 +181,13 @@ jobs:
             git
             make
 
+      - name: Cache CMake dependencies
+        uses: actions/cache@v4
+        with:
+          path: .cmake-deps
+          key: cmake-deps-${{ runner.os }}-${{ hashFiles('cmake/deps.cmake') }}
+          restore-keys: cmake-deps-${{ runner.os }}-
+
       - name: Configure CMake
         run: |
           cmake -B build \
@@ -244,6 +258,13 @@ jobs:
             speex \
             libsndfile \
             libidn2
+
+      - name: Cache CMake dependencies
+        uses: actions/cache@v4
+        with:
+          path: .cmake-deps
+          key: cmake-deps-${{ runner.os }}-${{ hashFiles('cmake/deps.cmake') }}
+          restore-keys: cmake-deps-${{ runner.os }}-
 
       - name: Configure CMake
         run: |

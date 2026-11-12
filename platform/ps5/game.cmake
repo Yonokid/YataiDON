@@ -33,6 +33,9 @@ foreach(header lua.h lauxlib.h lualib.h lua.hpp luaconf.h)
        CONTENT "#include \"${vendor}/lua/src/${header}\"\n")
 endforeach()
 
+add_library(yataidon_qrcodegen STATIC ${vendor}/qrcodegen/cpp/qrcodegen.cpp)
+target_include_directories(yataidon_qrcodegen PUBLIC ${vendor}/qrcodegen/cpp)
+
 add_library(yataidon_sqlite STATIC ${vendor}/sqlite/sqlite3.c)
 target_include_directories(yataidon_sqlite PUBLIC ${vendor}/sqlite PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(yataidon_sqlite PRIVATE SQLITE_THREADSAFE=1 SQLITE_CUSTOM_INCLUDE=sqlite-config.h)
@@ -65,7 +68,7 @@ set_target_properties(yataidon_videodec_stub PROPERTIES
   OUTPUT_NAME SceVideodec2 NO_SONAME TRUE LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
 target_link_options(yataidon_videodec_stub PRIVATE -nostdlib LINKER:-soname,libSceVideodec2.prx)
 target_link_libraries(yataidon_ps5_game PUBLIC
-  bgfx bx SDL2-static yataidon_vulkan yataidon_lua yataidon_sqlite sndfile samplerate miniz
+  bgfx bx SDL2-static yataidon_vulkan yataidon_lua yataidon_sqlite yataidon_qrcodegen sndfile samplerate miniz
   ebur128 SceAudioOut SceSysmodule yataidon_videodec_stub yataidon_SceAgc_stub yataidon_SceAgcDriver_stub)
 foreach(lib avformat avcodec swscale swresample avutil opus)
   target_link_libraries(yataidon_ps5_game PUBLIC ${PS5_FFMPEG_PREFIX}/lib/lib${lib}.a)
@@ -77,7 +80,7 @@ add_custom_target(YataiDON-PS5 DEPENDS yataidon_ps5_game
 string(CONCAT _native_archives
   "$<TARGET_FILE:yataidon_ps5_game>\n$<TARGET_FILE:bgfx>\n$<TARGET_FILE:bx>\n"
   "$<TARGET_FILE:bimg>\n$<TARGET_FILE:yataidon_vulkan>\n$<TARGET_FILE:yataidon_lua>\n"
-  "$<TARGET_FILE:yataidon_sqlite>\n$<TARGET_FILE:sndfile>\n$<TARGET_FILE:samplerate>\n"
+  "$<TARGET_FILE:yataidon_sqlite>\n$<TARGET_FILE:yataidon_qrcodegen>\n$<TARGET_FILE:sndfile>\n$<TARGET_FILE:samplerate>\n"
   "$<TARGET_FILE:miniz>\n$<TARGET_FILE:ebur128>\n$<TARGET_FILE:SDL2-static>\n")
 file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/native-archives.txt CONTENT "${_native_archives}")
 
