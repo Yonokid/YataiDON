@@ -415,6 +415,10 @@ void EntryScreen::join_with_card(const std::string& card_hex) {
 
 void EntryScreen::on_card_login() {
     login_ready_ = true;
+    if (tex.options[SCO::DRUM_JOIN]) {
+        join_player(players[0] && players[0]->player_num == PlayerNum::P1 ? PlayerNum::P2 : PlayerNum::P1);
+        return;
+    }
     audio.play_sound("don", VolumePreset::HITSOUND);
     if (players[0]) {
         // Second player: same screen as pressing Don for the free seat
@@ -649,9 +653,13 @@ std::optional<Screens> EntryScreen::handle_input() {
         if (!enter) {
             return std::nullopt;
         }
-        local_login_ = false;
+        local_login_ = global_data.config->network.guest_mode;
         login_slot("", [this] {
             login_ready_ = true;
+            if (tex.options[SCO::DRUM_JOIN]) {
+                join_player(PlayerNum::P1);
+                return;
+            }
             audio.play_sound("don", VolumePreset::HITSOUND);
             state = EntryState::SELECT_SIDE;
             start_timer(SIDE_SECONDS);
