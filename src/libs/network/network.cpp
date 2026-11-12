@@ -237,7 +237,7 @@ void NetworkClient::check_heartbeat() {
 }
 
 bool NetworkClient::check_import_requested(const std::string& access_code) {
-    if (!network_enabled()) {
+    if (!network_enabled() || is_guest_id(access_code)) {
         return false;
     }
     cpr::Response response =
@@ -255,7 +255,7 @@ bool NetworkClient::check_import_requested(const std::string& access_code) {
 }
 
 bool NetworkClient::fetch_chara_colors(const std::string& access_code, Color& color_1, Color& color_2, Color& color_3) {
-    if (!network_enabled()) {
+    if (!network_enabled() || is_guest_id(access_code)) {
         return false;
     }
     cpr::Response response =
@@ -290,7 +290,7 @@ bool NetworkClient::fetch_chara_colors(const std::string& access_code, Color& co
 }
 
 bool NetworkClient::fetch_username(const std::string& access_code, std::string& username) {
-    if (!network_enabled()) {
+    if (!network_enabled() || is_guest_id(access_code)) {
         return false;
     }
     cpr::Response response =
@@ -313,7 +313,7 @@ bool NetworkClient::fetch_username(const std::string& access_code, std::string& 
 }
 
 bool NetworkClient::fetch_title(const std::string& access_code, std::string& title) {
-    if (!network_enabled()) {
+    if (!network_enabled() || is_guest_id(access_code)) {
         return false;
     }
     cpr::Response response =
@@ -336,7 +336,7 @@ bool NetworkClient::fetch_title(const std::string& access_code, std::string& tit
 }
 
 bool NetworkClient::fetch_title_bg(const std::string& access_code, int& title_bg) {
-    if (!network_enabled()) {
+    if (!network_enabled() || is_guest_id(access_code)) {
         return false;
     }
     cpr::Response response =
@@ -359,7 +359,7 @@ bool NetworkClient::fetch_title_bg(const std::string& access_code, int& title_bg
 }
 
 void NetworkClient::update_username(const std::string& access_code, const std::string& username) {
-    if (!network_enabled()) {
+    if (!network_enabled() || is_guest_id(access_code)) {
         return;
     }
     cpr::Response response =
@@ -373,7 +373,7 @@ void NetworkClient::update_username(const std::string& access_code, const std::s
 }
 
 void NetworkClient::update_settings(const std::string& access_code, const std::string& key, const std::string& value) {
-    if (!network_enabled()) {
+    if (!network_enabled() || is_guest_id(access_code)) {
         return;
     }
     cpr::Response response = cpr::Post(
@@ -407,7 +407,7 @@ void NetworkClient::push_modifiers(const std::string& access_code, const PlayerD
 
 void NetworkClient::update_song_list(const std::string& access_code, const std::string& kind,
                                      const std::vector<std::string>& hashes) {
-    if (!network_enabled()) {
+    if (!network_enabled() || is_guest_id(access_code)) {
         return;
     }
     std::string json = "[";
@@ -429,7 +429,7 @@ void NetworkClient::update_song_list(const std::string& access_code, const std::
 
 bool NetworkClient::fetch_costume(const std::string& access_code, int& head_index, int& body_index, int& cos_index,
                                   bool& is_costume) {
-    if (!network_enabled()) {
+    if (!network_enabled() || is_guest_id(access_code)) {
         return false;
     }
     cpr::Response response =
@@ -464,7 +464,7 @@ bool NetworkClient::fetch_costume(const std::string& access_code, int& head_inde
 }
 
 std::optional<RemoteUser> NetworkClient::fetch_user(const std::string& access_code) {
-    if (!network_enabled()) {
+    if (!network_enabled() || is_guest_id(access_code)) {
         return std::nullopt;
     }
     cpr::Response response =
@@ -572,7 +572,7 @@ void NetworkClient::check_and_install_android_update() {}
 
 void NetworkClient::update_costume(const std::string& access_code, int head_index, int body_index, int cos_index,
                                    bool is_costume) {
-    if (!network_enabled()) {
+    if (!network_enabled() || is_guest_id(access_code)) {
         return;
     }
     cpr::Response response = cpr::Post(cpr::Url{network_url("/update_costume")},
@@ -599,7 +599,7 @@ void NetworkClient::update_costume(const std::string& access_code, int head_inde
 
 std::vector<RemoteScore> NetworkClient::fetch_scores(const std::string& access_code) {
     std::vector<RemoteScore> result;
-    if (!network_enabled()) {
+    if (!network_enabled() || is_guest_id(access_code)) {
         return result;
     }
     cpr::Response response =
@@ -777,7 +777,7 @@ std::optional<ReplayData> NetworkClient::take_replay_result() {
 }
 
 void NetworkClient::clear_import_flag(const std::string& access_code) {
-    if (!network_enabled()) {
+    if (!network_enabled() || is_guest_id(access_code)) {
         return;
     }
     cpr::Response response =
@@ -852,7 +852,7 @@ void NetworkClient::submit_score(const std::string& hash, int difficulty, const 
                                  const std::string& modifiers_json, bool chara_is_costume, int chara_cos_index,
                                  const std::string& source_folder, int gauge,
                                  const std::optional<JudgeParams>& judge_params) {
-    if (!network_enabled()) {
+    if (!network_enabled() || is_guest_id(access_code)) {
         return;
     }
     leaderboard_cache.erase(hash);
@@ -920,7 +920,7 @@ void NetworkClient::submit_score(const std::string& hash, int difficulty, const 
 
 void NetworkClient::submit_dan(const std::string& access_code, const std::string& course_id, const DanResultData& rd,
                                const std::vector<DanSongEntry>& dan_songs, int arrival) {
-    if (!network_enabled() || !online) {
+    if (!network_enabled() || is_guest_id(access_code) || !online) {
         return;
     }
     rapidjson::Document doc;
@@ -986,7 +986,7 @@ void NetworkClient::submit_dan(const std::string& access_code, const std::string
 }
 
 void NetworkClient::poll_jump(const std::string& access_code) {
-    if (!network_enabled()) {
+    if (!network_enabled() || is_guest_id(access_code)) {
         return;
     }
     if (pending_jump.has_value()) {
@@ -1001,7 +1001,7 @@ void NetworkClient::spin_gacha(const std::string& access_code) {
     if (pending_gacha.has_value()) {
         return;
     }
-    if (!network_enabled() || !online) {
+    if (!network_enabled() || is_guest_id(access_code) || !online) {
         gacha_result = GachaResult{.error = "offline_gacha"};
         return;
     }
@@ -1016,7 +1016,7 @@ std::optional<GachaResult> NetworkClient::take_gacha_result() {
 
 void NetworkClient::submit_kinotake(int seat, const std::string& access_code, int team, int score, bool duet,
                                     bool costume) {
-    if (!network_enabled() || !online || seat < 0 || seat > 1 || team < 0) {
+    if (!network_enabled() || is_guest_id(access_code) || !online || seat < 0 || seat > 1 || team < 0) {
         return;
     }
     std::map<std::string, std::string> params{
@@ -1037,7 +1037,7 @@ void NetworkClient::submit_kinotake(int seat, const std::string& access_code, in
 }
 
 void NetworkClient::submit_don_points(int seat, const std::string& access_code, const std::vector<int>& gauges) {
-    if (!network_enabled() || !online || seat < 0 || seat > 1 || gauges.empty()) {
+    if (!network_enabled() || is_guest_id(access_code) || !online || seat < 0 || seat > 1 || gauges.empty()) {
         return;
     }
     std::string list;
@@ -1052,7 +1052,7 @@ void NetworkClient::submit_don_points(int seat, const std::string& access_code, 
 }
 
 void NetworkClient::submit_medals(int seat, const std::string& access_code) {
-    if (!network_enabled() || !online || seat < 0 || seat > 1) {
+    if (!network_enabled() || is_guest_id(access_code) || !online || seat < 0 || seat > 1) {
         return;
     }
     pending_medals.emplace_back(seat, cpr::PostAsync(cpr::Url{network_url("/medals")},
@@ -1063,7 +1063,7 @@ void NetworkClient::submit_medals(int seat, const std::string& access_code) {
 }
 
 void NetworkClient::submit_revive_result(const std::string& access_code, bool success) {
-    if (!network_enabled() || !online) {
+    if (!network_enabled() || is_guest_id(access_code) || !online) {
         return;
     }
     const std::string result = success ? "true" : "false";
@@ -1075,7 +1075,7 @@ void NetworkClient::submit_revive_result(const std::string& access_code, bool su
 
 void NetworkClient::submit_ai_battle(const std::string& access_code, const std::string& song_hash, int difficulty,
                                      int stars, bool won, bool assigned, const std::string& sections) {
-    if (!network_enabled() || !online) {
+    if (!network_enabled() || is_guest_id(access_code) || !online) {
         return;
     }
     const std::string won_text = won ? "true" : "false";
@@ -1101,7 +1101,7 @@ void NetworkClient::submit_ai_battle(const std::string& access_code, const std::
 
 void NetworkClient::request_reward_shop(int seat, const std::string& access_code) {
     shop_seats[seat] = {};
-    if (!network_enabled() || !online || seat < 0 || seat > 1) {
+    if (!network_enabled() || is_guest_id(access_code) || !online || seat < 0 || seat > 1) {
         return;
     }
     pending_shop.emplace_back(seat, cpr::GetAsync(cpr::Url{network_url("/reward_shop")},
@@ -1111,7 +1111,7 @@ void NetworkClient::request_reward_shop(int seat, const std::string& access_code
 }
 
 void NetworkClient::buy_shop_good(int seat, const std::string& access_code, int type, int id) {
-    if (!network_enabled() || !online) {
+    if (!network_enabled() || is_guest_id(access_code) || !online) {
         shop_buy_result = ShopBuyResult{.seat = seat, .status = "error"};
         return;
     }
@@ -1129,7 +1129,7 @@ std::optional<ShopBuyResult> NetworkClient::take_shop_buy_result() {
 }
 
 void NetworkClient::unlock_campaign_costume(const std::string& access_code, int cos_index) {
-    if (!network_enabled() || !online) {
+    if (!network_enabled() || is_guest_id(access_code) || !online) {
         return;
     }
     const std::string cos = std::to_string(cos_index);
@@ -1144,7 +1144,7 @@ void NetworkClient::unlock_campaign_costume(const std::string& access_code, int 
 
 AIBattleStatus NetworkClient::fetch_ai_battle_status(const std::string& access_code) {
     AIBattleStatus status;
-    if (!network_enabled() || !online) {
+    if (!network_enabled() || is_guest_id(access_code) || !online) {
         return status;
     }
     cpr::Response response = cpr::Get(cpr::Url{network_url("/ai_battle")},
