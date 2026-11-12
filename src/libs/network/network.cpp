@@ -20,6 +20,7 @@
 #include "../gfx/texture.h"
 #include "../global_data.h"
 #include "../math/sha256.h"
+#include "../notify.h"
 #include "../parsers/tja.h"
 #include "android_ca.h"
 
@@ -1233,6 +1234,7 @@ void NetworkClient::update(double current_ms) {
                 spdlog::info("Update check: APK up to date");
             } else {
                 spdlog::info("Update check: newer APK available, downloading");
+                notify("Update available, downloading");
                 pending_update_expected_sha256 = expected_sha256;
                 std::error_code mkdir_ec;
                 fs::create_directories(fs::path(kUpdateApkTmpPath).parent_path(), mkdir_ec);

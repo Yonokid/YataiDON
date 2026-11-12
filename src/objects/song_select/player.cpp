@@ -10,6 +10,7 @@
 #include "../../libs/gfx/text.h"
 #include "../../libs/input/input.h"
 #include "../../libs/network/network.h"
+#include "../../libs/notify.h"
 #include "song_select_script.h"
 
 void SongSelectPlayer::try_lua_selector(bool is_half, float fade_in, int pass) {
@@ -289,6 +290,7 @@ SongSelectState SongSelectPlayer::handle_input_browsing(double current_ms) {
 
     if (key_pressed(SDL_SCANCODE_F5)) {
         navigator.load_current_directory(navigator.current_path);
+        notify("Song list refreshed");
     }
 
     bool navigated = false;

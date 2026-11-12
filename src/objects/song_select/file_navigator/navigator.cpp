@@ -8,6 +8,7 @@
 #include "../../../libs/file/filesystem.h"
 #include "../../../libs/gfx/text.h"
 #include "../../../libs/network/network.h"
+#include "../../../libs/notify.h"
 #include "../../../libs/song_library_loader.h"
 #include "../song_select_script.h"
 #include "box_back.h"
@@ -830,6 +831,7 @@ void Navigator::toggle_favorite(SongBox* song) {
         favorite_songs.erase(key);
         std::erase_if(entries, [&](const SongListEntry& e) { return e.title == title && e.subtitle == subtitle; });
         song->is_favorite = false;
+        notify("Removed from favorites");
     } else {
         std::string hash = scores_manager.get_single_hash(song->parser.file_path);
 
@@ -841,6 +843,7 @@ void Navigator::toggle_favorite(SongBox* song) {
         favorite_songs.insert(key);
         entries.insert(entries.begin(), {std::move(hash), title, subtitle});
         song->is_favorite = true;
+        notify("Added to favorites");
     }
 
     queue_song_list_write(song_list_path, entries);

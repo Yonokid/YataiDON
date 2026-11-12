@@ -33,8 +33,10 @@
 #include "libs/gfx/sdl_main_compat.h"
 #endif
 
+#include "libs/notify.h"
 #include "objects/global/debug_menu.h"
 #include "objects/global/fps_counter.h"
+#include "objects/global/toast.h"
 #include "objects/song_select/file_navigator/navigator.h"
 #include "scenes/ai_battle.h"
 #include "scenes/campaign.h"
@@ -98,6 +100,15 @@ static void draw_skin_update_status() {
         Font file_font = font_manager.get_font(st.current_file, size);
         draw_text_ex(file_font, st.current_file.c_str(), Vec2{x, y}, static_cast<float>(size), 1.0f, Color::WHITE);
     }
+}
+
+static void notify_skin_update_finished() {
+    static bool was_running = false;
+    const SkinUpdater::Status st = skin_updater.snapshot();
+    if (was_running && !st.running && st.any_updated && st.failed.empty()) {
+        notify("Skin updates installed");
+    }
+    was_running = st.running;
 }
 
 [[noreturn]] static void exit_now(int code) {
@@ -240,6 +251,7 @@ struct LoopState {
         std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::duration<double>(1.0 / 60.0));
     std::chrono::time_point<std::chrono::steady_clock> next_frame_time = std::chrono::steady_clock::now();
     FPSCounter fps_counter;
+    std::unique_ptr<Toast> toast;
     Color last_color = Color::BLACK;
     double screen_fade_start = 0.0;
 };
@@ -384,6 +396,7 @@ void drop_other_screens_for_skin_reload() {
     if (!g_loop) {
         return;
     }
+    g_loop->toast.reset(); // holds Lua refs; must die before the state does
     for (auto it = g_loop->screens.begin(); it != g_loop->screens.end();) {
         if (it->first != g_loop->current_screen) {
             it = g_loop->screens.erase(it);
@@ -407,6 +420,7 @@ void reload_current_screen_scripts() {
     // Every screen holds sol::tables created by the state we are about to replace,
     // and the navigator keeps its own Lua-backed boxes across screens.
     g_loop->screens.clear();
+    g_loop->toast.reset();
     navigator.reset_for_skin_reload();
     script_manager.shutdown();
     script_manager.init(fs::path("Skins") / global_data.config->paths.skin / "Scripts");
@@ -421,6 +435,7 @@ static void apply_pending_skin_reload() {
     spdlog::info("Reloading for this credit: skin {}, language {}", global_data.config->paths.skin.string(),
                  global_data.config->general.language);
     g_loop->screens.clear();
+    g_loop->toast.reset();
     try {
         load_skin();
     } catch (const std::exception& e) {
@@ -488,6 +503,13 @@ static void run_frame() {
 
     L.camera = compute_camera2d(tex.screen_width, tex.screen_height);
     if (!global_data.skinless) {
+        if (!L.toast && script_manager.has_lua_script("toast")) {
+            L.toast = std::make_unique<Toast>();
+        }
+        if (L.toast) {
+            L.toast->update(g_frame_ms);
+        }
+        notify_skin_update_finished();
         debug_menu.update(L.camera);
     }
 
@@ -598,6 +620,10 @@ static void run_frame() {
         }
 
         draw_skin_update_status();
+
+        if (L.toast) {
+            L.toast->draw();
+        }
 
         debug_menu.draw();
     }
