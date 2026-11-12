@@ -174,6 +174,7 @@ struct DanResultData {
     int dan_index = -1;
     int dan_index_max = -1;
     bool is_gaiden = false;
+    bool is_modern = true; // older versions are recorded but never rank up the profile or grant the costume
     std::string dan_title = "default_title";
     int score = 0;
     float gauge_length = 0.0f;
@@ -228,6 +229,7 @@ struct SessionData {
     int dan_index = -1;
     int dan_index_max = -1;
     bool dan_gaiden = false;
+    bool dan_modern = true;
     bool dan_gen3 = false;
     int selected_difficulty = 0;
     int subdiff = 0;

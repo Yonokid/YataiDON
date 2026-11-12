@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <filesystem>
 #include <iterator>
+#include <regex>
 
 #include "../libs/file/script.h"
 #include "../libs/input/input.h"
@@ -196,6 +197,9 @@ Screens DanSelectScreen::on_screen_end(Screens next_screen) {
             sd.dan_index_max = std::max(sd.dan_index_max, b->dan_index);
         }
         sd.dan_gaiden = current->gaiden;
+        // the version set Hiroba's is_profile_dan_version accepts
+        static const std::regex modern_version(R"(Arcade/3[0-5] Nijiiro 202[1-6]/)");
+        sd.dan_modern = std::regex_search(current->path.generic_string(), modern_version);
         sd.dan_gen3 = current->gen3;
         if (!current->songs.empty()) {
             sd.selected_song = current->songs[0].song_path;

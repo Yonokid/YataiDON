@@ -1077,8 +1077,12 @@ void AudioEngine::queue_song_loudness(const fs::path& file_path, bool priority) 
     }
 }
 
+static bool is_song_sound(const std::string& name) {
+    return name == "song" || name.rfind("song_dan_", 0) == 0;
+}
+
 float AudioEngine::loaded_sound_gain(const fs::path& file_path, const std::string& name) {
-    if (name != "song") {
+    if (!is_song_sound(name)) {
         return song_loudness::skin_gain();
     }
     return loaded_song_gain(file_path);
@@ -1104,7 +1108,7 @@ std::string AudioEngine::load_sound(const fs::path& file_path, const std::string
             }
             store_sound(name, snd);
         };
-        if (name == "song") {
+        if (is_song_sound(name)) {
             queue_song_loudness(file_path, true);
         }
 #ifdef SUPPORT_FUMEN

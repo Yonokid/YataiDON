@@ -29,6 +29,7 @@ private:
 
     Nameplate nameplate;
     std::unique_ptr<Chara3D> chara;
+    std::unique_ptr<Chara3D> reward_chara; // wearing the new dan costume, swapped in when the drum rises
 
     bool is_page2 = false;
     double page_start_ms = 0.0;

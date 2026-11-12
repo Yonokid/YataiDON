@@ -71,6 +71,9 @@ private:
     int song_max_combo = 0;
     std::string current_song_title;
 
+    std::vector<std::string> dan_music; // preloaded audio for songs 2..n, index = song index
+    void unload_dan_music();
+
     void init_dan();
     void change_song();
     void begin_song_presentation(const DanSongEntry& entry, int song_number);

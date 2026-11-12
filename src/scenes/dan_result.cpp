@@ -8,6 +8,7 @@
 #include "../libs/file/scores.h"
 #include "../libs/input/input.h"
 #include "../libs/network/network.h"
+#include "../objects/entry/player.h"
 
 // the shoudan celebration and the congrats popup are skin art: a skin without the folder skips them
 static bool has_dan_result_art(const char* subset) {
@@ -34,6 +35,11 @@ namespace {
     constexpr double STAFFROLL_AT_MS = (249 + 240 + 30 + 120) * FRAME_MS;
     constexpr double STAFFROLL_END_MS = STAFFROLL_AT_MS + (420 + 4 * 270) * FRAME_MS;
     constexpr double CONGRATS_END_MS = 899 * FRAME_MS + 180 * LUA_FRAME_MS;
+
+    // costume ids 147..170 are 十級..達人; dan_index 0 (初級) is 145
+    int dan_costume_id(int dan_index) {
+        return dan_index <= 0 ? 145 : 146 + dan_index;
+    }
 
     int digit_count(int v) {
         int n = 1;
@@ -93,6 +99,7 @@ void DanResultScreen::on_screen_start() {
     se_advance = se_shogo = false;
     page1_plates_played = 0;
     celebrating = false;
+    reward_chara.reset();
     shodan = false;
     prev_best = 0;
     congrats_due = congrats_showing = false;
@@ -136,7 +143,7 @@ void DanResultScreen::apply_reward() {
         }
     }
 
-    shodan = rd.odai_result > 0 && new_rank > prev_best && !rd.is_gaiden;
+    shodan = rd.odai_result > 0 && new_rank > prev_best && !rd.is_gaiden && rd.is_modern;
 
     best_score_show = rd.odai_result > 0 && prev_best > 0 && prev_best <= new_rank && rd.score > prev_best_score;
 
@@ -153,6 +160,14 @@ void DanResultScreen::apply_reward() {
                 spdlog::info("Dan rank-up: '{}' -> nameplate dan={} gold={} rainbow={} (rank {} > prev {})",
                              rd.dan_title, pd->dan, pd->gold, pd->rainbow, new_rank, prev_best);
             }
+            pd->chara_cos_index = dan_costume_id(rd.dan_index);
+            pd->chara_is_costume = true;
+            save_player_costume(*pd);
+            (pid == scores_manager.player_1 ? scores_manager.player_1_data : scores_manager.player_2_data) = *pd;
+            reward_chara = make_chara_from_player_data(&*pd);
+            reward_chara->set_don_colors(pd->chara_color_1, pd->chara_color_2, pd->chara_color_3);
+            reward_chara->apply_face(pd->chara_face_index);
+            reward_chara->set_anim(AnimIndex::DON_FULL_COMBO);
         } else {
             spdlog::warn("Dan rank-up: '{}' could not update player profile (player data unavailable); dan record will "
                          "still be saved",
@@ -306,6 +321,9 @@ void DanResultScreen::handle_input(double current_ms) {
             if (has_dan_result_art("shoudan")) {
                 celebrating = true;
                 celebrate_start_ms = current_ms;
+                if (reward_chara) {
+                    chara = std::move(reward_chara);
+                }
                 return;
             }
             if (congrats_due && has_dan_result_art("congrats")) {
@@ -489,10 +507,14 @@ void DanResultScreen::draw() {
     auto [cx, cy] = tex.chara_xy("dan_result", "result");
     float cscale = 1.0f;
     draw_seq->chara_pos(cx, cy, cscale);
-    if (chara) {
+    // on the celebration drum the character stands above the overlay art
+    if (chara && !celebrating) {
         chara->draw(cx, cy, cscale);
     }
     draw_seq->draw_overlay(s);
+    if (chara && celebrating) {
+        chara->draw(cx, cy, cscale);
+    }
 
     auto [nx, ny] = tex.nameplate_xy("dan_result", "result");
     float nfade = 1.0f;
