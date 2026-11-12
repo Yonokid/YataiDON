@@ -12,6 +12,8 @@
 #include "../libs/network/network.h"
 #include "../objects/song_select/neiro.h"
 
+static bool g_appearance_reloaded = false;
+
 void EntryScreen::on_screen_start() {
     Screen::on_screen_start();
     network.reset_medals();
@@ -23,6 +25,7 @@ void EntryScreen::on_screen_start() {
 
     const bool online = global_data.config->network.online_play;
     pending_card_hex_.clear();
+    title_card_hex_.clear();
     used_cards_.clear();
     local_login_ = false;
     login_ready_ = false;
@@ -49,6 +52,7 @@ void EntryScreen::on_screen_start() {
     if (global_data.card_reader_card_valid && !global_data.card_reader_card_id_hex.empty()) {
         pending_card_hex_ = global_data.card_reader_card_id_hex;
         used_cards_.push_back(pending_card_hex_);
+        title_card_hex_ = pending_card_hex_;
     }
     global_data.card_reader_card_valid = false;
     global_data.card_reader_card_id_hex.clear();
@@ -300,6 +304,16 @@ void EntryScreen::finish_login(RemoteLogin remote) {
         }
         set_user_appearance(u.settings.contains("skin") ? u.settings.at("skin") : std::string(),
                             u.settings.contains("language") ? u.settings.at("language") : std::string());
+        // Card from the title: nothing is on screen yet, so switch now. The reload rebuilds this screen,
+        // which logs the same card in again (a no-op the second time, so it cannot loop).
+        if (!title_card_hex_.empty() && !g_appearance_reloaded) {
+            apply_user_appearance();
+            if (global_data.skin_reload_pending) {
+                g_appearance_reloaded = true;
+                global_data.card_reader_card_valid = true;
+                global_data.card_reader_card_id_hex = title_card_hex_;
+            }
+        }
         apply_account_modifiers(pd, u.settings);
         if (cfg.guest_mode && !is_guest_id(code)) {
             write_account_song_lists(code, u.favorites, u.recent);
@@ -462,6 +476,7 @@ void EntryScreen::reload_preview_chara(PlayerNum player_num) {
 }
 
 Screens EntryScreen::on_screen_end(Screens next_screen) {
+    g_appearance_reloaded = false;
     global_data.guest_credit = next_screen != Screens::TITLE && guests_only(is_2p);
     // Not on the 2P join restart: that credit has not started yet.
     if (next_screen != Screens::TITLE && next_screen != Screens::ENTRY) {

@@ -84,6 +84,7 @@ private:
     double next_card_start_ms_ = 0;
 #endif
     std::vector<std::string> used_cards_; // held card must not log in twice
+    std::string title_card_hex_;          // card that came from the title screen
     std::string pending_card_hex_;        // scanned on title, consumed on first update
     bool local_login_ = false;            // Don pressed: scores.db only, never register
     bool login_ready_ = false;            // next join_player already logged in (Enter / auto login)
