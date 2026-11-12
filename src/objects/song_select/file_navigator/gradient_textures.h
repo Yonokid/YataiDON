@@ -8,8 +8,8 @@
 
 #include "../../../libs/gfx.h"
 #include "../../../libs/gfx/color_utils.h"
-#include "../../../libs/gfx/texture.h"
 #include "../../../libs/gfx/text.h"
+#include "../../../libs/gfx/texture.h"
 
 class GradientTextures {
 public:

@@ -9,7 +9,8 @@
 
 BaseBox::BaseBox(fs::path path, const BoxDef& box_def)
     : path(std::move(path)), texture_index(box_def.texture_index), genre_index(box_def.genre_index),
-      genre_label(box_def.genre_label), collection(box_def.collection), collab(box_def.collab), explanation(box_def.explanation) {
+      genre_label(box_def.genre_label), collection(box_def.collection), collab(box_def.collab),
+      explanation(box_def.explanation) {
     BoxColors colors = resolve_box_colors(box_def.box_color, box_def.back_color, box_def.fore_color);
     this->back_color = colors.box;
     this->gradients = GradientTextures(this->back_color);

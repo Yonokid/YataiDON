@@ -120,10 +120,11 @@ void register_song_select_lua_bindings(sol::state& lua) {
             t["a"] = c.a;
             return t;
         },
-        "name", &BaseBox::horizontal_name, "collection", &BaseBox::collection, "collab", &BaseBox::collab, "genre_index",
-        [](BaseBox& self) { return static_cast<int>(self.genre_index); }, "texture_index",
-        [](BaseBox& self) { return self.texture_index; }, "has_recolor", &BaseBox::has_recolor, "has_gradient", &BaseBox::has_gradient, "has_flat_recolor", &BaseBox::has_flat_recolor, "gradient_texture", &BaseBox::gradient_texture,
-        "begin_recolor", &BaseBox::begin_recolor, "end_recolor", &BaseBox::end_recolor);
+        "name", &BaseBox::horizontal_name, "collection", &BaseBox::collection, "collab", &BaseBox::collab,
+        "genre_index", [](BaseBox& self) { return static_cast<int>(self.genre_index); }, "texture_index",
+        [](BaseBox& self) { return self.texture_index; }, "has_recolor", &BaseBox::has_recolor, "has_gradient",
+        &BaseBox::has_gradient, "has_flat_recolor", &BaseBox::has_flat_recolor, "gradient_texture",
+        &BaseBox::gradient_texture, "begin_recolor", &BaseBox::begin_recolor, "end_recolor", &BaseBox::end_recolor);
 
     lua.new_usertype<SongBox>(
         "SongBox", sol::base_classes, sol::bases<BaseBox>(), "text_subtitle", &SongBox::text_subtitle, "subtitle",
