@@ -29,7 +29,8 @@ static const char* mode_key(Screens location) {
     }
 }
 
-Box::Box(const std::string& text_str, int font_size, Screens location) : location(location) {
+Box::Box(const std::string& text_str, int font_size, Screens location, const std::string& mode_key_override)
+    : location(location) {
     auto box_tex = tex.textures.find("mode_select/box");
     if (box_tex == tex.textures.end() || !box_tex->second) {
         spdlog::error("Box: texture 'mode_select/box' is missing");
@@ -57,7 +58,8 @@ Box::Box(const std::string& text_str, int font_size, Screens location) : locatio
     static_left = left_x;
     right_x = left_x + tex.textures["mode_select/box"]->width - tex.textures["mode_select/box_highlight_right"]->width;
     static_right = right_x;
-    if (!load("EntryBox", "box", text_str, font_size, std::string(mode_key(location)))) {
+    if (!load("EntryBox", "box", text_str, font_size,
+              mode_key_override.empty() ? std::string(mode_key(location)) : mode_key_override)) {
         spdlog::error("Box: failed to load EntryBox/box script; draw() will be a no-op");
         return;
     }

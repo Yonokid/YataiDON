@@ -3,6 +3,7 @@
 #include "../libs/file/scores.h"
 #include "../libs/network/network.h"
 #include "../libs/screen.h"
+#include "../objects/entry/access_code_popup.h"
 #include "../objects/entry/bncoin_popup.h"
 #include "../objects/entry/box_manager.h"
 #include "../objects/entry/campaign_menu.h"
@@ -36,7 +37,8 @@ enum class EntryState {
     CAMPAIGN = 5,
     BNCOIN = 6,
     PRACTICE_HELP = 7,
-    ENTRY_INFO = 8
+    ENTRY_INFO = 8,
+    ACCESS_CODE = 9
 };
 
 struct RemoteLogin {
@@ -123,6 +125,8 @@ private:
     std::unique_ptr<BanaCoinPopup> bncoin_popup_;
     static constexpr int BNCOIN_PRACTICE_COST = 100;
     void open_bncoin_popup();
+    std::unique_ptr<AccessCodePopup> access_code_popup_;
+    void open_access_code_popup();
     std::unique_ptr<PracticeHelp> practice_help_;
     void start_practice();
     std::unique_ptr<EntryInfo> entry_info_;

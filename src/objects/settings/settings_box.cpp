@@ -294,3 +294,9 @@ void SettingsBox::draw() {
     }
     draw_text();
 }
+
+void SettingsBox::draw_overlay() {
+    if (in_box && !options.empty()) {
+        options[option_index]->draw_overlay();
+    }
+}

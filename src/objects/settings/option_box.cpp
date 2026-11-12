@@ -5,6 +5,7 @@
 #include <iterator>
 
 #include "../../libs/gfx/camera_utils.h"
+#include "../../libs/gfx/qr_texture.h"
 #include "../../libs/input/ime_ui.h"
 #include "../../libs/input/input.h"
 #include "../../libs/math/animation.h"
@@ -314,6 +315,14 @@ static constexpr float CODE_BOX_X_OFFSET_BASE = -94.0f; // from the value button
 static constexpr float CODE_BOX_Y_OFFSET_BASE = 350.0f;
 static constexpr float CODE_BOX_EXTRA_WIDTH_BASE = 188.0f; // fits a 20 digit code
 
+static constexpr float QR_SIZE_BASE = 200.0f;
+static constexpr float QR_GAP_BASE = 20.0f;
+AccountOptionBox::~AccountOptionBox() {
+    if (qr_texture) {
+        unload_texture(*qr_texture);
+    }
+}
+
 AccountOptionBox::AccountOptionBox(const std::string& name, const std::string& description, const std::string& path)
     : BaseOptionBox(name, description, path), slot(path == "network/access_code_2" ? 1 : 0),
       value(config_ref.get_str()), accounts(scores_manager.get_player_ids()),
@@ -354,6 +363,10 @@ void AccountOptionBox::step(int direction) {
             account_index = i;
             value = accounts[i];
             chara.reset();
+            if (qr_texture) {
+                unload_texture(*qr_texture);
+                qr_texture.reset();
+            }
             return;
         }
     }
@@ -425,7 +438,25 @@ void AccountOptionBox::draw() {
     const Vec2 mouse = get_screen_to_world_2d(mouse_position(), compute_camera2d(tex.screen_width, tex.screen_height));
     const bool hovered = mouse.x >= box_x && mouse.x < box_x + box_w && mouse.y >= box_y && mouse.y < box_y + box_h;
     OutlinedText& code = hovered ? *code_text : *masked_text;
+    qr_visible = hovered && !value.empty();
+    if (qr_visible) {
+        if (!qr_texture) {
+            qr_texture = make_qr_texture(access_code_login_url(value));
+        }
+        const float size = QR_SIZE_BASE * s;
+        const float qx = std::min(box_x + box_w + (QR_GAP_BASE * s), tex.screen_width - size);
+        qr_rect = {qx, box_y + (box_h / 2.0f) - (size / 2.0f), size, size};
+    }
     code.draw({.x = box_x + (box_w / 2.0f) - (code.width / 2.0f), .y = box_y + (box_h / 2.0f) - (code.height / 2.0f)});
+}
+
+void AccountOptionBox::draw_overlay() {
+    if (!qr_visible || !qr_texture) {
+        return;
+    }
+    qr_visible = false;
+    const float src = static_cast<float>(qr_texture->width);
+    draw_texture_pro(*qr_texture, {0, 0, src, src}, qr_rect, {0, 0}, 0.0f, Color::WHITE);
 }
 
 KeybindOptionBox::KeybindOptionBox(const std::string& name, const std::string& description, const std::string& path)

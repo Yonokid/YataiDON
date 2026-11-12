@@ -117,4 +117,7 @@ void SettingsBoxManager::draw() {
     for (auto& b : boxes) {
         b->draw();
     }
+    for (auto& b : boxes) {
+        b->draw_overlay();
+    }
 }

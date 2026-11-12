@@ -300,6 +300,7 @@ else()
 endif()
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
+    qrcodegen
     tomlplusplus::tomlplusplus
     spdlog::spdlog
     lua::lua

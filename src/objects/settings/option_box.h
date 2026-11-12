@@ -41,6 +41,7 @@ public:
     virtual void move_left() {}
     virtual void move_right() {}
     virtual void draw() { draw_base(); }
+    virtual void draw_overlay() {}
 };
 
 class BoolOptionBox : public BaseOptionBox {
@@ -112,6 +113,9 @@ class AccountOptionBox : public BaseOptionBox {
     std::unique_ptr<OutlinedText> code_text;
     std::unique_ptr<OutlinedText> masked_text;
     std::unique_ptr<FadeAnimation> flicker_fade;
+    std::optional<Texture> qr_texture;
+    Rect qr_rect{};
+    bool qr_visible{false};
     // Held only while this option is on screen, so it never goes stale and opening settings stays fast
     std::unique_ptr<Nameplate> nameplate;
     std::unique_ptr<Chara3D> chara;
@@ -123,12 +127,14 @@ class AccountOptionBox : public BaseOptionBox {
 
 public:
     AccountOptionBox(const std::string& name, const std::string& description, const std::string& path);
+    ~AccountOptionBox() override;
 
     void confirm() override;
     void update(double current_time) override;
     void move_left() override;
     void move_right() override;
     void draw() override;
+    void draw_overlay() override;
 };
 
 class KeybindOptionBox : public BaseOptionBox {

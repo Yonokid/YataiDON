@@ -228,6 +228,7 @@ void EntryPlayer::handle_input() {
         if (box_manager->is_costume_box()) {
             box_manager->open_costume_menu(player_num);
         } else {
+            box_manager->opening_player = player_num;
             box_manager->select_box();
         }
     }

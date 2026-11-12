@@ -185,6 +185,18 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(tomlplusplus)
 
+# Nayuki QR Code generator
+message(STATUS "Fetching QR-Code-generator...")
+FetchContent_Declare(
+    qrcodegen
+    GIT_REPOSITORY https://github.com/nayuki/QR-Code-generator.git
+    GIT_TAG v1.8.0
+    GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(qrcodegen)
+add_library(qrcodegen STATIC ${qrcodegen_SOURCE_DIR}/cpp/qrcodegen.cpp)
+target_include_directories(qrcodegen SYSTEM PUBLIC ${qrcodegen_SOURCE_DIR}/cpp)
+
 # spdlog
 message(STATUS "Fetching spdlog...")
 FetchContent_Declare(

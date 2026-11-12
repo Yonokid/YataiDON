@@ -1,5 +1,7 @@
 ﻿#include "box_manager.h"
 
+#include <algorithm>
+
 #include "../../libs/gfx/text.h"
 #include "../../libs/global_data.h"
 
@@ -39,6 +41,7 @@ void BoxManager::build_board_list() {
 
     boxes.clear();
     box_locations.clear();
+    access_code_board = false;
 
     guest_board = guests_only(is_2p);
     dan_box_index = (dan_available && !is_2p && !guest_board) ? 1 : -1;
@@ -82,6 +85,11 @@ void BoxManager::build_board_list() {
             continue;
         }
         box_locations.push_back(screen);
+        if (screen == Screens::SETTINGS && global_data.config->network.guest_mode) {
+            access_code_board = true;
+            boxes.push_back(std::make_unique<Box>("Access Code", font_size, screen, "entry_access_code"));
+            continue;
+        }
         boxes.push_back(std::make_unique<Box>(label, font_size, screen));
     }
 
@@ -127,7 +135,9 @@ void BoxManager::build_board_list() {
 
 bool BoxManager::check_board_list_change() const {
     return (dan_available && !is_2p && !guests_only(is_2p)) != (dan_box_index >= 0) ||
-           waiwai_replaces_game() != waiwai_board || guests_only(is_2p) != guest_board;
+           waiwai_replaces_game() != waiwai_board || guests_only(is_2p) != guest_board ||
+           (global_data.config->network.guest_mode != access_code_board &&
+            std::ranges::contains(box_locations, Screens::SETTINGS));
 }
 
 void BoxManager::change_board_list() {
@@ -153,6 +163,10 @@ void BoxManager::select_box() {
     }
     if (location == Screens::REWARD_SHOP) {
         shop_request = true;
+        return;
+    }
+    if (location == Screens::SETTINGS && access_code_board) {
+        access_code_request = true;
         return;
     }
     if (!selection_allowed()) {

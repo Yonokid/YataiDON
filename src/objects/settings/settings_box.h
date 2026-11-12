@@ -65,4 +65,5 @@ public:
 
     void update(double current_time_ms, bool selected);
     void draw();
+    void draw_overlay();
 };

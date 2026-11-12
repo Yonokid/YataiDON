@@ -27,7 +27,7 @@ public:
     float width;
     Screens location;
     MoveAnimation* move;
-    Box(const std::string& text_str, int font_size, Screens location);
+    Box(const std::string& text_str, int font_size, Screens location, const std::string& mode_key_override = "");
     void set_positions(float x, float y = 0);
     void update(double current_ms, bool is_selected);
     void move_left();
