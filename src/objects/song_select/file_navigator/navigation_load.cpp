@@ -251,25 +251,22 @@ public:
         }
 
         if (ai_assigned && !abort_loading && (reloading_roots || std::ranges::contains(root_paths, request.path))) {
-            add_mode_box("ai_assigned_folder", "00 AI Mission", AI_ASSIGNED_COLLECTION, "#e6be32",
-                         "#8c6a10");
+            add_mode_box("ai_assigned_folder", "00 AI Mission", AI_ASSIGNED_COLLECTION, "#e6be32", "#8c6a10");
         }
         if (is_2p && !abort_loading && (reloading_roots || std::ranges::contains(root_paths, request.path))) {
             if (waiwai) {
-                add_mode_box("entry_game", "00 Waiwai Normal", WAIWAI_NORMAL_COLLECTION, "#3ca0ff",
-                             "#2366aa");
-                add_mode_box("waiwai_tutorial_box", "00 Waiwai Tutorial", WAIWAI_TUTORIAL_COLLECTION,
-                             "#28b932", "#106018");
+                add_mode_box("entry_game", "00 Waiwai Normal", WAIWAI_NORMAL_COLLECTION, "#3ca0ff", "#2366aa");
+                add_mode_box("waiwai_tutorial_box", "00 Waiwai Tutorial", WAIWAI_TUTORIAL_COLLECTION, "#28b932",
+                             "#106018");
             } else if (waiwai_box) {
-                add_mode_box("entry_waiwai", "00 Waiwai Mode", WAIWAI_MODE_COLLECTION, "#3ca0ff",
-                             "#2366aa");
+                add_mode_box("entry_waiwai", "00 Waiwai Mode", WAIWAI_MODE_COLLECTION, "#3ca0ff", "#2366aa");
             }
         }
     }
 
 private:
-    void add_mode_box(const char* label, const char* path, const std::string& collection,
-                      const char* box_color, const char* fore_color) {
+    void add_mode_box(const char* label, const char* path, const std::string& collection, const char* box_color,
+                      const char* fore_color) {
         BoxDef def;
         def.name = font_manager.get_text_label(label);
         if (def.name.empty()) {
@@ -1313,7 +1310,7 @@ void NavigationLoad::load_gen4_genres(const fs::path& data_root) {
         if (const BoxDef* like = box_def_for_genre(genre)) {
             def = *like;
         } else {
-                if (auto colors = DEFAULT_COLORS.find(genre); colors != DEFAULT_COLORS.end()) {
+            if (auto colors = DEFAULT_COLORS.find(genre); colors != DEFAULT_COLORS.end()) {
                 def.back_color = as_stops(colors->second[0]);
                 def.fore_color = colors->second[1];
             }
@@ -1419,7 +1416,7 @@ void NavigationLoad::load_gen3_genres(const fs::path& data_root) {
         if (const BoxDef* like = box_def_for_genre(genre)) {
             def = *like;
         } else {
-                if (auto colors = DEFAULT_COLORS.find(genre); colors != DEFAULT_COLORS.end()) {
+            if (auto colors = DEFAULT_COLORS.find(genre); colors != DEFAULT_COLORS.end()) {
                 def.back_color = as_stops(colors->second[0]);
                 def.fore_color = colors->second[1];
             }

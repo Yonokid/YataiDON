@@ -292,7 +292,7 @@ std::optional<Screens> SongSelectScreen::poll_second_player_join(double current_
 
     join_request_ms = current_ms;
     join_existing_seat = in;
-    audio.play_sound("don", VolumePreset::HITSOUND);          // CheckEntry: don_l / don_r
+    audio.play_sound("don", VolumePreset::HITSOUND);       // CheckEntry: don_l / don_r
     audio.play_sound("entry_2p_add", VolumePreset::SOUND); // SecondPlayerJoinToEntry
     spdlog::info("[2P join] {}P asked to join from song select; {}P holds", static_cast<int>(out),
                  static_cast<int>(in));
