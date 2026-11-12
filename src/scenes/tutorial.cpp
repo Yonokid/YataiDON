@@ -75,7 +75,9 @@ std::optional<Screens> TutorialScreen::update() {
     allnet_indicator.update(current_ms);
     clock.update(current_ms);
     transition->update(current_ms);
-    update_gameplay(current_ms);
+    if (!pause_menu.open) {
+        update_gameplay(current_ms);
+    }
 
     const double ms = chart_ms();
     overlay->update(ms);

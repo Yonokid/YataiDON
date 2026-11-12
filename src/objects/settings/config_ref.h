@@ -222,9 +222,6 @@ inline ConfigRef get_config_ref(const std::string& path) {
     if (path == "keys/borderless_key") {
         return &c->keys.borderless_key;
     }
-    if (path == "keys/pause_key") {
-        return &c->keys.pause_key;
-    }
     if (path == "keys/back_key") {
         return &c->keys.back_key;
     }

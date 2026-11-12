@@ -5,6 +5,7 @@
 #include "../libs/playback_clock.h"
 #include "../libs/screen.h"
 #include "../libs/video/video.h"
+#include "../objects/game/pause_menu.h"
 #include "../objects/game/player.h"
 #include "../objects/game/result_transition.h"
 #include "../objects/game/song_info.h"
@@ -43,6 +44,13 @@ protected:
     void pause_playback();
     void resume_playback(std::optional<double> chart_ms = std::nullopt);
     virtual PlayerNum restart_player_num() const { return global_data.player_num; }
+    virtual Screens select_screen() const { return Screens::SONG_SELECT; }
+
+    PauseMenu pause_menu;
+    bool pause_used = false;
+    void open_pause_menu();
+    void close_pause_menu();
+    std::optional<Screens> update_pause_menu();
 
 public:
     GameScreen() : Screen("game") {}
@@ -83,8 +91,6 @@ public:
     void set_players_audio_end();
 
     void restart_song();
-
-    void toggle_pause();
 
     void resync_song(double current_ms);
 

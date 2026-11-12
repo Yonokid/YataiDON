@@ -74,7 +74,9 @@ std::optional<Screens> Game2PScreen::update() {
     double current_time = get_current_ms();
     clock.update(current_time);
     transition->update(current_time);
-    update_gameplay(current_time);
+    if (!pause_menu.open) {
+        update_gameplay(current_time);
+    }
     result_transition.update(current_time);
 
     const double end_time = std::max(players[0]->end_time, players[1]->end_time);
@@ -91,15 +93,5 @@ std::optional<Screens> Game2PScreen::update() {
         end_song(end_time, transition_delay, BackgroundNotification::Disabled);
     }
 
-    if (check_key_pressed(global_data.config->keys.restart_key)) {
-        restart_song();
-    }
-    if (check_key_pressed(global_data.config->keys.back_key)) {
-        return on_screen_end(select_screen());
-    }
-    if (check_key_pressed(global_data.config->keys.pause_key)) {
-        toggle_pause();
-    }
-
-    return std::nullopt;
+    return global_keys();
 }

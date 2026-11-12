@@ -67,7 +67,6 @@ struct KeysConfig {
     int exit_key = 0;
     int fullscreen_key = 0;
     int borderless_key = 0;
-    int pause_key = 0;
     int back_key = 0;
     int restart_key = 0;
     // Menus use a fixed gamepad layout instead of the drum bindings (see input.cpp)

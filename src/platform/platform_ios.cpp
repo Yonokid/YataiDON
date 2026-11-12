@@ -79,7 +79,7 @@ int ios_handle_touch_navigation(int quadrant_vkey, float touch_x, float touch_y)
     } else if (navigation && touch_x >= 0.51f && touch_x <= 0.64f) {
         // Pause button area
         if (global_data.config) {
-            return global_data.config->keys.pause_key;
+            return global_data.config->keys.back_key;
         }
     }
     return quadrant_vkey;

@@ -376,7 +376,6 @@ Config get_config() {
     config.keys.exit_key = getKeyCodeOrDefault(config_file["keys"]["exit_key"].value_or("Q"), "Q");
     config.keys.fullscreen_key = getKeyCodeOrDefault(config_file["keys"]["fullscreen_key"].value_or("f11"), "f11");
     config.keys.borderless_key = getKeyCodeOrDefault(config_file["keys"]["borderless_key"].value_or("f10"), "f10");
-    config.keys.pause_key = getKeyCodeOrDefault(config_file["keys"]["pause_key"].value_or("space"), "space");
     config.keys.back_key = getKeyCodeOrDefault(config_file["keys"]["back_key"].value_or("escape"), "escape");
     config.keys.restart_key = getKeyCodeOrDefault(config_file["keys"]["restart_key"].value_or("f1"), "f1");
     config.keys.gamepad_menu_layout = config_file["keys"]["gamepad_menu_layout"].value_or(false);
@@ -517,7 +516,6 @@ void save_config(const Config& config) {
     config_table.insert("keys", toml::table{{"exit_key", getKeyStringSafe(config.keys.exit_key)},
                                             {"fullscreen_key", getKeyStringSafe(config.keys.fullscreen_key)},
                                             {"borderless_key", getKeyStringSafe(config.keys.borderless_key)},
-                                            {"pause_key", getKeyStringSafe(config.keys.pause_key)},
                                             {"back_key", getKeyStringSafe(config.keys.back_key)},
                                             {"restart_key", getKeyStringSafe(config.keys.restart_key)},
                                             {"gamepad_menu_layout", config.keys.gamepad_menu_layout}});

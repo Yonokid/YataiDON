@@ -11,7 +11,7 @@ private:
     PlayerNum restart_player_num() const override { return PlayerNum::P1; }
 
 protected:
-    virtual Screens select_screen() const { return Screens::SONG_SELECT_2P; }
+    Screens select_screen() const override { return Screens::SONG_SELECT_2P; }
     virtual Screens result_screen() const { return Screens::RESULT_2P; }
 
 public:

@@ -37,6 +37,7 @@ private:
     fs::path prev_song;
     int prev_difficulty = 0;
     Screens return_screen = Screens::SONG_SELECT;
+    Screens select_screen() const override { return return_screen; }
     PlayerNum skip_player = PlayerNum::P1;
 
     double chart_ms() const { return clock.position() - start_delay; }

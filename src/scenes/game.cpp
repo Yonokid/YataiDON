@@ -15,6 +15,7 @@
 void GameScreen::on_screen_start() {
     Screen::on_screen_start();
     reset_playback();
+    pause_menu.init_textures();
     start_delay = 1000.0f;
     JudgePos::X = tex.get_skin_config(SC::GAME_JUDGE_POS)->x;
     JudgePos::Y = tex.get_skin_config(SC::GAME_JUDGE_POS)->y;
@@ -76,6 +77,7 @@ void GameScreen::on_screen_start() {
 
 Screens GameScreen::on_screen_end(Screens next_screen) {
     unload_song();
+    pause_menu = PauseMenu();
     background.reset();
     transition.reset();
     global_data.camera = CameraConfig(); // TJA camera commands must not leak out of the song
@@ -232,6 +234,7 @@ void GameScreen::reset_playback() {
     clock.reset(get_current_ms());
     song_started = false;
     score_saved = false;
+    pause_used = false;
     paused_audio_time = 0.0f;
 }
 
@@ -315,12 +318,49 @@ void GameScreen::resume_playback(std::optional<double> chart_ms) {
     }
 }
 
-void GameScreen::toggle_pause() {
-    if (clock.is_paused()) {
-        resume_playback();
-    } else {
-        pause_playback();
+void GameScreen::open_pause_menu() {
+    pause_playback();
+    pause_used = true;
+    pause_menu.open_menu(get_frame_ms());
+}
+
+void GameScreen::close_pause_menu() {
+    pause_menu.close();
+    resume_playback();
+    clear_input_buffers();
+}
+
+std::optional<Screens> GameScreen::update_pause_menu() {
+    if (check_key_pressed(global_data.config->keys.back_key)) {
+        close_pause_menu();
+        return std::nullopt;
     }
+
+    const bool up = is_l_kat_pressed(PlayerNum::ALL);
+    const bool down = is_r_kat_pressed(PlayerNum::ALL);
+    if (up || down) {
+        audio.play_sound("kat", VolumePreset::HITSOUND);
+        pause_menu.step(down);
+    }
+    if (is_l_don_pressed(PlayerNum::ALL) || is_r_don_pressed(PlayerNum::ALL)) {
+        audio.play_sound("don", VolumePreset::HITSOUND);
+        switch (pause_menu.confirm()) {
+        case PauseMenu::Action::RESUME:
+            close_pause_menu();
+            break;
+        case PauseMenu::Action::RESTART:
+            pause_menu.close();
+            restart_song();
+            clear_input_buffers();
+            break;
+        case PauseMenu::Action::QUIT:
+            pause_menu.close();
+            return on_screen_end(select_screen());
+        default:
+            break;
+        }
+    }
+    return std::nullopt;
 }
 
 void GameScreen::restart_song() {
@@ -340,12 +380,16 @@ void GameScreen::restart_song() {
 }
 
 std::optional<Screens> GameScreen::global_keys() {
+    if (pause_menu.open) {
+        return update_pause_menu();
+    }
+
     if (check_key_pressed(global_data.config->keys.restart_key)) {
         restart_song();
     }
 
     if (check_key_pressed(global_data.config->keys.back_key)) {
-        return on_screen_end(Screens::SONG_SELECT);
+        open_pause_menu();
     }
 
     return std::nullopt;
@@ -363,6 +407,9 @@ void GameScreen::update_background(double current_ms) {
 }
 
 void GameScreen::save_score(const std::string& player_id, PlayerNum player_num) {
+    if (pause_used) {
+        return;
+    }
     Player* target = nullptr;
     for (const auto& player : players) {
         if (player && player->player_num == player_num) {
@@ -690,7 +737,9 @@ std::optional<Screens> GameScreen::update() {
     clock.update(current_ms);
 
     transition->update(current_ms);
-    update_gameplay(current_ms);
+    if (!pause_menu.open) {
+        update_gameplay(current_ms);
+    }
     update_skip();
     result_transition.update(current_ms);
 
@@ -705,11 +754,7 @@ std::optional<Screens> GameScreen::update() {
 
         end_song(players[0]->end_time, transition_delay, BackgroundNotification::Enabled);
     }
-    if (global_data.config->limits.song_limit <= 0) {
-        return global_keys();
-    }
-
-    return std::nullopt;
+    return global_keys();
 }
 
 void GameScreen::draw_overlay(bool with_song_info) {
@@ -732,6 +777,7 @@ void GameScreen::draw_overlay(bool with_song_info) {
     if (result_transition.is_started) {
         result_transition.draw();
     }
+    pause_menu.draw(get_frame_ms());
 }
 
 void GameScreen::draw_players() {
