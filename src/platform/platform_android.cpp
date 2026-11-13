@@ -1,5 +1,11 @@
+#include <SDL3/SDL.h>
 #include <csignal>
+#include <jni.h>
 #include <unistd.h>
+
+extern "C" {
+#include <libavcodec/jni.h>
+}
 
 #include "../libs/gfx.h"
 #include "platform.h"
@@ -23,5 +29,12 @@ void platform_close_window() {
 }
 
 void platform_initialize_after_window() {
+    // FFmpeg's MediaCodec decoders reach the Java side through this VM
+    if (auto* env = static_cast<JNIEnv*>(SDL_GetAndroidJNIEnv())) {
+        JavaVM* vm = nullptr;
+        if (env->GetJavaVM(&vm) == 0) {
+            av_jni_set_java_vm(vm, nullptr);
+        }
+    }
     mobile_install_lifecycle_handlers();
 }

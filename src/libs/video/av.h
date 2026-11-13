@@ -11,6 +11,7 @@
 #include <filesystem>
 #include <memory>
 #include <optional>
+#include <spdlog/spdlog.h>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -201,6 +202,12 @@ namespace av {
                 throw std::runtime_error("Could not find video decoder");
             }
             return codec;
+        }
+
+        // The "<codec>_mediacodec" hardware decoder where this FFmpeg build has one, else null.
+        const ::AVCodec* find_hardware_codec() const {
+            const std::string name = std::string(avcodec_get_name(stream_->codecpar->codec_id)) + "_mediacodec";
+            return avcodec_find_decoder_by_name(name.c_str());
         }
 
     private:
@@ -551,6 +558,14 @@ namespace av {
         // Create a sequential decoder for the video stream at the given index.
         std::unique_ptr<AVFrameDecoder> decode_video(int stream_index = 0) {
             auto vs = streams().video(stream_index);
+            if (const ::AVCodec* hardware = vs->find_hardware_codec()) {
+                try {
+                    return std::make_unique<AVFrameDecoder>(fmt_ctx_, vs->index(), hardware);
+                } catch (const std::exception& e) {
+                    spdlog::warn("Hardware video decoder {} failed to open: {}; using software", hardware->name,
+                                 e.what());
+                }
+            }
             return std::make_unique<AVFrameDecoder>(fmt_ctx_, vs->index(), vs->find_codec());
         }
 

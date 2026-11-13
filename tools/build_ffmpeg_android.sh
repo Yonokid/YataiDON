@@ -76,8 +76,10 @@ echo "==> Configuring FFmpeg for ${ABI} (API ${API})..."
     --enable-swscale \
     --enable-swresample \
     --enable-demuxer=mp3,ogg,flac,wav,aac,mov,matroska \
-    --enable-decoder=mp3,vorbis,flac,pcm_s16le,pcm_s16be,aac,opus \
-    --enable-parser=mp3,flac,vorbis,aac,opus \
+    --enable-decoder=mp3,vorbis,flac,pcm_s16le,pcm_s16be,aac,opus,h264,hevc,h264_mediacodec,hevc_mediacodec \
+    --enable-parser=mp3,flac,vorbis,aac,opus,h264,hevc \
+    --enable-jni \
+    --enable-mediacodec \
     --enable-protocol=file \
     --disable-vulkan \
     --disable-vaapi \

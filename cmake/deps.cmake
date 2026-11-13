@@ -541,6 +541,7 @@ elseif(ANDROID)
       INTERFACE_INCLUDE_DIRECTORIES "${_ffmpeg_inc}"
     )
   endforeach()
+  set_property(TARGET FFmpeg::avcodec APPEND PROPERTY INTERFACE_LINK_LIBRARIES mediandk android)
 else()
   set(YATAIDON_FFMPEG_PREFIX "" CACHE PATH "Static FFmpeg prefix from tools/build_ffmpeg_linux.sh")
   if(YATAIDON_FFMPEG_PREFIX)
