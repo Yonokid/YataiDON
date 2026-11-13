@@ -1078,7 +1078,7 @@ void AudioEngine::queue_song_loudness(const fs::path& file_path, bool priority) 
 }
 
 static bool is_song_sound(const std::string& name) {
-    return name == "song" || name.rfind("song_dan_", 0) == 0;
+    return name == "song" || name.starts_with("song_dan_");
 }
 
 float AudioEngine::loaded_sound_gain(const fs::path& file_path, const std::string& name) {
