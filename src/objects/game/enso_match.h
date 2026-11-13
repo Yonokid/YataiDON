@@ -11,8 +11,6 @@ inline constexpr int ENSO_BOND_MAX = 65;
 // stand-in until Hiroba keeps the player's bond level
 inline constexpr int ENSO_DEFAULT_BOND = 1;
 
-// Known wiki values (bond level, base attack); levels between them are linear, past the last one the
-// 23 -> 29 slope carries on.
 inline constexpr std::array<std::array<int, 2>, 20> ENSO_ATTACK_POINTS = {
     {{1, 30},   {2, 45},   {3, 60},   {4, 69},   {5, 81},   {6, 90},   {7, 99},   {12, 138}, {13, 144}, {14, 150},
      {15, 200}, {16, 223}, {17, 254}, {18, 270}, {19, 292}, {20, 316}, {21, 338}, {22, 361}, {23, 384}, {29, 572}}};
@@ -62,7 +60,6 @@ inline int enso_roll_damage(int attack, std::mt19937& rng) {
     return (hit + ENSO_ROLL_DIVISOR - 1) / ENSO_ROLL_DIVISOR;
 }
 
-// Cumulative OK-or-better notes to fire the special move: the wiki's first eight, then the last step repeats.
 inline int enso_skill_threshold(int difficulty, int fired) {
     static constexpr std::array<std::array<int, 8>, 4> TABLE = {{{30, 80, 160, 240, 320, 400, 480, 560},
                                                                  {50, 125, 235, 345, 455, 565, 675, 785},
