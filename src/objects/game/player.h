@@ -94,9 +94,11 @@ public:
     bool hide_gogo_flame = false;
     bool hide_score_counter = false;
     bool hide_ending_anim = false;
+    bool hide_judgment_text = false;
     bool rainbow_arc = false;
     // decides how autoplay lands each note; unset means every note is a Good
     std::function<Judgments(const Note&)> autoplay_judge;
+    std::function<void(const Note&, Judgments)> on_note_judged;
     const std::unordered_map<int, Judgments>& get_note_judgments() const { return note_judgments; }
     const std::unordered_map<int, int>& get_roll_hits() const { return roll_hits; }
     void hide_puchi();

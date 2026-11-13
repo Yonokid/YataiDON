@@ -584,8 +584,10 @@ void Player::draw(double ms_from_start, float x, float y) {
         anim.draw_outer_effect(judge_x, y + judge_y);
         anim.draw_ray_effect(judge_x, y + judge_y);
     }
-    for (Judgment& anim : draw_judge_list) {
-        anim.draw_text(judge_x, y + judge_y);
+    if (!hide_judgment_text) {
+        for (Judgment& anim : draw_judge_list) {
+            anim.draw_text(judge_x, y + judge_y);
+        }
     }
 
     draw_overlays(y);
@@ -633,8 +635,10 @@ void Player::draw_practice(double ms_from_start, float x, float y, bool draw_not
         anim.draw_outer_effect(judge_x, y + judge_y);
         anim.draw_ray_effect(judge_x, y + judge_y);
     }
-    for (Judgment& anim : draw_judge_list) {
-        anim.draw_text(judge_x, y + judge_y);
+    if (!hide_judgment_text) {
+        for (Judgment& anim : draw_judge_list) {
+            anim.draw_text(judge_x, y + judge_y);
+        }
     }
 
     draw_overlays(y);
@@ -1093,6 +1097,9 @@ void Player::on_judgment(const Note& note, Judgments judgment, std::optional<Dru
         } else {
             bg_hook->handle_bad(pn);
         }
+    }
+    if (on_note_judged) {
+        on_note_judged(note, judgment);
     }
 }
 

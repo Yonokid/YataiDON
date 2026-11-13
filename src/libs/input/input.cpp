@@ -207,7 +207,7 @@ static std::atomic<int> slotted_gamepads{0}; // controller_slots.count(), for th
 
 static bool is_gameplay_screen(std::string_view screen) {
     return screen == "GAME" || screen == "GAME_2P" || screen == "WAIWAI_GAME" || screen == "GAME_DAN" ||
-           screen == "GAME_PRACTICE" || screen == "AI_GAME" || screen == "INPUT_TEST" || screen == "INPUT_CALI" ||
+           screen == "GAME_PRACTICE" || screen == "AI_GAME" || screen == "ENSO_GAME" || screen == "INPUT_TEST" || screen == "INPUT_CALI" ||
            screen == "TUTORIAL";
 }
 

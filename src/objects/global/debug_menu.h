@@ -102,7 +102,8 @@ public:
         Screens::GAME_OVER,     Screens::INPUT_TEST,    Screens::RETRY_GAME,      Screens::TUTORIAL,
         Screens::CAMPAIGN,      Screens::TOTAL_RESULT,  Screens::REWARD_SHOP,     Screens::WAIWAI_SONG_SELECT,
         Screens::WAIWAI_GAME,   Screens::WAIWAI_RESULT, Screens::WAIWAI_TUTORIAL, Screens::WAIWAI_RETRY_GAME,
-        Screens::AI_SELECT,     Screens::AI_GAME,       Screens::AI_RESULT};
+        Screens::AI_SELECT,     Screens::AI_GAME,       Screens::AI_RESULT,       Screens::ENSO_SELECT,
+        Screens::ENSO_GAME,     Screens::ENSO_RESULT};
 
     void clear_selection() {
         commit_edit();

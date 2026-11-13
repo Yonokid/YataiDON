@@ -12,7 +12,7 @@ private:
 
 protected:
     Screens select_screen() const override { return Screens::SONG_SELECT_2P; }
-    virtual Screens result_screen() const { return Screens::RESULT_2P; }
+    Screens result_screen() const override { return Screens::RESULT_2P; }
 
 public:
     bool two_player_audio() const override { return true; }
