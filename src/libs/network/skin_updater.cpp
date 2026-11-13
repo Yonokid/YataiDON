@@ -454,8 +454,9 @@ bool SkinUpdater::available() {
 }
 
 void SkinUpdater::start() {
-    // A previous pass may still be running (e.g. the one started at launch);
-    // wait for it so two scans never run at once, then start a fresh pass.
+    if (running_.load()) {
+        return;
+    }
     if (thread_.joinable()) {
         thread_.join();
     }
