@@ -14,7 +14,6 @@ static void clear_credit_tally() {
         global_data.credit_gauges[i].clear();
         global_data.credit_titles[i].clear();
     }
-    global_data.battle_boss_hp = 0;
 }
 
 Screens begin_total_result() {

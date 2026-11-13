@@ -8,7 +8,7 @@
 #include "../enums.h"
 
 inline constexpr int BATTLE_BOND_MAX = 65;
-// stand-in until Hiroba keeps the player's bond level
+// stand-in when Hiroba has no progress for the player
 inline constexpr int BATTLE_DEFAULT_BOND = 1;
 
 inline constexpr std::array<std::array<int, 2>, 20> BATTLE_ATTACK_POINTS = {
@@ -86,12 +86,8 @@ inline constexpr int BATTLE_FIELD_SIZE = 10;
 // guessed from footage: battle power climbs about one per 500 damage
 inline constexpr int BATTLE_POWER_DAMAGE = 500;
 
-// stand-in until the stage map: every song is fought on this stage
-inline constexpr int BATTLE_STAGE = 2;
-// stand-in bond on a boss stage: stage 2 opens at bond 14
-inline constexpr int BATTLE_BOSS_BOND = 14;
-// guessed from footage: at bond 14 Ghost Wood falls at the end of the third Oni song
-inline constexpr int BATTLE_BOSS_HP = 200000;
+// stages past this have no art yet
+inline constexpr int BATTLE_STAGES_PORTED = 2;
 
 inline bool battle_is_boss_stage(int stage) {
     return stage % 2 == 0;

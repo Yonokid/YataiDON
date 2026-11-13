@@ -5,6 +5,23 @@
 // the special move's slash lands this long after the cut-in starts
 static constexpr double SKILL_HIT_MS = 1300.0;
 
+static const std::string& battle_access_code() {
+    return global_data.player_num == PlayerNum::P1 ? global_data.config->network.access_code_1
+                                                   : global_data.config->network.access_code_2;
+}
+
+void BattleSongSelectScreen::on_screen_start() {
+    const std::string& code = battle_access_code();
+    const BattleStatus status = code.empty() ? BattleStatus{} : network.fetch_battle_status(code);
+    global_data.battle_tracked = status.answered;
+    global_data.battle_bond = status.answered ? status.bond : BATTLE_DEFAULT_BOND;
+    global_data.battle_stage = status.answered ? std::min(status.stage, BATTLE_STAGES_PORTED) : 1;
+    const auto boss = status.bosses.find(global_data.battle_stage);
+    global_data.battle_boss_hp = boss == status.bosses.end() ? 0 : boss->second.hp;
+    global_data.battle_boss_hp_max = boss == status.bosses.end() ? 0 : boss->second.max;
+    SongSelectScreen::on_screen_start();
+}
+
 void BattleGameScreen::initialize_chart(const fs::path& song) {
     GameScreen::initialize_chart(song);
     start_battle();
@@ -12,16 +29,18 @@ void BattleGameScreen::initialize_chart(const fs::path& song) {
 }
 
 void BattleGameScreen::start_battle() {
-    boss = battle_is_boss_stage(BATTLE_STAGE);
-    attack = battle_base_attack(boss ? BATTLE_BOSS_BOND : BATTLE_DEFAULT_BOND);
+    stage = global_data.battle_stage;
+    boss = battle_is_boss_stage(stage) && global_data.battle_boss_hp_max > 0;
+    attack = battle_base_attack(global_data.battle_bond);
     difficulty = global_data.session_data[static_cast<int>(global_data.player_num)].selected_difficulty;
     total_damage = 0;
     skill_notes = 0;
     skills_fired = 0;
     rolls_seen = 0;
+    chests = 0;
     skill_lands_ms.reset();
     ended = false;
-    boss_hp = global_data.battle_boss_hp > 0 ? global_data.battle_boss_hp : BATTLE_BOSS_HP;
+    boss_hp = global_data.battle_boss_hp;
     field.clear();
     while (!boss && std::ssize(field) < BATTLE_FIELD_SIZE) {
         field.push_back(battle_next_zako(rng));
@@ -38,7 +57,7 @@ void BattleGameScreen::announce_battle() {
     overlay->reset(JudgePos::X, JudgePos::Y);
     const double now = get_current_ms();
     if (boss) {
-        overlay->boss(now, boss_hp, BATTLE_BOSS_HP);
+        overlay->boss(now, boss_hp, global_data.battle_boss_hp_max);
     }
     for (const int kind : field) {
         overlay->pop_enemy(now, kind);
@@ -124,6 +143,7 @@ void BattleGameScreen::on_note(const Note& note, Judgments judgment) {
             overlay->start_skill(now, 1);
         }
         if (std::uniform_real_distribution<double>(0.0, 1.0)(rng) < BATTLE_CHEST_CHANCE) {
+            ++chests;
             if (overlay_active()) {
                 overlay->drop_chest(now);
             }
@@ -147,9 +167,7 @@ void BattleGameScreen::update_battle() {
     }
     if (!ended && clock.position() >= players[0]->end_time) {
         ended = true;
-        if (boss) {
-            global_data.battle_boss_hp = boss_hp;
-        }
+        submit_song();
         if (overlay_active()) {
             overlay->song_end(now);
         }
@@ -159,6 +177,17 @@ void BattleGameScreen::update_battle() {
         const float fill = skill_lands_ms ? 1.0f : battle_skill_fill(difficulty, fired_before, skill_notes);
         overlay->set_status(total_damage / BATTLE_POWER_DAMAGE, fill, boss_hp);
     }
+}
+
+void BattleGameScreen::submit_song() {
+    const std::string& code = battle_access_code();
+    const Player& player = *players[0];
+    if (!global_data.battle_tracked || code.empty() || player.is_auto_play() || player.is_replay()) {
+        return;
+    }
+    const SessionData& session = global_data.session_data[static_cast<int>(global_data.player_num)];
+    network.submit_battle(code, session.song_hash, difficulty, stage, skill_notes, total_damage,
+                          total_damage / BATTLE_POWER_DAMAGE, chests);
 }
 
 std::optional<Screens> BattleGameScreen::update() {

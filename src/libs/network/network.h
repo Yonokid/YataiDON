@@ -151,6 +151,22 @@ struct AIBattleStatus {
     int wins = 0;
     int next_reward_wins = -1;
 };
+struct BattleBoss {
+    int hp = 0;
+    int max = 0;
+};
+struct BattleStatus {
+    bool answered = false;
+    int bond = 1;
+    int exp = 0;
+    int exp_next = -1; // -1 at the max bond level
+    int best_power = 0;
+    int stones = 0;
+    int moves = 1;
+    int stage = 1;                    // the furthest open stage
+    int cleared = 0;                  // bit n: stage n's boss beaten
+    std::map<int, BattleBoss> bosses; // by stage
+};
 struct ShopGood {
     int type = -1; // 2 dress, 3 head, 4 body, 5 puchichara, 6 title
     int id = -1;
@@ -285,6 +301,10 @@ public:
     const AIBattleProgress& ai_battle_progress() const { return ai_battle_progress_; }
     void reset_ai_battle() { ai_battle_progress_ = {}; }
 
+    BattleStatus fetch_battle_status(const std::string& access_code);
+    void submit_battle(const std::string& access_code, const std::string& song_hash, int difficulty, int stage,
+                       int hits, int damage, int power, int chests);
+
     void shutdown();
 
 private:
@@ -325,6 +345,7 @@ private:
     std::vector<std::pair<int, cpr::AsyncResponse>> pending_don_points;
     std::vector<std::pair<int, cpr::AsyncResponse>> pending_medals;
     std::vector<cpr::AsyncResponse> pending_ai_battle;
+    std::vector<cpr::AsyncResponse> pending_battle;
     std::vector<cpr::AsyncResponse> pending_revive;
     std::vector<cpr::AsyncResponse> pending_dan;
     std::vector<std::pair<int, cpr::AsyncResponse>> pending_shop;

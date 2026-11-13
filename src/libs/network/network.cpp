@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <charconv>
 #include <chrono>
 #include <cstddef>
 #include <cstdio>
@@ -1165,6 +1166,59 @@ AIBattleStatus NetworkClient::fetch_ai_battle_status(const std::string& access_c
     return status;
 }
 
+BattleStatus NetworkClient::fetch_battle_status(const std::string& access_code) {
+    BattleStatus status;
+    if (!network_enabled() || is_guest_id(access_code) || !online) {
+        return status;
+    }
+    cpr::Response response = cpr::Get(cpr::Url{network_url("/enso_battle")},
+                                      cpr::Parameters{{"access_code", access_code}}, cpr::Timeout{3000} NETWORK_CA_OPT);
+    rapidjson::Document doc;
+    if (response.status_code == 200 && !doc.Parse(response.text.c_str()).HasParseError() && doc.IsObject()) {
+        const auto read = [&doc](const char* key, int fallback) {
+            return doc.HasMember(key) && doc[key].IsInt() ? doc[key].GetInt() : fallback;
+        };
+        status.answered = true;
+        status.bond = read("bond", 1);
+        status.exp = read("exp", 0);
+        status.exp_next = read("exp_next", -1);
+        status.best_power = read("best_power", 0);
+        status.stones = read("stones", 0);
+        status.moves = read("moves", 1);
+        status.stage = read("stage", 1);
+        status.cleared = read("cleared", 0);
+        if (doc.HasMember("bosses") && doc["bosses"].IsObject()) {
+            for (const auto& [key, boss] : doc["bosses"].GetObject()) {
+                if (boss.IsObject() && boss.HasMember("hp") && boss["hp"].IsInt() && boss.HasMember("max") &&
+                    boss["max"].IsInt()) {
+                    int stage = 0;
+                    std::from_chars(key.GetString(), key.GetString() + key.GetStringLength(), stage);
+                    status.bosses[stage] = {boss["hp"].GetInt(), boss["max"].GetInt()};
+                }
+            }
+        }
+    }
+    return status;
+}
+
+void NetworkClient::submit_battle(const std::string& access_code, const std::string& song_hash, int difficulty,
+                                  int stage, int hits, int damage, int power, int chests) {
+    if (!network_enabled() || is_guest_id(access_code) || !online) {
+        return;
+    }
+    const std::map<std::string, std::string> fields{
+        {"access_code", access_code},     {"song_hash", song_hash},          {"difficulty", std::to_string(difficulty)},
+        {"stage", std::to_string(stage)}, {"hits", std::to_string(hits)},    {"damage", std::to_string(damage)},
+        {"power", std::to_string(power)}, {"chests", std::to_string(chests)}};
+    cpr::Parameters params;
+    for (const auto& [key, value] : fields) {
+        params.Add({key, value});
+    }
+    pending_battle.push_back(cpr::PostAsync(cpr::Url{network_url("/enso_battle")},
+                                            signed_headers("POST", "/enso_battle", fields), params,
+                                            cpr::Timeout{5000} NETWORK_CA_OPT));
+}
+
 OwnedCosmetics NetworkClient::fetch_owned_cosmetics(const std::string& access_code) {
     OwnedCosmetics owned;
     // No server account to read rewards for: offline, local ("0"/"1") and guest play get the whole skin set.
@@ -1455,6 +1509,17 @@ void NetworkClient::update(double current_ms) {
         }
         it = pending_revive.erase(it);
     }
+    for (auto it = pending_battle.begin(); it != pending_battle.end();) {
+        if (it->wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
+            ++it;
+            continue;
+        }
+        cpr::Response response = it->get();
+        if (response.status_code != 200) {
+            spdlog::warn("Battle submit failed: HTTP {} - {}", response.status_code, response.text);
+        }
+        it = pending_battle.erase(it);
+    }
     for (auto it = pending_dan.begin(); it != pending_dan.end();) {
         if (it->wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
             ++it;
@@ -1718,6 +1783,10 @@ void NetworkClient::submit_ai_battle(const std::string&, const std::string&, int
 AIBattleStatus NetworkClient::fetch_ai_battle_status(const std::string&) {
     return {};
 }
+BattleStatus NetworkClient::fetch_battle_status(const std::string&) {
+    return {};
+}
+void NetworkClient::submit_battle(const std::string&, const std::string&, int, int, int, int, int, int) {}
 void NetworkClient::request_reward_shop(int seat, const std::string&) {
     shop_seats[seat] = {};
 }

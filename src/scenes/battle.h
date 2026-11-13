@@ -14,6 +14,9 @@ protected:
     Screens get_game_screen_target() override { return Screens::BATTLE_GAME; }
     bool hides_dan() override { return true; }
     bool allows_second_player_join() override { return false; }
+
+public:
+    void on_screen_start() override;
 };
 
 class BattleGameScreen : public GameScreen {
@@ -22,6 +25,7 @@ class BattleGameScreen : public GameScreen {
 
     int attack = 0;
     int difficulty = 0;
+    int stage = 0;
     bool boss = false;
     int boss_hp = 0;
     std::deque<int> field;
@@ -30,6 +34,7 @@ class BattleGameScreen : public GameScreen {
     int skill_notes = 0;
     int skills_fired = 0;
     int rolls_seen = 0;
+    int chests = 0;
     std::optional<double> skill_lands_ms;
     bool ended = false;
 
@@ -41,6 +46,7 @@ class BattleGameScreen : public GameScreen {
     void deal(int damage, bool skill = false);
     void pop_next();
     void update_battle();
+    void submit_song();
 
 protected:
     Screens select_screen() const override { return Screens::BATTLE_SELECT; }
