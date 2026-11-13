@@ -1,5 +1,6 @@
 #include "battle.h"
 
+#include "../libs/input/input.h"
 #include "../objects/game/battle_match.h"
 
 // the special move's slash lands this long after the cut-in starts
@@ -20,6 +21,19 @@ void BattleSongSelectScreen::on_screen_start() {
     global_data.battle_boss_hp = boss == status.bosses.end() ? 0 : boss->second.hp;
     global_data.battle_boss_hp_max = boss == status.bosses.end() ? 0 : boss->second.max;
     SongSelectScreen::on_screen_start();
+    info.emplace(status, global_data.battle_stage, global_data.player_num == PlayerNum::P2 ? 2 : 1);
+}
+
+Screens BattleSongSelectScreen::on_screen_end(Screens next_screen) {
+    info.reset();
+    return SongSelectScreen::on_screen_end(next_screen);
+}
+
+void BattleSongSelectScreen::draw_overlays() {
+    if (info) {
+        info->draw(get_current_ms());
+    }
+    SongSelectScreen::draw_overlays();
 }
 
 void BattleGameScreen::initialize_chart(const fs::path& song) {
@@ -38,6 +52,8 @@ void BattleGameScreen::start_battle() {
     skills_fired = 0;
     rolls_seen = 0;
     chests = 0;
+    kills = 0;
+    global_data.battle_song = {};
     skill_lands_ms.reset();
     ended = false;
     boss_hp = global_data.battle_boss_hp;
@@ -107,6 +123,7 @@ void BattleGameScreen::deal(int damage, bool skill) {
     }
     while (damage >= enemy_hp) {
         damage -= enemy_hp;
+        ++kills;
         field.pop_front();
         if (overlay_active()) {
             overlay->kill(get_current_ms(), skill);
@@ -142,7 +159,7 @@ void BattleGameScreen::on_note(const Note& note, Judgments judgment) {
         if (overlay_active()) {
             overlay->start_skill(now, 1);
         }
-        if (std::uniform_real_distribution<double>(0.0, 1.0)(rng) < BATTLE_CHEST_CHANCE) {
+        if (chests < BATTLE_MAX_CHESTS && std::uniform_real_distribution<double>(0.0, 1.0)(rng) < BATTLE_CHEST_CHANCE) {
             ++chests;
             if (overlay_active()) {
                 overlay->drop_chest(now);
@@ -167,6 +184,16 @@ void BattleGameScreen::update_battle() {
     }
     if (!ended && clock.position() >= players[0]->end_time) {
         ended = true;
+        global_data.battle_song = {true,
+                                   stage,
+                                   difficulty,
+                                   boss,
+                                   global_data.battle_boss_hp,
+                                   global_data.battle_boss_hp_max,
+                                   kills,
+                                   total_damage,
+                                   total_damage / BATTLE_POWER_DAMAGE,
+                                   chests};
         submit_song();
         if (overlay_active()) {
             overlay->song_end(now);
@@ -186,6 +213,7 @@ void BattleGameScreen::submit_song() {
         return;
     }
     const SessionData& session = global_data.session_data[static_cast<int>(global_data.player_num)];
+    network.reset_battle();
     network.submit_battle(code, session.song_hash, difficulty, stage, skill_notes, total_damage,
                           total_damage / BATTLE_POWER_DAMAGE, chests);
 }
@@ -217,5 +245,77 @@ void BattleGameScreen::draw() {
 
     draw_players();
     overlay->draw_front(ms);
+    draw_overlay();
+}
+
+void BattleResultScreen::on_screen_start() {
+    ResultScreen::on_screen_start();
+    allow_retry = false;
+    board.reset();
+    board_started = false;
+    const BattleTally& song = global_data.battle_song;
+    if (!song.played || !script_manager.has_lua_script("battle_result")) {
+        return;
+    }
+    audio.stop_sound("bgm");
+    audio.load_screen_sounds("battle_result");
+    board.emplace(song, song_number, global_data.battle_bond);
+    if (board->unavailable()) {
+        board.reset();
+        audio.play_sound("bgm", VolumePreset::MUSIC);
+        return;
+    }
+    background.reset();
+    player_1.reset();
+    opened_ms = get_current_ms();
+}
+
+Screens BattleResultScreen::on_screen_end(Screens next_screen) {
+    board.reset();
+    global_data.battle_song = {};
+    return ResultScreen::on_screen_end(next_screen);
+}
+
+static constexpr double BATTLE_ANSWER_TIMEOUT_MS = 5000.0;
+
+std::optional<Screens> BattleResultScreen::update() {
+    auto next = ResultScreen::update();
+    if (next || !board || exiting()) {
+        return next;
+    }
+    const double now = get_current_ms();
+    board->update(now);
+    if (!board_started) {
+        if ((fade_in && !fade_in->is_finished()) ||
+            (network.battle_pending() && now < opened_ms + BATTLE_ANSWER_TIMEOUT_MS)) {
+            return next;
+        }
+        board_started = true;
+        board->begin(network.battle_progress());
+        clear_input_buffers();
+        return next;
+    }
+    if (fade_out && check_key_pressed(global_data.config->keys.back_key)) {
+        quitting = true;
+        start_fade_out();
+        audio.play_sound("don", VolumePreset::HITSOUND);
+        return next;
+    }
+    if (menu_confirm_pressed(global_data.player_num) && board->decide()) {
+        audio.play_sound("don", VolumePreset::HITSOUND);
+    }
+    if (board->is_done()) {
+        begin_exit();
+    }
+    return next;
+}
+
+void BattleResultScreen::draw() {
+    if (!board) {
+        ResultScreen::draw();
+        return;
+    }
+    board->draw_background();
+    board->draw();
     draw_overlay();
 }

@@ -216,6 +216,20 @@ struct AIMatchResult {
     int stars = 1;
 };
 
+// one battle mode song, for its result screen
+struct BattleTally {
+    bool played = false;
+    int stage = 1;
+    int difficulty = 0;
+    bool boss = false;
+    int boss_hp = 0; // before the song
+    int boss_hp_max = 0;
+    int kills = 0;
+    int damage = 0;
+    int power = 0;
+    int chests = 0;
+};
+
 struct SessionData {
     fs::path selected_song;
     std::string selected_collection; // the song select folder it was picked from, sent with the score
@@ -298,6 +312,7 @@ struct GlobalData {
     int battle_stage = 1;
     int battle_boss_hp = 0; // the stage's boss, if it has one
     int battle_boss_hp_max = 0;
+    BattleTally battle_song;
     std::vector<int> credit_gauges[2];         // soul gauge percent per scored song this credit, per seat
     std::vector<std::string> credit_titles[2]; // same songs
     bool reward_shop_from_entry = false;       // mode select opened the shop: no reward time, back to entry

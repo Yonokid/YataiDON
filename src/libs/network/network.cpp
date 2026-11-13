@@ -1166,39 +1166,45 @@ AIBattleStatus NetworkClient::fetch_ai_battle_status(const std::string& access_c
     return status;
 }
 
-BattleStatus NetworkClient::fetch_battle_status(const std::string& access_code) {
+static BattleStatus parse_battle_status(const rapidjson::Value& doc) {
+    const auto read = [&doc](const char* key, int fallback) {
+        return doc.HasMember(key) && doc[key].IsInt() ? doc[key].GetInt() : fallback;
+    };
     BattleStatus status;
+    status.answered = true;
+    status.bond = read("bond", 1);
+    status.exp = read("exp", 0);
+    status.exp_next = read("exp_next", -1);
+    status.best_power = read("best_power", 0);
+    status.stones = read("stones", 0);
+    status.moves = read("moves", 1);
+    status.move_cost = read("move_cost", -1);
+    status.stage = read("stage", 1);
+    status.cleared = read("cleared", 0);
+    if (doc.HasMember("bosses") && doc["bosses"].IsObject()) {
+        for (const auto& [key, boss] : doc["bosses"].GetObject()) {
+            if (boss.IsObject() && boss.HasMember("hp") && boss["hp"].IsInt() && boss.HasMember("max") &&
+                boss["max"].IsInt()) {
+                int stage = 0;
+                std::from_chars(key.GetString(), key.GetString() + key.GetStringLength(), stage);
+                status.bosses[stage] = {boss["hp"].GetInt(), boss["max"].GetInt()};
+            }
+        }
+    }
+    return status;
+}
+
+BattleStatus NetworkClient::fetch_battle_status(const std::string& access_code) {
     if (!network_enabled() || is_guest_id(access_code) || !online) {
-        return status;
+        return {};
     }
     cpr::Response response = cpr::Get(cpr::Url{network_url("/enso_battle")},
                                       cpr::Parameters{{"access_code", access_code}}, cpr::Timeout{3000} NETWORK_CA_OPT);
     rapidjson::Document doc;
     if (response.status_code == 200 && !doc.Parse(response.text.c_str()).HasParseError() && doc.IsObject()) {
-        const auto read = [&doc](const char* key, int fallback) {
-            return doc.HasMember(key) && doc[key].IsInt() ? doc[key].GetInt() : fallback;
-        };
-        status.answered = true;
-        status.bond = read("bond", 1);
-        status.exp = read("exp", 0);
-        status.exp_next = read("exp_next", -1);
-        status.best_power = read("best_power", 0);
-        status.stones = read("stones", 0);
-        status.moves = read("moves", 1);
-        status.stage = read("stage", 1);
-        status.cleared = read("cleared", 0);
-        if (doc.HasMember("bosses") && doc["bosses"].IsObject()) {
-            for (const auto& [key, boss] : doc["bosses"].GetObject()) {
-                if (boss.IsObject() && boss.HasMember("hp") && boss["hp"].IsInt() && boss.HasMember("max") &&
-                    boss["max"].IsInt()) {
-                    int stage = 0;
-                    std::from_chars(key.GetString(), key.GetString() + key.GetStringLength(), stage);
-                    status.bosses[stage] = {boss["hp"].GetInt(), boss["max"].GetInt()};
-                }
-            }
-        }
+        return parse_battle_status(doc);
     }
-    return status;
+    return {};
 }
 
 void NetworkClient::submit_battle(const std::string& access_code, const std::string& song_hash, int difficulty,
@@ -1515,7 +1521,25 @@ void NetworkClient::update(double current_ms) {
             continue;
         }
         cpr::Response response = it->get();
-        if (response.status_code != 200) {
+        rapidjson::Document doc;
+        if (response.status_code == 200 && !doc.Parse(response.text.c_str()).HasParseError() && doc.IsObject() &&
+            doc.HasMember("before") && doc["before"].IsObject() && doc.HasMember("after") && doc["after"].IsObject()) {
+            BattleProgress progress;
+            progress.answered = true;
+            progress.before = parse_battle_status(doc["before"]);
+            progress.after = parse_battle_status(doc["after"]);
+            if (doc.HasMember("boss") && doc["boss"].IsObject()) {
+                const rapidjson::Value& boss = doc["boss"];
+                progress.boss_before = BattleBoss{json_int(boss, "hp_before", 0), json_int(boss, "max", 0)};
+                progress.boss_hp_after = json_int(boss, "hp_after", 0);
+            }
+            if (doc.HasMember("chests") && doc["chests"].IsArray()) {
+                for (const auto& stones : doc["chests"].GetArray()) {
+                    progress.chests.push_back(stones.IsInt() ? stones.GetInt() : 0);
+                }
+            }
+            battle_progress_ = std::move(progress);
+        } else {
             spdlog::warn("Battle submit failed: HTTP {} - {}", response.status_code, response.text);
         }
         it = pending_battle.erase(it);

@@ -35,6 +35,8 @@ inline constexpr int BATTLE_ROLL_DIVISOR = 8;
 inline constexpr int BATTLE_SKILL_ATTACKS = 20;
 // unknown: chance that a fired special move drops a treasure chest
 inline constexpr double BATTLE_CHEST_CHANCE = 0.5;
+// the result screen has three chest slots
+inline constexpr int BATTLE_MAX_CHESTS = 3;
 
 struct BattleHit {
     int damage = 0;
