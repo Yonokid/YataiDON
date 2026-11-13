@@ -1118,7 +1118,7 @@ void Player::on_note_correct(const Note& note, double current_ms) {
         bool is_big =
             note.type == NoteType::DON_L || note.type == NoteType::KAT_L || note.type == NoteType::BALLOON_HEAD;
         draw_arc_list.emplace_back(note.type, current_ms, arc_player(), is_big, note.type == NoteType::BALLOON_HEAD,
-                                   judge_x, judge_y, rainbow_arc, synchro(note));
+                                   judge_x, judge_y, rainbow_arc, synchro(note), fade_arc);
     }
     auto it = std::ranges::lower_bound(draw_note_buffer, note.index, {}, &Note::index);
     if (it != draw_note_buffer.end() && *it == note) {
@@ -1132,7 +1132,8 @@ void Player::on_score_popup(int amount, bool tick) {
 
 void Player::on_drumroll_hit(DrumType drum_type, double current_ms) {
     const bool is_big = !other_notes.empty() && other_notes.front().type == NoteType::ROLL_HEAD_L;
-    draw_arc_list.emplace_back(NoteType(drum_type), current_ms, arc_player(), is_big, false, 0.0f, 0.0f, rainbow_arc);
+    draw_arc_list.emplace_back(NoteType(drum_type), current_ms, arc_player(), is_big, false, 0.0f, 0.0f, rainbow_arc,
+                               false, fade_arc);
     if (curr_drumroll_count == 1) {
         drumroll_counter.reset(); // an equal count left by the last roll would not restart the animations
     }

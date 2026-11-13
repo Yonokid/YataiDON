@@ -39,10 +39,10 @@
 #include "objects/global/toast.h"
 #include "objects/song_select/file_navigator/navigator.h"
 #include "scenes/ai_battle.h"
+#include "scenes/battle.h"
 #include "scenes/campaign.h"
 #include "scenes/dan_result.h"
 #include "scenes/dan_select.h"
-#include "scenes/enso_battle.h"
 #include "scenes/entry.h"
 #include "scenes/game.h"
 #include "scenes/game_2p.h"
@@ -266,8 +266,8 @@ static bool screen_fade_applies(Screens from, Screens to) {
     case Screens::GAME_PRACTICE:
     case Screens::AI_GAME:
     case Screens::AI_RESULT:
-    case Screens::ENSO_GAME:
-    case Screens::ENSO_RESULT:
+    case Screens::BATTLE_GAME:
+    case Screens::BATTLE_RESULT:
     case Screens::RESULT:
     case Screens::RESULT_2P:
     case Screens::WAIWAI_GAME:
@@ -330,14 +330,14 @@ static void populate_screens(std::unordered_map<Screens, std::unique_ptr<Screen>
     if (except != Screens::AI_RESULT) {
         screens[Screens::AI_RESULT] = std::make_unique<AIResultScreen>();
     }
-    if (except != Screens::ENSO_SELECT) {
-        screens[Screens::ENSO_SELECT] = std::make_unique<EnsoSongSelectScreen>();
+    if (except != Screens::BATTLE_SELECT) {
+        screens[Screens::BATTLE_SELECT] = std::make_unique<BattleSongSelectScreen>();
     }
-    if (except != Screens::ENSO_GAME) {
-        screens[Screens::ENSO_GAME] = std::make_unique<EnsoGameScreen>();
+    if (except != Screens::BATTLE_GAME) {
+        screens[Screens::BATTLE_GAME] = std::make_unique<BattleGameScreen>();
     }
-    if (except != Screens::ENSO_RESULT) {
-        screens[Screens::ENSO_RESULT] = std::make_unique<EnsoResultScreen>();
+    if (except != Screens::BATTLE_RESULT) {
+        screens[Screens::BATTLE_RESULT] = std::make_unique<BattleResultScreen>();
     }
     if (except != Screens::LOADING) {
         screens[Screens::LOADING] = std::make_unique<LoadingScreen>();

@@ -1,18 +1,19 @@
-#include "enso_battle.h"
+#include "battle.h"
 
-#include "../objects/game/enso_match.h"
+#include "../objects/game/battle_match.h"
 
 // the special move's slash lands this long after the cut-in starts
 static constexpr double SKILL_HIT_MS = 1300.0;
 
-void EnsoGameScreen::initialize_chart(const fs::path& song) {
+void BattleGameScreen::initialize_chart(const fs::path& song) {
     GameScreen::initialize_chart(song);
     start_battle();
     apply_overlay_layout();
 }
 
-void EnsoGameScreen::start_battle() {
-    attack = enso_base_attack(ENSO_DEFAULT_BOND);
+void BattleGameScreen::start_battle() {
+    boss = battle_is_boss_stage(BATTLE_STAGE);
+    attack = battle_base_attack(boss ? BATTLE_BOSS_BOND : BATTLE_DEFAULT_BOND);
     difficulty = global_data.session_data[static_cast<int>(global_data.player_num)].selected_difficulty;
     total_damage = 0;
     skill_notes = 0;
@@ -20,18 +21,31 @@ void EnsoGameScreen::start_battle() {
     rolls_seen = 0;
     skill_lands_ms.reset();
     ended = false;
-    if (overlay_active()) {
-        overlay->reset(JudgePos::X, JudgePos::Y);
-    }
+    boss_hp = global_data.battle_boss_hp > 0 ? global_data.battle_boss_hp : BATTLE_BOSS_HP;
     field.clear();
-    while (std::ssize(field) < ENSO_FIELD_SIZE) {
-        pop_next();
+    while (!boss && std::ssize(field) < BATTLE_FIELD_SIZE) {
+        field.push_back(battle_next_zako(rng));
     }
-    enemy_hp = ENSO_ZAKO_HP[field.front()];
+    enemy_hp = boss ? 0 : BATTLE_ZAKO_HP[field.front()];
     players[0]->on_note_judged = [this](const Note& note, Judgments judgment) { on_note(note, judgment); };
+    announce_battle();
 }
 
-void EnsoGameScreen::apply_overlay_layout() {
+void BattleGameScreen::announce_battle() {
+    if (!overlay_active()) {
+        return;
+    }
+    overlay->reset(JudgePos::X, JudgePos::Y);
+    const double now = get_current_ms();
+    if (boss) {
+        overlay->boss(now, boss_hp, BATTLE_BOSS_HP);
+    }
+    for (const int kind : field) {
+        overlay->pop_enemy(now, kind);
+    }
+}
+
+void BattleGameScreen::apply_overlay_layout() {
     if (!overlay_active()) {
         return;
     }
@@ -42,35 +56,36 @@ void EnsoGameScreen::apply_overlay_layout() {
     player.hide_ending_anim = true;
     player.hide_score_counter = true;
     player.hide_judgment_text = true;
+    player.rainbow_arc = true;
+    player.fade_arc = true;
     player.place_chara_on_stage(0.0f, 0.0f);
 }
 
-void EnsoGameScreen::on_screen_start() {
+void BattleGameScreen::on_screen_start() {
     GameScreen::on_screen_start();
     overlay.emplace();
-    if (overlay->loaded()) {
-        overlay->reset(JudgePos::X, JudgePos::Y);
-        for (const int kind : field) {
-            overlay->pop_enemy(get_current_ms(), kind);
-        }
-    }
+    announce_battle();
     apply_overlay_layout();
 }
 
-Screens EnsoGameScreen::on_screen_end(Screens next_screen) {
+Screens BattleGameScreen::on_screen_end(Screens next_screen) {
     overlay.reset();
     return GameScreen::on_screen_end(next_screen);
 }
 
-void EnsoGameScreen::pop_next() {
-    field.push_back(enso_next_zako(rng));
+void BattleGameScreen::pop_next() {
+    field.push_back(battle_next_zako(rng));
     if (overlay_active()) {
         overlay->pop_enemy(get_current_ms(), field.back());
     }
 }
 
-void EnsoGameScreen::deal(int damage, bool skill) {
+void BattleGameScreen::deal(int damage, bool skill) {
     total_damage += damage;
+    if (boss) {
+        boss_hp = std::max(0, boss_hp - damage);
+        return;
+    }
     while (damage >= enemy_hp) {
         damage -= enemy_hp;
         field.pop_front();
@@ -78,16 +93,19 @@ void EnsoGameScreen::deal(int damage, bool skill) {
             overlay->kill(get_current_ms(), skill);
         }
         pop_next();
-        enemy_hp = ENSO_ZAKO_HP[field.front()];
+        enemy_hp = BATTLE_ZAKO_HP[field.front()];
+        if (!skill) {
+            return;
+        }
     }
     enemy_hp -= damage;
 }
 
-void EnsoGameScreen::on_note(const Note& note, Judgments judgment) {
+void BattleGameScreen::on_note(const Note& note, Judgments judgment) {
     if (note.type < NoteType::DON || note.type > NoteType::KAT_L || ended) {
         return;
     }
-    const EnsoHit hit = enso_note_damage(attack, judgment, rng);
+    const BattleHit hit = battle_note_damage(attack, judgment, rng);
     if (hit.damage == 0) {
         return;
     }
@@ -99,13 +117,13 @@ void EnsoGameScreen::on_note(const Note& note, Judgments judgment) {
         overlay->hit(now, hit.damage, judgment == Judgments::GOOD, hit.critical, kat, big);
     }
     ++skill_notes;
-    if (!skill_lands_ms && skill_notes >= enso_skill_threshold(difficulty, skills_fired)) {
+    if (!skill_lands_ms && skill_notes >= battle_skill_threshold(difficulty, skills_fired)) {
         ++skills_fired;
         skill_lands_ms = now + SKILL_HIT_MS;
         if (overlay_active()) {
             overlay->start_skill(now, 1);
         }
-        if (std::uniform_real_distribution<double>(0.0, 1.0)(rng) < ENSO_CHEST_CHANCE) {
+        if (std::uniform_real_distribution<double>(0.0, 1.0)(rng) < BATTLE_CHEST_CHANCE) {
             if (overlay_active()) {
                 overlay->drop_chest(now);
             }
@@ -113,11 +131,11 @@ void EnsoGameScreen::on_note(const Note& note, Judgments judgment) {
     }
 }
 
-void EnsoGameScreen::update_battle() {
+void BattleGameScreen::update_battle() {
     const double now = get_current_ms();
     const int rolls = players[0]->result().drumroll;
     for (; rolls_seen < rolls; ++rolls_seen) {
-        const int damage = enso_roll_damage(attack, rng);
+        const int damage = battle_roll_damage(attack, rng);
         deal(damage);
         if (overlay_active()) {
             overlay->roll_hit(now, damage);
@@ -125,22 +143,25 @@ void EnsoGameScreen::update_battle() {
     }
     if (skill_lands_ms && now >= *skill_lands_ms) {
         skill_lands_ms.reset();
-        deal(attack * ENSO_SKILL_ATTACKS, true);
+        deal(attack * BATTLE_SKILL_ATTACKS, true);
     }
     if (!ended && clock.position() >= players[0]->end_time) {
         ended = true;
+        if (boss) {
+            global_data.battle_boss_hp = boss_hp;
+        }
         if (overlay_active()) {
             overlay->song_end(now);
         }
     }
     if (overlay_active()) {
         const int fired_before = skill_lands_ms ? skills_fired - 1 : skills_fired;
-        const float fill = skill_lands_ms ? 1.0f : enso_skill_fill(difficulty, fired_before, skill_notes);
-        overlay->set_status(total_damage / ENSO_POWER_DAMAGE, fill);
+        const float fill = skill_lands_ms ? 1.0f : battle_skill_fill(difficulty, fired_before, skill_notes);
+        overlay->set_status(total_damage / BATTLE_POWER_DAMAGE, fill, boss_hp);
     }
 }
 
-std::optional<Screens> EnsoGameScreen::update() {
+std::optional<Screens> BattleGameScreen::update() {
     auto next = GameScreen::update();
     if (next || players.empty()) {
         return next;
@@ -149,7 +170,7 @@ std::optional<Screens> EnsoGameScreen::update() {
     return next;
 }
 
-void EnsoGameScreen::draw() {
+void BattleGameScreen::draw() {
     if (!overlay_active()) {
         GameScreen::draw();
         return;

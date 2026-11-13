@@ -4,24 +4,26 @@
 #include <optional>
 #include <random>
 
-#include "../objects/game/enso_battle_overlay.h"
+#include "../objects/game/battle_overlay.h"
 #include "game.h"
 #include "result.h"
 #include "song_select.h"
 
-class EnsoSongSelectScreen : public SongSelectScreen {
+class BattleSongSelectScreen : public SongSelectScreen {
 protected:
-    Screens get_game_screen_target() override { return Screens::ENSO_GAME; }
+    Screens get_game_screen_target() override { return Screens::BATTLE_GAME; }
     bool hides_dan() override { return true; }
     bool allows_second_player_join() override { return false; }
 };
 
-class EnsoGameScreen : public GameScreen {
-    std::optional<EnsoBattleOverlay> overlay;
+class BattleGameScreen : public GameScreen {
+    std::optional<BattleOverlay> overlay;
     std::mt19937 rng{std::random_device{}()};
 
     int attack = 0;
     int difficulty = 0;
+    bool boss = false;
+    int boss_hp = 0;
     std::deque<int> field;
     int enemy_hp = 0;
     int total_damage = 0;
@@ -33,6 +35,7 @@ class EnsoGameScreen : public GameScreen {
 
     bool overlay_active() const { return overlay && overlay->loaded(); }
     void start_battle();
+    void announce_battle();
     void apply_overlay_layout();
     void on_note(const Note& note, Judgments judgment);
     void deal(int damage, bool skill = false);
@@ -40,8 +43,8 @@ class EnsoGameScreen : public GameScreen {
     void update_battle();
 
 protected:
-    Screens select_screen() const override { return Screens::ENSO_SELECT; }
-    Screens result_screen() const override { return Screens::ENSO_RESULT; }
+    Screens select_screen() const override { return Screens::BATTLE_SELECT; }
+    Screens result_screen() const override { return Screens::BATTLE_RESULT; }
 
 public:
     void initialize_chart(const fs::path& song) override;
@@ -51,9 +54,9 @@ public:
     void draw() override;
 };
 
-class EnsoResultScreen : public ResultScreen {
+class BattleResultScreen : public ResultScreen {
 protected:
-    Screens select_screen() const override { return Screens::ENSO_SELECT; }
+    Screens select_screen() const override { return Screens::BATTLE_SELECT; }
     bool run_failed() const override { return false; }
 
 public:

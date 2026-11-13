@@ -293,6 +293,7 @@ struct GlobalData {
     int kinotake_team[2] = {-1, -1};
     int kinotake_next = 0;
     AIMatchResult ai_match;
+    int battle_boss_hp = 0;                    // the battle mode boss's HP left this credit; 0 brings a fresh boss
     std::vector<int> credit_gauges[2];         // soul gauge percent per scored song this credit, per seat
     std::vector<std::string> credit_titles[2]; // same songs
     bool reward_shop_from_entry = false;       // mode select opened the shop: no reward time, back to entry

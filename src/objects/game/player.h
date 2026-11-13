@@ -96,6 +96,7 @@ public:
     bool hide_ending_anim = false;
     bool hide_judgment_text = false;
     bool rainbow_arc = false;
+    bool fade_arc = false;
     // decides how autoplay lands each note; unset means every note is a Good
     std::function<Judgments(const Note&)> autoplay_judge;
     std::function<void(const Note&, Judgments)> on_note_judged;
