@@ -51,8 +51,8 @@ void BattleOverlay::drop_chest(double ms) {
     call(fn_drop_chest, "EnsoBattleOverlay:drop_chest", ms);
 }
 
-void BattleOverlay::song_end(double ms) {
-    call(fn_song_end, "EnsoBattleOverlay:song_end", ms);
+void BattleOverlay::song_end(double ms, bool full_combo) {
+    call(fn_song_end, "EnsoBattleOverlay:song_end", ms, full_combo);
 }
 
 void BattleOverlay::set_status(int battle_power, float skill_fill, int boss_hp) {

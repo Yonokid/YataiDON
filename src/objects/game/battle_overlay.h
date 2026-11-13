@@ -28,7 +28,7 @@ public:
     void kill(double ms, bool skill);
     void start_skill(double ms, int skill);
     void drop_chest(double ms);
-    void song_end(double ms);
+    void song_end(double ms, bool full_combo);
     void set_status(int battle_power, float skill_fill, int boss_hp);
     void draw_back(double ms);
     void draw_cutin(double ms);

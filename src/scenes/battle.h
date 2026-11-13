@@ -7,18 +7,22 @@
 #include "../objects/game/battle_overlay.h"
 #include "../objects/result/battle_result_board.h"
 #include "../objects/song_select/battle_select_info.h"
+#include "../objects/song_select/subdiff_picker.h"
 #include "game.h"
 #include "result.h"
 #include "song_select.h"
 
 class BattleSongSelectScreen : public SongSelectScreen {
     std::optional<BattleSelectInfo> info;
+    SubdiffPicker picker;
 
 protected:
     Screens get_game_screen_target() override { return Screens::BATTLE_GAME; }
     bool hides_dan() override { return true; }
     bool allows_second_player_join() override { return false; }
     void draw_overlays() override;
+    void handle_input_selecting() override;
+    void select_song(SongBox* song) override;
 
 public:
     void on_screen_start() override;
@@ -58,6 +62,7 @@ class BattleGameScreen : public GameScreen {
 protected:
     Screens select_screen() const override { return Screens::BATTLE_SELECT; }
     Screens result_screen() const override { return Screens::BATTLE_RESULT; }
+    Modifiers get_player_modifiers(PlayerNum pn) override;
 
 public:
     void initialize_chart(const fs::path& song) override;

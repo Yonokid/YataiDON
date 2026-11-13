@@ -7,19 +7,6 @@
 #include "../libs/file/scores.h"
 #include "../libs/input/input.h"
 
-static constexpr int LEVEL_SELECT_SECONDS = 10;
-
-static constexpr std::array<int, 4> FIRST_LEVEL = {1, 2, 6, 10};
-static constexpr std::array<int, 4> LEVEL_COUNT = {1, 4, 4, 4};
-
-int AISongSelectScreen::hovered_course() const {
-    if (!menu || !menu->loaded() || state != SongSelectState::SONG_SELECTED || tex.options[SCO::AI_NO_SUPPORT_LEVELS]) {
-        return -1;
-    }
-    const auto course = static_cast<int>(player->selected_difficulty);
-    return course >= 0 && course < static_cast<int>(LEVEL_COUNT.size()) ? course : -1;
-}
-
 void AISongSelectScreen::play_call_voice() {
     audio.stop_sound("voice_enter");
     const bool kadai = status.answered && status.rank == AI_ASSIGNED_RANK;
@@ -36,11 +23,8 @@ void AISongSelectScreen::on_screen_start() {
     ai_chara = make_chara_from_player_data(&ai_data, global_data.player_num == PlayerNum::P1);
     ai_chara->set_anim(AnimIndex::DON_SELECT_LOOP);
     global_data.ai_condition = ai_roll_condition();
-    menu.emplace();
-    menu->set_status(status);
-    choosing_level = false;
-    level_decided = false;
-    level_cursor = 0;
+    picker.reset();
+    picker.support_menu()->set_status(status);
     if (script_manager.has_lua_script("ai_intro") &&
         scores_manager.first_visit(get_player_id(global_data.player_num), "ai_intro_seen")) {
         intro = std::make_unique<AIIntro>();
@@ -57,7 +41,7 @@ void AISongSelectScreen::on_screen_start() {
 }
 
 Screens AISongSelectScreen::on_screen_end(Screens next_screen) {
-    menu.reset();
+    picker.clear();
     intro.reset();
     ai_chara.reset();
     return SongSelectScreen::on_screen_end(next_screen);
@@ -101,44 +85,19 @@ void AISongSelectScreen::draw() {
 }
 
 void AISongSelectScreen::handle_input_selecting() {
-    if (choosing_level) {
-        if (level_decided) {
-            clear_input_buffers();
-            return;
-        }
-        const int last = LEVEL_COUNT[chosen_course] - 1;
-        if (is_l_kat_pressed(global_data.player_num)) {
-            audio.play_player_sound("kat", global_data.player_num, VolumePreset::HITSOUND);
-            level_cursor = std::max(level_cursor - 1, 0);
-        } else if (is_r_kat_pressed(global_data.player_num)) {
-            audio.play_player_sound("kat", global_data.player_num, VolumePreset::HITSOUND);
-            level_cursor = std::min(level_cursor + 1, last);
-        } else if (is_l_don_pressed(global_data.player_num) || is_r_don_pressed(global_data.player_num)) {
-            audio.play_player_sound("don", global_data.player_num, VolumePreset::HITSOUND);
-            level_decided = true;
-        }
+    if (picker.handle_input()) {
         return;
     }
-
     SongSelectScreen::handle_input_selecting();
-
-    const int course = hovered_course();
-    if (course >= 0 && player->difficulty_decided() && LEVEL_COUNT[course] > 1) {
-        chosen_course = course;
-        choosing_level = true;
-        level_cursor = LEVEL_COUNT[course] - 1;
-        diff_select_timer =
-            std::make_unique<Timer>(LEVEL_SELECT_SECONDS, get_current_ms(), [this] { level_decided = true; });
-    }
+    picker.open_if_decided(picker.hovered_course(state, *player), *player, diff_select_timer, get_current_ms());
 }
 
 void AISongSelectScreen::select_song(SongBox* song) {
-    if (choosing_level && !level_decided) {
+    if (picker.blocks_select()) {
         return;
     }
-    const bool simplified = choosing_level && level_cursor < LEVEL_COUNT[chosen_course] - 1;
     const auto human = static_cast<int>(global_data.player_num);
-    global_data.session_data[human].subdiff = simplified ? FIRST_LEVEL[chosen_course] + level_cursor : 0;
+    global_data.session_data[human].subdiff = picker.subdiff();
     global_data.session_data[human].ai_assigned = song->collection == AI_ASSIGNED_COLLECTION;
 
     SongSelectScreen::select_song(song);
@@ -151,13 +110,9 @@ void AISongSelectScreen::draw_overlays() {
             tex.chara_xy(global_data.player_num == PlayerNum::P1 ? "song_select_2p" : "song_select_1p");
         ai_chara->draw(chara_x, chara_y);
     }
-    if (menu) {
-        const int course = hovered_course();
-        const auto* song = dynamic_cast<SongBox*>(navigator.get_current_item());
-        const bool branching = course >= 0 && song != nullptr && song->course_info(course).is_branching;
-        menu->draw(get_current_ms(), course, level_cursor, choosing_level, branching,
-                   static_cast<int>(global_data.player_num), ai_condition_tier(global_data.ai_condition));
-    }
+    picker.draw(get_current_ms(), picker.hovered_course(state, *player),
+                dynamic_cast<SongBox*>(navigator.get_current_item()), static_cast<int>(global_data.player_num),
+                ai_condition_tier(global_data.ai_condition));
     SongSelectScreen::draw_overlays();
 }
 

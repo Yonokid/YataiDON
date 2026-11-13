@@ -22,10 +22,12 @@ void BattleSongSelectScreen::on_screen_start() {
     global_data.battle_boss_hp_max = boss == status.bosses.end() ? 0 : boss->second.max;
     SongSelectScreen::on_screen_start();
     info.emplace(status, global_data.battle_stage, global_data.player_num == PlayerNum::P2 ? 2 : 1);
+    picker.reset();
 }
 
 Screens BattleSongSelectScreen::on_screen_end(Screens next_screen) {
     info.reset();
+    picker.clear();
     return SongSelectScreen::on_screen_end(next_screen);
 }
 
@@ -33,7 +35,31 @@ void BattleSongSelectScreen::draw_overlays() {
     if (info) {
         info->draw(get_current_ms());
     }
+    picker.draw(get_current_ms(), picker.hovered_course(state, *player),
+                dynamic_cast<SongBox*>(navigator.get_current_item()), static_cast<int>(global_data.player_num), -1);
     SongSelectScreen::draw_overlays();
+}
+
+void BattleSongSelectScreen::handle_input_selecting() {
+    if (picker.handle_input()) {
+        return;
+    }
+    SongSelectScreen::handle_input_selecting();
+    picker.open_if_decided(picker.hovered_course(state, *player), *player, diff_select_timer, get_current_ms());
+}
+
+void BattleSongSelectScreen::select_song(SongBox* song) {
+    if (picker.blocks_select()) {
+        return;
+    }
+    global_data.session_data[static_cast<int>(global_data.player_num)].subdiff = picker.subdiff();
+    SongSelectScreen::select_song(song);
+}
+
+Modifiers BattleGameScreen::get_player_modifiers(PlayerNum pn) {
+    Modifiers modifiers = GameScreen::get_player_modifiers(pn);
+    modifiers.subdiff = global_data.session_data[static_cast<int>(pn)].subdiff;
+    return modifiers;
 }
 
 void BattleGameScreen::initialize_chart(const fs::path& song) {
@@ -196,7 +222,7 @@ void BattleGameScreen::update_battle() {
                                    chests};
         submit_song();
         if (overlay_active()) {
-            overlay->song_end(now);
+            overlay->song_end(now, players[0]->get_bad() == 0);
         }
     }
     if (overlay_active()) {
