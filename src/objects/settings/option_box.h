@@ -114,7 +114,7 @@ class AccountOptionBox : public BaseOptionBox {
     std::unique_ptr<OutlinedText> masked_text;
     std::unique_ptr<FadeAnimation> flicker_fade;
     std::optional<Texture> qr_texture;
-    Rect qr_rect{};
+    Rect qr_rect;
     bool qr_visible{false};
     // Held only while this option is on screen, so it never goes stale and opening settings stays fast
     std::unique_ptr<Nameplate> nameplate;
