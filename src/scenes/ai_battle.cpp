@@ -17,6 +17,9 @@ void AISongSelectScreen::on_screen_start() {
     const std::string& code = global_data.player_num == PlayerNum::P1 ? global_data.config->network.access_code_1
                                                                       : global_data.config->network.access_code_2;
     status = code.empty() ? AIBattleStatus{} : network.fetch_ai_battle_status(code);
+    const bool wants_intro = script_manager.has_lua_script("ai_intro") &&
+                             scores_manager.first_visit(get_player_id(global_data.player_num), "ai_intro_seen");
+    global_data.hold_genre_voice = wants_intro;
     SongSelectScreen::on_screen_start();
     PlayerData ai_data;
     ai_data.chara_cos_index = AI_COSTUME;
@@ -25,8 +28,7 @@ void AISongSelectScreen::on_screen_start() {
     global_data.ai_condition = ai_roll_condition();
     picker.reset();
     picker.support_menu()->set_status(status);
-    if (script_manager.has_lua_script("ai_intro") &&
-        scores_manager.first_visit(get_player_id(global_data.player_num), "ai_intro_seen")) {
+    if (wants_intro) {
         intro = std::make_unique<StoryScript>("AIIntro", "ai_intro");
         if (intro->unavailable()) {
             intro.reset();
@@ -38,11 +40,13 @@ void AISongSelectScreen::on_screen_start() {
     if (!intro) {
         play_call_voice();
     }
+    global_data.hold_genre_voice = intro != nullptr;
 }
 
 Screens AISongSelectScreen::on_screen_end(Screens next_screen) {
     picker.clear();
     intro.reset();
+    global_data.hold_genre_voice = false;
     ai_chara.reset();
     return SongSelectScreen::on_screen_end(next_screen);
 }
@@ -69,6 +73,7 @@ std::optional<Screens> AISongSelectScreen::update() {
     intro->update(current_ms);
     if (intro->is_done()) {
         intro.reset();
+        global_data.hold_genre_voice = false;
         audio.play_sound("bgm", VolumePreset::MUSIC);
         play_call_voice();
         select_timer = std::make_unique<Timer>(100, current_ms, [this] { on_select_timeout(); });

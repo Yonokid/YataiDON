@@ -33,7 +33,7 @@ inline int battle_base_attack(int bond) {
 inline constexpr double BATTLE_CRITICAL_CHANCE = 0.1;
 inline constexpr int BATTLE_ROLL_DIVISOR = 8;
 inline constexpr int BATTLE_SKILL_ATTACKS = 20;
-inline constexpr double BATTLE_CHEST_CHANCE = 0.1;
+inline constexpr double BATTLE_CHEST_CHANCE = 0.25;
 inline constexpr double BATTLE_ORB_CHEST_CHANCE = 0.1;
 inline constexpr int BATTLE_MAX_CHESTS = 3;
 

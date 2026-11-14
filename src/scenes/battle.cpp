@@ -26,6 +26,7 @@ void BattleSongSelectScreen::on_screen_start() {
     if (status.answered && global_data.battle_skills.empty()) {
         global_data.battle_skills = status.skills;
     }
+    global_data.hold_genre_voice = !status.story.empty() && script_manager.has_lua_script("battle_story");
     SongSelectScreen::on_screen_start();
     const int side = global_data.player_num == PlayerNum::P2 ? 2 : 1;
     info.emplace(status, global_data.battle_stage, side);
@@ -40,6 +41,7 @@ void BattleSongSelectScreen::on_screen_start() {
             audio.stop_sound("voice_enter");
         }
     }
+    global_data.hold_genre_voice = story != nullptr;
 }
 
 Screens BattleSongSelectScreen::on_screen_end(Screens next_screen) {
@@ -47,6 +49,7 @@ Screens BattleSongSelectScreen::on_screen_end(Screens next_screen) {
     skills.reset();
     picker.clear();
     story.reset();
+    global_data.hold_genre_voice = false;
     return SongSelectScreen::on_screen_end(next_screen);
 }
 
@@ -69,6 +72,7 @@ std::optional<Screens> BattleSongSelectScreen::update() {
     if (story->is_done()) {
         network.mark_battle_story(battle_access_code(), story->played());
         story.reset();
+        global_data.hold_genre_voice = false;
         audio.play_sound("bgm", VolumePreset::MUSIC);
         select_timer = std::make_unique<Timer>(100, current_ms, [this] { on_select_timeout(); });
     }

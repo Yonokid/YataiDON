@@ -11,6 +11,7 @@ public:
     std::map<int, Crown> crown_p2;
     bool entered = false;
     bool genre_voice_started = false;
+    bool genre_voice_pending = false;
     std::string custom_voice;
     std::string hover_voice() const;
     std::unique_ptr<FadeAnimation> enter_fade;

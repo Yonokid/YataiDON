@@ -318,6 +318,7 @@ struct GlobalData {
     bool battle_orbs = false;       // white chests can drop
     std::vector<int> battle_skills; // the skill picker's slots; empty until the first battle select
     BattleTally battle_song;
+    bool hold_genre_voice = false; // a song select story/intro is running: folder voices wait for it
     std::vector<int> credit_gauges[2];         // soul gauge percent per scored song this credit, per seat
     std::vector<std::string> credit_titles[2]; // same songs
     bool reward_shop_from_entry = false;       // mode select opened the shop: no reward time, back to entry
