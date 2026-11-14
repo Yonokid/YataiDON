@@ -730,7 +730,7 @@ std::optional<Screens> EntryScreen::handle_input() {
 }
 
 static bool mode_voice_playing() {
-    return std::ranges::any_of(std::array{"mode_game", "mode_ai", "mode_practice", "mode_shop"}, [](const char* voice) {
+    return std::ranges::any_of(std::array{"mode_game", "mode_ai", "mode_practice", "mode_shop", "mode_battle"}, [](const char* voice) {
         return audio.has_sound(voice) && audio.is_sound_playing(voice);
     });
 }

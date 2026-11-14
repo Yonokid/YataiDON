@@ -28,6 +28,10 @@ protected:
     bool popup_open() override {
         return SongSelectScreen::popup_open() || (skills && skills->is_shown(get_current_ms()));
     }
+    fs::path bgm_override() override {
+        const fs::path bgm = "Sounds/battle_select/bgm.ogg";
+        return fs::exists(resolve_skin_path(bgm)) ? bgm : fs::path{};
+    }
     void handle_input_selecting() override;
     void select_song(SongBox* song) override;
 

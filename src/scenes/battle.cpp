@@ -361,6 +361,8 @@ void BattleGameScreen::draw() {
 
     draw_players();
     overlay->draw_front(ms);
+    // hide_gauge leaves the hit notes' arcs to the screen
+    players[0]->draw_arcs();
     draw_overlay();
 }
 

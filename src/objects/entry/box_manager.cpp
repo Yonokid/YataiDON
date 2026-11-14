@@ -181,6 +181,8 @@ void BoxManager::select_box() {
         audio.play_sound("mode_game", VolumePreset::VOICE);
     } else if (location == Screens::AI_SELECT) {
         audio.play_sound("mode_ai", VolumePreset::VOICE);
+    } else if (location == Screens::BATTLE_SELECT) {
+        audio.play_sound("mode_battle", VolumePreset::VOICE);
     }
     fade_out->start();
 }
