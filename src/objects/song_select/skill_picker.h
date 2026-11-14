@@ -15,7 +15,7 @@ class SkillPicker : public LuaScript {
     int number(int index) const;
 
 public:
-    SkillPicker(int moves, int player);
+    SkillPicker(int moves, bool hacchake, int player);
     void open(double ms);
     bool handle_input(double ms);
     void draw(double ms);

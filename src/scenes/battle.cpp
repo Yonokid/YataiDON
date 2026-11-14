@@ -21,13 +21,15 @@ void BattleSongSelectScreen::on_screen_start() {
     global_data.battle_boss_hp = boss == status.bosses.end() ? 0 : boss->second.hp;
     global_data.battle_boss_hp_max = boss == status.bosses.end() ? 0 : boss->second.max;
     global_data.battle_moves = status.answered ? status.moves : 1;
+    global_data.battle_hacchake = status.orb_rewards > 0;
+    global_data.battle_orbs = status.orb_cost > 0;
     if (status.answered && global_data.battle_skills.empty()) {
         global_data.battle_skills = status.skills;
     }
     SongSelectScreen::on_screen_start();
     const int side = global_data.player_num == PlayerNum::P2 ? 2 : 1;
     info.emplace(status, global_data.battle_stage, side);
-    skills.emplace(global_data.battle_moves, side);
+    skills.emplace(global_data.battle_moves, global_data.battle_hacchake, side);
     picker.reset();
     if (!status.story.empty() && script_manager.has_lua_script("battle_story")) {
         story = std::make_unique<StoryScript>("BattleStory", "battle_story", sol::as_table(status.story));
@@ -120,6 +122,7 @@ void BattleSongSelectScreen::select_song(SongBox* song) {
 Modifiers BattleGameScreen::get_player_modifiers(PlayerNum pn) {
     Modifiers modifiers = GameScreen::get_player_modifiers(pn);
     modifiers.subdiff = global_data.session_data[static_cast<int>(pn)].subdiff;
+    modifiers.auto_play = global_data.force_auto_play;
     return modifiers;
 }
 
@@ -139,9 +142,11 @@ void BattleGameScreen::start_battle() {
     skills_fired = 0;
     rolls_seen = 0;
     chests = 0;
+    orb_chests = 0;
     kills = 0;
     global_data.battle_song = {};
     skill_lands_ms.reset();
+    gogo = false;
     skill_slots = global_data.battle_skills;
     ended = false;
     boss_hp = global_data.battle_boss_hp;
@@ -158,7 +163,7 @@ void BattleGameScreen::announce_battle() {
     if (!overlay_active()) {
         return;
     }
-    overlay->reset(JudgePos::X, JudgePos::Y, stage);
+    overlay->reset(JudgePos::X, JudgePos::Y, stage, global_data.battle_orbs);
     const double now = get_current_ms();
     if (boss) {
         overlay->boss(now, boss_hp, global_data.battle_boss_hp_max);
@@ -177,8 +182,10 @@ void BattleGameScreen::apply_overlay_layout() {
     Player& player = *players[0];
     player.hide_gauge = true;
     player.hide_ending_anim = true;
+    player.skip_ending_anim = true;
     player.hide_score_counter = true;
-    player.hide_judgment_text = true;
+    player.hide_judgment = true;
+    player.use_lane_cover(global_data.player_num == PlayerNum::P2 ? "battle_2p_lane_cover" : "battle_1p_lane_cover");
     player.rainbow_arc = true;
     player.fade_arc = true;
     player.place_chara_on_stage(0.0f, 0.0f);
@@ -244,17 +251,24 @@ void BattleGameScreen::on_note(const Note& note, Judgments judgment) {
     if (skill_lands_ms || skill_notes < battle_skill_threshold(difficulty, skills_fired)) {
         return;
     }
-    const int move = battle_slot_move(skill_slots, global_data.battle_moves, skills_fired, rng);
+    const int move =
+        battle_slot_move(skill_slots, global_data.battle_moves, global_data.battle_hacchake, skills_fired, rng);
     if (move >= 0) {
         ++skills_fired;
         skill_lands_ms = now + SKILL_HIT_MS;
         if (overlay_active()) {
             overlay->start_skill(now, move + 1);
         }
-        if (chests < BATTLE_MAX_CHESTS && std::uniform_real_distribution<double>(0.0, 1.0)(rng) < BATTLE_CHEST_CHANCE) {
+        std::uniform_real_distribution<double> roll(0.0, 1.0);
+        if (global_data.battle_orbs && orb_chests < BATTLE_MAX_CHESTS && roll(rng) < BATTLE_ORB_CHEST_CHANCE) {
+            ++orb_chests;
+            if (overlay_active()) {
+                overlay->drop_chest(now, true);
+            }
+        } else if (chests < BATTLE_MAX_CHESTS && roll(rng) < BATTLE_CHEST_CHANCE) {
             ++chests;
             if (overlay_active()) {
-                overlay->drop_chest(now);
+                overlay->drop_chest(now, false);
             }
         }
     }
@@ -285,10 +299,17 @@ void BattleGameScreen::update_battle() {
                                    kills,
                                    total_damage,
                                    total_damage / BATTLE_POWER_DAMAGE,
-                                   chests};
+                                   chests,
+                                   orb_chests};
         submit_song();
         if (overlay_active()) {
             overlay->song_end(now, players[0]->get_bad() == 0);
+        }
+    }
+    if (players[0]->in_gogo_time() != gogo) {
+        gogo = !gogo;
+        if (overlay_active()) {
+            overlay->set_gogo(now, gogo);
         }
     }
     if (overlay_active()) {
@@ -307,7 +328,7 @@ void BattleGameScreen::submit_song() {
     const SessionData& session = global_data.session_data[static_cast<int>(global_data.player_num)];
     network.reset_battle();
     network.submit_battle(code, session.song_hash, difficulty, stage, skill_notes, total_damage,
-                          total_damage / BATTLE_POWER_DAMAGE, chests, skill_slots);
+                          total_damage / BATTLE_POWER_DAMAGE, chests, orb_chests, skill_slots);
 }
 
 std::optional<Screens> BattleGameScreen::update() {
@@ -330,9 +351,8 @@ void BattleGameScreen::draw() {
 
     static constexpr float CHARA_X = 330.0f;
     static constexpr float CHARA_Y = 640.0f;
-    static constexpr float CHARA_SCALE = 0.6f;
     players[0]->move_stage_chara(CHARA_X * tex.screen_scale, CHARA_Y * tex.screen_scale);
-    players[0]->draw_stage_chara(CHARA_SCALE);
+    players[0]->draw_stage_chara();
     overlay->draw_cutin(ms);
 
     draw_players();

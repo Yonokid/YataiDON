@@ -9,6 +9,9 @@ BattleSelectInfo::BattleSelectInfo(const BattleStatus& status, int stage, int pl
     sol::table data = script_manager.lua->create_table_with(
         "player", player, "bond", status.bond, "exp", status.exp, "exp_next", status.exp_next, "best_power",
         status.best_power, "stones", status.stones, "move_cost", status.move_cost, "stage", stage);
+    data["orbs"] = status.orbs;
+    data["orb_cost"] = status.orb_cost;
+    data["orbs_done"] = status.orb_rewards >= 2;
     data["boss_hp"] = has_boss ? boss->second.hp : 0;
     data["boss_hp_max"] = has_boss ? boss->second.max : 0;
     if (!load("BattleSelectInfo", "battle_select", data)) {

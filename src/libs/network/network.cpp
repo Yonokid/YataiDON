@@ -1181,6 +1181,9 @@ static BattleStatus parse_battle_status(const rapidjson::Value& doc) {
     status.move_cost = read("move_cost", -1);
     status.stage = read("stage", 1);
     status.cleared = read("cleared", 0);
+    status.orbs = read("orbs", 0);
+    status.orb_rewards = read("orb_rewards", 0);
+    status.orb_cost = read("orb_cost", -1);
     if (doc.HasMember("skills") && doc["skills"].IsArray()) {
         for (const auto& move : doc["skills"].GetArray()) {
             status.skills.push_back(move.IsInt() ? move.GetInt() : 11);
@@ -1234,7 +1237,7 @@ void NetworkClient::mark_battle_story(const std::string& access_code, const std:
 }
 
 void NetworkClient::submit_battle(const std::string& access_code, const std::string& song_hash, int difficulty,
-                                  int stage, int hits, int damage, int power, int chests,
+                                  int stage, int hits, int damage, int power, int chests, int orb_chests,
                                   const std::vector<int>& skills) {
     if (!network_enabled() || is_guest_id(access_code) || !online) {
         return;
@@ -1243,15 +1246,18 @@ void NetworkClient::submit_battle(const std::string& access_code, const std::str
     for (const int move : skills) {
         picks += (picks.empty() ? "" : ",") + std::to_string(move);
     }
-    const std::map<std::string, std::string> fields{{"access_code", access_code},
-                                                    {"song_hash", song_hash},
-                                                    {"difficulty", std::to_string(difficulty)},
-                                                    {"stage", std::to_string(stage)},
-                                                    {"hits", std::to_string(hits)},
-                                                    {"damage", std::to_string(damage)},
-                                                    {"power", std::to_string(power)},
-                                                    {"chests", std::to_string(chests)},
-                                                    {"skills", picks}};
+    std::map<std::string, std::string> fields{{"access_code", access_code},
+                                              {"song_hash", song_hash},
+                                              {"difficulty", std::to_string(difficulty)},
+                                              {"stage", std::to_string(stage)},
+                                              {"hits", std::to_string(hits)},
+                                              {"damage", std::to_string(damage)},
+                                              {"power", std::to_string(power)},
+                                              {"chests", std::to_string(chests)},
+                                              {"skills", picks}};
+    if (orb_chests > 0) {
+        fields["orb_chests"] = std::to_string(orb_chests);
+    }
     cpr::Parameters params;
     for (const auto& [key, value] : fields) {
         params.Add({key, value});
@@ -1574,6 +1580,15 @@ void NetworkClient::update(double current_ms) {
                     progress.chests.push_back(stones.IsInt() ? stones.GetInt() : 0);
                 }
             }
+            if (doc.HasMember("orb_chests") && doc["orb_chests"].IsArray()) {
+                for (const auto& orbs : doc["orb_chests"].GetArray()) {
+                    progress.orb_chests.push_back(orbs.IsInt() ? orbs.GetInt() : 0);
+                }
+            }
+            if (doc.HasMember("orb_reward") && doc["orb_reward"].IsObject()) {
+                progress.orb_reward_kind = text_of(doc["orb_reward"], "kind");
+                progress.orb_reward_name = text_of(doc["orb_reward"], "name");
+            }
             if (doc.HasMember("reward") && doc["reward"].IsObject()) {
                 progress.reward_kind = text_of(doc["reward"], "kind");
                 progress.reward_name = text_of(doc["reward"], "name");
@@ -1851,7 +1866,7 @@ BattleStatus NetworkClient::fetch_battle_status(const std::string&) {
     return {};
 }
 void NetworkClient::mark_battle_story(const std::string&, const std::vector<std::string>&) {}
-void NetworkClient::submit_battle(const std::string&, const std::string&, int, int, int, int, int, int,
+void NetworkClient::submit_battle(const std::string&, const std::string&, int, int, int, int, int, int, int,
                                   const std::vector<int>&) {}
 void NetworkClient::request_reward_shop(int seat, const std::string&) {
     shop_seats[seat] = {};

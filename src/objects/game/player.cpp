@@ -242,6 +242,10 @@ void Player::spawn_ending_anim(Background* background) {
     if (ending_background && ending_background->wants_handle_ending()) {
         ending_background->handle_ending(player_num, kind);
     }
+    // a screen that plays its own ending would otherwise also hear this one's sounds and voice
+    if (skip_ending_anim) {
+        ending_anim.reset();
+    }
 }
 
 void Player::reload_for_dan(std::optional<SongParser>& new_parser, int new_difficulty) {
@@ -569,8 +573,10 @@ void Player::draw(double ms_from_start, float x, float y) {
     }
     draw_lane_cover(y);
 
-    for (Judgment& anim : draw_judge_list) {
-        anim.draw_effect(judge_x, y + judge_y);
+    if (!hide_judgment) {
+        for (Judgment& anim : draw_judge_list) {
+            anim.draw_effect(judge_x, y + judge_y);
+        }
     }
     {
         int scissor_x = virtual_to_screen_x(lane_cover_tex_id->scissor_right());
@@ -580,12 +586,10 @@ void Player::draw(double ms_from_start, float x, float y) {
         end_scissor_mode();
     }
 
-    for (Judgment& anim : draw_judge_list) {
-        anim.draw_outer_effect(judge_x, y + judge_y);
-        anim.draw_ray_effect(judge_x, y + judge_y);
-    }
-    if (!hide_judgment_text) {
+    if (!hide_judgment) {
         for (Judgment& anim : draw_judge_list) {
+            anim.draw_outer_effect(judge_x, y + judge_y);
+            anim.draw_ray_effect(judge_x, y + judge_y);
             anim.draw_text(judge_x, y + judge_y);
         }
     }
@@ -619,8 +623,10 @@ void Player::draw_practice(double ms_from_start, float x, float y, bool draw_not
     }
     draw_lane_cover(y);
 
-    for (Judgment& anim : draw_judge_list) {
-        anim.draw_effect(judge_x, y + judge_y);
+    if (!hide_judgment) {
+        for (Judgment& anim : draw_judge_list) {
+            anim.draw_effect(judge_x, y + judge_y);
+        }
     }
 
     if (draw_notes_on) {
@@ -631,12 +637,10 @@ void Player::draw_practice(double ms_from_start, float x, float y, bool draw_not
         end_scissor_mode();
     }
 
-    for (Judgment& anim : draw_judge_list) {
-        anim.draw_outer_effect(judge_x, y + judge_y);
-        anim.draw_ray_effect(judge_x, y + judge_y);
-    }
-    if (!hide_judgment_text) {
+    if (!hide_judgment) {
         for (Judgment& anim : draw_judge_list) {
+            anim.draw_outer_effect(judge_x, y + judge_y);
+            anim.draw_ray_effect(judge_x, y + judge_y);
             anim.draw_text(judge_x, y + judge_y);
         }
     }
@@ -1785,6 +1789,12 @@ void Player::draw_lane_cover(float y) {
     tex.draw_texture(lane_cover_tex_id, {.y = y});
     if (is_dan) {
         tex.draw_texture(t_dan_lane_cover, {.y = y});
+    }
+}
+
+void Player::use_lane_cover(const std::string& name) {
+    if (tex.has_texture("lane/" + name)) {
+        lane_cover_tex_id = tex.get_texture("lane/" + name);
     }
 }
 

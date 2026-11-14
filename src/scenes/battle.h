@@ -51,10 +51,12 @@ class BattleGameScreen : public GameScreen {
     int skills_fired = 0;
     int rolls_seen = 0;
     int chests = 0;
+    int orb_chests = 0;
     int kills = 0;
     std::optional<double> skill_lands_ms;
     std::vector<int> skill_slots;
     bool ended = false;
+    bool gogo = false;
 
     bool overlay_active() const { return overlay && overlay->loaded(); }
     void start_battle();

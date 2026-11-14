@@ -228,6 +228,7 @@ struct BattleTally {
     int damage = 0;
     int power = 0;
     int chests = 0;
+    int orb_chests = 0;
 };
 
 struct SessionData {
@@ -313,6 +314,8 @@ struct GlobalData {
     int battle_boss_hp = 0; // the stage's boss, if it has one
     int battle_boss_hp_max = 0;
     int battle_moves = 1;           // special moves unlocked
+    bool battle_hacchake = false;   // the Maou event's move, bought with orbs
+    bool battle_orbs = false;       // white chests can drop
     std::vector<int> battle_skills; // the skill picker's slots; empty until the first battle select
     BattleTally battle_song;
     std::vector<int> credit_gauges[2];         // soul gauge percent per scored song this credit, per seat

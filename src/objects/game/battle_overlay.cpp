@@ -12,6 +12,7 @@ BattleOverlay::BattleOverlay() {
     fn_kill = lua_object["kill"];
     fn_start_skill = lua_object["start_skill"];
     fn_drop_chest = lua_object["drop_chest"];
+    fn_set_gogo = lua_object["set_gogo"];
     fn_song_end = lua_object["song_end"];
     fn_set_status = lua_object["set_status"];
     fn_draw_back = lua_object["draw_back"];
@@ -19,8 +20,8 @@ BattleOverlay::BattleOverlay() {
     fn_draw_front = lua_object["draw_front"];
 }
 
-void BattleOverlay::reset(float judge_x, float judge_y, int stage) {
-    call(fn_reset, "EnsoBattleOverlay:reset", judge_x, judge_y, stage);
+void BattleOverlay::reset(float judge_x, float judge_y, int stage, bool orbs) {
+    call(fn_reset, "EnsoBattleOverlay:reset", judge_x, judge_y, stage, orbs);
 }
 
 void BattleOverlay::pop_enemy(double ms, int kind) {
@@ -47,8 +48,12 @@ void BattleOverlay::start_skill(double ms, int skill) {
     call(fn_start_skill, "EnsoBattleOverlay:start_skill", ms, skill);
 }
 
-void BattleOverlay::drop_chest(double ms) {
-    call(fn_drop_chest, "EnsoBattleOverlay:drop_chest", ms);
+void BattleOverlay::set_gogo(double ms, bool on) {
+    call(fn_set_gogo, "EnsoBattleOverlay:set_gogo", ms, on);
+}
+
+void BattleOverlay::drop_chest(double ms, bool orbs) {
+    call(fn_drop_chest, "EnsoBattleOverlay:drop_chest", ms, orbs);
 }
 
 void BattleOverlay::song_end(double ms, bool full_combo) {

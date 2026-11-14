@@ -10,6 +10,8 @@ BattleResultBoard::BattleResultBoard(const BattleTally& song, int song_number, i
     sol::table data = lua.create_table_with("stage", song.stage, "difficulty", song.difficulty, "boss", song.boss,
                                             "boss_hp", song.boss_hp, "boss_hp_max", song.boss_hp_max, "kills",
                                             song.kills, "damage", song.damage, "power", song.power);
+    data["orb_chests"] = song.orb_chests;
+    data["player"] = global_data.player_num == PlayerNum::P2 ? 2 : 1;
     data["song_number"] = song_number;
     data["bond"] = bond;
     if (!load("BattleResultBoard", "battle_result", data)) {
@@ -29,25 +31,27 @@ BattleResultBoard::BattleResultBoard(const BattleTally& song, int song_number, i
 
 static sol::table status_table(sol::state& lua, const BattleStatus& s) {
     return lua.create_table_with("bond", s.bond, "exp", s.exp, "exp_next", s.exp_next, "best_power", s.best_power,
-                                 "stones", s.stones, "moves", s.moves, "move_cost", s.move_cost);
+                                 "stones", s.stones, "moves", s.moves, "move_cost", s.move_cost, "orbs", s.orbs,
+                                 "orb_rewards", s.orb_rewards, "orb_cost", s.orb_cost);
 }
 
 void BattleResultBoard::begin(const BattleProgress& progress) {
     sol::state& lua = *script_manager.lua;
     sol::object answer = sol::lua_nil;
     if (progress.answered) {
-        sol::table chests = lua.create_table();
-        for (const int stones : progress.chests) {
-            chests.add(stones);
-        }
         sol::table t = lua.create_table_with("before", status_table(lua, progress.before), "after",
-                                             status_table(lua, progress.after), "chests", chests);
+                                             status_table(lua, progress.after), "chests",
+                                             sol::as_table(progress.chests), "orb_chests",
+                                             sol::as_table(progress.orb_chests));
         if (progress.boss_before) {
             t["boss"] = lua.create_table_with("hp_before", progress.boss_before->hp, "hp_after", progress.boss_hp_after,
                                               "max", progress.boss_before->max);
         }
         if (!progress.reward_kind.empty()) {
             t["reward"] = lua.create_table_with("kind", progress.reward_kind, "name", progress.reward_name);
+        }
+        if (!progress.orb_reward_kind.empty()) {
+            t["orb_reward"] = lua.create_table_with("kind", progress.orb_reward_kind, "name", progress.orb_reward_name);
         }
         answer = t;
     }

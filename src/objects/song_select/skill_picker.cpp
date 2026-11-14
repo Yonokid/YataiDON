@@ -6,7 +6,8 @@
 #include "../../libs/input/input.h"
 #include "../game/battle_match.h"
 
-SkillPicker::SkillPicker(int moves, int player) : items(battle_slot_items(moves)), moves(moves) {
+SkillPicker::SkillPicker(int moves, bool hacchake, int player)
+    : items(battle_slot_items(moves, hacchake)), moves(static_cast<int>(items.size()) - 2) {
     auto& slots = global_data.battle_skills;
     if (slots.size() != BATTLE_SKILL_SLOTS) {
         slots = {BATTLE_MOVE_UNLOCKS[0], BATTLE_MOVE_NONE, BATTLE_MOVE_NONE};

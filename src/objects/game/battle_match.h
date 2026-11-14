@@ -34,24 +34,28 @@ inline constexpr double BATTLE_CRITICAL_CHANCE = 0.1;
 inline constexpr int BATTLE_ROLL_DIVISOR = 8;
 inline constexpr int BATTLE_SKILL_ATTACKS = 20;
 inline constexpr double BATTLE_CHEST_CHANCE = 0.1;
+inline constexpr double BATTLE_ORB_CHEST_CHANCE = 0.1;
 inline constexpr int BATTLE_MAX_CHESTS = 3;
 
 inline constexpr int BATTLE_MOVE_COUNT = 10;
 inline constexpr int BATTLE_MOVE_RANDOM = 10;
 inline constexpr int BATTLE_MOVE_NONE = 11;
-// unlock order; 4 (Hacchake Fire) was a 2018 event move and never unlocks
 inline constexpr std::array<int, 9> BATTLE_MOVE_UNLOCKS = {0, 1, 2, 3, 5, 6, 7, 8, 9};
+inline constexpr int BATTLE_MOVE_HACCHAKE = 4;
 inline constexpr int BATTLE_SKILL_SLOTS = 3;
 
-inline std::vector<int> battle_slot_items(int moves) {
+inline std::vector<int> battle_slot_items(int moves, bool hacchake) {
     const auto unlocked = static_cast<size_t>(std::clamp(moves, 1, static_cast<int>(BATTLE_MOVE_UNLOCKS.size())));
     std::vector<int> items(BATTLE_MOVE_UNLOCKS.begin(), BATTLE_MOVE_UNLOCKS.begin() + unlocked);
+    if (hacchake) {
+        items.insert(std::ranges::upper_bound(items, BATTLE_MOVE_HACCHAKE), BATTLE_MOVE_HACCHAKE);
+    }
     items.push_back(BATTLE_MOVE_RANDOM);
     items.push_back(BATTLE_MOVE_NONE);
     return items;
 }
 
-inline int battle_slot_move(const std::vector<int>& slots, int moves, int fired, std::mt19937& rng) {
+inline int battle_slot_move(const std::vector<int>& slots, int moves, bool hacchake, int fired, std::mt19937& rng) {
     std::vector<int> set;
     std::ranges::copy_if(slots, std::back_inserter(set), [](int m) { return m != BATTLE_MOVE_NONE; });
     if (set.empty()) {
@@ -61,7 +65,7 @@ inline int battle_slot_move(const std::vector<int>& slots, int moves, int fired,
     if (move != BATTLE_MOVE_RANDOM) {
         return move;
     }
-    const std::vector<int> items = battle_slot_items(moves);
+    const std::vector<int> items = battle_slot_items(moves, hacchake);
     return items[std::uniform_int_distribution<size_t>(0, items.size() - 3)(rng)];
 }
 
@@ -101,15 +105,12 @@ inline int battle_skill_threshold(int difficulty, int fired) {
     return row.back() + (row.back() - row[row.size() - 2]) * (fired - static_cast<int>(row.size()) + 1);
 }
 
-// Fill of the special-move gauge, 0..1, between the previous and the next threshold.
 inline float battle_skill_fill(int difficulty, int fired, int notes) {
     const int from = fired == 0 ? 0 : battle_skill_threshold(difficulty, fired - 1);
     const int to = battle_skill_threshold(difficulty, fired);
     return std::clamp(static_cast<float>(notes - from) / static_cast<float>(to - from), 0.0f, 1.0f);
 }
 
-// Minor enemies per enemy stage (1, 3, 5, 7, 9): kind count, how many of the last kinds are big, and the bond level the
-// stage opens at. A small one falls to one hit at that bond and a big one to two (guessed from footage of stage 1).
 struct BattleEnemySet {
     int kinds;
     int big;
@@ -118,7 +119,6 @@ struct BattleEnemySet {
 inline constexpr std::array<BattleEnemySet, 5> BATTLE_ENEMIES = {
     {{5, 1, 1}, {5, 1, 14}, {8, 2, 29}, {7, 2, 41}, {6, 2, 53}}};
 
-// boss stages field the previous enemy stage's enemies once their boss is gone
 inline const BattleEnemySet& battle_enemy_set(int stage) {
     return BATTLE_ENEMIES[std::clamp((stage - 1) / 2, 0, static_cast<int>(BATTLE_ENEMIES.size()) - 1)];
 }
@@ -131,8 +131,10 @@ inline int battle_enemy_hp(int stage, int kind) {
 inline constexpr int BATTLE_FIELD_SIZE = 10;
 inline constexpr int BATTLE_POWER_DAMAGE = 500;
 
+inline constexpr int BATTLE_EX_STAGE = 11;
+
 inline bool battle_is_boss_stage(int stage) {
-    return stage % 2 == 0;
+    return stage % 2 == 0 || stage == BATTLE_EX_STAGE;
 }
 
 inline int battle_next_enemy(int stage, std::mt19937& rng) {

@@ -167,6 +167,9 @@ struct BattleStatus {
     int stage = 1;                    // the furthest open stage
     int cleared = 0;                  // bit n: stage n's boss beaten
     std::vector<int> skills;          // the skill picker's slots
+    int orbs = 0;                     // Maou event: mysterious orbs toward the next orb reward
+    int orb_rewards = 0;              // 1: Hacchake Fire unlocked, 2: the EX stage is open
+    int orb_cost = -1;                // orbs the next orb reward asks for; -1 while white chests can't drop
     std::vector<std::string> story;   // story scene ids due, in play order
     std::map<int, BattleBoss> bosses; // by stage
 };
@@ -176,9 +179,12 @@ struct BattleProgress {
     BattleStatus after;
     std::optional<BattleBoss> boss_before; // set on boss stages
     int boss_hp_after = 0;
-    std::vector<int> chests; // stones in each
-    std::string reward_kind; // "song" or "costume" on a boss's first defeat, else empty
+    std::vector<int> chests;     // stones in each
+    std::vector<int> orb_chests; // orbs in each white chest
+    std::string reward_kind;     // "song", "costume" or "title" on a boss's first defeat, else empty
     std::string reward_name;
+    std::string orb_reward_kind; // "move" or "song" when the orbs paid for one, else empty
+    std::string orb_reward_name;
 };
 struct ShopGood {
     int type = -1; // 2 dress, 3 head, 4 body, 5 puchichara, 6 title
@@ -317,7 +323,7 @@ public:
     BattleStatus fetch_battle_status(const std::string& access_code);
     void mark_battle_story(const std::string& access_code, const std::vector<std::string>& seen);
     void submit_battle(const std::string& access_code, const std::string& song_hash, int difficulty, int stage,
-                       int hits, int damage, int power, int chests, const std::vector<int>& skills);
+                       int hits, int damage, int power, int chests, int orb_chests, const std::vector<int>& skills);
     bool battle_pending() const {
 #if defined(NETWORK_ENABLED)
         return !pending_battle.empty();
