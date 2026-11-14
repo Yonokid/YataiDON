@@ -39,10 +39,9 @@ void BattleResultBoard::begin(const BattleProgress& progress) {
     sol::state& lua = *script_manager.lua;
     sol::object answer = sol::lua_nil;
     if (progress.answered) {
-        sol::table t = lua.create_table_with("before", status_table(lua, progress.before), "after",
-                                             status_table(lua, progress.after), "chests",
-                                             sol::as_table(progress.chests), "orb_chests",
-                                             sol::as_table(progress.orb_chests));
+        sol::table t = lua.create_table_with(
+            "before", status_table(lua, progress.before), "after", status_table(lua, progress.after), "chests",
+            sol::as_table(progress.chests), "orb_chests", sol::as_table(progress.orb_chests));
         if (progress.boss_before) {
             t["boss"] = lua.create_table_with("hp_before", progress.boss_before->hp, "hp_after", progress.boss_hp_after,
                                               "max", progress.boss_before->max);

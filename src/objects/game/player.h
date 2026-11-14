@@ -96,7 +96,7 @@ public:
     bool hide_score_counter = false;
     bool hide_ending_anim = false;
     bool skip_ending_anim = false; // no clear/FC/fail animation at all, sounds included
-    bool hide_judgment = false; // the ring, flash and text over the judge circle
+    bool hide_judgment = false;    // the ring, flash and text over the judge circle
     bool rainbow_arc = false;
     bool fade_arc = false;
     // decides how autoplay lands each note; unset means every note is a Good
