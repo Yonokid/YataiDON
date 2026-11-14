@@ -25,6 +25,9 @@ protected:
     bool hides_dan() override { return true; }
     bool allows_second_player_join() override { return false; }
     void draw_overlays() override;
+    bool popup_open() override {
+        return SongSelectScreen::popup_open() || (skills && skills->is_shown(get_current_ms()));
+    }
     void handle_input_selecting() override;
     void select_song(SongBox* song) override;
 

@@ -29,7 +29,6 @@ SkillPicker::SkillPicker(int moves, bool hacchake, int player)
     fn_decide = lua_object["decide"];
 }
 
-// the panel's counter: the move's place among the unlocked ones, 0 on random and none
 int SkillPicker::number(int index) const {
     return index < moves ? index + 1 : 0;
 }
@@ -64,6 +63,9 @@ bool SkillPicker::handle_input(double ms) {
         call(fn_decide, "BattleSkillPicker:decide", ms, slot,
              slot + 1 < BATTLE_SKILL_SLOTS ? number(cursor[slot + 1]) : 0);
         choosing = ++slot < BATTLE_SKILL_SLOTS;
+        if (!choosing) {
+            closed_ms = ms;
+        }
     }
     return true;
 }

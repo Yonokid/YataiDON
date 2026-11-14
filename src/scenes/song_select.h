@@ -78,6 +78,7 @@ protected:
     std::optional<Screens> poll_second_player_join(double current_ms);
 
     virtual void draw_overlays();
+    virtual bool popup_open() { return player->neiro_selector.has_value() || player->modifier_selector.has_value(); }
 
     virtual bool hides_dan() { return tex.get_skin_config(SC::ENTRY_DAN) != nullptr; }
     virtual bool shows_ai_assigned() { return false; }
