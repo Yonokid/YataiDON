@@ -167,6 +167,7 @@ struct BattleStatus {
     int stage = 1;                    // the furthest open stage
     int cleared = 0;                  // bit n: stage n's boss beaten
     std::vector<int> skills;          // the skill picker's slots
+    std::vector<std::string> story;   // story scene ids due, in play order
     std::map<int, BattleBoss> bosses; // by stage
 };
 struct BattleProgress {
@@ -314,6 +315,7 @@ public:
     void reset_ai_battle() { ai_battle_progress_ = {}; }
 
     BattleStatus fetch_battle_status(const std::string& access_code);
+    void mark_battle_story(const std::string& access_code, const std::vector<std::string>& seen);
     void submit_battle(const std::string& access_code, const std::string& song_hash, int difficulty, int stage,
                        int hits, int damage, int power, int chests, const std::vector<int>& skills);
     bool battle_pending() const {
@@ -368,7 +370,7 @@ private:
     std::vector<std::pair<int, cpr::AsyncResponse>> pending_medals;
     std::vector<cpr::AsyncResponse> pending_ai_battle;
     std::vector<cpr::AsyncResponse> pending_battle;
-    std::vector<cpr::AsyncResponse> pending_revive;
+    std::vector<cpr::AsyncResponse> pending_posts;
     std::vector<cpr::AsyncResponse> pending_dan;
     std::vector<std::pair<int, cpr::AsyncResponse>> pending_shop;
     std::vector<std::pair<int, cpr::AsyncResponse>> pending_shop_buy;

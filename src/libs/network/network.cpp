@@ -1069,7 +1069,7 @@ void NetworkClient::submit_revive_result(const std::string& access_code, bool su
         return;
     }
     const std::string result = success ? "true" : "false";
-    pending_revive.push_back(cpr::PostAsync(
+    pending_posts.push_back(cpr::PostAsync(
         cpr::Url{network_url("/revive_result")},
         signed_headers("POST", "/revive_result", {{"access_code", access_code}, {"success", result}}),
         cpr::Parameters{{"access_code", access_code}, {"success", result}}, cpr::Timeout{5000} NETWORK_CA_OPT));
@@ -1186,6 +1186,13 @@ static BattleStatus parse_battle_status(const rapidjson::Value& doc) {
             status.skills.push_back(move.IsInt() ? move.GetInt() : 11);
         }
     }
+    if (doc.HasMember("story") && doc["story"].IsArray()) {
+        for (const auto& id : doc["story"].GetArray()) {
+            if (id.IsString()) {
+                status.story.emplace_back(id.GetString());
+            }
+        }
+    }
     if (doc.HasMember("bosses") && doc["bosses"].IsObject()) {
         for (const auto& [key, boss] : doc["bosses"].GetObject()) {
             if (boss.IsObject() && boss.HasMember("hp") && boss["hp"].IsInt() && boss.HasMember("max") &&
@@ -1210,6 +1217,20 @@ BattleStatus NetworkClient::fetch_battle_status(const std::string& access_code) 
         return parse_battle_status(doc);
     }
     return {};
+}
+
+void NetworkClient::mark_battle_story(const std::string& access_code, const std::vector<std::string>& seen) {
+    if (!network_enabled() || is_guest_id(access_code) || !online || seen.empty()) {
+        return;
+    }
+    std::string ids;
+    for (const std::string& id : seen) {
+        ids += (ids.empty() ? "" : ",") + id;
+    }
+    const std::map<std::string, std::string> fields{{"access_code", access_code}, {"seen", ids}};
+    pending_posts.push_back(cpr::PostAsync(
+        cpr::Url{network_url("/enso_battle/story")}, signed_headers("POST", "/enso_battle/story", fields),
+        cpr::Parameters{{"access_code", access_code}, {"seen", ids}}, cpr::Timeout{5000} NETWORK_CA_OPT));
 }
 
 void NetworkClient::submit_battle(const std::string& access_code, const std::string& song_hash, int difficulty,
@@ -1519,16 +1540,16 @@ void NetworkClient::update(double current_ms) {
         }
         it = pending_ai_battle.erase(it);
     }
-    for (auto it = pending_revive.begin(); it != pending_revive.end();) {
+    for (auto it = pending_posts.begin(); it != pending_posts.end();) {
         if (it->wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
             ++it;
             continue;
         }
         cpr::Response response = it->get();
         if (response.status_code != 200) {
-            spdlog::warn("Revive result failed: HTTP {} - {}", response.status_code, response.text);
+            spdlog::warn("POST {} failed: HTTP {} - {}", response.url.str(), response.status_code, response.text);
         }
-        it = pending_revive.erase(it);
+        it = pending_posts.erase(it);
     }
     for (auto it = pending_battle.begin(); it != pending_battle.end();) {
         if (it->wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
@@ -1829,6 +1850,7 @@ AIBattleStatus NetworkClient::fetch_ai_battle_status(const std::string&) {
 BattleStatus NetworkClient::fetch_battle_status(const std::string&) {
     return {};
 }
+void NetworkClient::mark_battle_story(const std::string&, const std::vector<std::string>&) {}
 void NetworkClient::submit_battle(const std::string&, const std::string&, int, int, int, int, int, int,
                                   const std::vector<int>&) {}
 void NetworkClient::request_reward_shop(int seat, const std::string&) {

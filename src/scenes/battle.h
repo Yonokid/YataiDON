@@ -8,6 +8,7 @@
 #include "../objects/result/battle_result_board.h"
 #include "../objects/song_select/battle_select_info.h"
 #include "../objects/song_select/skill_picker.h"
+#include "../objects/song_select/story_script.h"
 #include "../objects/song_select/subdiff_picker.h"
 #include "game.h"
 #include "result.h"
@@ -17,6 +18,7 @@ class BattleSongSelectScreen : public SongSelectScreen {
     std::optional<BattleSelectInfo> info;
     std::optional<SkillPicker> skills;
     SubdiffPicker picker;
+    std::unique_ptr<StoryScript> story;
 
 protected:
     Screens get_game_screen_target() override { return Screens::BATTLE_GAME; }
@@ -29,6 +31,8 @@ protected:
 public:
     void on_screen_start() override;
     Screens on_screen_end(Screens next_screen) override;
+    std::optional<Screens> update() override;
+    void draw() override;
 };
 
 class BattleGameScreen : public GameScreen {

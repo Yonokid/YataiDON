@@ -29,13 +29,56 @@ void BattleSongSelectScreen::on_screen_start() {
     info.emplace(status, global_data.battle_stage, side);
     skills.emplace(global_data.battle_moves, side);
     picker.reset();
+    if (!status.story.empty() && script_manager.has_lua_script("battle_story")) {
+        story = std::make_unique<StoryScript>("BattleStory", "battle_story", sol::as_table(status.story));
+        if (story->unavailable()) {
+            story.reset();
+        } else {
+            audio.stop_sound("bgm");
+            audio.stop_sound("voice_enter");
+        }
+    }
 }
 
 Screens BattleSongSelectScreen::on_screen_end(Screens next_screen) {
     info.reset();
     skills.reset();
     picker.clear();
+    story.reset();
     return SongSelectScreen::on_screen_end(next_screen);
+}
+
+std::optional<Screens> BattleSongSelectScreen::update() {
+    if (!story) {
+        return SongSelectScreen::update();
+    }
+    if (auto next = Screen::update()) {
+        return next;
+    }
+    const double current_ms = get_current_ms();
+    if (menu_left_pressed()) {
+        story->input(StoryScript::LEFT);
+    } else if (menu_right_pressed()) {
+        story->input(StoryScript::RIGHT);
+    } else if (menu_confirm_pressed()) {
+        story->input(StoryScript::DECIDE);
+    }
+    story->update(current_ms);
+    if (story->is_done()) {
+        network.mark_battle_story(battle_access_code(), story->played());
+        story.reset();
+        audio.play_sound("bgm", VolumePreset::MUSIC);
+        select_timer = std::make_unique<Timer>(100, current_ms, [this] { on_select_timeout(); });
+    }
+    return std::nullopt;
+}
+
+void BattleSongSelectScreen::draw() {
+    if (story) {
+        story->draw();
+        return;
+    }
+    SongSelectScreen::draw();
 }
 
 void BattleSongSelectScreen::draw_overlays() {

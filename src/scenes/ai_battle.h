@@ -11,7 +11,7 @@
 #include "../objects/game/ai_match.h"
 #include "../objects/result/ai_reward_flow.h"
 #include "../objects/result/ai_section_result.h"
-#include "../objects/song_select/ai_intro.h"
+#include "../objects/song_select/story_script.h"
 #include "../objects/song_select/subdiff_picker.h"
 #include "game_2p.h"
 #include "result.h"
@@ -21,7 +21,7 @@ static constexpr int AI_ASSIGNED_RANK = 10;
 
 class AISongSelectScreen : public SongSelectScreen {
     SubdiffPicker picker;
-    std::unique_ptr<AIIntro> intro;
+    std::unique_ptr<StoryScript> intro;
     std::unique_ptr<Chara3D> ai_chara;
 
     AIBattleStatus status;

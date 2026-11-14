@@ -27,7 +27,7 @@ void AISongSelectScreen::on_screen_start() {
     picker.support_menu()->set_status(status);
     if (script_manager.has_lua_script("ai_intro") &&
         scores_manager.first_visit(get_player_id(global_data.player_num), "ai_intro_seen")) {
-        intro = std::make_unique<AIIntro>();
+        intro = std::make_unique<StoryScript>("AIIntro", "ai_intro");
         if (intro->unavailable()) {
             intro.reset();
         } else {
@@ -60,11 +60,11 @@ std::optional<Screens> AISongSelectScreen::update() {
     }
     const double current_ms = get_current_ms();
     if (menu_left_pressed()) {
-        intro->input(AIIntro::LEFT);
+        intro->input(StoryScript::LEFT);
     } else if (menu_right_pressed()) {
-        intro->input(AIIntro::RIGHT);
+        intro->input(StoryScript::RIGHT);
     } else if (menu_confirm_pressed()) {
-        intro->input(AIIntro::DECIDE);
+        intro->input(StoryScript::DECIDE);
     }
     intro->update(current_ms);
     if (intro->is_done()) {
