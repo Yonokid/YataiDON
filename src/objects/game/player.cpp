@@ -242,6 +242,10 @@ void Player::spawn_ending_anim(Background* background) {
     if (ending_background && ending_background->wants_handle_ending()) {
         ending_background->handle_ending(player_num, kind);
     }
+    // a screen that plays its own ending would otherwise also hear this one's sounds and voice
+    if (skip_ending_anim) {
+        ending_anim.reset();
+    }
 }
 
 void Player::reload_for_dan(std::optional<SongParser>& new_parser, int new_difficulty) {
@@ -569,8 +573,10 @@ void Player::draw(double ms_from_start, float x, float y) {
     }
     draw_lane_cover(y);
 
-    for (Judgment& anim : draw_judge_list) {
-        anim.draw_effect(judge_x, y + judge_y);
+    if (!hide_judgment) {
+        for (Judgment& anim : draw_judge_list) {
+            anim.draw_effect(judge_x, y + judge_y);
+        }
     }
     {
         int scissor_x = virtual_to_screen_x(lane_cover_tex_id->scissor_right());
@@ -580,12 +586,12 @@ void Player::draw(double ms_from_start, float x, float y) {
         end_scissor_mode();
     }
 
-    for (Judgment& anim : draw_judge_list) {
-        anim.draw_outer_effect(judge_x, y + judge_y);
-        anim.draw_ray_effect(judge_x, y + judge_y);
-    }
-    for (Judgment& anim : draw_judge_list) {
-        anim.draw_text(judge_x, y + judge_y);
+    if (!hide_judgment) {
+        for (Judgment& anim : draw_judge_list) {
+            anim.draw_outer_effect(judge_x, y + judge_y);
+            anim.draw_ray_effect(judge_x, y + judge_y);
+            anim.draw_text(judge_x, y + judge_y);
+        }
     }
 
     draw_overlays(y);
@@ -617,8 +623,10 @@ void Player::draw_practice(double ms_from_start, float x, float y, bool draw_not
     }
     draw_lane_cover(y);
 
-    for (Judgment& anim : draw_judge_list) {
-        anim.draw_effect(judge_x, y + judge_y);
+    if (!hide_judgment) {
+        for (Judgment& anim : draw_judge_list) {
+            anim.draw_effect(judge_x, y + judge_y);
+        }
     }
 
     if (draw_notes_on) {
@@ -629,12 +637,12 @@ void Player::draw_practice(double ms_from_start, float x, float y, bool draw_not
         end_scissor_mode();
     }
 
-    for (Judgment& anim : draw_judge_list) {
-        anim.draw_outer_effect(judge_x, y + judge_y);
-        anim.draw_ray_effect(judge_x, y + judge_y);
-    }
-    for (Judgment& anim : draw_judge_list) {
-        anim.draw_text(judge_x, y + judge_y);
+    if (!hide_judgment) {
+        for (Judgment& anim : draw_judge_list) {
+            anim.draw_outer_effect(judge_x, y + judge_y);
+            anim.draw_ray_effect(judge_x, y + judge_y);
+            anim.draw_text(judge_x, y + judge_y);
+        }
     }
 
     draw_overlays(y);
@@ -1094,6 +1102,9 @@ void Player::on_judgment(const Note& note, Judgments judgment, std::optional<Dru
             bg_hook->handle_bad(pn);
         }
     }
+    if (on_note_judged) {
+        on_note_judged(note, judgment);
+    }
 }
 
 void Player::on_note_correct(const Note& note, double current_ms) {
@@ -1111,7 +1122,7 @@ void Player::on_note_correct(const Note& note, double current_ms) {
         bool is_big =
             note.type == NoteType::DON_L || note.type == NoteType::KAT_L || note.type == NoteType::BALLOON_HEAD;
         draw_arc_list.emplace_back(note.type, current_ms, arc_player(), is_big, note.type == NoteType::BALLOON_HEAD,
-                                   judge_x, judge_y, rainbow_arc, synchro(note));
+                                   judge_x, judge_y, rainbow_arc, synchro(note), fade_arc);
     }
     auto it = std::ranges::lower_bound(draw_note_buffer, note.index, {}, &Note::index);
     if (it != draw_note_buffer.end() && *it == note) {
@@ -1125,7 +1136,8 @@ void Player::on_score_popup(int amount, bool tick) {
 
 void Player::on_drumroll_hit(DrumType drum_type, double current_ms) {
     const bool is_big = !other_notes.empty() && other_notes.front().type == NoteType::ROLL_HEAD_L;
-    draw_arc_list.emplace_back(NoteType(drum_type), current_ms, arc_player(), is_big, false, 0.0f, 0.0f, rainbow_arc);
+    draw_arc_list.emplace_back(NoteType(drum_type), current_ms, arc_player(), is_big, false, 0.0f, 0.0f, rainbow_arc,
+                               false, fade_arc);
     if (curr_drumroll_count == 1) {
         drumroll_counter.reset(); // an equal count left by the last roll would not restart the animations
     }
@@ -1777,6 +1789,12 @@ void Player::draw_lane_cover(float y) {
     tex.draw_texture(lane_cover_tex_id, {.y = y});
     if (is_dan) {
         tex.draw_texture(t_dan_lane_cover, {.y = y});
+    }
+}
+
+void Player::use_lane_cover(const std::string& name) {
+    if (tex.has_texture("lane/" + name)) {
+        lane_cover_tex_id = tex.get_texture("lane/" + name);
     }
 }
 

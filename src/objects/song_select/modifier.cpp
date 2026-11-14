@@ -49,10 +49,14 @@ ModifierSelector::ModifierSelector(PlayerNum player_num, PlayerData* player) : p
     language = global_data.config->general.language;
 
     mod_names.assign(BASE_MOD_NAMES.begin(), BASE_MOD_NAMES.end());
+    // battle mode plays for progress, so it has no auto row
+    if (global_data.current_screen == "BATTLE_SELECT") {
+        std::erase(mod_names, "auto");
+    }
     if (tex.options[SCO::OPTION_SKIP_ROW]) {
         mod_names.emplace_back("skip");
     }
-    if (tex.options[SCO::OPTION_NEIRO_ROW]) {
+    if (neiro_in_option_panel()) {
         load_neiro_names();
         mod_names.emplace_back("neiro");
     }

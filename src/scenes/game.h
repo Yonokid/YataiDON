@@ -45,6 +45,7 @@ protected:
     void resume_playback(std::optional<double> chart_ms = std::nullopt);
     virtual PlayerNum restart_player_num() const { return global_data.player_num; }
     virtual Screens select_screen() const { return Screens::SONG_SELECT; }
+    virtual Screens result_screen() const { return Screens::RESULT; }
 
     PauseMenu pause_menu;
     bool pause_used = false;

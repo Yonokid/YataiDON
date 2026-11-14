@@ -91,17 +91,23 @@ public:
                kusudama_partner->big_times.contains(big_key(note));
     }
     bool hide_gauge = false;
+    bool in_gogo_time() const { return is_gogo_time; }
     bool hide_gogo_flame = false;
     bool hide_score_counter = false;
     bool hide_ending_anim = false;
+    bool skip_ending_anim = false; // no clear/FC/fail animation at all, sounds included
+    bool hide_judgment = false;    // the ring, flash and text over the judge circle
     bool rainbow_arc = false;
+    bool fade_arc = false;
     // decides how autoplay lands each note; unset means every note is a Good
     std::function<Judgments(const Note&)> autoplay_judge;
+    std::function<void(const Note&, Judgments)> on_note_judged;
     const std::unordered_map<int, Judgments>& get_note_judgments() const { return note_judgments; }
     const std::unordered_map<int, int>& get_roll_hits() const { return roll_hits; }
     void hide_puchi();
     void hide_lane_badges() { show_lane_badges = false; }
     // AI battle: the AI lane's cover and background, no course mark and no plate (the skin draws the AI's)
+    void use_lane_cover(const std::string& name);
     void use_ai_lane();
 
     void place_chara_on_stage(float x, float y);

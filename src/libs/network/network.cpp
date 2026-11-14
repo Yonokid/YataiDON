@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <charconv>
 #include <chrono>
 #include <cstddef>
 #include <cstdio>
@@ -1068,7 +1069,7 @@ void NetworkClient::submit_revive_result(const std::string& access_code, bool su
         return;
     }
     const std::string result = success ? "true" : "false";
-    pending_revive.push_back(cpr::PostAsync(
+    pending_posts.push_back(cpr::PostAsync(
         cpr::Url{network_url("/revive_result")},
         signed_headers("POST", "/revive_result", {{"access_code", access_code}, {"success", result}}),
         cpr::Parameters{{"access_code", access_code}, {"success", result}}, cpr::Timeout{5000} NETWORK_CA_OPT));
@@ -1163,6 +1164,107 @@ AIBattleStatus NetworkClient::fetch_ai_battle_status(const std::string& access_c
         status.next_reward_wins = read("next_reward_wins", -1);
     }
     return status;
+}
+
+static BattleStatus parse_battle_status(const rapidjson::Value& doc) {
+    const auto read = [&doc](const char* key, int fallback) {
+        return doc.HasMember(key) && doc[key].IsInt() ? doc[key].GetInt() : fallback;
+    };
+    BattleStatus status;
+    status.answered = true;
+    status.bond = read("bond", 1);
+    status.exp = read("exp", 0);
+    status.exp_next = read("exp_next", -1);
+    status.best_power = read("best_power", 0);
+    status.stones = read("stones", 0);
+    status.moves = read("moves", 1);
+    status.move_cost = read("move_cost", -1);
+    status.stage = read("stage", 1);
+    status.cleared = read("cleared", 0);
+    status.orbs = read("orbs", 0);
+    status.orb_rewards = read("orb_rewards", 0);
+    status.orb_cost = read("orb_cost", -1);
+    if (doc.HasMember("skills") && doc["skills"].IsArray()) {
+        for (const auto& move : doc["skills"].GetArray()) {
+            status.skills.push_back(move.IsInt() ? move.GetInt() : 11);
+        }
+    }
+    if (doc.HasMember("story") && doc["story"].IsArray()) {
+        for (const auto& id : doc["story"].GetArray()) {
+            if (id.IsString()) {
+                status.story.emplace_back(id.GetString());
+            }
+        }
+    }
+    if (doc.HasMember("bosses") && doc["bosses"].IsObject()) {
+        for (const auto& [key, boss] : doc["bosses"].GetObject()) {
+            if (boss.IsObject() && boss.HasMember("hp") && boss["hp"].IsInt() && boss.HasMember("max") &&
+                boss["max"].IsInt()) {
+                int stage = 0;
+                std::from_chars(key.GetString(), key.GetString() + key.GetStringLength(), stage);
+                status.bosses[stage] = {boss["hp"].GetInt(), boss["max"].GetInt()};
+            }
+        }
+    }
+    return status;
+}
+
+BattleStatus NetworkClient::fetch_battle_status(const std::string& access_code) {
+    if (!network_enabled() || is_guest_id(access_code) || !online) {
+        return {};
+    }
+    cpr::Response response = cpr::Get(cpr::Url{network_url("/enso_battle")},
+                                      cpr::Parameters{{"access_code", access_code}}, cpr::Timeout{3000} NETWORK_CA_OPT);
+    rapidjson::Document doc;
+    if (response.status_code == 200 && !doc.Parse(response.text.c_str()).HasParseError() && doc.IsObject()) {
+        return parse_battle_status(doc);
+    }
+    return {};
+}
+
+void NetworkClient::mark_battle_story(const std::string& access_code, const std::vector<std::string>& seen) {
+    if (!network_enabled() || is_guest_id(access_code) || !online || seen.empty()) {
+        return;
+    }
+    std::string ids;
+    for (const std::string& id : seen) {
+        ids += (ids.empty() ? "" : ",") + id;
+    }
+    const std::map<std::string, std::string> fields{{"access_code", access_code}, {"seen", ids}};
+    pending_posts.push_back(cpr::PostAsync(
+        cpr::Url{network_url("/enso_battle/story")}, signed_headers("POST", "/enso_battle/story", fields),
+        cpr::Parameters{{"access_code", access_code}, {"seen", ids}}, cpr::Timeout{5000} NETWORK_CA_OPT));
+}
+
+void NetworkClient::submit_battle(const std::string& access_code, const std::string& song_hash, int difficulty,
+                                  int stage, int hits, int damage, int power, int chests, int orb_chests,
+                                  const std::vector<int>& skills) {
+    if (!network_enabled() || is_guest_id(access_code) || !online) {
+        return;
+    }
+    std::string picks;
+    for (const int move : skills) {
+        picks += (picks.empty() ? "" : ",") + std::to_string(move);
+    }
+    std::map<std::string, std::string> fields{{"access_code", access_code},
+                                              {"song_hash", song_hash},
+                                              {"difficulty", std::to_string(difficulty)},
+                                              {"stage", std::to_string(stage)},
+                                              {"hits", std::to_string(hits)},
+                                              {"damage", std::to_string(damage)},
+                                              {"power", std::to_string(power)},
+                                              {"chests", std::to_string(chests)},
+                                              {"skills", picks}};
+    if (orb_chests > 0) {
+        fields["orb_chests"] = std::to_string(orb_chests);
+    }
+    cpr::Parameters params;
+    for (const auto& [key, value] : fields) {
+        params.Add({key, value});
+    }
+    pending_battle.push_back(cpr::PostAsync(cpr::Url{network_url("/enso_battle")},
+                                            signed_headers("POST", "/enso_battle", fields), params,
+                                            cpr::Timeout{5000} NETWORK_CA_OPT));
 }
 
 OwnedCosmetics NetworkClient::fetch_owned_cosmetics(const std::string& access_code) {
@@ -1401,6 +1503,9 @@ void NetworkClient::update(double current_ms) {
     const auto json_bool = [](const rapidjson::Value& v, const char* key) {
         return v.HasMember(key) && v[key].IsBool() && v[key].GetBool();
     };
+    const auto text_of = [](const rapidjson::Value& v, const char* key) -> std::string {
+        return v.HasMember(key) && v[key].IsString() ? v[key].GetString() : "";
+    };
     for (auto it = pending_ai_battle.begin(); it != pending_ai_battle.end();) {
         if (it->wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
             ++it;
@@ -1424,9 +1529,6 @@ void NetworkClient::update(double current_ms) {
             progress.challenge = json_bool(doc, "challenge");
             progress.next_reward_wins = json_int(doc, "next_reward_wins", -1);
             progress.all_rewards = json_bool(doc, "all_rewards");
-            auto text_of = [](const rapidjson::Value& v, const char* key) -> std::string {
-                return v.HasMember(key) && v[key].IsString() ? v[key].GetString() : "";
-            };
             progress.next_reward_name = text_of(doc, "next_reward_name");
             if (doc.HasMember("reward") && doc["reward"].IsObject()) {
                 progress.reward_kind = text_of(doc["reward"], "kind");
@@ -1444,16 +1546,58 @@ void NetworkClient::update(double current_ms) {
         }
         it = pending_ai_battle.erase(it);
     }
-    for (auto it = pending_revive.begin(); it != pending_revive.end();) {
+    for (auto it = pending_posts.begin(); it != pending_posts.end();) {
         if (it->wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
             ++it;
             continue;
         }
         cpr::Response response = it->get();
         if (response.status_code != 200) {
-            spdlog::warn("Revive result failed: HTTP {} - {}", response.status_code, response.text);
+            spdlog::warn("POST {} failed: HTTP {} - {}", response.url.str(), response.status_code, response.text);
         }
-        it = pending_revive.erase(it);
+        it = pending_posts.erase(it);
+    }
+    for (auto it = pending_battle.begin(); it != pending_battle.end();) {
+        if (it->wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
+            ++it;
+            continue;
+        }
+        cpr::Response response = it->get();
+        rapidjson::Document doc;
+        if (response.status_code == 200 && !doc.Parse(response.text.c_str()).HasParseError() && doc.IsObject() &&
+            doc.HasMember("before") && doc["before"].IsObject() && doc.HasMember("after") && doc["after"].IsObject()) {
+            BattleProgress progress;
+            progress.answered = true;
+            progress.before = parse_battle_status(doc["before"]);
+            progress.after = parse_battle_status(doc["after"]);
+            if (doc.HasMember("boss") && doc["boss"].IsObject()) {
+                const rapidjson::Value& boss = doc["boss"];
+                progress.boss_before = BattleBoss{json_int(boss, "hp_before", 0), json_int(boss, "max", 0)};
+                progress.boss_hp_after = json_int(boss, "hp_after", 0);
+            }
+            if (doc.HasMember("chests") && doc["chests"].IsArray()) {
+                for (const auto& stones : doc["chests"].GetArray()) {
+                    progress.chests.push_back(stones.IsInt() ? stones.GetInt() : 0);
+                }
+            }
+            if (doc.HasMember("orb_chests") && doc["orb_chests"].IsArray()) {
+                for (const auto& orbs : doc["orb_chests"].GetArray()) {
+                    progress.orb_chests.push_back(orbs.IsInt() ? orbs.GetInt() : 0);
+                }
+            }
+            if (doc.HasMember("orb_reward") && doc["orb_reward"].IsObject()) {
+                progress.orb_reward_kind = text_of(doc["orb_reward"], "kind");
+                progress.orb_reward_name = text_of(doc["orb_reward"], "name");
+            }
+            if (doc.HasMember("reward") && doc["reward"].IsObject()) {
+                progress.reward_kind = text_of(doc["reward"], "kind");
+                progress.reward_name = text_of(doc["reward"], "name");
+            }
+            battle_progress_ = std::move(progress);
+        } else {
+            spdlog::warn("Battle submit failed: HTTP {} - {}", response.status_code, response.text);
+        }
+        it = pending_battle.erase(it);
     }
     for (auto it = pending_dan.begin(); it != pending_dan.end();) {
         if (it->wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
@@ -1718,6 +1862,12 @@ void NetworkClient::submit_ai_battle(const std::string&, const std::string&, int
 AIBattleStatus NetworkClient::fetch_ai_battle_status(const std::string&) {
     return {};
 }
+BattleStatus NetworkClient::fetch_battle_status(const std::string&) {
+    return {};
+}
+void NetworkClient::mark_battle_story(const std::string&, const std::vector<std::string>&) {}
+void NetworkClient::submit_battle(const std::string&, const std::string&, int, int, int, int, int, int, int,
+                                  const std::vector<int>&) {}
 void NetworkClient::request_reward_shop(int seat, const std::string&) {
     shop_seats[seat] = {};
 }

@@ -62,13 +62,21 @@ void FolderBox::update(double current_time) {
     BaseBox::update(current_time);
 
     if (!is_open_prev && yellow_box_opened) {
-        if (!audio.is_sound_playing("voice_enter")) {
+        genre_voice_pending = global_data.hold_genre_voice;
+        if (!genre_voice_pending && !audio.is_sound_playing("voice_enter")) {
             audio.play_sound(hover_voice(), VolumePreset::VOICE);
             genre_voice_started = true;
         }
-    } else if (!yellow_box_opened && genre_voice_started) {
-        audio.stop_sound(hover_voice());
-        genre_voice_started = false;
+    } else if (yellow_box_opened && genre_voice_pending && !global_data.hold_genre_voice) {
+        genre_voice_pending = false;
+        audio.play_sound(hover_voice(), VolumePreset::VOICE);
+        genre_voice_started = true;
+    } else if (!yellow_box_opened) {
+        genre_voice_pending = false;
+        if (genre_voice_started) {
+            audio.stop_sound(hover_voice());
+            genre_voice_started = false;
+        }
     }
 }
 

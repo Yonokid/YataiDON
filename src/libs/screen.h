@@ -77,11 +77,14 @@ enum class Screens {
     WAIWAI_RESULT,
     WAIWAI_TUTORIAL,
     WAIWAI_RETRY_GAME,
-    AI_RESULT
+    AI_RESULT,
+    BATTLE_SELECT,
+    BATTLE_GAME,
+    BATTLE_RESULT
 };
 
 inline std::string screens_to_string(Screens screen) {
-    static const std::array<std::string, 33> names = {
+    static const std::array<std::string, 36> names = {
         "TITLE",           "ENTRY",         "SONG_SELECT",     "GAME",
         "GAME_2P",         "RESULT",        "RESULT_2P",       "SONG_SELECT_2P",
         "DAN_SELECT",      "GAME_DAN",      "DAN_RESULT",      "PRACTICE_SELECT",
@@ -90,7 +93,7 @@ inline std::string screens_to_string(Screens screen) {
         "RETRY_GAME",      "ONBOARDING",    "TUTORIAL",        "CAMPAIGN",
         "KINOTAKE_RESULT", "TOTAL_RESULT",  "REWARD_SHOP",     "WAIWAI_SONG_SELECT",
         "WAIWAI_GAME",     "WAIWAI_RESULT", "WAIWAI_TUTORIAL", "WAIWAI_RETRY_GAME",
-        "AI_RESULT"};
+        "AI_RESULT",       "BATTLE_SELECT", "BATTLE_GAME",     "BATTLE_RESULT"};
     int idx = static_cast<int>(screen);
     if (idx < 0 || static_cast<size_t>(idx) >= names.size()) {
         return "UNKNOWN";

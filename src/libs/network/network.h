@@ -151,6 +151,41 @@ struct AIBattleStatus {
     int wins = 0;
     int next_reward_wins = -1;
 };
+struct BattleBoss {
+    int hp = 0;
+    int max = 0;
+};
+struct BattleStatus {
+    bool answered = false;
+    int bond = 1;
+    int exp = 0;
+    int exp_next = -1; // -1 at the max bond level
+    int best_power = 0;
+    int stones = 0;
+    int moves = 1;
+    int move_cost = -1;               // stones the next move asks for; -1 once all are unlocked
+    int stage = 1;                    // the furthest open stage
+    int cleared = 0;                  // bit n: stage n's boss beaten
+    std::vector<int> skills;          // the skill picker's slots
+    int orbs = 0;                     // Maou event: mysterious orbs toward the next orb reward
+    int orb_rewards = 0;              // 1: Hacchake Fire unlocked, 2: the EX stage is open
+    int orb_cost = -1;                // orbs the next orb reward asks for; -1 while white chests can't drop
+    std::vector<std::string> story;   // story scene ids due, in play order
+    std::map<int, BattleBoss> bosses; // by stage
+};
+struct BattleProgress {
+    bool answered = false;
+    BattleStatus before;
+    BattleStatus after;
+    std::optional<BattleBoss> boss_before; // set on boss stages
+    int boss_hp_after = 0;
+    std::vector<int> chests;     // stones in each
+    std::vector<int> orb_chests; // orbs in each white chest
+    std::string reward_kind;     // "song", "costume" or "title" on a boss's first defeat, else empty
+    std::string reward_name;
+    std::string orb_reward_kind; // "move" or "song" when the orbs paid for one, else empty
+    std::string orb_reward_name;
+};
 struct ShopGood {
     int type = -1; // 2 dress, 3 head, 4 body, 5 puchichara, 6 title
     int id = -1;
@@ -285,6 +320,20 @@ public:
     const AIBattleProgress& ai_battle_progress() const { return ai_battle_progress_; }
     void reset_ai_battle() { ai_battle_progress_ = {}; }
 
+    BattleStatus fetch_battle_status(const std::string& access_code);
+    void mark_battle_story(const std::string& access_code, const std::vector<std::string>& seen);
+    void submit_battle(const std::string& access_code, const std::string& song_hash, int difficulty, int stage,
+                       int hits, int damage, int power, int chests, int orb_chests, const std::vector<int>& skills);
+    bool battle_pending() const {
+#if defined(NETWORK_ENABLED)
+        return !pending_battle.empty();
+#else
+        return false;
+#endif
+    }
+    const BattleProgress& battle_progress() const { return battle_progress_; }
+    void reset_battle() { battle_progress_ = {}; }
+
     void shutdown();
 
 private:
@@ -300,6 +349,7 @@ private:
     DonSeat don_seats[2];
     MedalSeat medal_seats[2];
     AIBattleProgress ai_battle_progress_;
+    BattleProgress battle_progress_;
     ShopSeat shop_seats[2];
     std::optional<ShopBuyResult> shop_buy_result;
     int reward_shop_pending_count_ = 0;
@@ -325,7 +375,8 @@ private:
     std::vector<std::pair<int, cpr::AsyncResponse>> pending_don_points;
     std::vector<std::pair<int, cpr::AsyncResponse>> pending_medals;
     std::vector<cpr::AsyncResponse> pending_ai_battle;
-    std::vector<cpr::AsyncResponse> pending_revive;
+    std::vector<cpr::AsyncResponse> pending_battle;
+    std::vector<cpr::AsyncResponse> pending_posts;
     std::vector<cpr::AsyncResponse> pending_dan;
     std::vector<std::pair<int, cpr::AsyncResponse>> pending_shop;
     std::vector<std::pair<int, cpr::AsyncResponse>> pending_shop_buy;

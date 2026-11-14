@@ -11,8 +11,8 @@
 #include "../objects/game/ai_match.h"
 #include "../objects/result/ai_reward_flow.h"
 #include "../objects/result/ai_section_result.h"
-#include "../objects/song_select/ai_intro.h"
-#include "../objects/song_select/ai_support_menu.h"
+#include "../objects/song_select/story_script.h"
+#include "../objects/song_select/subdiff_picker.h"
 #include "game_2p.h"
 #include "result.h"
 #include "song_select.h"
@@ -20,17 +20,12 @@
 static constexpr int AI_ASSIGNED_RANK = 10;
 
 class AISongSelectScreen : public SongSelectScreen {
-    std::optional<AISupportMenu> menu;
-    std::unique_ptr<AIIntro> intro;
+    SubdiffPicker picker;
+    std::unique_ptr<StoryScript> intro;
     std::unique_ptr<Chara3D> ai_chara;
-    int chosen_course = 0;
-    int level_cursor = 0;
-    bool choosing_level = false;
-    bool level_decided = false;
 
     AIBattleStatus status;
 
-    int hovered_course() const;
     void play_call_voice();
 
 protected:

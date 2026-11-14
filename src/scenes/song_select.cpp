@@ -510,9 +510,8 @@ void SongSelectScreen::draw() {
 
     draw_overlays();
 
-    // the personal-best panel gives way to the neiro / option popup, which shares its corner
-    const bool popup_open = (player->neiro_selector.has_value() || player->modifier_selector.has_value());
-    if (screen_init && !popup_open) {
+    // the personal-best / leaderboard panel gives way to the popups that share its corner
+    if (screen_init && !popup_open()) {
         navigator.draw_score_history();
     }
 

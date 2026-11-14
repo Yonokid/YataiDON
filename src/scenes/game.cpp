@@ -744,7 +744,7 @@ std::optional<Screens> GameScreen::update() {
     result_transition.update(current_ms);
 
     if (result_transition.is_finished && !audio.is_sound_playing("result_transition")) {
-        return on_screen_end(Screens::RESULT);
+        return on_screen_end(result_screen());
     }
 
     if (clock.position() >= players[0]->end_time) {

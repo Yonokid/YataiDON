@@ -478,8 +478,8 @@ std::optional<std::string> SongSelectPlayer::handle_input_search() {
     return std::nullopt;
 }
 
-static bool neiro_in_options() {
-    return tex.options[SCO::OPTION_NEIRO_ROW];
+static bool neiro_slot_used() {
+    return !tex.options[SCO::OPTION_NEIRO_ROW] || global_data.current_screen == "BATTLE_SELECT";
 }
 
 SongSelectState SongSelectPlayer::handle_input_selecting() {
@@ -545,7 +545,7 @@ SongSelectState SongSelectPlayer::handle_input_selecting() {
             if (selected_difficulty == Difficulty::MODIFIER) {
                 modifier_selector = ModifierSelector(player_num, &player_data);
                 chara->set_anim(AnimIndex::DON_SELECT_PANELUP);
-            } else if (selected_difficulty == Difficulty::NEIRO && !neiro_in_options()) {
+            } else if (selected_difficulty == Difficulty::NEIRO && !neiro_in_option_panel()) {
                 neiro_selector = NeiroSelector(player_num, &player_data);
                 chara->set_anim(AnimIndex::DON_SELECT_PANELUP);
             } else if (selected_difficulty >= Difficulty::EASY) {
@@ -576,7 +576,7 @@ void SongSelectPlayer::navigate_difficulty_left() {
             }
         }
         selected_difficulty =
-            (below != Difficulty::BACK) ? below : (neiro_in_options() ? Difficulty::MODIFIER : Difficulty::NEIRO);
+            (below != Difficulty::BACK) ? below : (neiro_slot_used() ? Difficulty::NEIRO : Difficulty::MODIFIER);
     } else if (selected_difficulty == Difficulty::NEIRO || selected_difficulty == Difficulty::MODIFIER) {
         diff_selector_move_2->start();
         prev_diff = selected_difficulty;
@@ -590,7 +590,7 @@ void SongSelectPlayer::navigate_difficulty_left() {
     } else if (selected_difficulty == curr_diffs.front()) {
         diff_selector_move_2->start();
         prev_diff = selected_difficulty;
-        selected_difficulty = neiro_in_options() ? Difficulty::MODIFIER : Difficulty::NEIRO;
+        selected_difficulty = neiro_slot_used() ? Difficulty::NEIRO : Difficulty::MODIFIER;
     } else {
         diff_selector_move_1->start();
         prev_diff = selected_difficulty;
@@ -624,7 +624,7 @@ void SongSelectPlayer::navigate_difficulty_right() {
             toggle_ura_mode();
         }
     } else if (selected_difficulty == Difficulty::NEIRO ||
-               (selected_difficulty == Difficulty::MODIFIER && neiro_in_options())) {
+               (selected_difficulty == Difficulty::MODIFIER && !neiro_slot_used())) {
         prev_diff = selected_difficulty;
         selected_difficulty = curr_diffs.front();
         diff_selector_move_2->start();

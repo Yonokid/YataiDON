@@ -216,6 +216,21 @@ struct AIMatchResult {
     int stars = 1;
 };
 
+// one battle mode song, for its result screen
+struct BattleTally {
+    bool played = false;
+    int stage = 1;
+    int difficulty = 0;
+    bool boss = false;
+    int boss_hp = 0; // before the song
+    int boss_hp_max = 0;
+    int kills = 0;
+    int damage = 0;
+    int power = 0;
+    int chests = 0;
+    int orb_chests = 0;
+};
+
 struct SessionData {
     fs::path selected_song;
     std::string selected_collection; // the song select folder it was picked from, sent with the score
@@ -293,6 +308,17 @@ struct GlobalData {
     int kinotake_team[2] = {-1, -1};
     int kinotake_next = 0;
     AIMatchResult ai_match;
+    bool battle_tracked = false;
+    int battle_bond = 1;
+    int battle_stage = 1;
+    int battle_boss_hp = 0; // the stage's boss, if it has one
+    int battle_boss_hp_max = 0;
+    int battle_moves = 1;           // special moves unlocked
+    bool battle_hacchake = false;   // the Maou event's move, bought with orbs
+    bool battle_orbs = false;       // white chests can drop
+    std::vector<int> battle_skills; // the skill picker's slots; empty until the first battle select
+    BattleTally battle_song;
+    bool hold_genre_voice = false;             // a song select story/intro is running: folder voices wait for it
     std::vector<int> credit_gauges[2];         // soul gauge percent per scored song this credit, per seat
     std::vector<std::string> credit_titles[2]; // same songs
     bool reward_shop_from_entry = false;       // mode select opened the shop: no reward time, back to entry
