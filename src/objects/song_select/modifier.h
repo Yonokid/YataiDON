@@ -12,6 +12,11 @@
 #include "../../libs/global_data.h"
 #include "../../libs/parsers/tja.h"
 
+// the battle select puts its skill picker on the neiro slot, so the neiro moves into the option panel
+inline bool neiro_in_option_panel() {
+    return tex.options[SCO::OPTION_NEIRO_ROW] || global_data.current_screen == "BATTLE_SELECT";
+}
+
 class ModifierSelector {
 private:
     static const std::array<std::string, 5> BASE_MOD_NAMES;

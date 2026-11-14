@@ -52,7 +52,7 @@ ModifierSelector::ModifierSelector(PlayerNum player_num, PlayerData* player) : p
     if (tex.options[SCO::OPTION_SKIP_ROW]) {
         mod_names.emplace_back("skip");
     }
-    if (tex.options[SCO::OPTION_NEIRO_ROW]) {
+    if (neiro_in_option_panel()) {
         load_neiro_names();
         mod_names.emplace_back("neiro");
     }

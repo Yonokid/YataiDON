@@ -7,6 +7,7 @@
 #include "../objects/game/battle_overlay.h"
 #include "../objects/result/battle_result_board.h"
 #include "../objects/song_select/battle_select_info.h"
+#include "../objects/song_select/skill_picker.h"
 #include "../objects/song_select/subdiff_picker.h"
 #include "game.h"
 #include "result.h"
@@ -14,6 +15,7 @@
 
 class BattleSongSelectScreen : public SongSelectScreen {
     std::optional<BattleSelectInfo> info;
+    std::optional<SkillPicker> skills;
     SubdiffPicker picker;
 
 protected:
@@ -47,6 +49,7 @@ class BattleGameScreen : public GameScreen {
     int chests = 0;
     int kills = 0;
     std::optional<double> skill_lands_ms;
+    std::vector<int> skill_slots;
     bool ended = false;
 
     bool overlay_active() const { return overlay && overlay->loaded(); }

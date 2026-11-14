@@ -1181,6 +1181,11 @@ static BattleStatus parse_battle_status(const rapidjson::Value& doc) {
     status.move_cost = read("move_cost", -1);
     status.stage = read("stage", 1);
     status.cleared = read("cleared", 0);
+    if (doc.HasMember("skills") && doc["skills"].IsArray()) {
+        for (const auto& move : doc["skills"].GetArray()) {
+            status.skills.push_back(move.IsInt() ? move.GetInt() : 11);
+        }
+    }
     if (doc.HasMember("bosses") && doc["bosses"].IsObject()) {
         for (const auto& [key, boss] : doc["bosses"].GetObject()) {
             if (boss.IsObject() && boss.HasMember("hp") && boss["hp"].IsInt() && boss.HasMember("max") &&
@@ -1208,14 +1213,24 @@ BattleStatus NetworkClient::fetch_battle_status(const std::string& access_code) 
 }
 
 void NetworkClient::submit_battle(const std::string& access_code, const std::string& song_hash, int difficulty,
-                                  int stage, int hits, int damage, int power, int chests) {
+                                  int stage, int hits, int damage, int power, int chests,
+                                  const std::vector<int>& skills) {
     if (!network_enabled() || is_guest_id(access_code) || !online) {
         return;
     }
-    const std::map<std::string, std::string> fields{
-        {"access_code", access_code},     {"song_hash", song_hash},          {"difficulty", std::to_string(difficulty)},
-        {"stage", std::to_string(stage)}, {"hits", std::to_string(hits)},    {"damage", std::to_string(damage)},
-        {"power", std::to_string(power)}, {"chests", std::to_string(chests)}};
+    std::string picks;
+    for (const int move : skills) {
+        picks += (picks.empty() ? "" : ",") + std::to_string(move);
+    }
+    const std::map<std::string, std::string> fields{{"access_code", access_code},
+                                                    {"song_hash", song_hash},
+                                                    {"difficulty", std::to_string(difficulty)},
+                                                    {"stage", std::to_string(stage)},
+                                                    {"hits", std::to_string(hits)},
+                                                    {"damage", std::to_string(damage)},
+                                                    {"power", std::to_string(power)},
+                                                    {"chests", std::to_string(chests)},
+                                                    {"skills", picks}};
     cpr::Parameters params;
     for (const auto& [key, value] : fields) {
         params.Add({key, value});
@@ -1461,6 +1476,9 @@ void NetworkClient::update(double current_ms) {
     const auto json_bool = [](const rapidjson::Value& v, const char* key) {
         return v.HasMember(key) && v[key].IsBool() && v[key].GetBool();
     };
+    const auto text_of = [](const rapidjson::Value& v, const char* key) -> std::string {
+        return v.HasMember(key) && v[key].IsString() ? v[key].GetString() : "";
+    };
     for (auto it = pending_ai_battle.begin(); it != pending_ai_battle.end();) {
         if (it->wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
             ++it;
@@ -1484,9 +1502,6 @@ void NetworkClient::update(double current_ms) {
             progress.challenge = json_bool(doc, "challenge");
             progress.next_reward_wins = json_int(doc, "next_reward_wins", -1);
             progress.all_rewards = json_bool(doc, "all_rewards");
-            auto text_of = [](const rapidjson::Value& v, const char* key) -> std::string {
-                return v.HasMember(key) && v[key].IsString() ? v[key].GetString() : "";
-            };
             progress.next_reward_name = text_of(doc, "next_reward_name");
             if (doc.HasMember("reward") && doc["reward"].IsObject()) {
                 progress.reward_kind = text_of(doc["reward"], "kind");
@@ -1537,6 +1552,10 @@ void NetworkClient::update(double current_ms) {
                 for (const auto& stones : doc["chests"].GetArray()) {
                     progress.chests.push_back(stones.IsInt() ? stones.GetInt() : 0);
                 }
+            }
+            if (doc.HasMember("reward") && doc["reward"].IsObject()) {
+                progress.reward_kind = text_of(doc["reward"], "kind");
+                progress.reward_name = text_of(doc["reward"], "name");
             }
             battle_progress_ = std::move(progress);
         } else {
@@ -1810,7 +1829,8 @@ AIBattleStatus NetworkClient::fetch_ai_battle_status(const std::string&) {
 BattleStatus NetworkClient::fetch_battle_status(const std::string&) {
     return {};
 }
-void NetworkClient::submit_battle(const std::string&, const std::string&, int, int, int, int, int, int) {}
+void NetworkClient::submit_battle(const std::string&, const std::string&, int, int, int, int, int, int,
+                                  const std::vector<int>&) {}
 void NetworkClient::request_reward_shop(int seat, const std::string&) {
     shop_seats[seat] = {};
 }

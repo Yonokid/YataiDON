@@ -166,6 +166,7 @@ struct BattleStatus {
     int move_cost = -1;               // stones the next move asks for; -1 once all are unlocked
     int stage = 1;                    // the furthest open stage
     int cleared = 0;                  // bit n: stage n's boss beaten
+    std::vector<int> skills;          // the skill picker's slots
     std::map<int, BattleBoss> bosses; // by stage
 };
 struct BattleProgress {
@@ -175,6 +176,8 @@ struct BattleProgress {
     std::optional<BattleBoss> boss_before; // set on boss stages
     int boss_hp_after = 0;
     std::vector<int> chests; // stones in each
+    std::string reward_kind; // "song" or "costume" on a boss's first defeat, else empty
+    std::string reward_name;
 };
 struct ShopGood {
     int type = -1; // 2 dress, 3 head, 4 body, 5 puchichara, 6 title
@@ -312,7 +315,7 @@ public:
 
     BattleStatus fetch_battle_status(const std::string& access_code);
     void submit_battle(const std::string& access_code, const std::string& song_hash, int difficulty, int stage,
-                       int hits, int damage, int power, int chests);
+                       int hits, int damage, int power, int chests, const std::vector<int>& skills);
     bool battle_pending() const {
 #if defined(NETWORK_ENABLED)
         return !pending_battle.empty();

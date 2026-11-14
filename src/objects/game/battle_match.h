@@ -3,12 +3,13 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <iterator>
 #include <random>
+#include <vector>
 
 #include "../enums.h"
 
 inline constexpr int BATTLE_BOND_MAX = 65;
-// stand-in when Hiroba has no progress for the player
 inline constexpr int BATTLE_DEFAULT_BOND = 1;
 
 inline constexpr std::array<std::array<int, 2>, 20> BATTLE_ATTACK_POINTS = {
@@ -31,12 +32,38 @@ inline int battle_base_attack(int bond) {
 
 inline constexpr double BATTLE_CRITICAL_CHANCE = 0.1;
 inline constexpr int BATTLE_ROLL_DIVISOR = 8;
-// unknown in the source notes: a special move hits for this many base attacks
 inline constexpr int BATTLE_SKILL_ATTACKS = 20;
-// unknown: chance that a fired special move drops a treasure chest
-inline constexpr double BATTLE_CHEST_CHANCE = 0.5;
-// the result screen has three chest slots
+inline constexpr double BATTLE_CHEST_CHANCE = 0.1;
 inline constexpr int BATTLE_MAX_CHESTS = 3;
+
+inline constexpr int BATTLE_MOVE_COUNT = 10;
+inline constexpr int BATTLE_MOVE_RANDOM = 10;
+inline constexpr int BATTLE_MOVE_NONE = 11;
+// unlock order; 4 (Hacchake Fire) was a 2018 event move and never unlocks
+inline constexpr std::array<int, 9> BATTLE_MOVE_UNLOCKS = {0, 1, 2, 3, 5, 6, 7, 8, 9};
+inline constexpr int BATTLE_SKILL_SLOTS = 3;
+
+inline std::vector<int> battle_slot_items(int moves) {
+    const auto unlocked = static_cast<size_t>(std::clamp(moves, 1, static_cast<int>(BATTLE_MOVE_UNLOCKS.size())));
+    std::vector<int> items(BATTLE_MOVE_UNLOCKS.begin(), BATTLE_MOVE_UNLOCKS.begin() + unlocked);
+    items.push_back(BATTLE_MOVE_RANDOM);
+    items.push_back(BATTLE_MOVE_NONE);
+    return items;
+}
+
+inline int battle_slot_move(const std::vector<int>& slots, int moves, int fired, std::mt19937& rng) {
+    std::vector<int> set;
+    std::ranges::copy_if(slots, std::back_inserter(set), [](int m) { return m != BATTLE_MOVE_NONE; });
+    if (set.empty()) {
+        return -1;
+    }
+    const int move = set[fired % set.size()];
+    if (move != BATTLE_MOVE_RANDOM) {
+        return move;
+    }
+    const std::vector<int> items = battle_slot_items(moves);
+    return items[std::uniform_int_distribution<size_t>(0, items.size() - 3)(rng)];
+}
 
 struct BattleHit {
     int damage = 0;
@@ -81,20 +108,33 @@ inline float battle_skill_fill(int difficulty, int fired, int notes) {
     return std::clamp(static_cast<float>(notes - from) / static_cast<float>(to - from), 0.0f, 1.0f);
 }
 
-// Stage 1's five minor enemies (sprout, moth, turtle, chameleon, wolf). Guessed from footage: one hit at bond 1 fells a
-// small one and the wolf takes two hits.
-inline constexpr std::array<int, 5> BATTLE_ZAKO_HP = {30, 30, 30, 30, 60};
-inline constexpr int BATTLE_FIELD_SIZE = 10;
-// guessed from footage: battle power climbs about one per 500 damage
-inline constexpr int BATTLE_POWER_DAMAGE = 500;
+// Minor enemies per enemy stage (1, 3, 5, 7, 9): kind count, how many of the last kinds are big, and the bond level the
+// stage opens at. A small one falls to one hit at that bond and a big one to two (guessed from footage of stage 1).
+struct BattleEnemySet {
+    int kinds;
+    int big;
+    int bond;
+};
+inline constexpr std::array<BattleEnemySet, 5> BATTLE_ENEMIES = {
+    {{5, 1, 1}, {5, 1, 14}, {8, 2, 29}, {7, 2, 41}, {6, 2, 53}}};
 
-// stages past this have no art yet
-inline constexpr int BATTLE_STAGES_PORTED = 2;
+// boss stages field the previous enemy stage's enemies once their boss is gone
+inline const BattleEnemySet& battle_enemy_set(int stage) {
+    return BATTLE_ENEMIES[std::clamp((stage - 1) / 2, 0, static_cast<int>(BATTLE_ENEMIES.size()) - 1)];
+}
+
+inline int battle_enemy_hp(int stage, int kind) {
+    const BattleEnemySet& set = battle_enemy_set(stage);
+    return battle_base_attack(set.bond) * (kind >= set.kinds - set.big ? 2 : 1);
+}
+
+inline constexpr int BATTLE_FIELD_SIZE = 10;
+inline constexpr int BATTLE_POWER_DAMAGE = 500;
 
 inline bool battle_is_boss_stage(int stage) {
     return stage % 2 == 0;
 }
 
-inline int battle_next_zako(std::mt19937& rng) {
-    return std::uniform_int_distribution<int>(0, static_cast<int>(BATTLE_ZAKO_HP.size()) - 1)(rng);
+inline int battle_next_enemy(int stage, std::mt19937& rng) {
+    return std::uniform_int_distribution<int>(0, battle_enemy_set(stage).kinds - 1)(rng);
 }

@@ -46,6 +46,9 @@ void BattleResultBoard::begin(const BattleProgress& progress) {
             t["boss"] = lua.create_table_with("hp_before", progress.boss_before->hp, "hp_after", progress.boss_hp_after,
                                               "max", progress.boss_before->max);
         }
+        if (!progress.reward_kind.empty()) {
+            t["reward"] = lua.create_table_with("kind", progress.reward_kind, "name", progress.reward_name);
+        }
         answer = t;
     }
     call(fn_begin, "BattleResultBoard:begin", answer);
