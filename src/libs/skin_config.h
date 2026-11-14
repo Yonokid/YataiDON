@@ -136,6 +136,7 @@ enum class SCO : unsigned int {
 
     DISABLE_TOTAL_RESULT,
     DISABLE_WAIWAI,
+    DISABLE_ENSO_BATTLE,
 };
 
 namespace std {
@@ -162,6 +163,7 @@ const std::unordered_map<std::string, SCO> screen_options_map{
     {"disable_reward_shop", SCO::DISABLE_REWARD_SHOP},
     {"disable_total_result", SCO::DISABLE_TOTAL_RESULT},
     {"disable_waiwai", SCO::DISABLE_WAIWAI},
+    {"disable_enso_battle", SCO::DISABLE_ENSO_BATTLE},
     {"ai_no_support_levels", SCO::AI_NO_SUPPORT_LEVELS},
     {"ai_wait_loading_card", SCO::AI_WAIT_LOADING_CARD},
 };

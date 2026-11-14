@@ -75,7 +75,8 @@ void BoxManager::build_board_list() {
         if (screen == Screens::AI_SELECT && !script_manager.has_lua_script("ai_support_menu")) {
             continue;
         }
-        if (screen == Screens::BATTLE_SELECT && !script_manager.has_lua_script("enso_battle")) {
+        if (screen == Screens::BATTLE_SELECT &&
+            (tex.options[SCO::DISABLE_ENSO_BATTLE] || !script_manager.has_lua_script("enso_battle"))) {
             continue;
         }
         // like the dan board: a skin that blanks the board's text leaves the board out
