@@ -1076,8 +1076,8 @@ void NetworkClient::submit_don_points(int seat, const std::string& access_code, 
         return;
     }
     std::string list;
-    for (int gauge : gauges) {
-        list += (list.empty() ? "" : ",") + std::to_string(gauge);
+    for (size_t i = 0; i < std::min<size_t>(gauges.size(), 16); ++i) {
+        list += (list.empty() ? "" : ",") + std::to_string(gauges[i]);
     }
     std::map<std::string, std::string> params{{"access_code", access_code}, {"gauges", list}};
     pending_don_points.emplace_back(
