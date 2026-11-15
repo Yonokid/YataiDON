@@ -130,8 +130,9 @@ void register_song_select_lua_bindings(sol::state& lua) {
         "SongBox", sol::base_classes, sol::bases<BaseBox>(), "text_subtitle", &SongBox::text_subtitle, "subtitle",
         &SongBox::horizontal_subtitle, "subtitle_large", &SongBox::horizontal_subtitle_large, "bpm_text",
         [](SongBox& self) { return self.bpm_text.get(); }, "is_ura", &SongBox::is_ura, "oni_locked",
-        &SongBox::oni_locked, "is_favorite", &SongBox::is_favorite, "diff_fade_in", &SongBox::diff_fade_in, "has_ura",
-        &SongBox::has_ura, "ex_data_flag", &SongBox::ex_data_flag, "course_info",
+        &SongBox::oni_locked, "popular_rank", &SongBox::popular_rank, "is_favorite", &SongBox::is_favorite,
+        "diff_fade_in", &SongBox::diff_fade_in, "has_ura", &SongBox::has_ura, "ex_data_flag", &SongBox::ex_data_flag,
+        "course_info",
         [](SongBox& self, double diff) {
             auto info = self.course_info(static_cast<int>(diff));
             sol::table t = script_manager.lua->create_table(0, 6);

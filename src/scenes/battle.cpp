@@ -16,6 +16,7 @@ void BattleSongSelectScreen::on_screen_start() {
     const BattleStatus status = code.empty() ? BattleStatus{} : network.fetch_battle_status(code);
     global_data.battle_tracked = status.answered;
     global_data.battle_bond = status.answered ? status.bond : BATTLE_DEFAULT_BOND;
+    global_data.battle_best_power = status.best_power;
     global_data.battle_stage = status.answered ? status.stage : 1;
     const auto boss = status.bosses.find(global_data.battle_stage);
     global_data.battle_boss_hp = boss == status.bosses.end() ? 0 : boss->second.hp;
@@ -167,7 +168,8 @@ void BattleGameScreen::announce_battle() {
     if (!overlay_active()) {
         return;
     }
-    overlay->reset(JudgePos::X, JudgePos::Y, stage, global_data.battle_orbs);
+    overlay->reset(JudgePos::X, JudgePos::Y, stage, global_data.battle_orbs,
+                   global_data.battle_tracked ? global_data.battle_best_power : -1);
     const double now = get_current_ms();
     if (boss) {
         overlay->boss(now, boss_hp, global_data.battle_boss_hp_max);

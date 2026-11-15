@@ -6,6 +6,7 @@
 #include "../../../libs/audio/audio.h"
 #include "../../../libs/gfx/text.h"
 #include "../../../libs/latest_worker.h"
+#include "../../../libs/network/network.h"
 #include "../../../platform/platform.h"
 #include "color_utils.h"
 #include "navigator.h"
@@ -153,6 +154,20 @@ void SongBox::load_text() {
 
 void SongBox::update(double current_time) {
     BaseBox::update(current_time);
+    if (popular_rank < 0) {
+        int best = 0;
+        for (const auto& hash : hashes) {
+            int rank = hash.empty() ? 0 : network.popular_rank(hash);
+            if (rank < 0) {
+                best = -1;
+                break;
+            }
+            if (rank > 0 && (best == 0 || rank < best)) {
+                best = rank;
+            }
+        }
+        popular_rank = best;
+    }
     if (!yellow_box_active && !preview_load && !music_playing) {
         return;
     }

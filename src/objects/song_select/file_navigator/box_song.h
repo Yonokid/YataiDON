@@ -43,6 +43,7 @@ public:
     FadeAnimation* diff_fade_in;
     bool is_ura = false;
     bool oni_locked = false; // hidden_oni skin option: the oni slot stays hidden until opened
+    int popular_rank = -1;
     GenreIndex song_genre_index = GenreIndex::DEFAULT;
     std::string song_genre_label;
 

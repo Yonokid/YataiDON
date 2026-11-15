@@ -20,8 +20,8 @@ BattleOverlay::BattleOverlay() {
     fn_draw_front = lua_object["draw_front"];
 }
 
-void BattleOverlay::reset(float judge_x, float judge_y, int stage, bool orbs) {
-    call(fn_reset, "EnsoBattleOverlay:reset", judge_x, judge_y, stage, orbs);
+void BattleOverlay::reset(float judge_x, float judge_y, int stage, bool orbs, int best_power) {
+    call(fn_reset, "EnsoBattleOverlay:reset", judge_x, judge_y, stage, orbs, best_power);
 }
 
 void BattleOverlay::pop_enemy(double ms, int kind) {

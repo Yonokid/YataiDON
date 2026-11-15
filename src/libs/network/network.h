@@ -276,6 +276,8 @@ public:
 
     std::optional<std::vector<RankingEntry>> song_leaderboard(const std::string& hash);
 
+    int popular_rank(const std::string& hash);
+
     void spin_gacha(const std::string& access_code);
     std::optional<GachaResult> take_gacha_result();
 
@@ -385,6 +387,8 @@ private:
     std::string pending_leaderboard_hash;
     std::string next_leaderboard_hash;
     std::map<std::string, std::vector<RankingEntry>> leaderboard_cache;
+    std::optional<cpr::AsyncResponse> pending_popular;
+    std::optional<std::map<std::string, int>> popular_ranks;
     void start_leaderboard_fetch(const std::string& hash);
 
 #if defined(__ANDROID__)

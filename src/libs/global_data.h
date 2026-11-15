@@ -310,6 +310,7 @@ struct GlobalData {
     AIMatchResult ai_match;
     bool battle_tracked = false;
     int battle_bond = 1;
+    int battle_best_power = 0;
     int battle_stage = 1;
     int battle_boss_hp = 0; // the stage's boss, if it has one
     int battle_boss_hp_max = 0;

@@ -756,6 +756,22 @@ std::optional<std::vector<RankingEntry>> NetworkClient::song_leaderboard(const s
     return std::nullopt;
 }
 
+int NetworkClient::popular_rank(const std::string& hash) {
+    if (!network_enabled() || !online || hash.empty()) {
+        return 0;
+    }
+    if (!popular_ranks.has_value()) {
+        if (!pending_popular.has_value()) {
+            pending_popular =
+                cpr::GetAsync(cpr::Url{network_url("/most_played_songs")},
+                              signed_headers("GET", "/most_played_songs", {}), cpr::Timeout{5000} NETWORK_CA_OPT);
+        }
+        return -1;
+    }
+    auto it = popular_ranks->find(hash);
+    return it == popular_ranks->end() ? 0 : it->second;
+}
+
 void NetworkClient::request_replay(int score_id) {
     if (!network_enabled()) {
         return;
@@ -1754,6 +1770,36 @@ void NetworkClient::update(double current_ms) {
         }
     }
 
+    if (pending_popular.has_value() &&
+        pending_popular->wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+        cpr::Response response = pending_popular->get();
+        pending_popular.reset();
+        rapidjson::Document doc;
+        if (response.status_code == 200 && !doc.Parse(response.text.c_str()).HasParseError() &&
+            doc.HasMember("songs") && doc["songs"].IsArray()) {
+            std::map<std::string, int> ranks;
+            int place = 0;
+            for (const auto& row : doc["songs"].GetArray()) {
+                if (!row.IsObject() || ++place > 10) {
+                    continue;
+                }
+                if (row.HasMember("hashes") && row["hashes"].IsArray()) {
+                    for (const auto& h : row["hashes"].GetArray()) {
+                        if (h.IsString()) {
+                            ranks.emplace(h.GetString(), place);
+                        }
+                    }
+                } else if (row.HasMember("hash") && row["hash"].IsString()) {
+                    ranks.emplace(row["hash"].GetString(), place);
+                }
+            }
+            popular_ranks = std::move(ranks);
+        } else {
+            spdlog::warn("most_played_songs: HTTP {} - {}", response.status_code, response.text);
+            popular_ranks.emplace();
+        }
+    }
+
     if (pending_score_submit.has_value() &&
         pending_score_submit->wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
         cpr::Response response = pending_score_submit->get();
@@ -1784,6 +1830,10 @@ void NetworkClient::shutdown() {
     if (pending_leaderboard.has_value()) {
         pending_leaderboard->wait();
         pending_leaderboard.reset();
+    }
+    if (pending_popular.has_value()) {
+        pending_popular->wait();
+        pending_popular.reset();
     }
 #if defined(__ANDROID__)
     if (pending_update_checksum.has_value()) {
@@ -1893,6 +1943,9 @@ std::optional<int> NetworkClient::take_replay_jump_result() {
 void NetworkClient::request_replay(int) {}
 std::optional<std::vector<RankingEntry>> NetworkClient::song_leaderboard(const std::string&) {
     return std::nullopt;
+}
+int NetworkClient::popular_rank(const std::string&) {
+    return 0;
 }
 std::optional<ReplayData> NetworkClient::take_replay_result() {
     return std::nullopt;

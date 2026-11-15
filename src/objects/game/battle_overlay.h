@@ -20,7 +20,7 @@ class BattleOverlay : public LuaScript {
 public:
     BattleOverlay();
     bool loaded() const { return lua_object.valid(); }
-    void reset(float judge_x, float judge_y, int stage, bool orbs);
+    void reset(float judge_x, float judge_y, int stage, bool orbs, int best_power);
     void pop_enemy(double ms, int kind);
     void boss(double ms, int hp, int hp_max);
     void hit(double ms, int damage, bool good, bool critical, bool kat, bool big);
