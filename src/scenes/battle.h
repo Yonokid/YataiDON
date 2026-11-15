@@ -26,7 +26,8 @@ protected:
     bool allows_second_player_join() override { return false; }
     void draw_overlays() override;
     bool popup_open() override {
-        return SongSelectScreen::popup_open() || (skills && skills->is_shown(get_current_ms()));
+        return SongSelectScreen::popup_open() || (skills && skills->is_shown(get_current_ms())) ||
+               picker.hovered_course(state, *player) >= 0;
     }
     fs::path bgm_override() override {
         const fs::path bgm = "Sounds/battle_select/bgm.ogg";
