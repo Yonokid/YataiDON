@@ -420,7 +420,11 @@ void PracticeGameScreen::scrobble_step_bar(bool right) {
             practice_player->spawn_scrobble_effect(DrumType::KAT, Side::LEFT, player_idx);
         }
     }
-    if (right ? at_last_bar() : at_first_bar()) {
+    if (!right && at_first_bar()) {
+        animate_scrobble_to(static_cast<int>(bars.size()) - 1);
+        return;
+    }
+    if (right && at_last_bar()) {
         seek_limit_ms = now_ms;
         return;
     }
@@ -1314,7 +1318,7 @@ static float ease_out(double p) {
 }
 
 void PracticeGameScreen::draw_skip_buttons(int player_idx, bool clamp) const {
-    bool l_off = clamp && at_first_bar();
+    bool l_off = false;
     bool r_off = clamp && at_last_bar();
     tex.draw_texture(l_off ? t_skip_l_kat_off : t_skip_l_kat,
                      {.scale = skip_l_kat_anim ? static_cast<float>(skip_l_kat_anim->attribute) : 1.0f,
