@@ -309,6 +309,11 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     miniz
 )
 
+if(TARGET facedetection)
+  target_link_libraries(${PROJECT_NAME} PRIVATE facedetection)
+  target_compile_definitions(${PROJECT_NAME} PRIVATE YATAIDON_HAS_FACE_DETECTION)
+endif()
+
 # Optional libraries: shared code checks these YATAIDON_HAS_* macros, never platform names.
 # (platform/ps5/game.cmake builds without any of them.)
 # SDL text input / IME; consoles use their own keyboards.

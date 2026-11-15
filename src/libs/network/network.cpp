@@ -761,15 +761,29 @@ int NetworkClient::popular_rank(const std::string& hash) {
         return 0;
     }
     if (!popular_ranks.has_value()) {
-        if (!pending_popular.has_value()) {
-            pending_popular =
-                cpr::GetAsync(cpr::Url{network_url("/most_played_songs")},
-                              signed_headers("GET", "/most_played_songs", {}), cpr::Timeout{5000} NETWORK_CA_OPT);
-        }
+        request_popular();
         return -1;
     }
     auto it = popular_ranks->find(hash);
     return it == popular_ranks->end() ? 0 : it->second;
+}
+
+void NetworkClient::request_popular() {
+    if (!pending_popular.has_value()) {
+        pending_popular = cpr::GetAsync(cpr::Url{network_url("/most_played_songs")},
+                                        signed_headers("GET", "/most_played_songs", {}), cpr::Timeout{5000} NETWORK_CA_OPT);
+    }
+}
+
+const std::vector<NetworkClient::PopularSong>* NetworkClient::popular_songs() {
+    if (!network_enabled() || !online) {
+        return nullptr;
+    }
+    if (!popular_ranks.has_value()) {
+        request_popular();
+        return nullptr;
+    }
+    return &popular_list;
 }
 
 void NetworkClient::request_replay(int score_id) {
@@ -1778,11 +1792,31 @@ void NetworkClient::update(double current_ms) {
         if (response.status_code == 200 && !doc.Parse(response.text.c_str()).HasParseError() &&
             doc.HasMember("songs") && doc["songs"].IsArray()) {
             std::map<std::string, int> ranks;
+            popular_list.clear();
             int place = 0;
+            const std::string& lang = global_data.config->general.language;
             for (const auto& row : doc["songs"].GetArray()) {
                 if (!row.IsObject() || ++place > 10) {
                     continue;
                 }
+                PopularSong song;
+                if (row.HasMember("title") && row["title"].IsObject()) {
+                    const auto& t = row["title"];
+                    for (const char* key : {lang.c_str(), "en"}) {
+                        if (song.title.empty() && t.HasMember(key) && t[key].IsString()) {
+                            song.title = t[key].GetString();
+                        }
+                    }
+                    for (auto it = t.MemberBegin(); song.title.empty() && it != t.MemberEnd(); ++it) {
+                        if (it->value.IsString()) {
+                            song.title = it->value.GetString();
+                        }
+                    }
+                }
+                if (row.HasMember("genre") && row["genre"].IsString()) {
+                    song.genre = row["genre"].GetString();
+                }
+                popular_list.push_back(std::move(song));
                 if (row.HasMember("hashes") && row["hashes"].IsArray()) {
                     for (const auto& h : row["hashes"].GetArray()) {
                         if (h.IsString()) {
@@ -1946,6 +1980,9 @@ std::optional<std::vector<RankingEntry>> NetworkClient::song_leaderboard(const s
 }
 int NetworkClient::popular_rank(const std::string&) {
     return 0;
+}
+const std::vector<NetworkClient::PopularSong>* NetworkClient::popular_songs() {
+    return nullptr;
 }
 std::optional<ReplayData> NetworkClient::take_replay_result() {
     return std::nullopt;

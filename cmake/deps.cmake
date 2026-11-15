@@ -244,6 +244,26 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(sol2)
 
+message(STATUS "Fetching libfacedetection...")
+FetchContent_Declare(
+    libfacedetection
+    URL https://github.com/ShiqiYu/libfacedetection/archive/acf7b254121927e7dced30e233a2e03119f28ea2.tar.gz
+    URL_HASH SHA256=40c3a642922a8d0220a68527772e3346fddcd3c5fa03b8a4613db93a4e22e9bf
+    SOURCE_SUBDIR no-cmake
+)
+FetchContent_MakeAvailable(libfacedetection)
+file(WRITE "${CMAKE_BINARY_DIR}/generated/facedetection/facedetection_export.h"
+     "#pragma once\n#define FACEDETECTION_EXPORT\n")
+add_library(facedetection STATIC
+    ${libfacedetection_SOURCE_DIR}/src/facedetectcnn.cpp
+    ${libfacedetection_SOURCE_DIR}/src/facedetectcnn-data.cpp
+    ${libfacedetection_SOURCE_DIR}/src/facedetectcnn-model.cpp)
+target_include_directories(facedetection SYSTEM PUBLIC
+    ${libfacedetection_SOURCE_DIR}/src ${CMAKE_BINARY_DIR}/generated/facedetection)
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|arm64|ARM64)$")
+  target_compile_definitions(facedetection PUBLIC _ENABLE_NEON)
+endif()
+
 if(NOT ANDROID AND NOT IOS AND NOT EMSCRIPTEN)
   set(ZLIB_USE_STATIC_LIBS ON)
   if(WIN32)

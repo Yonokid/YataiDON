@@ -1,11 +1,18 @@
 #pragma once
 #include <cassert>
+#include <memory>
 #include <optional>
+#include <vector>
 
 // clang-format off
 #include "../gfx/sdl_compat.h" // before ray.h: raylib.h must not be the first to pull in <stdarg.h>
 #include "../gfx.h"       // IWYU pragma: keep
 // clang-format on
+
+struct FaceBox {
+    float x, y, w, h;
+    int confidence;
+};
 
 class WebCamera {
 public:
@@ -28,6 +35,8 @@ public:
         return m_texture.value();
     }
     int width() const { return m_width; }
+    void detect_faces(bool on);
+    std::vector<FaceBox> faces() const;
     int height() const { return m_height; }
 
 private:
@@ -36,6 +45,9 @@ private:
     int m_width = 0;
     int m_height = 0;
     bool m_permission_denied_logged = false;
+    struct FaceTracking;
+    std::unique_ptr<FaceTracking> m_faces;
+    void submit_faces(const uint8_t* rgba, int width, int height);
 };
 
 extern WebCamera webcam;

@@ -19,6 +19,7 @@
 #include "../gfx/text.h"
 #include "../global_data.h"
 #include "../input/input.h"
+#include "../network/network.h"
 #include "../screen.h"
 #include "../video/webcam.h"
 #include "filesystem.h"
@@ -1146,7 +1147,35 @@ void ScriptManager::register_lua_bindings() {
         draw_texture_pro(webcam.get_texture(), src, dst, Vec2{0, 0}, 0, Color::WHITE);
     });
 
+    camera_tbl.set_function("detect_faces", [](bool on) { webcam.detect_faces(on); });
+
+    // {x, y, w, h} fractions of the camera frame, latest detection
+    camera_tbl.set_function("faces", [](sol::this_state state) {
+        sol::state_view lua_view(state);
+        sol::table out = lua_view.create_table();
+        for (const FaceBox& f : webcam.faces()) {
+            out.add(lua_view.create_table_with("x", f.x, "y", f.y, "w", f.w, "h", f.h));
+        }
+        return out;
+    });
+
     lua["camera"] = camera_tbl;
+
+    sol::table network_tbl = lua.create_table();
+    // {title, genre} rows of Hiroba's most played songs, or nil while loading / offline
+    network_tbl.set_function("popular_songs", [](sol::this_state state) -> sol::object {
+        sol::state_view lua_view(state);
+        const auto* songs = network.popular_songs();
+        if (!songs) {
+            return sol::lua_nil;
+        }
+        sol::table out = lua_view.create_table();
+        for (const auto& song : *songs) {
+            out.add(lua_view.create_table_with("title", song.title, "genre", song.genre));
+        }
+        return out;
+    });
+    lua["network"] = network_tbl;
 
     register_song_select_lua_bindings(lua);
 

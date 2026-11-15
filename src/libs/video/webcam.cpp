@@ -5,10 +5,80 @@
 #if YATAIDON_SDL_CAMERA
 #include <SDL3/SDL_camera.h>
 #endif
+#include <algorithm>
+#include <atomic>
 #include <cstring>
+#include <memory>
+#include <mutex>
 #include <spdlog/spdlog.h>
 #include <utility>
 #include <vector>
+
+#include "../latest_worker.h"
+
+#if YATAIDON_HAS_FACE_DETECTION
+#include <facedetectcnn.h>
+#endif
+
+namespace {
+    constexpr int kDetectWidth = 320;
+    constexpr int kMinConfidence = 70;
+} // namespace
+
+struct WebCamera::FaceTracking {
+    std::atomic<bool> busy{false};
+    mutable std::mutex mutex;
+    std::vector<FaceBox> faces;
+    LatestWorker worker;
+};
+
+std::vector<FaceBox> WebCamera::faces() const {
+    if (!m_faces) {
+        return {};
+    }
+    std::scoped_lock lock(m_faces->mutex);
+    return m_faces->faces;
+}
+
+#if YATAIDON_HAS_FACE_DETECTION
+void WebCamera::submit_faces(const uint8_t* rgba, int width, int height) {
+    if (!m_faces || width <= 0 || height <= 0 || m_faces->busy.exchange(true)) {
+        return;
+    }
+    const int dw = std::min(kDetectWidth, width);
+    const int dh = std::max(1, height * dw / width);
+    auto bgr = std::make_shared<std::vector<uint8_t>>(static_cast<size_t>(dw) * dh * 3);
+    for (int y = 0; y < dh; ++y) {
+        const uint8_t* row = rgba + static_cast<size_t>(y * height / dh) * width * 4;
+        uint8_t* out = bgr->data() + static_cast<size_t>(y) * dw * 3;
+        for (int x = 0; x < dw; ++x) {
+            const uint8_t* px = row + static_cast<size_t>(x * width / dw) * 4;
+            out[x * 3] = px[2];
+            out[x * 3 + 1] = px[1];
+            out[x * 3 + 2] = px[0];
+        }
+    }
+    m_faces->worker.submit([state = m_faces.get(), bgr, dw, dh] {
+        std::vector<unsigned char> buffer(FACEDETECTION_RESULT_BUFFER_SIZE);
+        const int* results = facedetect_cnn(buffer.data(), bgr->data(), dw, dh, dw * 3);
+        std::vector<FaceBox> found;
+        for (int i = 0; results && i < *results; ++i) {
+            const short* p = reinterpret_cast<const short*>(results + 1) + FACEDETECTION_RESULT_STRIDE_SHORTS * i;
+            if (p[0] >= kMinConfidence) {
+                found.push_back({static_cast<float>(p[1]) / dw, static_cast<float>(p[2]) / dh,
+                                 static_cast<float>(p[3]) / dw, static_cast<float>(p[4]) / dh, p[0]});
+            }
+        }
+        {
+            std::scoped_lock lock(state->mutex);
+            state->faces = std::move(found);
+        }
+        state->busy = false;
+    });
+}
+#else
+void WebCamera::submit_faces(const uint8_t*, int, int) {}
+#endif
 
 WebCamera webcam;
 
@@ -16,8 +86,17 @@ WebCamera::~WebCamera() {
     close();
 }
 
+void WebCamera::detect_faces(bool on) {
+    if (!on) {
+        m_faces.reset();
+    } else if (!m_faces) {
+        m_faces = std::make_unique<FaceTracking>();
+    }
+}
+
 WebCamera::WebCamera(WebCamera&& other) noexcept
-    : m_camera(other.m_camera), m_texture(other.m_texture), m_width(other.m_width), m_height(other.m_height) {
+    : m_camera(other.m_camera), m_texture(other.m_texture), m_width(other.m_width), m_height(other.m_height),
+      m_faces(std::move(other.m_faces)) {
     other.m_camera = nullptr;
     other.m_texture.reset();
     other.m_width = 0;
@@ -31,6 +110,7 @@ WebCamera& WebCamera::operator=(WebCamera&& other) noexcept {
         m_texture = other.m_texture;
         m_width = other.m_width;
         m_height = other.m_height;
+        m_faces = std::move(other.m_faces);
         other.m_camera = nullptr;
         other.m_texture.reset();
         other.m_width = 0;
@@ -46,6 +126,7 @@ bool WebCamera::open(int) {
 }
 
 void WebCamera::close() {
+    m_faces.reset();
     if (m_texture.has_value()) {
         unload_texture(m_texture.value());
         m_texture.reset();
@@ -96,6 +177,7 @@ bool WebCamera::open(int device_index) {
 }
 
 void WebCamera::close() {
+    m_faces.reset();
     if (m_texture.has_value()) {
         unload_texture(m_texture.value());
         m_texture.reset();
@@ -203,6 +285,7 @@ void WebCamera::update() {
     } else {
         update_texture(m_texture.value(), pixels);
     }
+    submit_faces(static_cast<const uint8_t*>(pixels), rgba->w, rgba->h);
 
     SDL_DestroySurface(rgba);
 }
