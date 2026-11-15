@@ -88,6 +88,7 @@ private:
     std::unordered_map<int, std::unique_ptr<BaseAnimation>> face_anims;
     BaseAnimation* current_face_anim = nullptr;
     int current_face_index = -1;
+    int paint_index = 0;
 
     int anim_frame = 0;
     int applied_anim = -1;
@@ -145,7 +146,7 @@ private:
     int outline_fxaa_tint_amount_loc = -1;
 
     void set_texture(fs::path& texture_path, int part_index, int material_index);
-    void load_face_textures(fs::path& face_dir);
+    void load_face_textures(const fs::path& sheet_path);
     void load_face_anims(fs::path& anim_path);
     void draw_outline(float x, float y, int rt_w, int rt_h, float full_h);
     void draw_3d(float x, float y);
@@ -171,6 +172,7 @@ public:
     ~Chara3D();
 
     void apply_face(int face_index);
+    void set_paint(int index);
     void set_body_texture(fs::path& texture_path);
     void set_face_rim_texture(fs::path& texture_path);
     void set_puchi(int index);

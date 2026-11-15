@@ -52,6 +52,7 @@ struct RemoteUser {
     };
     std::optional<Costume> costume;
     std::optional<int> acce_index;
+    std::optional<int> paint_index;
     std::map<std::string, std::string> settings;
     std::vector<std::string> favorites;
     std::vector<std::string> recent;

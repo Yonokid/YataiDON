@@ -510,6 +510,9 @@ std::optional<RemoteUser> NetworkClient::fetch_user(const std::string& access_co
     if (doc.HasMember("puchichara")) {
         user.acce_index = doc["puchichara"].IsInt() ? doc["puchichara"].GetInt() : 0;
     }
+    if (doc.HasMember("chara_paint")) {
+        user.paint_index = doc["chara_paint"].IsInt() ? doc["chara_paint"].GetInt() : 0;
+    }
     if (doc.HasMember("settings") && doc["settings"].IsObject()) {
         const rapidjson::Value& settings = doc["settings"];
         for (auto it = settings.MemberBegin(); it != settings.MemberEnd(); ++it) {

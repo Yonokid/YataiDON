@@ -298,6 +298,9 @@ void EntryScreen::finish_login(RemoteLogin remote) {
         if (u.acce_index) {
             pd.chara_acce_index = *u.acce_index;
         }
+        if (u.paint_index) {
+            pd.chara_paint_index = *u.paint_index;
+        }
         if (u.import_requested) {
             scores_manager.export_to_hiroba(code, code);
             network.clear_import_flag(code);
