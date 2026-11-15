@@ -272,6 +272,7 @@ void Player::reload_for_dan(std::optional<SongParser>& new_parser, int new_diffi
     reset_chart();
     gauge.reset();          // reset_chart recreates gauge; discard it for dan mode
     branch_history.clear(); // switching charts: old song's branch decisions don't apply here
+    input_log.clear();
     skipped_run = false;
 }
 

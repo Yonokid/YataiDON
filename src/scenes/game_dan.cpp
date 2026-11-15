@@ -697,7 +697,6 @@ std::optional<Screens> DanGameScreen::update() {
             song_res.bad = players[0]->get_bad() - prev_bad;
             song_res.drumroll = players[0]->get_total_drumroll() - prev_drumroll;
             save_song_score(song_res);
-            players[0]->input_log.clear(); // each song is submitted with only its own inputs
             sd.dan_result_data.songs.push_back(song_res);
         }
 
