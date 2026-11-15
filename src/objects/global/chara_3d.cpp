@@ -587,6 +587,30 @@ void Chara3D::load_face_textures(const fs::path& sheet_path) {
     apply_face(std::max(current_face_index, 0));
 }
 
+static constexpr float PAINT_PLANE_SCALE = 4.0f / 3.0f;
+
+void Chara3D::scale_face_planes(float factor) {
+    for (size_t p = 0; p < parts.size(); p++) {
+        for (int m = 0; m < parts[p].meshCount; m++) {
+            if (parts[p].meshMaterial[m] != part_face_material_index[p]) {
+                continue;
+            }
+            Mesh& mesh = parts[p].meshes[m];
+            float minx = 1e9f, maxx = -1e9f, miny = 1e9f, maxy = -1e9f;
+            for (int v = 0; v < mesh.vertexCount; v++) {
+                minx = std::min(minx, mesh.vertices[v * 3]);
+                maxx = std::max(maxx, mesh.vertices[v * 3]);
+                miny = std::min(miny, mesh.vertices[v * 3 + 1]);
+                maxy = std::max(maxy, mesh.vertices[v * 3 + 1]);
+            }
+            normalize_face_mesh_size(mesh, std::max(maxx - minx, maxy - miny) * factor);
+            update_mesh_buffer(mesh, 0, mesh.vertices, mesh.vertexCount * 3 * static_cast<int>(sizeof(float)), 0);
+        }
+    }
+    applied_frame = -1;
+    render_dirty = true;
+}
+
 void Chara3D::set_paint(int index) {
     if (index == paint_index) {
         return;
@@ -595,6 +619,9 @@ void Chara3D::set_paint(int index) {
                                : resolve_skin_path("Models/face/face_000000.png");
     if (!fs::exists(sheet)) {
         return;
+    }
+    if ((index > 0) != (paint_index > 0)) {
+        scale_face_planes(index > 0 ? PAINT_PLANE_SCALE : 1.0f / PAINT_PLANE_SCALE);
     }
     paint_index = index;
     for (auto& t : face_textures) {

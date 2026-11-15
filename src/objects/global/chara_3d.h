@@ -89,6 +89,7 @@ private:
     BaseAnimation* current_face_anim = nullptr;
     int current_face_index = -1;
     int paint_index = 0;
+    void scale_face_planes(float factor);
 
     int anim_frame = 0;
     int applied_anim = -1;
