@@ -25,6 +25,34 @@ Transition::~Transition() {
     if (loading_graphic.has_value()) {
         unload_texture(loading_graphic.value());
     }
+    if (tips_graphic.has_value()) {
+        unload_texture(tips_graphic.value());
+    }
+}
+
+void Transition::add_tips(const std::string& path) {
+    Texture tex = load_texture_mipmapped(path.c_str());
+    if (tex.id == 0) {
+        spdlog::error("Failed to load transition tips: {}", path);
+        return;
+    }
+    if (tips_graphic.has_value()) {
+        unload_texture(tips_graphic.value());
+    }
+    tips_graphic.emplace(tex);
+}
+
+void Transition::draw_tips() {
+    if (!tips_graphic.has_value()) {
+        return;
+    }
+    const float s = global_tex.screen_scale;
+    const float base = global_tex.get_skin_config(SC::TRANSITION_OFFSET)->y;
+    const float offset = is_second ? base - static_cast<float>(cur_rainbow) : 0.0f;
+    const Texture& t = tips_graphic.value();
+    Rect src = {0, 0, static_cast<float>(t.width), static_cast<float>(t.height)};
+    Rect dst = {64.0f * s, 413.0f * s + base - static_cast<float>(cur_rainbow) - offset, 1152.0f * s, 280.0f * s};
+    draw_texture_pro(t, src, dst, {0, 0}, 0, fade(Color::WHITE, static_cast<float>(is_second ? cur_fade_out : cur_fade)));
 }
 
 void Transition::add_loading_graphic(const std::string& path) {
@@ -169,6 +197,7 @@ void Transition::draw() {
         } else {
             draw_song_info();
         }
+        draw_tips();
         return;
     }
     if (loading_graphic.has_value()) {
@@ -187,4 +216,5 @@ void Transition::draw() {
     } else {
         draw_song_info();
     }
+    draw_tips();
 }

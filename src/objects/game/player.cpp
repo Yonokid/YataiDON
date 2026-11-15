@@ -5,6 +5,7 @@
 #include <iterator>
 #include <numbers>
 #include <optional>
+#include <random>
 #include <ranges>
 #include <utility>
 #include <vector>
@@ -1122,8 +1123,13 @@ void Player::on_note_correct(const Note& note, double current_ms) {
     if (note.type != NoteType::KUSUDAMA) {
         bool is_big =
             note.type == NoteType::DON_L || note.type == NoteType::KAT_L || note.type == NoteType::BALLOON_HEAD;
+        const int rare = rare_order(note);
+        if (rare >= 0) {
+            rare_hit_mask |= 1u << rare;
+        }
         draw_arc_list.emplace_back(note.type, current_ms, arc_player(), is_big, note.type == NoteType::BALLOON_HEAD,
-                                   judge_x, judge_y, rainbow_arc, synchro(note), fade_arc);
+                                   judge_x, judge_y, rainbow_arc, synchro(note), fade_arc,
+                                   rare >= 0 ? rare_keys[rare % rare_keys.size()] : std::string{});
     }
     auto it = std::ranges::lower_bound(draw_note_buffer, note.index, {}, &Note::index);
     if (it != draw_note_buffer.end() && *it == note) {
@@ -1506,6 +1512,31 @@ int Player::miss_arm_frame(double current_ms, const Note& note) const {
     return t < 33 ? 0 : t < 67 ? 1 : 2;
 }
 
+void Player::set_rare_notes(std::vector<std::string> keys, int count, uint64_t seed) {
+    rare_keys = std::move(keys);
+    rare_notes.clear();
+    rare_hit_mask = 0;
+    if (rare_keys.empty() || count <= 0 || draw_note_list.empty()) {
+        return;
+    }
+    auto [first, last] = std::ranges::minmax(draw_note_list, {}, &Note::hit_ms);
+    const double lo = first.hit_ms + (last.hit_ms - first.hit_ms) * 0.1;
+    const double hi = first.hit_ms + (last.hit_ms - first.hit_ms) * 0.9;
+    std::vector<long long> dons;
+    for (const Note& note : draw_note_list) {
+        if (note.type == NoteType::DON && note.hit_ms >= lo && note.hit_ms <= hi) {
+            dons.push_back(std::llround(note.hit_ms));
+        }
+    }
+    std::ranges::sort(dons);
+    dons.erase(std::ranges::unique(dons).begin(), dons.end());
+    std::vector<long long> picked;
+    std::ranges::sample(dons, std::back_inserter(picked), count, std::mt19937_64(seed));
+    for (size_t i = 0; i < picked.size(); ++i) {
+        rare_notes[picked[i]] = static_cast<int>(i);
+    }
+}
+
 void Player::draw_synchro(double current_ms, const Note& note, float cx, float cy, int current_eighth) {
     const SynchroArt& art = (*synchro_art)[note.type == NoteType::KAT_L];
     const float s = tex.screen_scale;
@@ -1660,6 +1691,16 @@ void Player::draw_notes(double current_ms, float y) {
             draw_drumroll(current_ms, y, note, current_eighth, false);
         } else if (note.type == NoteType::BALLOON_HEAD) {
             draw_balloon(current_ms, y, note, current_eighth, false);
+        } else if (int rare = note.display ? rare_order(note) : -1; rare >= 0) {
+            TextureObject* t = tex.get_texture(rare_keys[rare % rare_keys.size()]);
+            int frames = 1;
+            if (auto* framed = dynamic_cast<FramedTexture*>(t)) {
+                frames = std::max<int>(1, static_cast<int>(framed->textures.size()));
+            }
+            tex.draw_texture(t, {.frame = static_cast<int>(current_ms / 150.0) % frames,
+                                 .center = true,
+                                 .x = pos->first - (t_notes_9->width / 2.0f),
+                                 .y = pos->second + tex.get_skin_config(SC::GAME_NOTES)->y});
         } else if (note.display && synchro(note)) {
             draw_synchro(current_ms, note, pos->first,
                          pos->second + tex.get_skin_config(SC::GAME_NOTES)->y + t_notes_9->height / 2.0f,

@@ -310,6 +310,9 @@ struct GlobalData {
     AIMatchResult ai_match;
     bool battle_tracked = false;
     int battle_bond = 1;
+    std::string waiwai_collab = "taiko"; // the waiwai song's collab art set (Graphics/waiwai_game/tips/<collab>.png)
+    int waiwai_rare_total = 0;           // rare notes per player this song
+    unsigned waiwai_rare_hits = 0;       // bit n: either player hit their n-th rare note
     int battle_best_power = 0;
     int battle_stage = 1;
     int battle_boss_hp = 0; // the stage's boss, if it has one

@@ -22,7 +22,8 @@ public:
     bool is_big;
 
     NoteArc(NoteType note_type, double current_ms, PlayerNum player_num, bool big, bool is_balloon, float start_x = 0,
-            float start_y = 0, bool rainbow_arc = false, bool synchro = false, bool fade = false);
+            float start_y = 0, bool rainbow_arc = false, bool synchro = false, bool fade = false,
+            const std::string& rare_key = {});
 
     void update(double current_ms);
 

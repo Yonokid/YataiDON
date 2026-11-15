@@ -90,6 +90,17 @@ public:
         return synchro_art && kusudama_partner && (note.type == NoteType::DON_L || note.type == NoteType::KAT_L) &&
                kusudama_partner->big_times.contains(big_key(note));
     }
+    std::vector<std::string> rare_keys;
+    std::unordered_map<long long, int> rare_notes;
+    unsigned rare_hit_mask = 0;
+    void set_rare_notes(std::vector<std::string> keys, int count, uint64_t seed);
+    int rare_order(const Note& note) const {
+        if (rare_notes.empty() || note.type != NoteType::DON) {
+            return -1;
+        }
+        auto it = rare_notes.find(std::llround(note.hit_ms));
+        return it == rare_notes.end() ? -1 : it->second;
+    }
     bool hide_gauge = false;
     bool in_gogo_time() const { return is_gogo_time; }
     bool hide_gogo_flame = false;

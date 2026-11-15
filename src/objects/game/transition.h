@@ -21,6 +21,8 @@ private:
     std::unique_ptr<OutlinedText> title;
     std::unique_ptr<OutlinedText> subtitle;
     std::optional<Texture> loading_graphic;
+    std::optional<Texture> tips_graphic;
+    void draw_tips();
     void draw_song_info();
 
     TextureObject* t_rainbow_text_bg = nullptr;
@@ -35,8 +37,8 @@ public:
     ~Transition() override;
     void start();
     void add_loading_graphic(const std::string& path);
+    void add_tips(const std::string& path); // waiwai
     void set_dan(int color, const std::string& rank_name);
-    // Rainbow backdrop only, no title or characters (tutorial)
     void set_rainbow_only();
     void update(double current_ms);
     void draw();

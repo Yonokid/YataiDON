@@ -18,7 +18,8 @@ public:
     void update(double ms, int state);
     void draw(double ms);
     void draw_front(double ms);
-    void set_result(int gauge_point, int duet_percent, int message, bool revive);
+    void set_result(int gauge_point, int duet_percent, int message, bool revive, const std::string& collab,
+                    int rare_total, unsigned rare_hits);
     void set_gauge(int point);
     int motion() const;
     bool is_finished();

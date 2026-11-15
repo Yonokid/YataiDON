@@ -24,8 +24,10 @@ void WaiwaiOverlay::draw_front(double ms) {
     call(fn_draw_front, "WaiwaiOverlay:draw_front", ms);
 }
 
-void WaiwaiOverlay::set_result(int gauge_point, int duet_percent, int message, bool revive) {
-    call(fn_set_result, "WaiwaiOverlay:set_result", gauge_point, duet_percent, message, revive);
+void WaiwaiOverlay::set_result(int gauge_point, int duet_percent, int message, bool revive, const std::string& collab,
+                               int rare_total, unsigned rare_hits) {
+    call(fn_set_result, "WaiwaiOverlay:set_result", gauge_point, duet_percent, message, revive, collab, rare_total,
+         rare_hits);
 }
 
 void WaiwaiOverlay::set_gauge(int point) {
