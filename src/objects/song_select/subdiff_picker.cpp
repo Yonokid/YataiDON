@@ -48,15 +48,16 @@ bool SubdiffPicker::handle_input() {
     return true;
 }
 
-void SubdiffPicker::open_if_decided(int course, const SongSelectPlayer& player, std::unique_ptr<Timer>& timer,
+bool SubdiffPicker::open_if_decided(int course, const SongSelectPlayer& player, std::unique_ptr<Timer>& timer,
                                     double ms) {
-    if (course < 0 || !player.difficulty_decided() || LEVEL_COUNT[course] <= 1) {
-        return;
+    if (choosing || course < 0 || !player.difficulty_decided() || LEVEL_COUNT[course] <= 1) {
+        return false;
     }
     chosen_course = course;
     choosing = true;
     cursor = LEVEL_COUNT[course] - 1;
     timer = std::make_unique<Timer>(LEVEL_SELECT_SECONDS, ms, [this] { decided = true; });
+    return true;
 }
 
 int SubdiffPicker::subdiff() const {

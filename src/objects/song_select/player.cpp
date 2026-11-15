@@ -110,10 +110,13 @@ void SongSelectPlayer::push_modifiers() {
     std::thread([code, data] { network.push_modifiers(code, data); }).detach();
 }
 
+std::string SongSelectPlayer::own_start_voice() const {
+    return !start_voice.empty() ? start_voice
+                                : "voice_start_song_" + std::to_string(static_cast<int>(player_num)) + "p";
+}
+
 bool SongSelectPlayer::is_voice_playing() {
-    return audio.is_sound_playing(!shared_start_voice.empty()
-                                      ? shared_start_voice
-                                      : "voice_start_song_" + std::to_string(static_cast<int>(player_num)) + "p");
+    return audio.is_sound_playing(!shared_start_voice.empty() ? shared_start_voice : own_start_voice());
 }
 
 static constexpr int ONI_COMMAND_COUNT = 10;
@@ -552,8 +555,7 @@ SongSelectState SongSelectPlayer::handle_input_selecting() {
                 voice_played = true;
                 start_background_diffs();
                 if (shared_start_voice.empty()) {
-                    audio.play_player_sound("voice_start_song_" + std::to_string(static_cast<int>(player_num)) + "p",
-                                            player_num, VolumePreset::VOICE);
+                    audio.play_player_sound(own_start_voice(), player_num, VolumePreset::VOICE);
                 }
             } else if (selected_difficulty == Difficulty::BACK) {
                 is_ready = true;

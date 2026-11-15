@@ -83,6 +83,7 @@ void EntryScreen::on_screen_start() {
     wait_chara[0].reset();
     wait_chara[1].reset();
     announce_played = false;
+    waiwai_adv_played = false;
     players.clear();
     players.resize(2);
     audio.play_sound("bgm", VolumePreset::MUSIC);
@@ -252,6 +253,7 @@ void EntryScreen::finish_login(RemoteLogin remote) {
     after_login_ = nullptr;
     if (!remote.ok) {
         spdlog::warn("Card login failed: the server did not register the card");
+        audio.play_sound("card_error", VolumePreset::SOUND);
         return;
     }
 
@@ -781,7 +783,10 @@ std::optional<Screens> EntryScreen::update() {
                 used_cards_.push_back(card_id);
                 card_reader_->set_accepting_cards(false);
                 card_reader_->set_led_color(0, 255, 0);
+                audio.play_sound("card_read", VolumePreset::SOUND);
                 join_with_card(card_id);
+            } else {
+                audio.play_sound("card_error", VolumePreset::SOUND);
             }
         }
     }
@@ -908,8 +913,13 @@ std::optional<Screens> EntryScreen::update() {
         if (player && player->is_cloud_animation_finished() &&
             !audio.is_sound_playing("entry_start_" + std::to_string(static_cast<int>(global_data.player_num)) + "p") &&
             !announce_played && state != EntryState::NAME_ENTRY && state != EntryState::CAMPAIGN) {
-            audio.play_sound("select_mode", VolumePreset::VOICE);
-            announce_played = true;
+            if (!waiwai_adv_played && !tex.options[SCO::DISABLE_WAIWAI] && audio.has_sound("waiwai_adv")) {
+                audio.play_sound("waiwai_adv", VolumePreset::VOICE);
+                waiwai_adv_played = true;
+            } else if (!audio.is_sound_playing("waiwai_adv")) {
+                audio.play_sound("select_mode", VolumePreset::VOICE);
+                announce_played = true;
+            }
         }
     }
     return handle_input();

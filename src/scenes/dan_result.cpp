@@ -433,6 +433,7 @@ void DanResultScreen::update_sounds(double now) {
         se_voice = true;
         const int r = rd.odai_result;
         if (r == 0) {
+            audio.play_sound("atmos_fail", VolumePreset::SOUND);
             audio.play_sound("voice_notclear", VolumePreset::VOICE);
         } else if (r > 0) {
             audio.play_sound("atmos_clear", VolumePreset::SOUND);

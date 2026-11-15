@@ -1274,6 +1274,13 @@ void Player::kusudama_counter_manager(double current_ms) {
     if (!is_balloon && kusudama_counter.has_value() && !kusudama_counter->has_popped()) {
         if (kusudama_counter->can_miss()) {
             kusudama_counter->miss(current_ms);
+            audio.play_player_sound("kusudama_fail", PlayerNum::ALL, VolumePreset::SOUND);
+            if (kusudama_partner) {
+                audio.play_sound("kusudama_fail_voice_1p", VolumePreset::VOICE);
+                audio.play_sound("kusudama_fail_voice_2p", VolumePreset::VOICE);
+            } else {
+                audio.play_sound("kusudama_fail_voice", VolumePreset::VOICE);
+            }
         } else {
             kusudama_counter.reset();
         }

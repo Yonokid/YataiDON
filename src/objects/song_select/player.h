@@ -54,12 +54,14 @@ public:
 
     bool solo = true;
     std::string shared_start_voice;
+    std::string start_voice;
     double oni_open_ms = -1.0;
 
     SongSelectPlayer(PlayerNum player_num);
 
     void update(double current_time);
     bool is_voice_playing();
+    std::string own_start_voice() const;
 
     bool difficulty_decided() const { return selected_difficulty >= Difficulty::EASY && (voice_played || is_ready); }
 

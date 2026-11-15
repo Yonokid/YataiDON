@@ -32,7 +32,7 @@ BattleResultBoard::BattleResultBoard(const BattleTally& song, int song_number, i
 static sol::table status_table(sol::state& lua, const BattleStatus& s) {
     return lua.create_table_with("bond", s.bond, "exp", s.exp, "exp_next", s.exp_next, "best_power", s.best_power,
                                  "stones", s.stones, "moves", s.moves, "move_cost", s.move_cost, "orbs", s.orbs,
-                                 "orb_rewards", s.orb_rewards, "orb_cost", s.orb_cost);
+                                 "orb_rewards", s.orb_rewards, "orb_cost", s.orb_cost, "stage", s.stage);
 }
 
 void BattleResultBoard::begin(const BattleProgress& progress) {

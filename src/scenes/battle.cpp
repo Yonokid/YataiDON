@@ -29,6 +29,9 @@ void BattleSongSelectScreen::on_screen_start() {
     }
     global_data.hold_genre_voice = !status.story.empty() && script_manager.has_lua_script("battle_story");
     SongSelectScreen::on_screen_start();
+    if (audio.has_sound("voice_battle_begin")) {
+        player->start_voice = "voice_battle_begin";
+    }
     const int side = global_data.player_num == PlayerNum::P2 ? 2 : 1;
     info.emplace(status, global_data.battle_stage, side);
     skills.emplace(global_data.battle_moves, global_data.battle_hacchake, side);
@@ -110,10 +113,13 @@ void BattleSongSelectScreen::handle_input_selecting() {
         (is_l_don_pressed(pn) || is_r_don_pressed(pn))) {
         audio.play_player_sound("don", pn, VolumePreset::HITSOUND);
         skills->open(now);
+        audio.play_sound("voice_battle_partner", VolumePreset::VOICE);
         return;
     }
     SongSelectScreen::handle_input_selecting();
-    picker.open_if_decided(picker.hovered_course(state, *player), *player, diff_select_timer, get_current_ms());
+    if (picker.open_if_decided(picker.hovered_course(state, *player), *player, diff_select_timer, get_current_ms())) {
+        audio.play_sound("voice_battle_finediff", VolumePreset::VOICE);
+    }
 }
 
 void BattleSongSelectScreen::select_song(SongBox* song) {
