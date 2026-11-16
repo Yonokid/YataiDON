@@ -1518,6 +1518,9 @@ void AudioEngine::play_sound(const std::string& name, VolumePreset volume_preset
             const float volume = get_preset_volume(volume_presets, volume_preset);
             yd::atomic_ref<float>(snd.volume).store(volume, std::memory_order_relaxed);
         }
+        if (player >= 0 && volume_preset == VolumePreset::HITSOUND) {
+            yd::atomic_ref<float>(snd.pan).store(player == 0 ? 0.0f : 1.0f, std::memory_order_relaxed);
+        }
 
         yd::atomic_ref<float>(snd.playback_gain).store(std::max(gain, 0.0f), std::memory_order_relaxed);
         yd::atomic_ref<unsigned int>(snd.current_frame).store(0, std::memory_order_relaxed);
