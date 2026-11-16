@@ -314,6 +314,7 @@ namespace {
         bgfx::FrameBufferHandle fb = BGFX_INVALID_HANDLE;
         unsigned color = 0; // texture id
         int width = 0, height = 0;
+        bool window = false; // swap chain of another native window, presented by bgfx::frame()
     };
 
     struct Pass {
@@ -366,6 +367,12 @@ namespace {
     bool frame_open = false;
     bgfx::ViewId next_view = 0;
     Pass pass;
+
+    struct SecondScreen {
+        void* window = nullptr;
+        int width = 0, height = 0;
+        unsigned target = 0;
+    } second;
 
     // Texture data queued for the next bgfx::frame(). bgfx uploads it all inside that call,
     // so a screen that loads hundreds of textures would hitch on its first frame.
@@ -607,7 +614,7 @@ namespace {
         if (const TargetSlot* t = target ? &targets[target - 1] : nullptr) {
             pass.width = t->width;
             pass.height = t->height;
-            pass.flip = !caps->originBottomLeft;
+            pass.flip = !t->window && !caps->originBottomLeft;
         } else {
             window_pixels(pass.width, pass.height);
             pass.flip = false;
@@ -917,7 +924,38 @@ namespace {
         return {c, s, 0, 0, -s, c, 0, 0, 0, 0, 1, 0, tx, ty, 0, 1};
     }
 
-    // defined with the 3D code at the end
+    void sync_second_screen() {
+        int w = 0, h = 0;
+        void* win = platform_second_screen(w, h);
+        if (win == second.window && w == second.width && h == second.height) {
+            return;
+        }
+        if (second.target) {
+            bgfx::destroy(targets[second.target - 1].fb);
+            targets[second.target - 1].fb = BGFX_INVALID_HANDLE;
+            second.target = 0;
+            advance_frame(BGFX_FRAME_FLUSH);
+        }
+        second = {};
+        if (!win || w <= 0 || h <= 0 || !platform_hold_second_screen(win)) {
+            platform_hold_second_screen(nullptr);
+            return;
+        }
+        bgfx::SwapChain sc;
+        sc.nwh = win;
+        sc.width = static_cast<uint32_t>(w);
+        sc.height = static_cast<uint32_t>(h);
+        sc.formatDepthStencil = bgfx::TextureFormat::Count;
+        const auto fb = bgfx::createFrameBuffer(sc);
+        if (!bgfx::isValid(fb)) {
+            spdlog::warn("bgfx: second screen swap chain failed ({}x{})", w, h);
+            platform_hold_second_screen(nullptr);
+            second = {win, w, h, 0};
+            return;
+        }
+        second = {win, w, h, add_slot(TargetSlot{.fb = fb, .width = w, .height = h, .window = true})};
+    }
+
     void init_3d();
     void shutdown_3d();
 
@@ -1169,6 +1207,19 @@ void swap_screen_buffer() {
     advance_frame();
     frame_open = false;
     pass.target = 0;
+    sync_second_screen();
+}
+
+bool begin_second_screen() {
+    if (!second.target) {
+        return false;
+    }
+    open_pass(second.target, true, Color::BLACK);
+    return true;
+}
+
+void end_second_screen() {
+    open_pass(0);
 }
 
 void clear_background(Color color) {

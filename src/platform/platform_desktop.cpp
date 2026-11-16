@@ -12,3 +12,11 @@ bool platform_is_suspended() {
 }
 
 void platform_initialize_after_window() {}
+
+void* platform_second_screen(int&, int&) {
+    return nullptr;
+}
+
+bool platform_hold_second_screen(void* window) {
+    return window == nullptr;
+}

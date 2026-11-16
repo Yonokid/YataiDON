@@ -213,6 +213,12 @@ void swap_screen_buffer() {
     ray::SwapScreenBuffer();
 }
 
+bool begin_second_screen() {
+    return false;
+}
+
+void end_second_screen() {}
+
 Texture load_texture_from_image(Image image, bool mipmaps) {
     ray::Texture2D tex = ray::LoadTextureFromImage(to<ray::Image>(image));
     if (mipmaps) {

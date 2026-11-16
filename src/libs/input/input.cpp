@@ -19,6 +19,7 @@
 
 #include "../../platform/platform.h"
 #include "../gfx.h"
+#include "../gfx/camera_utils.h"
 #include "../gfx/texture.h"
 #include "../math/animation.h"
 #include "../profiler.h"
@@ -131,6 +132,7 @@ std::atomic<bool> touch_drum_pressed{false};
 
 // Track if touch drum is enabled (drawing + input, controlled by screens)
 static std::atomic<bool> touch_drum_enabled{true};
+static std::atomic<bool> drum_on_second_screen{false};
 
 void set_touch_drum_enabled(bool enabled) {
     touch_drum_enabled.store(enabled, std::memory_order_relaxed);
@@ -505,6 +507,42 @@ static int touch_quadrant_vkey(Vec2 pos, int sw, int sh) {
     return left ? TOUCH_L_KAT : TOUCH_R_KAT;
 }
 
+static bool touch_drum_accepts() {
+    return global_data.config && global_data.config->general.touch_input &&
+           touch_drum_enabled.load(std::memory_order_relaxed);
+}
+
+static void press_touch(SDL_FingerID id, int vkey) {
+    if (!touch_id_to_vkey.try_emplace(id, vkey).second) {
+        return;
+    }
+    touch_drum_pressed.store(true, std::memory_order_relaxed);
+    last_input_ms.store(get_current_ms(), std::memory_order_relaxed);
+    pressed_keys.emplace(vkey, 1.0f);
+}
+
+static void release_touch(SDL_FingerID id) {
+    auto it = touch_id_to_vkey.find(id);
+    if (it != touch_id_to_vkey.end()) {
+        released_keys.insert(it->second);
+        touch_id_to_vkey.erase(it);
+    }
+    touch_drum_pressed.store(!touch_id_to_vkey.empty(), std::memory_order_relaxed);
+}
+
+void push_second_screen_touch(bool down, int id, float x, float y, int w, int h) {
+    if (is_input_locked()) {
+        return;
+    }
+    const SDL_FingerID key = (SDL_FingerID{1} << 63) | static_cast<uint32_t>(id); // apart from SDL's finger ids
+    std::scoped_lock lock(input_mutex);
+    if (!down) {
+        release_touch(key);
+    } else if (touch_drum_accepts()) {
+        press_touch(key, touch_quadrant_vkey({x, y}, w, h));
+    }
+}
+
 static bool touch_watch_registered = false;
 
 static int char_to_raylib_key(unsigned char c) {
@@ -574,10 +612,7 @@ static YD_EventFilterRet SDLCALL touch_event_watch(void* /*userdata*/, SDL_Event
             std::scoped_lock lock(input_mutex);
             last_touch_tap = Vec2{event->tfinger.x, event->tfinger.y};
         }
-        if (!global_data.config || !global_data.config->general.touch_input) {
-            return true;
-        }
-        if (!touch_drum_enabled.load(std::memory_order_relaxed)) {
+        if (!touch_drum_accepts() || drum_on_second_screen.load(std::memory_order_relaxed)) {
             return true;
         }
         SDL_FingerID id = yd_finger_id(*event);
@@ -590,20 +625,11 @@ static YD_EventFilterRet SDLCALL touch_event_watch(void* /*userdata*/, SDL_Event
 #ifdef YATAIDON_PLATFORM_IOS
             vkey = ios_handle_touch_navigation(vkey, event->tfinger.x, event->tfinger.y);
 #endif
-            touch_id_to_vkey[id] = vkey;
-            touch_drum_pressed.store(true, std::memory_order_relaxed);
-            last_input_ms.store(get_current_ms(), std::memory_order_relaxed);
-            pressed_keys.emplace(vkey, 1.0f);
+            press_touch(id, vkey);
         }
     } else if (event->type == SDL_EVENT_FINGER_UP || event->type == SDL_EVENT_FINGER_CANCELED) {
-        SDL_FingerID id = yd_finger_id(*event);
         std::scoped_lock lock(input_mutex);
-        auto it = touch_id_to_vkey.find(id);
-        if (it != touch_id_to_vkey.end()) {
-            released_keys.insert(it->second);
-            touch_id_to_vkey.erase(it);
-        }
-        touch_drum_pressed.store(!touch_id_to_vkey.empty(), std::memory_order_relaxed);
+        release_touch(yd_finger_id(*event));
     }
     return true;
 }
@@ -613,17 +639,14 @@ std::optional<Vec2> take_touch_tap() {
     return std::exchange(last_touch_tap, std::nullopt);
 }
 
-bool draw_touch_drum() {
-    if (!touch_drum_enabled.load(std::memory_order_relaxed)) {
-        return false;
-    }
-    if (!global_data.config || !global_data.config->general.touch_input) {
-        return false;
+static void draw_drum_texture() {
+    if (!touch_drum_accepts()) {
+        return;
     }
 
     auto* touch_drum_resize = static_cast<TextureResizeAnimation*>(global_tex.get_animation(66));
     if (!touch_drum_resize) {
-        return false;
+        return;
     }
 
     if (!touch_drum_resize->isStarted()) {
@@ -644,7 +667,19 @@ bool draw_touch_drum() {
 #ifdef YATAIDON_PLATFORM_IOS
     ios_draw_touch_navigation_labels(static_cast<float>(get_screen_width()), static_cast<float>(get_screen_height()));
 #endif
-    return true;
+}
+
+void draw_touch_drum(Camera2D camera) {
+    const bool second = begin_second_screen();
+    drum_on_second_screen.store(second, std::memory_order_relaxed);
+    if (!second) {
+        draw_drum_texture();
+        return;
+    }
+    begin_mode_2d(compute_camera2d(tex.screen_width, tex.screen_height));
+    draw_drum_texture();
+    end_second_screen();
+    begin_mode_2d(camera);
 }
 
 void poll_touch_once() {

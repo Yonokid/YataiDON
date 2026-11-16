@@ -115,3 +115,7 @@ bool platform_preload_song_previews();
 // True when memory allows keeping decoded/uploaded skin assets after a screen unloads
 // (see asset_cache.h), so revisiting a screen skips disk reads and decoding.
 bool platform_retains_assets();
+
+void* platform_second_screen(int& w, int& h);
+
+bool platform_hold_second_screen(void* window);

@@ -77,8 +77,8 @@ void set_touch_drum_enabled(bool enabled);
 // Latest finger press since the last call, 0..1 across the window; works with the drum disabled
 std::optional<Vec2> take_touch_tap();
 
-// Draw the touch drum overlay (returns true if drawn, false if hidden)
-bool draw_touch_drum();
+void draw_touch_drum(Camera2D camera);
+void push_second_screen_touch(bool down, int id, float x, float y, int w, int h);
 
 bool is_input_key_pressed(const std::vector<int>& keys, const std::vector<int>& gamepad_buttons,
                           float* strength = nullptr);

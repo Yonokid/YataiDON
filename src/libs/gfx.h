@@ -98,6 +98,8 @@ int get_monitor_refresh_rate();
 void begin_drawing();
 void end_drawing();
 void swap_screen_buffer();
+bool begin_second_screen();
+void end_second_screen();
 Texture load_texture(const char* path);
 Texture load_texture_from_image(Image image, bool mipmaps = false);
 void unload_texture(Texture tex);

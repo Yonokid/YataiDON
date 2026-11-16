@@ -1,10 +1,17 @@
 package com.yataidon.app;
 
+import android.app.Presentation;
 import android.content.Intent;
+import android.hardware.display.DisplayManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.Display;
+import android.view.MotionEvent;
+import android.view.Surface;
+import android.view.SurfaceHolder;
+import android.view.SurfaceView;
 import android.view.View;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
@@ -20,10 +27,79 @@ import org.libsdl.app.SDLActivity;
 // SDL_main() ever looks for them.
 public class YataiDONActivity extends SDLActivity {
 
+    private static native void nativeDrumSurface(Surface surface, int width, int height);
+    private static native void nativeDrumTouch(boolean down, int id, float x, float y, int width, int height);
+
+    private Presentation drumScreen;
+    private final DisplayManager.DisplayListener displayListener = new DisplayManager.DisplayListener() {
+        @Override public void onDisplayAdded(int displayId) { showDrumScreen(); }
+        @Override public void onDisplayRemoved(int displayId) {}
+        @Override public void onDisplayChanged(int displayId) {}
+    };
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         hideSystemUI();
+        if (mBrokenLibraries) return;
+        getSystemService(DisplayManager.class).registerDisplayListener(displayListener, null);
+        showDrumScreen();
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (!mBrokenLibraries) {
+            getSystemService(DisplayManager.class).unregisterDisplayListener(displayListener);
+            if (drumScreen != null) drumScreen.dismiss();
+        }
+        super.onDestroy();
+    }
+
+    private void showDrumScreen() {
+        if (drumScreen != null) return;
+        int own = getDisplay().getDisplayId();
+        for (Display display : getSystemService(DisplayManager.class).getDisplays()) {
+            if (display.getDisplayId() == own) continue;
+            Presentation screen = new Presentation(this, display);
+            SurfaceView view = new SurfaceView(screen.getContext());
+            view.getHolder().addCallback(new SurfaceHolder.Callback() {
+                @Override public void surfaceCreated(SurfaceHolder holder) {}
+                @Override public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+                    nativeDrumSurface(holder.getSurface(), width, height);
+                }
+                @Override public void surfaceDestroyed(SurfaceHolder holder) {
+                    nativeDrumSurface(null, 0, 0);
+                }
+            });
+            view.setOnTouchListener((v, e) -> {
+                forwardDrumTouch(e, v.getWidth(), v.getHeight());
+                return true;
+            });
+            screen.setContentView(view);
+            screen.setOnDismissListener(d -> { if (drumScreen == screen) drumScreen = null; });
+            try {
+                screen.show();
+            } catch (Exception e) {
+                Log.w("YataiDON", "second screen unavailable", e);
+                continue;
+            }
+            drumScreen = screen;
+            return;
+        }
+    }
+
+    private static void forwardDrumTouch(MotionEvent e, int width, int height) {
+        int action = e.getActionMasked();
+        if (action == MotionEvent.ACTION_CANCEL) {
+            for (int i = 0; i < e.getPointerCount(); i++) {
+                nativeDrumTouch(false, e.getPointerId(i), e.getX(i), e.getY(i), width, height);
+            }
+            return;
+        }
+        boolean down = action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_POINTER_DOWN;
+        if (!down && action != MotionEvent.ACTION_UP && action != MotionEvent.ACTION_POINTER_UP) return;
+        int i = e.getActionIndex();
+        nativeDrumTouch(down, e.getPointerId(i), e.getX(i), e.getY(i), width, height);
     }
 
     @Override

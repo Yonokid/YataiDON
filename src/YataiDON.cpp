@@ -625,7 +625,7 @@ static void run_frame() {
     }
 
     if (!global_data.skinless) {
-        draw_touch_drum();
+        draw_touch_drum(L.camera);
 
         if (global_data.config->general.fps_counter) {
             L.fps_counter.draw();
