@@ -393,6 +393,14 @@ bool platform_retains_assets() {
     return true;
 }
 
+void* platform_second_screen(int&, int&) {
+    return nullptr;
+}
+
+bool platform_hold_second_screen(void* window) {
+    return window == nullptr;
+}
+
 bool platform_offers_setting(std::string_view path, std::string_view value) {
     if (path == "audio/sample_rate") {
         return value.empty() || value == "48000";

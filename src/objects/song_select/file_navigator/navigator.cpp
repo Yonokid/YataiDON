@@ -1526,12 +1526,12 @@ void Navigator::update_genre_edges() {
     bool wrapped = false;
     genre_bg->wrap.reset();
     if (listed) {
-        constexpr float FAR = 1e6f;
+        constexpr float UNBOUNDED = 1e6f;
         const float first = items[genre_bg_start]->position + closed.left - pitch - slot_x(-1);
         const float last = items[genre_bg_end]->position + closed.right + pitch - slot_x(1);
         wrapped = items[genre_bg_start]->position > items[genre_bg_end]->position;
-        live.left = first <= center ? std::min(first, closed.left) : -FAR;
-        live.right = last >= center ? std::max(last, closed.right) : FAR;
+        live.left = first <= center ? std::min(first, closed.left) : -UNBOUNDED;
+        live.right = last >= center ? std::max(last, closed.right) : UNBOUNDED;
         if (wrapped && genre_bg->phase() == GenreBG::Phase::OPEN) {
             genre_bg->wrap = first > center ? GenreBG::Span{first, tex.screen_width + pitch} : GenreBG::Span{-pitch, last};
         }
