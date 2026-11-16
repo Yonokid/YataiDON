@@ -70,7 +70,6 @@ bool platform_hold_second_screen(void* window) {
     return held;
 }
 
-// YataiDONActivity's Presentation on the second display (UI thread).
 extern "C" JNIEXPORT void JNICALL Java_com_yataidon_app_YataiDONActivity_nativeDrumSurface(JNIEnv* env, jclass,
                                                                                            jobject surface, jint w,
                                                                                            jint h) {
@@ -81,7 +80,6 @@ extern "C" JNIEXPORT void JNICALL Java_com_yataidon_app_YataiDONActivity_nativeD
     second_width = w;
     second_height = h;
     if (old && old != window) {
-        // Once surfaceDestroyed returns the surface is gone; a suspended game never answers, hence the timeout.
         second_released.wait_for(lock, std::chrono::milliseconds(500), [old] { return second_held != old; });
     }
     lock.unlock();
