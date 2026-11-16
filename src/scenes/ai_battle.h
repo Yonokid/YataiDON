@@ -40,9 +40,7 @@ protected:
     void select_song(SongBox* song) override;
     void handle_input_selecting() override;
     void draw_overlays() override;
-    bool popup_open() override {
-        return SongSelectScreen::popup_open() || picker.hovered_course(state, *player) >= 0;
-    }
+    bool popup_open() override { return SongSelectScreen::popup_open() || picker.hovered_course(state, *player) >= 0; }
 
 public:
     void on_screen_start() override;

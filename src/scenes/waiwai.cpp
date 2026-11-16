@@ -2,10 +2,10 @@
 
 #include <algorithm>
 #include <cctype>
-#include <cstdint>
-#include <functional>
 #include <cmath>
+#include <cstdint>
 #include <format>
+#include <functional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -269,8 +269,8 @@ void WaiwaiResultScreen::on_screen_start() {
     }
     overlay.emplace("WaiwaiResult", "waiwai_result");
     const WaiwaiScore score = waiwai_score();
-    overlay->set_result(score.gauge_point, score.duet_percent, score.message, retry_pending(), global_data.waiwai_collab,
-                        global_data.waiwai_rare_total, global_data.waiwai_rare_hits);
+    overlay->set_result(score.gauge_point, score.duet_percent, score.message, retry_pending(),
+                        global_data.waiwai_collab, global_data.waiwai_rare_total, global_data.waiwai_rare_hits);
 }
 
 Screens WaiwaiResultScreen::on_screen_end(Screens next_screen) {

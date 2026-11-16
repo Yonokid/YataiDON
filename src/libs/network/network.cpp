@@ -773,8 +773,9 @@ int NetworkClient::popular_rank(const std::string& hash) {
 
 void NetworkClient::request_popular() {
     if (!pending_popular.has_value()) {
-        pending_popular = cpr::GetAsync(cpr::Url{network_url("/most_played_songs")},
-                                        signed_headers("GET", "/most_played_songs", {}), cpr::Timeout{5000} NETWORK_CA_OPT);
+        pending_popular =
+            cpr::GetAsync(cpr::Url{network_url("/most_played_songs")}, signed_headers("GET", "/most_played_songs", {}),
+                          cpr::Timeout{5000} NETWORK_CA_OPT);
     }
 }
 

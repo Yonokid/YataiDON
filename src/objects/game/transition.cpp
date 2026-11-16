@@ -52,7 +52,8 @@ void Transition::draw_tips() {
     const Texture& t = tips_graphic.value();
     Rect src = {0, 0, static_cast<float>(t.width), static_cast<float>(t.height)};
     Rect dst = {64.0f * s, 413.0f * s + base - static_cast<float>(cur_rainbow) - offset, 1152.0f * s, 280.0f * s};
-    draw_texture_pro(t, src, dst, {0, 0}, 0, fade(Color::WHITE, static_cast<float>(is_second ? cur_fade_out : cur_fade)));
+    draw_texture_pro(t, src, dst, {0, 0}, 0,
+                     fade(Color::WHITE, static_cast<float>(is_second ? cur_fade_out : cur_fade)));
 }
 
 void Transition::add_loading_graphic(const std::string& path) {
