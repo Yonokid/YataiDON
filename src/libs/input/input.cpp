@@ -19,7 +19,6 @@
 
 #include "../../platform/platform.h"
 #include "../gfx.h"
-#include "../gfx/camera_utils.h"
 #include "../gfx/texture.h"
 #include "../math/animation.h"
 #include "../profiler.h"
@@ -495,13 +494,27 @@ static int touch_quadrant_vkey(Vec2 pos, int sw, int sh) {
     float rx = tex.screen_width * 0.262f * render_scale * touch_drum_size();
     float ry = tex.screen_width * 0.242f * render_scale * touch_drum_size();
 
-    float dx = pos.x - cx;
-    float dy = pos.y - cy;
-
-    float nx = dx / rx;
-    float ny = dy / ry;
+    float nx = (pos.x - cx) / rx;
+    float ny = (pos.y - cy) / ry;
     bool in_drum = (nx * nx + ny * ny) <= 1.0f;
     if (in_drum) {
+        return left ? TOUCH_L_DON : TOUCH_R_DON;
+    }
+    return left ? TOUCH_L_KAT : TOUCH_R_KAT;
+}
+
+// Second screen: the drum's bottom centre sits on the screen's bottom edge, as large as the screen allows.
+static float second_drum_zoom(int sw, int sh) {
+    const auto w = static_cast<float>(tex.screen_width);
+    return std::min(static_cast<float>(sw) / (w * 0.6f), static_cast<float>(sh) / (w * 0.25f));
+}
+
+static int second_screen_vkey(Vec2 pos, int sw, int sh) {
+    const float zoom = second_drum_zoom(sw, sh);
+    const float nx = (pos.x - sw * 0.5f) / (tex.screen_width * 0.262f * zoom);
+    const float ny = (pos.y - static_cast<float>(sh)) / (tex.screen_width * 0.242f * zoom);
+    const bool left = pos.x < sw * 0.5f;
+    if (nx * nx + ny * ny <= 1.0f) {
         return left ? TOUCH_L_DON : TOUCH_R_DON;
     }
     return left ? TOUCH_L_KAT : TOUCH_R_KAT;
@@ -539,7 +552,7 @@ void push_second_screen_touch(bool down, int id, float x, float y, int w, int h)
     if (!down) {
         release_touch(key);
     } else if (touch_drum_accepts()) {
-        press_touch(key, touch_quadrant_vkey({x, y}, w, h));
+        press_touch(key, second_screen_vkey({x, y}, w, h));
     }
 }
 
@@ -639,7 +652,7 @@ std::optional<Vec2> take_touch_tap() {
     return std::exchange(last_touch_tap, std::nullopt);
 }
 
-static void draw_drum_texture() {
+static void draw_drum_texture(float size, double fade) {
     if (!touch_drum_accepts()) {
         return;
     }
@@ -656,14 +669,14 @@ static void draw_drum_texture() {
         touch_drum_resize->restart();
     }
     touch_drum_resize->update(get_current_ms());
-    const float scale = touch_drum_resize->attribute * touch_drum_size();
+    const float scale = touch_drum_resize->attribute * size;
     float y_fix = 0.0f;
     auto drum_it = global_tex.textures.find("overlay/touch_drum");
     if (drum_it != global_tex.textures.end()) {
         y_fix = drum_it->second->height * 0.5f * (1.0f - scale);
     }
     global_tex.draw_texture(global_tex.get_texture("overlay/touch_drum"),
-                            {.scale = scale, .center = true, .y = y_fix, .fade = 0.5f});
+                            {.scale = scale, .center = true, .y = y_fix, .fade = fade});
 #ifdef YATAIDON_PLATFORM_IOS
     ios_draw_touch_navigation_labels(static_cast<float>(get_screen_width()), static_cast<float>(get_screen_height()));
 #endif
@@ -673,11 +686,20 @@ void draw_touch_drum(Camera2D camera) {
     const bool second = begin_second_screen();
     drum_on_second_screen.store(second, std::memory_order_relaxed);
     if (!second) {
-        draw_drum_texture();
+        draw_drum_texture(touch_drum_size(), 0.5);
         return;
     }
-    begin_mode_2d(compute_camera2d(tex.screen_width, tex.screen_height));
-    draw_drum_texture();
+    const auto sw = static_cast<float>(get_render_width());
+    const auto sh = static_cast<float>(get_render_height());
+    if (auto bg = global_tex.textures.find("overlay/touch_bg"); bg != global_tex.textures.end()) {
+        const auto bw = static_cast<float>(bg->second->width);
+        const auto bh = static_cast<float>(bg->second->height);
+        begin_mode_2d({{sw * 0.5f, sh * 0.5f}, {bw * 0.5f, bh * 0.5f}, 0.0f, std::max(sw / bw, sh / bh)});
+        global_tex.draw_texture(bg->second.get());
+    }
+    const float zoom = second_drum_zoom(static_cast<int>(sw), static_cast<int>(sh));
+    begin_mode_2d({{sw * 0.5f, sh}, {tex.screen_width * 0.5f, static_cast<float>(tex.screen_height)}, 0.0f, zoom});
+    draw_drum_texture(1.0f, 1.1);
     end_second_screen();
     begin_mode_2d(camera);
 }
