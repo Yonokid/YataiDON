@@ -905,26 +905,31 @@ void Chara3D::update(double current_ms) {
             if (base == static_cast<int>(AnimIndex::DON_BALLOON_LOOP)) {
                 ms_per_beat /= 2;
             }
-            double ms_per_frame = ms_per_beat / kf;
-            if (current_ms - last_frame_ms >= ms_per_frame) {
-                int loop_frames = kf - 1;
-                last_frame_ms = current_ms;
-
-                if (loop_frames <= 0) {
-                    if (!is_looping) {
-                        set_anim(prev_anim_idx);
-                        is_looping = true;
-                    }
-                } else {
+            const int loop_frames = kf - 1;
+            if (loop_frames <= 0) {
+                if (current_ms - last_frame_ms >= ms_per_beat && !is_looping) {
+                    last_frame_ms = current_ms;
+                    set_anim(prev_anim_idx);
+                    is_looping = true;
+                }
+            } else {
+                const double ms_per_frame = ms_per_beat / loop_frames;
+                int steps = static_cast<int>((current_ms - last_frame_ms) / ms_per_frame);
+                if (steps > loop_frames * 2) {
+                    steps = 1;
+                    last_frame_ms = current_ms - ms_per_frame;
+                }
+                for (int i = 0; i < steps; ++i) {
+                    last_frame_ms += ms_per_frame;
                     anim_frame = (anim_frame + 1) % loop_frames;
-                    // UpdateModelAnimation CPU-skins and uploads position/normal
-                    // buffers to the GPU itself; no manual UpdateMeshBuffer needed
-                    apply_pose();
-
                     if (!is_looping && anim_frame == loop_frames - 1) {
                         set_anim(prev_anim_idx);
                         is_looping = true;
+                        break;
                     }
+                }
+                if (steps > 0) {
+                    apply_pose();
                 }
             }
         }

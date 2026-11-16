@@ -92,7 +92,7 @@ public:
     bool draw_box_bg(BaseBox* box);
     bool has_box_bg() const { return fn_draw_box_bg.valid(); }
     bool draw_background(Navigator* nav);
-    bool draw_genre_bg(GenreBG* genre_bg, float start_pos, float end_pos, BaseBox* folder);
+    bool draw_genre_bg(GenreBG* genre_bg);
     // true when the skin's own hook drew it (the default player_ui module draws it otherwise)
     bool draw_selector(SongSelectPlayer* player, bool is_half, float fade_in, int pass);
     bool draw_background_diffs(SongSelectPlayer* player);

@@ -57,7 +57,6 @@ private:
     std::optional<GenreBG> genre_bg;
     int genre_bg_start;
     int genre_bg_end;
-    std::optional<float> genre_bg_end_pos;
     GenreIndex bg_genre_index;
     GenreIndex last_bg_genre_index;
     bool bg_genre_pending = true;
@@ -125,6 +124,8 @@ private:
     void flush_pending_boxes();
     void exit_inline();
     void begin_inline_load();
+    float slot_x(float offset) const;
+    void update_genre_edges();
 
 public:
     Navigator();

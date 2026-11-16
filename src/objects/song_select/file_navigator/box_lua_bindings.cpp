@@ -492,17 +492,15 @@ void register_song_select_lua_bindings(sol::state& lua) {
             return n.wheel_event_seq;
         }));
 
-    lua.new_usertype<GenreBG>("GenreBG", "texture_frame", &GenreBG::texture_frame, "name", &GenreBG::name_text,
-                              "has_recolor", &GenreBG::has_recolor, "has_gradient", &GenreBG::has_gradient,
-                              "gradient_texture", &GenreBG::gradient_texture, "begin_recolor", &GenreBG::begin_recolor,
-                              "end_recolor", &GenreBG::end_recolor, "stretch",
-                              sol::property([](GenreBG& self) { return self.stretch.get(); }), "scale",
-                              sol::property([](GenreBG& self) { return self.scale.get(); }), "move",
-                              sol::property([](GenreBG& self) { return self.move.get(); }), "fade",
-                              sol::property([](GenreBG& self) { return self.fade.get(); }), "move_left",
-                              sol::property([](GenreBG& self) { return self.move_left.get(); }), "move_right",
-                              sol::property([](GenreBG& self) { return self.move_right.get(); }), "is_finished",
-                              &GenreBG::is_finished, "is_complete", &GenreBG::is_complete);
+    lua.new_usertype<GenreBG>(
+        "GenreBG", "texture_frame", &GenreBG::texture_frame, "name", &GenreBG::name_text, "has_recolor",
+        &GenreBG::has_recolor, "has_gradient", &GenreBG::has_gradient, "gradient_texture", &GenreBG::gradient_texture,
+        "begin_recolor", &GenreBG::begin_recolor, "end_recolor", &GenreBG::end_recolor, "left", &GenreBG::left,
+        "right", &GenreBG::right, "center", &GenreBG::center, "scale_x", &GenreBG::scale_x, "scale_y",
+        &GenreBG::scale_y, "fade", sol::property(&GenreBG::alpha), "title_fade", sol::property(&GenreBG::title_alpha), "wrap_left",
+        sol::property([](GenreBG& self) { return self.wrap ? sol::optional<float>(self.wrap->left) : sol::nullopt; }),
+        "wrap_right",
+        sol::property([](GenreBG& self) { return self.wrap ? sol::optional<float>(self.wrap->right) : sol::nullopt; }));
 
     // Text-measurement helpers the Lua port needs to lay out folder explanations the way
     // the C++ FolderBox does (word_wrap needs measure_text_ex, unavailable in Lua).

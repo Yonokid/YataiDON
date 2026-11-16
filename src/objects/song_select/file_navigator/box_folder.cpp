@@ -4,7 +4,7 @@
 
 FolderBox::FolderBox(const fs::path& path, const BoxDef& box_def) : BaseBox(path, box_def) {
     this->text_name = box_def.name;
-    enter_fade = std::make_unique<FadeAnimation>(166);
+    enter_fade = std::make_unique<FadeAnimation>(250);
 }
 
 FolderBox::~FolderBox() {

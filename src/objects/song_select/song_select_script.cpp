@@ -170,11 +170,11 @@ bool SongSelectScript::draw_background(Navigator* nav) {
     return true;
 }
 
-bool SongSelectScript::draw_genre_bg(GenreBG* genre_bg, float start_pos, float end_pos, BaseBox* folder) {
+bool SongSelectScript::draw_genre_bg(GenreBG* genre_bg) {
     if (!fn_draw_genre_bg.valid()) {
         return false;
     }
-    call(fn_draw_genre_bg, "SongSelect:draw_genre_bg", genre_bg, start_pos, end_pos, box_to_lua(folder));
+    call(fn_draw_genre_bg, "SongSelect:draw_genre_bg", genre_bg);
     return true;
 }
 
