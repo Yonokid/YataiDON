@@ -57,10 +57,13 @@ int calculate_base_score(const NoteList& notes) {
     for (size_t i = 0; i < notes.notes.size(); i++) {
         Note note = notes.notes[i];
 
-        Note next_note = *((i < notes.notes.size() - 1) ? &notes.notes[i + 1] : &notes.notes[notes.notes.size() - 1]);
-
         if (note.color.has_value()) { // is drumroll
-            drumroll_msec += (next_note.hit_ms - note.hit_ms);
+            for (size_t j = i + 1; j < notes.notes.size(); j++) {
+                if (notes.notes[j].type == NoteType::TAIL) {
+                    drumroll_msec += notes.notes[j].hit_ms - note.hit_ms;
+                    break;
+                }
+            }
         } else if (note.count.has_value()) { // is balloon
             balloon_count += std::min(100, note.count.value());
         } else {
