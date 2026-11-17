@@ -1111,7 +1111,7 @@ void ScriptManager::register_lua_bindings() {
         PlayerSoundScope audio_owner(preset == VolumePreset::MUSIC
                                          ? PlayerNum::ALL
                                          : static_cast<PlayerNum>(player.value_or(PlayerSoundScope::player())));
-        audio.set_sound_loop(name, loop.value_or(is_bgm_sound(name)));
+        audio.set_sound_loop(name, loop.value_or(is_bgm_sound(name) || audio.has_loop_intro(name)));
         audio.play_sound(name, preset);
     });
 

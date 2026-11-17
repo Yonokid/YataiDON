@@ -78,6 +78,7 @@ struct sound : SoundPlayback {
     std::shared_ptr<float[]> cached_data; // owns `data` when shared with the asset cache
     float* data = nullptr;                // Audio sample data (interleaved stereo or mono)
     unsigned int frame_count = 0;         // Total number of frames in the sound
+    unsigned int loop_start_frame = 0;    // Frame a looping sound jumps back to
     unsigned int sample_rate = 0;         // Original sample rate of the audio
     unsigned int channels = 0;            // Number of channels (1 = mono, 2 = stereo)
 
@@ -142,6 +143,9 @@ public:
     void load_screen_sounds(const std::string& screen_name);
 
     std::string load_sound(const fs::path& file_path, const std::string& name);
+    std::string load_sound_file(const fs::path& file_path, const std::string& name);
+    void attach_loop_intro(const std::string& name, const std::string& intro_name);
+    bool has_loop_intro(const std::string& name);
     void unload_sound(const std::string& name);
     void unload_all_sounds();
     void store_sound(const std::string& name, const sound& snd);

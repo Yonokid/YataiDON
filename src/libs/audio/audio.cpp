@@ -431,7 +431,7 @@ void AudioEngine::mix(float* out, unsigned int framesPerBuffer, AudioEngine* eng
             unsigned long src_frame = static_cast<unsigned long>(frame_f);
             if (src_frame >= sample.frame_count) {
                 if (yd::atomic_ref<bool>(snd.loop).load(std::memory_order_relaxed) && sample.frame_count > 0) {
-                    frame_f = 0.0;
+                    frame_f = sample.loop_start_frame;
                     continue;
                 }
 
@@ -1092,7 +1092,7 @@ float AudioEngine::loaded_song_gain(const fs::path& file_path) {
     return loudness_scanner ? loudness_scanner->gain_for(file_path) : song_loudness::fallback_gain();
 }
 
-std::string AudioEngine::load_sound(const fs::path& file_path, const std::string& name) {
+std::string AudioEngine::load_sound_file(const fs::path& file_path, const std::string& name) {
     try {
         const std::string cache_key = file_path.lexically_normal().string() + ":" + std::to_string(target_sample_rate);
         if (auto cached = decoded_sound_cache().get(cache_key)) {
@@ -1267,6 +1267,79 @@ std::string AudioEngine::load_sound(const fs::path& file_path, const std::string
     }
 }
 
+static fs::path loop_intro_path(const fs::path& file) {
+    return file.parent_path() / (file.stem().string() + "_start" + file.extension().string());
+}
+
+static bool is_loop_intro_file(const fs::path& file) {
+    const std::string stem = file.stem().string();
+    if (!stem.ends_with("_start")) {
+        return false;
+    }
+    std::error_code ec;
+    return fs::exists(file.parent_path() / (stem.substr(0, stem.size() - 6) + file.extension().string()), ec);
+}
+
+std::string AudioEngine::load_sound(const fs::path& file_path, const std::string& name) {
+    const std::string loaded = load_sound_file(file_path, name);
+    if (loaded.empty()) {
+        return loaded;
+    }
+    const fs::path intro = loop_intro_path(file_path);
+    std::error_code ec;
+    if (!fs::exists(intro, ec)) {
+        return loaded;
+    }
+    const std::string intro_name = name + "_start";
+    if (!load_sound_file(intro, intro_name).empty()) {
+        attach_loop_intro(name, intro_name);
+        unload_sound(intro_name);
+    }
+    return loaded;
+}
+
+void AudioEngine::attach_loop_intro(const std::string& name, const std::string& intro_name) {
+    std::unique_lock<std::shared_mutex> guard(rw_lock);
+    auto body = sounds.find(name);
+    auto intro = sounds.find(intro_name);
+    if (body == sounds.end() || intro == sounds.end()) {
+        return;
+    }
+    sound& loop = body->second;
+    const sound& head = intro->second;
+    if (loop.channels != head.channels) {
+        spdlog::warn("Sound {} and its _start differ in channel count; playing the loop alone", name);
+        return;
+    }
+    const size_t head_samples = static_cast<size_t>(head.frame_count) * head.channels;
+    const size_t loop_samples = static_cast<size_t>(loop.frame_count) * loop.channels;
+    std::shared_ptr<float[]> joined(new float[head_samples + loop_samples]);
+    std::memcpy(joined.get(), head.data, head_samples * sizeof(float));
+    std::memcpy(joined.get() + head_samples, loop.data, loop_samples * sizeof(float));
+
+    yd::atomic_ref<bool>(loop.is_playing).store(false, std::memory_order_relaxed);
+    if (!loop.cached_data) {
+        delete[] loop.data;
+    }
+    loop.cached_data = joined;
+    loop.data = joined.get();
+    loop.loop_start_frame = head.frame_count;
+    loop.frame_count += head.frame_count;
+    loop.loop = true;
+    for (auto& voice : loop.player_playback) {
+        voice.loop = true;
+        voice.is_playing = false;
+        voice.current_frame = 0;
+        voice.frame_frac = 0.0f;
+    }
+}
+
+bool AudioEngine::has_loop_intro(const std::string& name) {
+    std::shared_lock<std::shared_mutex> guard(rw_lock);
+    auto it = sounds.find(name);
+    return it != sounds.end() && it->second.loop_start_frame > 0;
+}
+
 void AudioEngine::load_screen_sounds(const std::string& screen_name) {
     std::vector<std::pair<fs::path, std::string>> queue;
     std::unordered_set<std::string> claimed;
@@ -1283,6 +1356,10 @@ void AudioEngine::load_screen_sounds(const std::string& screen_name) {
                 return;
             }
             if (!known_file && !fs::exists(file)) {
+                claimed.erase(name);
+                return;
+            }
+            if (is_loop_intro_file(file)) {
                 claimed.erase(name);
                 return;
             }
