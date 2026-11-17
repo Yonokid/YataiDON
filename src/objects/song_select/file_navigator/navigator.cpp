@@ -1526,14 +1526,24 @@ void Navigator::update_genre_edges() {
                         genre_bg_end < count;
     bool wrapped = false;
     genre_bg->wrap.reset();
+    genre_bg->show_tab = true;
     if (listed) {
         constexpr float UNBOUNDED = 1e6f;
         const float first = items[genre_bg_start]->position + closed.left - pitch - slot_x(-1);
         const float last = items[genre_bg_end]->position + closed.right + pitch - slot_x(1);
         wrapped = items[genre_bg_start]->position > items[genre_bg_end]->position;
-        live.left = first <= center ? std::min(first, closed.left) : -UNBOUNDED;
-        live.right = last >= center ? std::max(last, closed.right) : UNBOUNDED;
-        if (wrapped && genre_bg->phase() == GenreBG::Phase::OPEN) {
+        const bool inside = open_index >= genre_bg_start && open_index <= genre_bg_end;
+        if (inside) {
+            live.left = first <= center ? std::min(first, closed.left) : -UNBOUNDED;
+            live.right = last >= center ? std::max(last, closed.right) : UNBOUNDED;
+        } else {
+            live = {first, wrapped ? UNBOUNDED : last};
+            genre_bg->show_tab = false;
+            if (wrapped) {
+                genre_bg->wrap = GenreBG::Span{-pitch, last};
+            }
+        }
+        if (inside && wrapped && genre_bg->phase() == GenreBG::Phase::OPEN) {
             genre_bg->wrap =
                 first > center ? GenreBG::Span{first, tex.screen_width + pitch} : GenreBG::Span{-pitch, last};
         }
@@ -1550,7 +1560,7 @@ void Navigator::update_genre_edges() {
         return;
     }
 
-    const bool riding = listed && !wrapped && phase != GenreBG::Phase::OPEN && phase != GenreBG::Phase::WAIT;
+    const bool riding = listed && phase != GenreBG::Phase::OPEN;
     const int closed_count = count - (genre_bg_end - genre_bg_start);
     for (int i = 0; i < count; i++) {
         BaseBox& box = *items[i];
@@ -1558,16 +1568,10 @@ void Navigator::update_genre_edges() {
         if (!riding || (i >= genre_bg_start && i <= genre_bg_end)) {
             continue;
         }
-        if (phase == GenreBG::Phase::OPENING) {
-            const bool right_side = box.target() > center;
-            const float lag = right_side ? live.right - genre_bg->right : live.left - genre_bg->left;
-            box.ride = box.target() - box.position - lag;
-        } else {
-            const int after = ((i - genre_bg_end) % count + count) % count;
-            const float offset = after <= closed_count / 2.0f ? after : after - closed_count;
-            const float shift = offset > 0 ? genre_bg->right - closed.right : genre_bg->left - closed.left;
-            box.ride = slot_x(offset) + shift - box.position;
-        }
+        const int after = ((i - genre_bg_end) % count + count) % count;
+        const float offset = after <= closed_count / 2.0f ? after : after - closed_count;
+        const float shift = offset > 0 ? genre_bg->right - closed.right : genre_bg->left - closed.left;
+        box.ride = slot_x(offset) + shift - box.position;
     }
 }
 

@@ -70,7 +70,6 @@ public:
 
     float ride = 0.0f;
     float box_x() const { return vertical ? cross_pos : position + ride; }
-    float target() const { return target_position; }
     float box_y() const { return vertical ? position : 0.0f; }
 
     fs::path path;
