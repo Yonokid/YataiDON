@@ -6,7 +6,16 @@
 
 class GenreBG {
 public:
-    enum class Phase { POP_IN, WAIT, OPENING, OPEN, CLOSING, SHUT, POP_OUT, DONE };
+    enum class Phase {
+        POP_IN,
+        WAIT,
+        OPENING,
+        OPEN,
+        CLOSING,
+        SHUT,
+        POP_OUT,
+        DONE
+    };
 
     struct Span {
         float left;

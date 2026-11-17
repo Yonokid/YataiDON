@@ -5,14 +5,14 @@
 #include "../../../libs/color_shader.h"
 
 namespace {
-constexpr int MAX_SIDE_BOXES = 5;
+    constexpr int MAX_SIDE_BOXES = 5;
 
-double ease_in(double t) {
-    return t * t;
-}
-double ease_out(double t) {
-    return 1.0 - (1.0 - t) * (1.0 - t);
-}
+    double ease_in(double t) {
+        return t * t;
+    }
+    double ease_out(double t) {
+        return 1.0 - (1.0 - t) * (1.0 - t);
+    }
 } // namespace
 
 GenreBG::GenreBG(const std::string& text_name, std::vector<Color> colors, int texture_index)
@@ -118,7 +118,8 @@ void GenreBG::update(double current_ms) {
         const auto p = static_cast<float>(std::min(1.0, elapsed / shrink));
         scale_x = 1.0f - 0.04f * p;
         scale_y = 1.0f - 0.08f * p;
-        pop_alpha = elapsed < shrink ? 1.0f : std::max(0.0f, 1.0f - static_cast<float>((elapsed - shrink) / (gone - shrink)));
+        pop_alpha =
+            elapsed < shrink ? 1.0f : std::max(0.0f, 1.0f - static_cast<float>((elapsed - shrink) / (gone - shrink)));
         if (elapsed >= gone) {
             enter(Phase::DONE);
         }

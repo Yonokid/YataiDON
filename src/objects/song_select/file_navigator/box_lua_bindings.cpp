@@ -495,9 +495,9 @@ void register_song_select_lua_bindings(sol::state& lua) {
     lua.new_usertype<GenreBG>(
         "GenreBG", "texture_frame", &GenreBG::texture_frame, "name", &GenreBG::name_text, "has_recolor",
         &GenreBG::has_recolor, "has_gradient", &GenreBG::has_gradient, "gradient_texture", &GenreBG::gradient_texture,
-        "begin_recolor", &GenreBG::begin_recolor, "end_recolor", &GenreBG::end_recolor, "left", &GenreBG::left,
-        "right", &GenreBG::right, "center", &GenreBG::center, "scale_x", &GenreBG::scale_x, "scale_y",
-        &GenreBG::scale_y, "fade", sol::property(&GenreBG::alpha), "title_fade", sol::property(&GenreBG::title_alpha), "wrap_left",
+        "begin_recolor", &GenreBG::begin_recolor, "end_recolor", &GenreBG::end_recolor, "left", &GenreBG::left, "right",
+        &GenreBG::right, "center", &GenreBG::center, "scale_x", &GenreBG::scale_x, "scale_y", &GenreBG::scale_y, "fade",
+        sol::property(&GenreBG::alpha), "title_fade", sol::property(&GenreBG::title_alpha), "wrap_left",
         sol::property([](GenreBG& self) { return self.wrap ? sol::optional<float>(self.wrap->left) : sol::nullopt; }),
         "wrap_right",
         sol::property([](GenreBG& self) { return self.wrap ? sol::optional<float>(self.wrap->right) : sol::nullopt; }));

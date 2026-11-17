@@ -1522,7 +1522,8 @@ void Navigator::update_genre_edges() {
     const float center = (closed.left + closed.right) / 2.0f;
     GenreBG::Span live = closed;
     const auto count = static_cast<int>(items.size());
-    const bool listed = !vertical_gallery && inline_state && !pending_inline_path && genre_bg_start <= genre_bg_end && genre_bg_end < count;
+    const bool listed = !vertical_gallery && inline_state && !pending_inline_path && genre_bg_start <= genre_bg_end &&
+                        genre_bg_end < count;
     bool wrapped = false;
     genre_bg->wrap.reset();
     if (listed) {
@@ -1533,7 +1534,8 @@ void Navigator::update_genre_edges() {
         live.left = first <= center ? std::min(first, closed.left) : -UNBOUNDED;
         live.right = last >= center ? std::max(last, closed.right) : UNBOUNDED;
         if (wrapped && genre_bg->phase() == GenreBG::Phase::OPEN) {
-            genre_bg->wrap = first > center ? GenreBG::Span{first, tex.screen_width + pitch} : GenreBG::Span{-pitch, last};
+            genre_bg->wrap =
+                first > center ? GenreBG::Span{first, tex.screen_width + pitch} : GenreBG::Span{-pitch, last};
         }
     }
 
