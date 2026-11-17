@@ -1554,6 +1554,9 @@ void Navigator::update_genre_edges() {
     const GenreBG::Phase phase = genre_bg->phase();
     if (before == GenreBG::Phase::OPENING && phase == GenreBG::Phase::OPEN) {
         is_processing = false;
+        if (listed && !vertical_gallery) {
+            enter_wrapped_boxes(center);
+        }
     }
 
     if (vertical_gallery) {
@@ -1572,6 +1575,24 @@ void Navigator::update_genre_edges() {
         const float offset = after <= closed_count / 2.0f ? after : after - closed_count;
         const float shift = offset > 0 ? genre_bg->right - closed.right : genre_bg->left - closed.left;
         box.ride = slot_x(offset) + shift - box.position;
+    }
+}
+
+void Navigator::enter_wrapped_boxes(float center) {
+    const auto count = static_cast<int>(items.size());
+    const int closed_count = count - (genre_bg_end - genre_bg_start);
+    set_positions(true, 0);
+    for (int i = 0; i < count; i++) {
+        if (i >= genre_bg_start && i <= genre_bg_end) {
+            continue;
+        }
+        const int after = ((i - genre_bg_end) % count + count) % count;
+        BaseBox& box = *items[i];
+        const float to = box.position;
+        if (after <= closed_count / 2.0f && to < center && to > -100 * tex.screen_scale) {
+            box.set_position(-100 * tex.screen_scale);
+            box.move_box(to, 500, 0, EaseType::Quadratic);
+        }
     }
 }
 

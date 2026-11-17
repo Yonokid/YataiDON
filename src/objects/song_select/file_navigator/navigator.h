@@ -126,6 +126,7 @@ private:
     void begin_inline_load();
     float slot_x(float offset) const;
     void update_genre_edges();
+    void enter_wrapped_boxes(float center);
 
 public:
     Navigator();
