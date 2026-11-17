@@ -1510,7 +1510,7 @@ void Navigator::update(double current_ms) {
 }
 
 void Navigator::update_genre_edges() {
-    if (!genre_bg || vertical_gallery) {
+    if (!genre_bg) {
         return;
     }
     const float pitch = 100 * tex.screen_scale;
@@ -1522,7 +1522,7 @@ void Navigator::update_genre_edges() {
     const float center = (closed.left + closed.right) / 2.0f;
     GenreBG::Span live = closed;
     const auto count = static_cast<int>(items.size());
-    const bool listed = inline_state && !pending_inline_path && genre_bg_start <= genre_bg_end && genre_bg_end < count;
+    const bool listed = !vertical_gallery && inline_state && !pending_inline_path && genre_bg_start <= genre_bg_end && genre_bg_end < count;
     bool wrapped = false;
     genre_bg->wrap.reset();
     if (listed) {
@@ -1542,6 +1542,10 @@ void Navigator::update_genre_edges() {
     const GenreBG::Phase phase = genre_bg->phase();
     if (before == GenreBG::Phase::OPENING && phase == GenreBG::Phase::OPEN) {
         is_processing = false;
+    }
+
+    if (vertical_gallery) {
+        return;
     }
 
     const bool riding = listed && !wrapped && phase != GenreBG::Phase::OPEN && phase != GenreBG::Phase::WAIT;
