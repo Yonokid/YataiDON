@@ -973,8 +973,8 @@ void Navigator::begin_inline_load() {
     diff_sort_filter.reset();
     bg_genre_pending = false;
     items[open_index]->enter_box();
-    genre_bg_start = 0;
-    genre_bg_end = 0;
+    genre_bg_start = open_index;
+    genre_bg_end = open_index;
     genre_bg.emplace(items[open_index]->text_name, items[open_index]->back_color, items[open_index]->texture_index);
     is_processing = true;
 }
@@ -1444,6 +1444,7 @@ void Navigator::update(double current_ms) {
 
             is_inline = true;
             inline_state->songs_count = 0; // will be updated as boxes arrive
+            genre_bg_start = genre_bg_end = open_index;
             pending_inline_path.reset();
             is_processing = false; // flush_pending_boxes will finalise
             inline_streaming = true;
@@ -1481,14 +1482,16 @@ void Navigator::update(double current_ms) {
             items[open_index]->fade_in(100, 400);
             if (genre_bg) {
                 genre_bg->pop_out();
+            } else {
+                is_processing = false;
             }
-            is_processing = false;
             emit_wheel_event(WHEEL_EVENT_CLOSE_SWAP);
         }
     }
 
     if (genre_bg && genre_bg->is_done()) {
         genre_bg.reset();
+        is_processing = false;
     }
     if (genre_bg && inline_state && !pending_inline_path && !inline_streaming && !inline_state->fading_out &&
         genre_bg->phase() == GenreBG::Phase::WAIT) {
@@ -1524,28 +1527,41 @@ void Navigator::update_genre_edges() {
     const auto count = static_cast<int>(items.size());
     const bool listed = !vertical_gallery && inline_state && !pending_inline_path && genre_bg_start <= genre_bg_end &&
                         genre_bg_end < count;
-    bool wrapped = false;
     genre_bg->wrap.reset();
     genre_bg->show_tab = true;
     if (listed) {
         constexpr float UNBOUNDED = 1e6f;
+        const auto slot_offset = [&](int i) {
+            int offset = i - open_index;
+            if (offset > count / 2.0f) {
+                offset -= count;
+            } else if (offset < -count / 2.0f) {
+                offset += count;
+            }
+            return offset;
+        };
+        const int first_offset = slot_offset(genre_bg_start);
+        const int last_offset = slot_offset(genre_bg_end);
         const float first = items[genre_bg_start]->position + closed.left - pitch - slot_x(-1);
         const float last = items[genre_bg_end]->position + closed.right + pitch - slot_x(1);
-        wrapped = items[genre_bg_start]->position > items[genre_bg_end]->position;
         const bool inside = open_index >= genre_bg_start && open_index <= genre_bg_end;
         if (inside) {
-            live.left = first <= center ? std::min(first, closed.left) : -UNBOUNDED;
-            live.right = last >= center ? std::max(last, closed.right) : UNBOUNDED;
+            live.left = first_offset > 0 ? -UNBOUNDED : std::min(first, closed.left);
+            live.right = last_offset < 0 ? UNBOUNDED : std::max(last, closed.right);
+            if (genre_bg->phase() == GenreBG::Phase::OPEN) {
+                if (first_offset > 0) {
+                    genre_bg->wrap = GenreBG::Span{first, tex.screen_width + pitch};
+                } else if (last_offset < 0) {
+                    genre_bg->wrap = GenreBG::Span{-pitch, last};
+                }
+            }
         } else {
-            live = {first, wrapped ? UNBOUNDED : last};
             genre_bg->show_tab = false;
-            if (wrapped) {
+            const bool around = first_offset > last_offset;
+            live = {first, around ? UNBOUNDED : last};
+            if (around) {
                 genre_bg->wrap = GenreBG::Span{-pitch, last};
             }
-        }
-        if (inside && wrapped && genre_bg->phase() == GenreBG::Phase::OPEN) {
-            genre_bg->wrap =
-                first > center ? GenreBG::Span{first, tex.screen_width + pitch} : GenreBG::Span{-pitch, last};
         }
     }
 
