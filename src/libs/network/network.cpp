@@ -1439,6 +1439,10 @@ void NetworkClient::update(double current_ms) {
             if (!doc.Parse(response.text.c_str()).HasParseError() && doc.HasMember("min_client_version") &&
                 doc["min_client_version"].IsString()) {
                 outdated = version_less(CLIENT_VERSION, doc["min_client_version"].GetString());
+                if (outdated && !outdated_notified) {
+                    outdated_notified = true;
+                    notify("Update available");
+                }
             }
             tournament = !doc.HasParseError() && doc.IsObject() && doc.HasMember("tournament") &&
                          doc["tournament"].IsBool() && doc["tournament"].GetBool();

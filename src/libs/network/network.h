@@ -349,6 +349,7 @@ private:
 
     bool online = false;
     bool outdated = false;
+    bool outdated_notified = false;
     bool tournament = false;
     std::vector<std::string> campaigns;
     std::optional<GachaResult> gacha_result;
