@@ -198,18 +198,29 @@ private:
 
     void load_part(const fs::path& model_path, const fs::path& anim_path, bool normalize_face_scale = false);
 
+    struct Rotor {
+        int part;
+        int mesh;
+        float pivot_x;
+        float pivot_z;
+        std::vector<int> verts;
+        std::vector<float> rest; // position xyz, then normal xyz, per vert
+    };
+    std::vector<Rotor> rotors;
+    void find_rotors(int part_index);
+    void spin_rotors(double current_ms);
+
     std::vector<Texture> face_textures;
     std::vector<std::vector<int>> anim_faces;
     void apply_anim_face();
     int current_face_index = -1;
     int paint_index = 0;
-    void scale_face_planes(float factor);
 
     int anim_frame = 0;
     int applied_anim = -1;
     int applied_frame = -1;
     AnimIndex anim_index = AnimIndex::DON_NORMAL;
-    AnimIndex requested_anim = AnimIndex::DON_NORMAL; // as the caller asked, before mirror / 2P mapping
+    AnimIndex requested_anim = AnimIndex::DON_NORMAL;
 
     float bpm = 100;
     bool mirror = false;

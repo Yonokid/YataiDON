@@ -1,6 +1,7 @@
 #include "chara_3d.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
@@ -8,6 +9,8 @@
 #include <iterator>
 #include <map>
 #include <mutex>
+#include <numbers>
+#include <numeric>
 #include <optional>
 #include <rapidjson/document.h>
 
@@ -334,6 +337,11 @@ parse_glb_material_indices(const std::string& path, std::vector<int>& recolor_ou
         }
         if (mat_name_raw) {
             std::string nl = name_lower(mat_name_raw);
+            // chibidon's static face plane mirrors the player's face
+            if (face_out == -1 && nl.starts_with("body_027000_02_")) {
+                face_out = raylib_idx;
+                std::erase(recolor_out, raylib_idx);
+            }
             if (nl.contains("_aa_add")) {
                 additive_out.push_back(raylib_idx);
             } else if (nl.contains("_color_s_cus_") && !nl.contains("_a_ab")) {
@@ -415,10 +423,10 @@ void Chara3D::load_part(const fs::path& model_path, const fs::path& anim_path, b
         }
     }
 
+    const bool mini_face = std::ranges::any_of(material_indices, [&](const auto& m) {
+        return m.second == face_material_index && name_lower(m.first.c_str()).starts_with("body_027000_02_");
+    });
     if (face_material_index != -1) {
-        // head/body parts always get the standard 0.137 plate; a costume keeps its own plate
-        // (some are deliberately small) but never a larger one -- cos 30 (鏡もち) and cos 9
-        // ship a 0.18 plate that overflows the drum head.
         constexpr float COS_FACE_PLANE_SIZE = 0.137f;
         for (int m = 0; m < model.meshCount; m++) {
             if (model.meshMaterial[m] != face_material_index) {
@@ -433,9 +441,12 @@ void Chara3D::load_part(const fs::path& model_path, const fs::path& anim_path, b
                 maxy = std::max(maxy, mesh.vertices[v * 3 + 1]);
             }
             const float size = std::max(maxx - minx, maxy - miny);
-            if (normalize_face_scale || size > COS_FACE_PLANE_SIZE * 1.02f) {
-                normalize_face_mesh_size(mesh, COS_FACE_PLANE_SIZE);
-                update_mesh_buffer(mesh, 0, mesh.vertices, mesh.vertexCount * 3 * static_cast<int>(sizeof(float)), 0);
+            const float plate = normalize_face_scale || size > COS_FACE_PLANE_SIZE * 1.02f ? COS_FACE_PLANE_SIZE : size;
+            normalize_face_mesh_size(mesh, mini_face ? plate : plate * 4.0f / 3.0f);
+            update_mesh_buffer(mesh, 0, mesh.vertices, mesh.vertexCount * 3 * static_cast<int>(sizeof(float)), 0);
+            if (mesh.colors) {
+                std::memset(mesh.colors, 255, static_cast<size_t>(mesh.vertexCount) * 4);
+                update_mesh_buffer(mesh, 3, mesh.colors, mesh.vertexCount * 4, 0);
             }
         }
     }
@@ -475,6 +486,108 @@ void Chara3D::load_part(const fs::path& model_path, const fs::path& anim_path, b
     part_face_material_index.push_back(face_material_index);
     part_anims.push_back(anims);
     part_anim_count.push_back(anim_count);
+    find_rotors(static_cast<int>(parts.size()) - 1);
+}
+
+void Chara3D::find_rotors(int part_index) {
+    const Model& model = parts[part_index];
+    const ModelSkeleton& sk = model.skeleton;
+    int bone = -1;
+    for (int b = 0; b < static_cast<int>(sk.boneCount); b++) {
+        if (std::string_view(sk.bones[b].name) == "swing_puro_null") {
+            bone = b;
+        }
+    }
+    if (bone < 0 || !sk.bindPose || sk.bones[bone].parent < 0) {
+        return;
+    }
+    const Vec3 pivot = sk.bindPose[bone].translation;
+    const float hub_y = sk.bindPose[sk.bones[bone].parent].translation.y;
+    for (int m = 0; m < model.meshCount; m++) {
+        const Mesh& mesh = model.meshes[m];
+        if (!mesh.vertices) {
+            continue;
+        }
+        std::vector<int> root(mesh.vertexCount);
+        std::iota(root.begin(), root.end(), 0);
+        auto find = [&](int v) {
+            while (root[v] != v) {
+                v = root[v] = root[root[v]];
+            }
+            return v;
+        };
+        for (int t = 0; t < mesh.triangleCount; t++) {
+            int v[3];
+            for (int k = 0; k < 3; k++) {
+                v[k] = mesh.indices ? mesh.indices[t * 3 + k] : t * 3 + k;
+            }
+            root[find(v[1])] = find(v[0]);
+            root[find(v[2])] = find(v[0]);
+        }
+        std::map<std::array<float, 3>, int> seam; // UV seams split a piece into co-located verts
+        for (int v = 0; v < mesh.vertexCount; v++) {
+            const float* p = &mesh.vertices[v * 3];
+            const auto [it, added] = seam.try_emplace({p[0], p[1], p[2]}, v);
+            if (!added) {
+                root[find(v)] = find(it->second);
+            }
+        }
+        std::vector<bool> below(mesh.vertexCount, false);
+        for (int v = 0; v < mesh.vertexCount; v++) {
+            if (mesh.vertices[v * 3 + 1] <= hub_y) {
+                below[find(v)] = true;
+            }
+        }
+        Rotor rotor{part_index, m, pivot.x, pivot.z, {}, {}};
+        for (int v = 0; v < mesh.vertexCount; v++) {
+            if (below[find(v)]) {
+                continue;
+            }
+            rotor.verts.push_back(v);
+            for (int k = 0; k < 3; k++) {
+                rotor.rest.push_back(mesh.vertices[v * 3 + k]);
+            }
+            for (int k = 0; k < 3; k++) {
+                rotor.rest.push_back(mesh.normals ? mesh.normals[v * 3 + k] : 0.0f);
+            }
+        }
+        if (!rotor.verts.empty()) {
+            rotors.push_back(std::move(rotor));
+        }
+    }
+}
+
+void Chara3D::spin_rotors(double current_ms) {
+    if (rotors.empty()) {
+        return;
+    }
+    constexpr double TURNS_PER_MS = 2.0 / 1000.0;
+    const double angle = std::fmod(current_ms * TURNS_PER_MS, 1.0) * 2.0 * std::numbers::pi;
+    const float c = static_cast<float>(std::cos(angle));
+    const float s = static_cast<float>(std::sin(angle));
+    for (const Rotor& rotor : rotors) {
+        Mesh& mesh = parts[rotor.part].meshes[rotor.mesh];
+        for (size_t i = 0; i < rotor.verts.size(); i++) {
+            const float* r = &rotor.rest[i * 6];
+            float* pos = &mesh.vertices[rotor.verts[i] * 3];
+            const float dx = r[0] - rotor.pivot_x;
+            const float dz = r[2] - rotor.pivot_z;
+            pos[0] = rotor.pivot_x + dx * c + dz * s;
+            pos[2] = rotor.pivot_z - dx * s + dz * c;
+            if (mesh.normals) {
+                float* n = &mesh.normals[rotor.verts[i] * 3];
+                n[0] = r[3] * c + r[5] * s;
+                n[2] = -r[3] * s + r[5] * c;
+            }
+        }
+        const int bytes = mesh.vertexCount * 3 * static_cast<int>(sizeof(float));
+        update_mesh_buffer(mesh, 0, mesh.vertices, bytes, 0);
+        if (mesh.normals) {
+            update_mesh_buffer(mesh, 2, mesh.normals, bytes, 0);
+        }
+    }
+    applied_frame = -1;
+    apply_pose();
 }
 
 static void init_shaders(Shader& outline_fxaa_shader, int& outline_fxaa_size_loc, int& outline_fxaa_thickness_loc,
@@ -656,30 +769,6 @@ void Chara3D::load_face_textures(const fs::path& sheet_path) {
     apply_face(std::max(current_face_index, 0));
 }
 
-static constexpr float PAINT_PLANE_SCALE = 4.0f / 3.0f;
-
-void Chara3D::scale_face_planes(float factor) {
-    for (size_t p = 0; p < parts.size(); p++) {
-        for (int m = 0; m < parts[p].meshCount; m++) {
-            if (parts[p].meshMaterial[m] != part_face_material_index[p]) {
-                continue;
-            }
-            Mesh& mesh = parts[p].meshes[m];
-            float minx = 1e9f, maxx = -1e9f, miny = 1e9f, maxy = -1e9f;
-            for (int v = 0; v < mesh.vertexCount; v++) {
-                minx = std::min(minx, mesh.vertices[v * 3]);
-                maxx = std::max(maxx, mesh.vertices[v * 3]);
-                miny = std::min(miny, mesh.vertices[v * 3 + 1]);
-                maxy = std::max(maxy, mesh.vertices[v * 3 + 1]);
-            }
-            normalize_face_mesh_size(mesh, std::max(maxx - minx, maxy - miny) * factor);
-            update_mesh_buffer(mesh, 0, mesh.vertices, mesh.vertexCount * 3 * static_cast<int>(sizeof(float)), 0);
-        }
-    }
-    applied_frame = -1;
-    render_dirty = true;
-}
-
 void Chara3D::set_paint(int index) {
     if (index == paint_index) {
         return;
@@ -688,9 +777,6 @@ void Chara3D::set_paint(int index) {
                                : resolve_skin_path("Models/face/face_000000.png");
     if (!fs::exists(sheet)) {
         return;
-    }
-    if ((index > 0) != (paint_index > 0)) {
-        scale_face_planes(index > 0 ? PAINT_PLANE_SCALE : 1.0f / PAINT_PLANE_SCALE);
     }
     paint_index = index;
     for (auto& t : face_textures) {
@@ -979,6 +1065,7 @@ int Chara3D::get_anim_count() const {
 
 void Chara3D::update(double current_ms) {
     puchi_ms = current_ms;
+    spin_rotors(current_ms);
     int anim_count = part_anim_count.empty() ? 0 : part_anim_count[0];
     if (anim_count > 0) {
         int ai = static_cast<int>(anim_index);

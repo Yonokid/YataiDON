@@ -1831,7 +1831,7 @@ namespace {
     constexpr float GLTF_FRAMERATE = 60.0f;
 
     // raylib's vertex buffer indices for update_mesh_buffer
-    constexpr int MESH_BUFFER_POSITION = 0, MESH_BUFFER_TEXCOORD = 1, MESH_BUFFER_NORMAL = 2;
+    constexpr int MESH_BUFFER_POSITION = 0, MESH_BUFFER_TEXCOORD = 1, MESH_BUFFER_NORMAL = 2, MESH_BUFFER_COLOR = 3;
 
     Mat4 mat4_identity() {
         return matrix_scale(1, 1, 1);
@@ -2981,6 +2981,18 @@ bool get_mesh_bounds(const Mesh& mesh, Vec3& lower, Vec3& upper) {
 void update_mesh_buffer(Mesh mesh, int index, const void* data, int data_size, int offset) {
     MeshSlot* slot = mesh_slot(mesh.vaoId);
     if (!slot || !data) {
+        return;
+    }
+    if (index == MESH_BUFFER_COLOR) {
+        const int first = offset / 4;
+        const int n = std::min(data_size / 4, static_cast<int>(slot->cpu.size()) - first);
+        if (n > 0) {
+            for (int i = 0; i < n; i++) {
+                std::memcpy(&slot->cpu[first + i].rgba, static_cast<const unsigned char*>(data) + i * 4, 4);
+            }
+            bgfx::update(slot->vb, static_cast<uint32_t>(first),
+                         bgfx::copy(slot->cpu.data() + first, static_cast<uint32_t>(n * sizeof(MeshVertex))));
+        }
         return;
     }
     const int comps = index == MESH_BUFFER_TEXCOORD ? 2 : 3;
