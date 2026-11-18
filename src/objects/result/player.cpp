@@ -21,12 +21,10 @@ ResultPlayer::ResultPlayer(PlayerNum player_num, bool has_2p, bool is_2p)
         chara->set_don_colors(chara_default_color_1(player_num), chara_default_color_2(player_num),
                               {249, 240, 225, 255});
     }
-    chara->set_anim(AnimIndex::DON_NORMAL);
+    chara->set_anim(AnimIndex::DON_RESULT_LOOP);
+    chara->set_anim(AnimIndex::DON_RESULT_IN);
 
     SessionData& sd = global_data.session_data[static_cast<int>(player_num)];
-    if (!sd.result_data.cleared) {
-        chara->set_anim(AnimIndex::DON_MISS_NORMAL);
-    }
     ranking_name = pd ? pd->username : "";
     ranking_pending = sd.result_data.submitted && !ranking_name.empty();
     nameplate = Nameplate(pd ? pd->username : "", pd ? pd->title : "", player_num, pd ? pd->dan : -1,
@@ -188,12 +186,33 @@ void ResultPlayer::update(double current_ms, bool fade_in_finished, bool is_skip
     }
     update_score_animation(current_ms, is_skipped);
     update_ranking();
-    if (!miss_loop_started && lua_object.valid()) {
-        sol::optional<bool> miss_loop = lua_object["chara_miss_loop"];
-        if (miss_loop && miss_loop.value()) {
-            chara->set_anim(AnimIndex::DON_MISS6);
-            miss_loop_started = true;
+    if (!chara_revealed && lua_object.valid()) {
+        sol::optional<bool> reveal = lua_object["chara_reveal"];
+        if (reveal && reveal.value()) {
+            chara_revealed = true;
+            const auto& rd = global_data.session_data[static_cast<int>(player_num)].result_data;
+            if (rd.cleared && rd.bad == 0) {
+                chara->set_anim(AnimIndex::DON_RESULT_FULL_LOOP);
+                chara->set_anim(AnimIndex::DON_RESULT_FULL);
+                chara_koshibai = AnimIndex::DON_RESULT_FULL_KOSHIBAI;
+            } else if (rd.cleared) {
+                chara->set_anim(AnimIndex::DON_RESULT_CLEAR_LOOP);
+                chara->set_anim(AnimIndex::DON_RESULT_CLEAR);
+                chara_koshibai = AnimIndex::DON_RESULT_CLEAR_KOSHIBAI;
+            } else if (rd.gauge_length >= 87.0f / 2.0f) {
+                chara->set_anim(AnimIndex::DON_RESULT_PERCIOUS_LOOP);
+                chara->set_anim(AnimIndex::DON_RESULT_PERCIOUS);
+                chara_koshibai = AnimIndex::DON_RESULT_PERCIOUS_KOSHIBAI;
+            } else {
+                chara->set_anim(is_2p ? AnimIndex::DON_RESULT2P_FAILURE_LOOP : AnimIndex::DON_RESULT_FAILURE_LOOP);
+                chara->set_anim(is_2p ? AnimIndex::DON_RESULT2P_FAILURE : AnimIndex::DON_RESULT_FAILURE);
+                chara_koshibai = AnimIndex::DON_RESULT_FAILURE_KOSHIBAI;
+            }
         }
+    }
+    if (chara_koshibai && reveal_end_ms() > 0 && current_ms >= reveal_end_ms() + 500 * 1000.0 / 120.0) {
+        chara->set_anim(*chara_koshibai);
+        chara_koshibai.reset();
     }
     call(fn_update, "ResultPlayer:update", current_ms, fade_in_finished, score, good, ok, bad, max_combo,
          total_drumroll, is_skipped);
@@ -267,7 +286,7 @@ void ResultPlayer::draw() {
     cy += static_cast<int>(is_2p) * tex.screen_height / 2;
     float cs = 1.0f;
     if (fn_chara_pos.valid()) {
-        auto pos_opt = call_r<sol::table>(fn_chara_pos, "ResultPlayer:chara_pos");
+        auto pos_opt = call_r<sol::table>(fn_chara_pos, "ResultPlayer:chara_pos", cx, cy);
         if (pos_opt) {
             sol::table& pos = pos_opt.value();
             sol::optional<float> px = pos[1], py = pos[2], ps = pos[3];

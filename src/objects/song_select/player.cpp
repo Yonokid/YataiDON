@@ -554,6 +554,7 @@ SongSelectState SongSelectPlayer::handle_input_selecting() {
             } else if (selected_difficulty >= Difficulty::EASY) {
                 voice_played = true;
                 start_background_diffs();
+                chara->set_anim(AnimIndex::DON_SELECT1P_OUT);
                 if (shared_start_voice.empty()) {
                     audio.play_player_sound(own_start_voice(), player_num, VolumePreset::VOICE);
                 }

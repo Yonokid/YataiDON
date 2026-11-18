@@ -244,6 +244,8 @@ private:
     int miss_streak = 0;
     double last_balloon_hit_ms = 0;
     bool balloon_idle = false;
+    bool kusu_anim = false;
+    void end_kusu_anim();
     AnimIndex rest_anim() const;
     void on_miss();
     Side autoplay_hit_side{Side::LEFT};

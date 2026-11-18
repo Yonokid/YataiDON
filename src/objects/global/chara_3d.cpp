@@ -8,13 +8,13 @@
 #include <iterator>
 #include <map>
 #include <mutex>
+#include <optional>
 #include <rapidjson/document.h>
 
 #include "../../libs/file/filesystem.h"
 #include "../../libs/file/scores.h"
 #include "../../libs/gfx.h"
 #include "../../libs/gfx/camera_utils.h"
-#include "../../libs/math/animation.h"
 #include "../../platform/platform.h"
 
 static void draw_model_face_last(const Model& model, int face_material_index, const std::vector<int>& blend_materials,
@@ -79,17 +79,96 @@ static Mat4 rotation_xyz(float ax, float ay, float az) {
     return r;
 }
 
-// animations.glb is a few MB and every part of every Don used to parse it twice (LoadModel for
-// its bone names, LoadModelAnimations for the poses): about 185 ms per part on every screen with
-// a Don. It is parsed once per file (again if the file changes, e.g. after a skin update) and each
-// part gets its own copy with the poses reordered to its skeleton.
 struct AnimSource {
     fs::file_time_type mtime;
     std::uintmax_t size = 0;
     std::vector<std::string> bone_names; // the glb's skeleton; empty if it has none
     ModelAnimation* anims = nullptr;
     int count = 0;
+    std::vector<std::vector<int>> faces; // [animation][60 fps frame] expression index
 };
+
+static std::vector<std::vector<int>> read_glb_faces(const fs::path& path, const ModelAnimation* anims, int count) {
+    std::vector<std::vector<int>> faces(count);
+    std::ifstream f(path, std::ios::binary);
+    std::string data((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    auto u32 = [&](size_t at) {
+        uint32_t v = 0;
+        std::memcpy(&v, data.data() + at, 4);
+        return v;
+    };
+    if (data.size() < 20 || u32(0) != 0x46546C67u || u32(16) != 0x4E4F534Au) {
+        return faces;
+    }
+    const size_t json_len = u32(12);
+    const size_t bin_at = 20 + json_len + 8;
+    if (bin_at > data.size()) {
+        return faces;
+    }
+    rapidjson::Document doc;
+    doc.Parse(data.data() + 20, json_len);
+    if (doc.HasParseError() || !doc.HasMember("nodes") || !doc.HasMember("animations")) {
+        return faces;
+    }
+    int extra = -1;
+    for (rapidjson::SizeType i = 0; i < doc["nodes"].Size(); i++) {
+        const auto& node = doc["nodes"][i];
+        if (node.HasMember("name") && std::strcmp(node["name"].GetString(), "EXTRA") == 0) {
+            extra = static_cast<int>(i);
+        }
+    }
+    if (extra < 0) {
+        return faces;
+    }
+    // first float of element k of a float accessor, or nullopt past the buffer
+    auto read = [&](int accessor, int k) -> std::optional<float> {
+        const auto& acc = doc["accessors"][accessor];
+        const auto& view = doc["bufferViews"][acc["bufferView"].GetInt()];
+        const int comps = std::strcmp(acc["type"].GetString(), "VEC3") == 0 ? 3 : 1;
+        const size_t stride = view.HasMember("byteStride") ? view["byteStride"].GetUint() : comps * 4;
+        const size_t at = bin_at + (view.HasMember("byteOffset") ? view["byteOffset"].GetUint() : 0) +
+                          (acc.HasMember("byteOffset") ? acc["byteOffset"].GetUint() : 0) + k * stride;
+        if (at + 4 > data.size()) {
+            return std::nullopt;
+        }
+        float v = 0;
+        std::memcpy(&v, data.data() + at, 4);
+        return v;
+    };
+    const auto& animations = doc["animations"];
+    for (int a = 0; a < std::min(count, static_cast<int>(animations.Size())); a++) {
+        const auto& anim = animations[a];
+        for (const auto& ch : anim["channels"].GetArray()) {
+            const auto& target = ch["target"];
+            if (!target.HasMember("node") || target["node"].GetInt() != extra ||
+                std::strcmp(target["path"].GetString(), "translation") != 0) {
+                continue;
+            }
+            const auto& sampler = anim["samplers"][ch["sampler"].GetInt()];
+            const int in = sampler["input"].GetInt();
+            const int out = sampler["output"].GetInt();
+            const int keys = doc["accessors"][in]["count"].GetInt();
+            auto& track = faces[a];
+            int k = 0;
+            for (int frame = 0; frame < anims[a].keyframeCount; frame++) {
+                const float t = static_cast<float>(frame) / 60.0f;
+                while (k + 1 < keys && read(in, k + 1).value_or(t) <= t) {
+                    k++;
+                }
+                float x = read(out, k).value_or(0.0f);
+                if (k + 1 < keys) {
+                    const float t0 = read(in, k).value_or(t), t1 = read(in, k + 1).value_or(t);
+                    if (t1 > t0) {
+                        x += (read(out, k + 1).value_or(x) - x) * std::clamp((t - t0) / (t1 - t0), 0.0f, 1.0f);
+                    }
+                }
+                track.push_back(std::clamp(static_cast<int>(std::lround(x * 100.0f)), 0, 11));
+            }
+            break;
+        }
+    }
+    return faces;
+}
 
 static const AnimSource& anim_source(const fs::path& path) {
     static std::mutex mutex;
@@ -118,12 +197,12 @@ static const AnimSource& anim_source(const fs::path& path) {
     }
     unload_model(glb_model);
     src.anims = load_model_animations(path.string().c_str(), &src.count);
+    if (src.anims) {
+        src.faces = read_glb_faces(path, src.anims, src.count);
+    }
     return src;
 }
 
-// A copy of `src`'s animations for `model`: the poses reordered to the model's bones, bones the glb
-// does not animate held at the model's bind pose (copied as they are when either side has no
-// skeleton). Freed with UnloadModelAnimations.
 static ModelAnimation* reindexed_animations(const Model& model, const AnimSource& src) {
     if (!src.anims || src.count <= 0) {
         return nullptr;
@@ -370,10 +449,6 @@ void Chara3D::load_part(const fs::path& model_path, const fs::path& anim_path, b
     for (int idx : additive_indices) {
         model.materials[idx].maps[material_map::DIFFUSE].color = {255, 255, 255, 255};
     }
-    // Alpha-tested materials: the textures are binary alpha with black RGB under the
-    // transparent texels (fins, tentacles, hair tips). Forcing alpha to 255 painted all of
-    // that solid black; blending them would need back-to-front sorting. An alpha test gives
-    // the cabinet's cutout look with plain depth writes.
     if (cutout_shader.id != 0) {
         for (int i = 0; i < model.materialCount; i++) {
             if (i == face_material_index) {
@@ -386,6 +461,9 @@ void Chara3D::load_part(const fs::path& model_path, const fs::path& anim_path, b
     const AnimSource& anim_src = anim_source(anim_path);
     ModelAnimation* anims = reindexed_animations(model, anim_src);
     int anim_count = anims ? anim_src.count : 0;
+    if (anim_faces.empty()) {
+        anim_faces = anim_src.faces;
+    }
 
     parts.push_back(model);
     part_material_indices.push_back(std::move(material_indices));
@@ -408,9 +486,6 @@ static void init_shaders(Shader& outline_fxaa_shader, int& outline_fxaa_size_loc
     float outline_thickness = 3.0f;
     set_shader_value(outline_fxaa_shader, outline_fxaa_thickness_loc, &outline_thickness, shader_uniform::FLOAT);
 
-    // bgfx uniforms are shared by name, while their values are cached per
-    // shader program. Untinted characters must submit neutral values too,
-    // otherwise a previous character/scene's Go-Go or miss tint remains active.
     const float tint_color[3] = {0.0f, 0.0f, 0.0f};
     const float tint_amount = 0.0f;
     set_shader_value(outline_fxaa_shader, get_shader_location(outline_fxaa_shader, "tintColor"), tint_color,
@@ -446,9 +521,6 @@ Chara3D::Chara3D(std::string& model_name, bool mirror, bool use_skin_config) {
 
     load_face_textures(resolve_skin_path("Models/face/face_000000.png"));
 
-    fs::path skin_anim_path = resolve_skin_path("Graphics/global/animation.json");
-    load_face_anims(skin_anim_path);
-
     set_anim(anim_index);
 }
 
@@ -469,9 +541,6 @@ Chara3D::Chara3D(std::string& head_name, std::string& body_name, bool mirror, bo
     load_part(head_path, anim_path, true);
 
     load_face_textures(resolve_skin_path("Models/face/face_000000.png"));
-
-    fs::path skin_anim_path = resolve_skin_path("Graphics/global/animation.json");
-    load_face_anims(skin_anim_path);
 
     set_anim(anim_index);
 }
@@ -631,17 +700,16 @@ void Chara3D::set_paint(int index) {
     load_face_textures(sheet);
 }
 
-void Chara3D::load_face_anims(fs::path& anim_path) {
-    if (!fs::exists(anim_path)) {
+void Chara3D::apply_anim_face() {
+    const int ai = static_cast<int>(anim_index);
+    if (ai < 0 || ai >= std::ssize(anim_faces) || anim_faces[ai].empty()) {
         return;
     }
-    std::ifstream f(anim_path.string());
-    if (!f.is_open()) {
-        return;
+    const auto& track = anim_faces[ai];
+    const int face = track[std::min(anim_frame, static_cast<int>(track.size()) - 1)];
+    if (face != current_face_index) {
+        apply_face(face);
     }
-    std::string json_str((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
-    AnimationParser parser;
-    face_anims = parser.parseAnimationsFromString(json_str);
 }
 
 void Chara3D::apply_face(int face_index) {
@@ -719,64 +787,113 @@ void Chara3D::set_don_colors(Color body, Color face, Color rim) {
     render_dirty = true;
 }
 
-static constexpr int FACE_ANIM_IDS[] = {
-    13, 14, 15, 16, 65, 17, 22, 19, 30, 29, 23, 24, 25, 26, 40, 40, 42, 43, 44, 45, 46, 58, 59, 62, 60, 18,
-    13, 14, 15, 16, 64, 17, 22, 21, 36, 35, 23, 24, 25, 26, 40, 40, 42, 43, 44, 45, 46, 58, 59, 62, 61, 20,
-};
-
-static constexpr int FUKKATU_FACE = 8;
-
 static constexpr int MIRROR_OFFSET = static_cast<int>(AnimIndex::DON_BALLOON_FAILURE_MIRROR);
+static constexpr int EXTRA_START = static_cast<int>(AnimIndex::DON_ENTRY1P_COSCH_IN);
+static constexpr int EXTRA_OFFSET = static_cast<int>(AnimIndex::DON_ENTRY1P_COSCH_IN_MIRROR) - EXTRA_START;
+
 static int base_anim(AnimIndex idx) {
-    return static_cast<int>(idx) % MIRROR_OFFSET;
+    const int i = static_cast<int>(idx);
+    if (i >= EXTRA_START + EXTRA_OFFSET) {
+        return i - EXTRA_OFFSET;
+    }
+    return i >= EXTRA_START ? i : i % MIRROR_OFFSET;
+}
+
+static int mirror_of(int base) {
+    return base + (base >= EXTRA_START ? EXTRA_OFFSET : MIRROR_OFFSET);
+}
+
+static bool holds_last_frame(int base) {
+    using A = AnimIndex;
+    return base == static_cast<int>(A::DON_ENTRY1P_OUT) || base == static_cast<int>(A::DON_ENTRY2P_OUT) ||
+           base == static_cast<int>(A::DON_SELECT1P_OUT) || base == static_cast<int>(A::DON_SELECT2P_OUT);
+}
+
+static bool is_kusu_pump(int base) {
+    return base == static_cast<int>(AnimIndex::DON_KUSU1P_LOOP) || base == static_cast<int>(AnimIndex::DON_KUSU2P_LOOP);
+}
+
+static int two_player_of(int base) {
+    using A = AnimIndex;
+    switch (static_cast<A>(base)) {
+    case A::DON_ENTRY1P_COSCH_IN:
+    case A::DON_ENTRY1P_COSCH_OUT:
+    case A::DON_ENTRY1P_OUT:
+    case A::DON_ENTRY1P_SELECT:
+    case A::DON_ENTRY1P_SELECT_LOOP:
+        return base + static_cast<int>(A::DON_ENTRY2P_COSCH_IN) - static_cast<int>(A::DON_ENTRY1P_COSCH_IN);
+    case A::DON_FUKKATU1P_SUCCESS:
+        return static_cast<int>(A::DON_FUKKATU2P_SUCCESS);
+    case A::DON_GENERAL1P_FULLGAGE:
+    case A::DON_GENERAL1P_ITEM_IN:
+    case A::DON_GENERAL1P_ITEM_LOOP:
+    case A::DON_GENERAL1P_ITEM_OUT:
+        return base + static_cast<int>(A::DON_GENERAL2P_FULLGAGE) - static_cast<int>(A::DON_GENERAL1P_FULLGAGE);
+    case A::DON_KUSU1P_FAILURE:
+    case A::DON_KUSU1P_IN:
+    case A::DON_KUSU1P_LOOP:
+    case A::DON_KUSU1P_NOBEAT:
+    case A::DON_KUSU1P_SUCCESS01:
+    case A::DON_KUSU1P_SUCCESS02:
+        return base + static_cast<int>(A::DON_KUSU2P_FAILURE) - static_cast<int>(A::DON_KUSU1P_FAILURE);
+    case A::DON_RESULT_FAILURE:
+        return static_cast<int>(A::DON_RESULT2P_FAILURE);
+    case A::DON_RESULT_FAILURE_LOOP:
+        return static_cast<int>(A::DON_RESULT2P_FAILURE_LOOP);
+    case A::DON_SELECT1P_GIN:
+    case A::DON_SELECT1P_OUT:
+        return base + static_cast<int>(A::DON_SELECT2P_GIN) - static_cast<int>(A::DON_SELECT1P_GIN);
+    default:
+        return -1;
+    }
 }
 
 void Chara3D::set_anim(AnimIndex idx) {
-    const int base = base_anim(idx);
+    const AnimIndex requested = idx;
+    int base = base_anim(idx);
     if (base == static_cast<int>(AnimIndex::DON_ENTRY_IN)) {
         set_anim(AnimIndex::DON_ENTRY_LOOP);
     } else if (base == static_cast<int>(AnimIndex::DON_FUKKATU_START)) {
         set_anim(AnimIndex::DON_FUKKATU_LOOP);
     }
-    int i = base + (mirror ? MIRROR_OFFSET : 0);
+    int i = base;
+    if (mirror) {
+        if (const int two_p = two_player_of(base); two_p >= 0) {
+            i = base = two_p;
+        } else {
+            i = mirror_of(base);
+        }
+    }
     if (mirror && (base == static_cast<int>(AnimIndex::DON_MISS) || base == static_cast<int>(AnimIndex::DON_MISS6))) {
         i = static_cast<int>(AnimIndex::DON_MISS6_MIRROR) + static_cast<int>(AnimIndex::DON_MISS_MIRROR) - i;
     }
     idx = static_cast<AnimIndex>(i);
     int anim_count = part_anim_count.empty() ? 0 : part_anim_count[0];
+    if (i >= anim_count && anim_count > 0 && base != static_cast<int>(AnimIndex::DON_NORMAL)) {
+        set_anim(AnimIndex::DON_NORMAL);
+        return;
+    }
     if (i >= 0 && i < anim_count) {
         if (base == static_cast<int>(AnimIndex::DON_NORMAL) || base == static_cast<int>(AnimIndex::DON_SABI) ||
             base == static_cast<int>(AnimIndex::DON_BALLOON_NOBEAT) || base == static_cast<int>(AnimIndex::DON_MISS6) ||
-            get_anim_name(i).contains("loop")) {
+            base == static_cast<int>(AnimIndex::DON_KUSU1P_NOBEAT) ||
+            base == static_cast<int>(AnimIndex::DON_KUSU2P_NOBEAT) ||
+            base == static_cast<int>(AnimIndex::DON_FUKKATU_FACE01) ||
+            (get_anim_name(i).contains("loop") && !is_kusu_pump(base))) {
             is_looping = true;
         } else {
             if (is_looping) {
-                prev_anim_idx = anim_index; // not while chaining one-shots, or one would return to itself
+                prev_anim_idx = requested_anim; // not while chaining one-shots, or one would return to itself
             }
             is_looping = false;
         }
         anim_index = idx;
+        requested_anim = requested;
         anim_frame = 0;
+        holding = false;
         last_frame_ms = 0;
         render_dirty = true;
-        if (frozen) {
-            apply_pose();
-        }
-    }
-
-    if (base == static_cast<int>(AnimIndex::DON_FUKKATU_LOOP) ||
-        base == static_cast<int>(AnimIndex::DON_FUKKATU_START)) {
-        // the revive sequence holds one face instead of running a face animation
-        current_face_anim = nullptr;
-        apply_face(FUKKATU_FACE);
-    } else if (i >= 0 && i < static_cast<int>(sizeof(FACE_ANIM_IDS) / sizeof(FACE_ANIM_IDS[0]))) {
-        auto it = face_anims.find(FACE_ANIM_IDS[i]);
-        if (it != face_anims.end()) {
-            current_face_anim = it->second.get();
-            current_face_anim->reset();
-            current_face_anim->start();
-            apply_face(static_cast<int>(current_face_anim->attribute));
-        }
+        apply_anim_face();
     }
 }
 
@@ -813,35 +930,10 @@ void Chara3D::apply_pose() {
         }
         update_model_animation(parts[p], part_anims[p][ai], anim_frame);
     }
+    apply_anim_face();
     applied_anim = ai;
     applied_frame = anim_frame;
     render_dirty = true;
-}
-
-void Chara3D::set_frozen(bool value) {
-    if (frozen == value) {
-        return;
-    }
-    frozen = value;
-    if (frozen) {
-        apply_pose();
-    } else {
-        last_frame_ms = 0;
-    }
-}
-
-void Chara3D::set_anim_progress(float progress) {
-    const int ai = static_cast<int>(anim_index);
-    if (part_anim_count.empty() || ai < 0 || ai >= part_anim_count[0]) {
-        return;
-    }
-    const int loop_frames = part_anims[0][ai].keyframeCount - 1;
-    if (loop_frames <= 0) {
-        return;
-    }
-    const float cycle = progress - std::floor(progress);
-    anim_frame = std::min(loop_frames - 1, static_cast<int>(cycle * loop_frames));
-    apply_pose();
 }
 
 void Chara3D::set_rotation(float x, float y, float z) {
@@ -861,7 +953,7 @@ void Chara3D::set_mirror(bool value) {
     mirror = value;
     const int frame = anim_frame;
     const double frame_ms = last_frame_ms;
-    set_anim(anim_index);
+    set_anim(requested_anim);
     anim_frame = frame;
     last_frame_ms = frame_ms;
 }
@@ -873,7 +965,7 @@ void Chara3D::use_default_pose(bool new_mirror) {
     rot_y = cfg.rot_y;
     rot_z = cfg.rot_z;
     mirror = new_mirror;
-    set_anim(anim_index);
+    set_anim(requested_anim);
     render_dirty = true;
 }
 
@@ -887,17 +979,16 @@ int Chara3D::get_anim_count() const {
 
 void Chara3D::update(double current_ms) {
     puchi_ms = current_ms;
-    if (frozen) {
-        return;
-    }
     int anim_count = part_anim_count.empty() ? 0 : part_anim_count[0];
     if (anim_count > 0) {
         int ai = static_cast<int>(anim_index);
         const int kf = part_anims[0][ai].keyframeCount;
-        if (bpm > 0.0f && kf > 0) {
+        if (bpm > 0.0f && kf > 0 && !holding) {
             double ms_per_beat = 60000.0 / bpm;
             const int base = base_anim(anim_index);
-            if (base == static_cast<int>(AnimIndex::DON_NORMAL)) {
+            if (base >= EXTRA_START && kf > 2) {
+                ms_per_beat = (kf - 1) * 1000.0 / 60.0; // not beat-synced: the glTF's own 60 fps length
+            } else if (base == static_cast<int>(AnimIndex::DON_NORMAL)) {
                 ms_per_beat *= 3;
             } else if (base == static_cast<int>(AnimIndex::DON_SABI)) {
                 ms_per_beat *= 6;
@@ -922,6 +1013,11 @@ void Chara3D::update(double current_ms) {
                 for (int i = 0; i < steps; ++i) {
                     last_frame_ms += ms_per_frame;
                     anim_frame = (anim_frame + 1) % loop_frames;
+                    if (!is_looping && anim_frame == loop_frames - 1 && holds_last_frame(base)) {
+                        anim_frame = loop_frames;
+                        holding = true;
+                        break;
+                    }
                     if (!is_looping && anim_frame == loop_frames - 1) {
                         set_anim(prev_anim_idx);
                         is_looping = true;
@@ -932,14 +1028,6 @@ void Chara3D::update(double current_ms) {
                     apply_pose();
                 }
             }
-        }
-    }
-
-    if (current_face_anim) {
-        current_face_anim->update(current_ms);
-        int new_face = static_cast<int>(current_face_anim->attribute);
-        if (new_face != current_face_index) {
-            apply_face(new_face);
         }
     }
 }

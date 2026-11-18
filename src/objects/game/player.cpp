@@ -1203,8 +1203,26 @@ void Player::on_kusudama_hit(JudgeCore* owner_judge, const Note& balloon, double
         bg_hook->handle_kusudama(PlayerNum(is_2p + 1));
     }
     owner->kusudama_counter->update(current_ms, owner->kusudama_shared_hits);
+    if (!kusu_anim) {
+        kusu_anim = true;
+        chara->set_anim(AnimIndex::DON_KUSU1P_NOBEAT);
+        chara->set_anim(AnimIndex::DON_KUSU1P_IN);
+    } else {
+        chara->set_anim(AnimIndex::DON_KUSU1P_LOOP);
+    }
     if (popped) {
-        audio.play_player_sound("kusudama_pop", PlayerNum::ALL, VolumePreset::HITSOUND); // shared by both players
+        audio.play_player_sound("kusudama_pop", PlayerNum::ALL, VolumePreset::HITSOUND);
+        owner->end_kusu_anim();
+    }
+}
+
+void Player::end_kusu_anim() {
+    for (Player* p : {this, kusudama_partner}) {
+        if (p && p->kusu_anim) {
+            p->kusu_anim = false;
+            p->chara->set_anim(p->rest_anim());
+            p->chara->set_anim(AnimIndex::DON_KUSU1P_FAILURE);
+        }
     }
 }
 
@@ -1274,6 +1292,7 @@ void Player::kusudama_counter_manager(double current_ms) {
     if (!is_balloon && kusudama_counter.has_value() && !kusudama_counter->has_popped()) {
         if (kusudama_counter->can_miss()) {
             kusudama_counter->miss(current_ms);
+            end_kusu_anim();
             audio.play_player_sound("kusudama_fail", PlayerNum::ALL, VolumePreset::SOUND);
             if (kusudama_partner) {
                 audio.play_sound("kusudama_fail_voice_1p", VolumePreset::VOICE);
@@ -1283,6 +1302,7 @@ void Player::kusudama_counter_manager(double current_ms) {
             }
         } else {
             kusudama_counter.reset();
+            end_kusu_anim();
         }
     }
     if (kusudama_counter.has_value()) {
@@ -1310,6 +1330,7 @@ void Player::cut_to_end(double now, int prev_good, int prev_ok, int prev_bad) {
     drumroll_counter.reset();
     balloon_counter.reset();
     kusudama_counter.reset();
+    kusu_anim = false;
     end_time = now - 1000.0;
 
     skipped_run = true;

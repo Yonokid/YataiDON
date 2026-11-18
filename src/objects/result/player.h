@@ -22,7 +22,8 @@ class ResultPlayer : public LuaScript {
     std::string score, good, ok, bad, max_combo, total_drumroll;
     std::optional<ScoreAnimator> score_animator;
     bool high_score_sound_played = false;
-    bool miss_loop_started = false;
+    bool chara_revealed = false;
+    std::optional<AnimIndex> chara_koshibai;
     bool count_up_instant = false;
     double rows_done_ms = 0;
     double count_up_row_ms = 416.667;

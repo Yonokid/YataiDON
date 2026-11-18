@@ -482,6 +482,8 @@ std::unique_ptr<Chara3D> EntryScreen::make_preview_chara(PlayerNum player_num) {
 
 void EntryScreen::reload_preview_chara(PlayerNum player_num) {
     chara = make_preview_chara(player_num);
+    chara->set_anim(AnimIndex::DON_ENTRY1P_SELECT_LOOP);
+    chara->set_anim(AnimIndex::DON_ENTRY1P_SELECT);
 }
 
 Screens EntryScreen::on_screen_end(Screens next_screen) {

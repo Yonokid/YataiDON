@@ -107,6 +107,7 @@ void EntryPlayer::open_costume_menu() {
     collabo_bonus_seen = collabo_bonus_seen || bonus;
     costume_menu.emplace(player_num, bonus);
     audio.play_player_sound("mode_costume", player_num, VolumePreset::VOICE);
+    chara->set_anim(AnimIndex::DON_ENTRY1P_COSCH_IN);
     preset_seq_applied = 0;
 }
 
@@ -215,7 +216,7 @@ void EntryPlayer::handle_input() {
             if (parsed) {
                 audio.play_player_sound("costume_select_" + std::to_string(static_cast<int>(player_num)) + "p",
                                         player_num, VolumePreset::VOICE);
-                chara->set_anim(AnimIndex::DON_BALLOON_SUCCESS);
+                chara->set_anim(AnimIndex::DON_ENTRY1P_COSCH_OUT);
             }
         }
         return;
@@ -231,6 +232,7 @@ void EntryPlayer::handle_input() {
         } else {
             box_manager->opening_player = player_num;
             box_manager->select_box();
+            chara->set_anim(AnimIndex::DON_ENTRY1P_OUT);
         }
     }
     if (menu_left_pressed(player_num)) {

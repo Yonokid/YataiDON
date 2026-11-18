@@ -19,12 +19,10 @@ void RetryGameScreen::on_screen_start() {
                               chara_default_color_2(global_data.player_num), {249, 240, 225, 255});
     }
     chara->set_rotation(tex.chara_3d_config.rot_x, 0.0f, tex.chara_3d_config.rot_z);
-    chara->set_anim(AnimIndex::DON_FUKKATU_LOOP);
-    chara->set_frozen(true);
+    chara->set_anim(AnimIndex::DON_FUKKATU_FACE01);
     chara_phase = "wait";
-    chara_target = 0.0f;
-    chara_progress = 0.0f;
-    last_ms = 0;
+    chara_hit = false;
+    face_ms = 0;
 }
 
 Screens RetryGameScreen::on_screen_end(Screens next_screen) {
@@ -41,17 +39,15 @@ std::optional<Screens> RetryGameScreen::update() {
         return std::nullopt;
     }
     double current_ms = get_current_ms();
-    if (last_ms == 0) {
-        last_ms = current_ms;
-    }
     allnet_indicator.update(current_ms);
 
     int hits = is_l_don_pressed() + is_r_don_pressed();
     for (int i = 0; i < hits; i++) {
         scene->hit();
         audio.play_sound("don", VolumePreset::HITSOUND);
-        if (scene->phase() == "count") {
-            chara_target += 0.5f;
+        if (chara && scene->phase() == "count") {
+            chara->set_anim(chara_hit ? AnimIndex::DON_SWING01 : AnimIndex::DON_FUKKATU_FACE02);
+            chara_hit = true;
         }
     }
     scene->update(current_ms);
@@ -60,22 +56,19 @@ std::optional<Screens> RetryGameScreen::update() {
         if (phase != chara_phase) {
             chara_phase = phase;
             if (phase == "success") {
-                chara->set_anim(AnimIndex::DON_FULL_GAGE);
+                chara->set_anim(global_data.player_num == PlayerNum::P2 ? AnimIndex::DON_FUKKATU2P_SUCCESS
+                                                                        : AnimIndex::DON_FUKKATU1P_SUCCESS);
+                face_ms = current_ms + 400.0;
             } else if (phase == "failure") {
                 chara->set_anim(AnimIndex::DON_MISS_NORMAL);
             }
-            if (phase == "success" || phase == "failure") {
-                chara->set_frozen(false);
-            }
         }
-        if (phase == "count" && chara_progress < chara_target) {
-            chara_progress =
-                std::min(chara_target, chara_progress + 0.5f * static_cast<float>(current_ms - last_ms) / 100.0f);
-            chara->set_anim_progress(chara_progress);
+        if (face_ms > 0 && current_ms >= face_ms) {
+            chara->set_anim(AnimIndex::DON_FUKKATU_FACE03);
+            face_ms = 0;
         }
         chara->update(current_ms);
     }
-    last_ms = current_ms;
 
     if (scene->is_finished()) {
         const auto& network_config = global_data.config->network;
