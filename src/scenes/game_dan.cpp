@@ -6,6 +6,7 @@
 #include "../libs/file/script.h"
 #include "../libs/gfx/text.h"
 #include "../libs/input/input.h"
+#include "../libs/score_submission.h"
 
 void DanGameScreen::on_screen_start() {
     Screen::on_screen_start();
@@ -448,45 +449,26 @@ void DanGameScreen::save_song_score(DanResultSong& song_res) {
         return;
     }
 
-    Score score;
-    score.score = players[0]->get_score() - prev_score;
-    score.good = song_res.good;
-    score.ok = song_res.ok;
-    score.bad = song_res.bad;
-    score.drumroll = song_res.drumroll;
-    score.max_combo = song_max_combo;
-
-    if (skipped) {
-        score.crown = Crown::NONE;
-    } else if (score.ok == 0 && score.bad == 0) {
-        score.crown = Crown::DFC;
-    } else if (score.bad == 0) {
-        score.crown = Crown::FC;
-    } else if (!failed_out) {
-        score.crown = Crown::CLEAR;
-    } else {
-        score.crown = Crown::NONE;
-    }
-    score.rank = skipped ? Rank::_NONE : rank_for_score(score.score);
     const std::string player_id = get_player_id(global_data.player_num);
-    const int64_t played_at = unix_now();
-    const std::string modifiers_json = modifiers_to_json(players[0]->get_modifiers());
-    scores_manager.save_score(hash, entry.difficulty, player_id, score, played_at, modifiers_json, &song_res.score_id);
 
-    if (global_data.config->general.score_method != ScoreMethod::GEN3 && !sd.dan_gen3) {
-        std::string access_code;
-        if (player_id == scores_manager.player_1) {
-            access_code = global_data.config->network.access_code_1;
-        } else if (player_id == scores_manager.player_2) {
-            access_code = global_data.config->network.access_code_2;
-        }
-        if (!access_code.empty()) {
-            PlayerData pd = scores_manager.get_player_data(player_id).value_or(PlayerData{});
-            network.submit_score(hash, entry.difficulty, access_code, score, players[0]->input_log, played_at,
-                                 modifiers_json, pd.chara_is_costume, pd.chara_cos_index, "", -1,
-                                 players[0]->judge_params());
-        }
-    }
+    ScoreSubmissionRequest request{.player_id = player_id,
+                                   .hash = hash,
+                                   .difficulty = entry.difficulty,
+                                   .score = completed_play_score({.score = players[0]->get_score() - prev_score,
+                                                                  .good = song_res.good,
+                                                                  .ok = song_res.ok,
+                                                                  .bad = song_res.bad,
+                                                                  .drumroll = song_res.drumroll,
+                                                                  .max_combo = song_max_combo},
+                                                                 skipped, !failed_out),
+                                   .modifiers = players[0]->get_modifiers(),
+                                   .input_log = players[0]->input_log,
+                                   .judge_params = players[0]->judge_params()};
+
+    const auto submission =
+        sd.dan_gen3 ? std::nullopt : score_submission_for(player_id, scores_manager, *global_data.config);
+
+    ScoreSubmitter(scores_manager, network).submit(request, submission, &song_res.score_id);
 }
 
 void DanGameScreen::save_result_data(bool all_failed) {
