@@ -273,7 +273,7 @@ if(YATAIDON_GFX_BACKEND STREQUAL "raylib")
   target_link_libraries(${PROJECT_NAME} PRIVATE raylib)
 else()
   target_link_libraries(${PROJECT_NAME} PRIVATE bgfx bx SDL3::SDL3)
-  # Shaders compile to SPIR-V headers embedded by src/libs/gfx_bgfx.cpp
+  # Shaders compile to SPIR-V / GLSL / ESSL headers embedded by src/libs/gfx_bgfx.cpp
   include(${bgfx_SOURCE_DIR}/cmake/bgfxToolUtils.cmake)
   FetchContent_GetProperties(bgfx_source SOURCE_DIR _bgfx_src)
   set(_shader_dir ${CMAKE_SOURCE_DIR}/shader/bgfx)
@@ -287,7 +287,7 @@ else()
       VARYING_DEF ${_shader_dir}/varying.def.sc
       OUTPUT_DIR ${CMAKE_BINARY_DIR}/generated/shaders
       INCLUDE_DIRS ${_bgfx_src}/src
-      PROFILES spirv
+      PROFILES spirv 430 300_es
       AS_HEADERS
       OUT_FILES_VAR _shader_headers
     )

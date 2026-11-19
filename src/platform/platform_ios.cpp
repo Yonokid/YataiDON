@@ -84,3 +84,7 @@ int ios_handle_touch_navigation(int quadrant_vkey, float touch_x, float touch_y)
     }
     return quadrant_vkey;
 }
+
+bool platform_threaded_renderer() {
+    return false;
+}

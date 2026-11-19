@@ -11,9 +11,6 @@ void platform_initialize_animation_worker() {}
 bool platform_present_paces_frames() {
     return false;
 }
-bool platform_threaded_renderer() {
-    return false;
-}
 bool platform_list_directory(const std::filesystem::path&, std::vector<PlatformFileEntry>&) {
     return false;
 }

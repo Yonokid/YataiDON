@@ -668,3 +668,7 @@ void win32_close_portaudio() {
 bool platform_retains_assets() {
     return true;
 }
+
+bool platform_threaded_renderer() {
+    return false;
+}

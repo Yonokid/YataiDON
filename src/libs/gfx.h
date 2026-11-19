@@ -80,6 +80,8 @@ void draw_texture_pro(Texture tex, Rect src, Rect dst, Vec2 origin, float rotati
 void draw_text(const char* text, int x, int y, int font_size, Color color);
 int measure_text(const char* text, int font_size);
 void set_window_flags(unsigned flags);
+// "auto", or a backend renderer name; ignored by backends with a single renderer.
+void set_renderer_preference(const char* name);
 void quiet_raylib_log();
 void init_window(int width, int height, const char* title);
 void close_window();

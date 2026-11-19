@@ -128,6 +128,7 @@ struct VideoConfig {
     bool borderless = false;
     int target_fps = 60;
     bool vsync = true;
+    std::string renderer = "auto";
 };
 
 struct Config {

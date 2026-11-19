@@ -27,3 +27,7 @@ std::filesystem::path platform_get_working_directory() {
 void platform_close_window() {
     close_window();
 }
+
+bool platform_threaded_renderer() {
+    return false;
+}

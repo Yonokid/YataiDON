@@ -728,6 +728,7 @@ static int game_main(int argc, char* argv[]) {
     ios_configure_window_flags(flags);
 #endif
     set_window_flags(flags);
+    set_renderer_preference(global_data.config->video.renderer.c_str());
     quiet_raylib_log();
     setup_logging(global_data.config->general.log_level);
 

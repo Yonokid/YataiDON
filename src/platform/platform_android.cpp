@@ -93,3 +93,7 @@ extern "C" JNIEXPORT void JNICALL Java_com_yataidon_app_YataiDONActivity_nativeD
                                                                                          jint w, jint h) {
     push_second_screen_touch(down, id, x, y, w, h);
 }
+
+bool platform_threaded_renderer() {
+    return false;
+}

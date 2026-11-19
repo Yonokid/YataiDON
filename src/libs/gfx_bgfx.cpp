@@ -23,6 +23,7 @@
 #include <string>
 #include <thread>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "../platform/platform.h"
@@ -33,6 +34,36 @@
 #include "gfx/glyph_lookup.h"
 #include "gfx/mesh_bounds.h"
 #include "gfx/sdl_compat.h"
+#include "shaders/essl/fs_2d.sc.bin.h"
+#include "shaders/essl/fs_colortransform.sc.bin.h"
+#include "shaders/essl/fs_cutout.sc.bin.h"
+#include "shaders/essl/fs_face.sc.bin.h"
+#include "shaders/essl/fs_mesh.sc.bin.h"
+#include "shaders/essl/fs_null.sc.bin.h"
+#include "shaders/essl/fs_outline.sc.bin.h"
+#include "shaders/essl/fs_outline_fxaa.sc.bin.h"
+#include "shaders/essl/fs_sprite.sc.bin.h"
+#include "shaders/essl/vs_2d.sc.bin.h"
+#include "shaders/essl/vs_mesh.sc.bin.h"
+#include "shaders/essl/vs_mesh_skin.sc.bin.h"
+#include "shaders/essl/vs_outline.sc.bin.h"
+#include "shaders/essl/vs_outline_skin.sc.bin.h"
+#include "shaders/essl/vs_sprite.sc.bin.h"
+#include "shaders/glsl/fs_2d.sc.bin.h"
+#include "shaders/glsl/fs_colortransform.sc.bin.h"
+#include "shaders/glsl/fs_cutout.sc.bin.h"
+#include "shaders/glsl/fs_face.sc.bin.h"
+#include "shaders/glsl/fs_mesh.sc.bin.h"
+#include "shaders/glsl/fs_null.sc.bin.h"
+#include "shaders/glsl/fs_outline.sc.bin.h"
+#include "shaders/glsl/fs_outline_fxaa.sc.bin.h"
+#include "shaders/glsl/fs_sprite.sc.bin.h"
+#include "shaders/glsl/vs_2d.sc.bin.h"
+#include "shaders/glsl/vs_mesh.sc.bin.h"
+#include "shaders/glsl/vs_mesh_skin.sc.bin.h"
+#include "shaders/glsl/vs_outline.sc.bin.h"
+#include "shaders/glsl/vs_outline_skin.sc.bin.h"
+#include "shaders/glsl/vs_sprite.sc.bin.h"
 #include "shaders/spirv/fs_2d.sc.bin.h"
 #include "shaders/spirv/fs_colortransform.sc.bin.h"
 #include "shaders/spirv/fs_cutout.sc.bin.h"
@@ -335,6 +366,7 @@ namespace {
     SDL_Window* window = nullptr;
     unsigned window_flags = 0;
     bool should_close = false;
+    std::string renderer_preference = "auto";
     uint32_t reset_flags = BGFX_RESET_NONE;
     const bgfx::Caps* caps = nullptr;
 
@@ -777,17 +809,41 @@ namespace {
         return add_slot(slot);
     }
 
-    ProgramSlot make_program(const uint8_t* vs, uint32_t vs_size, const uint8_t* fs, uint32_t fs_size) {
+    // Shader binaries per backend family; the active renderer picks one at program creation.
+    struct Bin {
+        const uint8_t *spv, *glsl, *essl;
+        uint32_t spv_size, glsl_size, essl_size;
+
+        std::pair<const uint8_t*, uint32_t> pick() const {
+            switch (bgfx::getRendererType()) {
+            case bgfx::RendererType::OpenGL:
+                return {glsl, glsl_size};
+            case bgfx::RendererType::OpenGLES:
+                return {essl, essl_size};
+            default:
+                return {spv, spv_size};
+            }
+        }
+    };
+#define BIN(name)                                                                                                      \
+    Bin {                                                                                                              \
+        name##_spv, name##_glsl, name##_essl, sizeof(name##_spv), sizeof(name##_glsl), sizeof(name##_essl)             \
+    }
+
+    bgfx::ShaderHandle make_shader(const Bin& bin) {
+        const auto [data, size] = bin.pick();
+        return bgfx::createShader(bgfx::makeRef(data, size));
+    }
+
+    ProgramSlot make_program(const Bin& vs, const Bin& fs) {
         ProgramSlot p;
-        p.program = bgfx::createProgram(bgfx::createShader(bgfx::makeRef(vs, vs_size)),
-                                        bgfx::createShader(bgfx::makeRef(fs, fs_size)), true);
+        p.program = bgfx::createProgram(make_shader(vs), make_shader(fs), true);
         return p;
     }
 
-    ProgramSlot make_mesh_program(const uint8_t* vs, uint32_t vs_size, const uint8_t* skin_vs, uint32_t skin_vs_size,
-                                  const uint8_t* fs, uint32_t fs_size) {
-        auto program = make_program(vs, vs_size, fs, fs_size);
-        program.skinned = make_program(skin_vs, skin_vs_size, fs, fs_size).program;
+    ProgramSlot make_mesh_program(const Bin& vs, const Bin& skin_vs, const Bin& fs) {
+        auto program = make_program(vs, fs);
+        program.skinned = make_program(skin_vs, fs).program;
         return program;
     }
 
@@ -817,18 +873,21 @@ namespace {
 #endif
     }
 
-    bgfx::RendererType::Enum renderer_from_env() {
+    // Vulkan first; if the device or driver cannot start it, fall back to GL / GLES.
+    std::vector<bgfx::RendererType::Enum> renderer_candidates() {
         const char* name = std::getenv("YATAIDON_BGFX_RENDERER");
-        if (!name) {
-            return bgfx::RendererType::Vulkan; // only SPIR-V shaders are built so far
+        if (!name && renderer_preference != "auto") {
+            name = renderer_preference.c_str();
         }
-        for (int i = 0; i < bgfx::RendererType::Count; i++) {
-            if (SDL_strcasecmp(name, bgfx::getRendererName(static_cast<bgfx::RendererType::Enum>(i))) == 0) {
-                return static_cast<bgfx::RendererType::Enum>(i);
+        if (name) {
+            for (int i = 0; i < bgfx::RendererType::Count; i++) {
+                if (SDL_strcasecmp(name, bgfx::getRendererName(static_cast<bgfx::RendererType::Enum>(i))) == 0) {
+                    return {static_cast<bgfx::RendererType::Enum>(i)};
+                }
             }
+            spdlog::warn("bgfx: unknown renderer '{}', using the default order", name);
         }
-        spdlog::warn("bgfx: unknown YATAIDON_BGFX_RENDERER '{}', using Vulkan", name);
-        return bgfx::RendererType::Vulkan;
+        return {bgfx::RendererType::Vulkan, bgfx::RendererType::OpenGL, bgfx::RendererType::OpenGLES};
     }
 
     void reset_backbuffer() {
@@ -971,6 +1030,10 @@ void set_window_flags(unsigned flags) {
     window_flags = flags;
 }
 
+void set_renderer_preference(const char* name) {
+    renderer_preference = name ? name : "auto";
+}
+
 void quiet_raylib_log() {}
 
 void disable_exit_key() {}
@@ -995,7 +1058,6 @@ void init_window(int width, int height, const char* title) {
     }
 
     bgfx::Init init;
-    init.type = renderer_from_env();
     native_handles(init.swapChain.nwh, init.swapChain.ndt, init.platformData.type);
     int w = 0, h = 0;
     SDL_GetWindowSizeInPixels(window, &w, &h);
@@ -1005,7 +1067,16 @@ void init_window(int width, int height, const char* title) {
     init.reset = reset_flags;
     init.callback = &callback;
     parse_shot_env();
-    if (!bgfx::init(init)) {
+    bool started = false;
+    for (const auto type : renderer_candidates()) {
+        init.type = type;
+        if (bgfx::init(init)) {
+            started = true;
+            break;
+        }
+        spdlog::warn("bgfx: {} init failed", bgfx::getRendererName(type));
+    }
+    if (!started) {
         spdlog::critical("bgfx init failed");
         std::abort();
     }
@@ -1021,7 +1092,7 @@ void init_window(int width, int height, const char* title) {
         .add(bgfx::Attrib::Color0, 4, bgfx::AttribType::Uint8, true)
         .end();
     s_tex_color = bgfx::createUniform("s_texColor", bgfx::UniformType::Sampler);
-    programs.push_back(make_program(vs_2d_spv, sizeof(vs_2d_spv), fs_2d_spv, sizeof(fs_2d_spv)));
+    programs.push_back(make_program(BIN(vs_2d), BIN(fs_2d)));
     gpu_sprites_enabled = false;
     if (caps->limits.maxInstanceData >= 4 && caps->limits.maxVertexAttributes >= 5 &&
         caps->limits.maxTextureSamplers >= SpriteTextures::capacity) {
@@ -1030,7 +1101,7 @@ void init_window(int width, int height, const char* title) {
         bgfx::VertexLayout quad_layout;
         quad_layout.begin().add(bgfx::Attrib::Position, 3, bgfx::AttribType::Float).end();
         sprite_quad = bgfx::createVertexBuffer(bgfx::copy(corners, sizeof(corners)), quad_layout);
-        sprite_program = make_program(vs_sprite_spv, sizeof(vs_sprite_spv), fs_sprite_spv, sizeof(fs_sprite_spv));
+        sprite_program = make_program(BIN(vs_sprite), BIN(fs_sprite));
         for (unsigned stage = 0; stage < SpriteTextures::capacity; ++stage) {
             const std::string name = "s_sprite" + std::to_string(stage);
             sprite_samplers[stage] = bgfx::createUniform(name.c_str(), bgfx::UniformType::Sampler);
@@ -1473,7 +1544,8 @@ Image load_image_from_texture(Texture tex) {
     bgfx::blit(pass.view, dst, src);
     Image img = gen_image_color(tex.width, tex.height, Color::BLANK);
     const uint32_t ready = bgfx::read(dst, img.data);
-    for (int i = 0; i < 8 && advance_frame(BGFX_FRAME_FLUSH) < ready; i++) {
+    // With a render thread the frame numbered `ready` finishes only during the next frame() call.
+    for (int i = 0; i < 8 && advance_frame(BGFX_FRAME_FLUSH) <= ready; i++) {
     }
     pending_upload_bytes = 0;
     bgfx::destroy(staging);
@@ -1493,35 +1565,24 @@ Shader load_shader(const char* vs_path, const char* fs_path) {
     // follows from it: 2D (dummy.vs / pass.vs), mesh (raylib's default) or the outline hull.
     struct Port {
         const char* fs;
-        const uint8_t *vs_bin, *fs_bin;
-        uint32_t vs_size, fs_size;
-        const uint8_t* skin_vs = nullptr;
-        uint32_t skin_vs_size = 0;
+        Bin vs_bin, fs_bin;
+        const Bin* skin_vs = nullptr;
     };
-#define PORT(name, vs, fs)                                                                                             \
-    {                                                                                                                  \
-        name, vs##_spv, fs##_spv, sizeof(vs##_spv), sizeof(fs##_spv)                                                   \
-    }
+    static const Bin skin_mesh = BIN(vs_mesh_skin), skin_outline = BIN(vs_outline_skin);
     static const Port ports[] = {
-        PORT("colortransform.fs", vs_2d, fs_colortransform),
-        PORT("outline_fxaa.fs", vs_2d, fs_outline_fxaa),
-        {"cutout.fs", vs_mesh_spv, fs_cutout_spv, sizeof(vs_mesh_spv), sizeof(fs_cutout_spv), vs_mesh_skin_spv,
-         sizeof(vs_mesh_skin_spv)},
-        {"face.fs", vs_mesh_spv, fs_face_spv, sizeof(vs_mesh_spv), sizeof(fs_face_spv), vs_mesh_skin_spv,
-         sizeof(vs_mesh_skin_spv)},
-        {"null.fs", vs_mesh_spv, fs_null_spv, sizeof(vs_mesh_spv), sizeof(fs_null_spv), vs_mesh_skin_spv,
-         sizeof(vs_mesh_skin_spv)},
-        {"outline.fs", vs_outline_spv, fs_outline_spv, sizeof(vs_outline_spv), sizeof(fs_outline_spv),
-         vs_outline_skin_spv, sizeof(vs_outline_skin_spv)},
+        {"colortransform.fs", BIN(vs_2d), BIN(fs_colortransform)},
+        {"outline_fxaa.fs", BIN(vs_2d), BIN(fs_outline_fxaa)},
+        {"cutout.fs", BIN(vs_mesh), BIN(fs_cutout), &skin_mesh},
+        {"face.fs", BIN(vs_mesh), BIN(fs_face), &skin_mesh},
+        {"null.fs", BIN(vs_mesh), BIN(fs_null), &skin_mesh},
+        {"outline.fs", BIN(vs_outline), BIN(fs_outline), &skin_outline},
     };
-#undef PORT
     const std::string fs = fs_path ? fs_path : "";
     Shader shader;
     for (const Port& p : ports) {
         if (fs.ends_with(std::string("/") + p.fs)) {
-            shader.id = add_program(
-                p.skin_vs ? make_mesh_program(p.vs_bin, p.vs_size, p.skin_vs, p.skin_vs_size, p.fs_bin, p.fs_size)
-                          : make_program(p.vs_bin, p.vs_size, p.fs_bin, p.fs_size));
+            shader.id = add_program(p.skin_vs ? make_mesh_program(p.vs_bin, *p.skin_vs, p.fs_bin)
+                                              : make_program(p.vs_bin, p.fs_bin));
             programs[shader.id].sprite_color = fs.ends_with("/colortransform.fs");
             return shader;
         }
@@ -3092,8 +3153,7 @@ namespace {
             .add(bgfx::Attrib::Indices, 4, bgfx::AttribType::Uint8, false, true)
             .add(bgfx::Attrib::Weight, 4, bgfx::AttribType::Float)
             .end();
-        mesh_program = make_mesh_program(vs_mesh_spv, sizeof(vs_mesh_spv), vs_mesh_skin_spv, sizeof(vs_mesh_skin_spv),
-                                         fs_mesh_spv, sizeof(fs_mesh_spv));
+        mesh_program = make_mesh_program(BIN(vs_mesh), BIN(vs_mesh_skin), BIN(fs_mesh));
         u_col_diffuse = bgfx::createUniform("colDiffuse", bgfx::UniformType::Vec4);
         u_skin_position = bgfx::createUniform("u_skinPosition", bgfx::UniformType::Vec4, GPU_SKIN_BONES * 3);
         u_skin_normal = bgfx::createUniform("u_skinNormal", bgfx::UniformType::Vec4, GPU_SKIN_BONES * 3);

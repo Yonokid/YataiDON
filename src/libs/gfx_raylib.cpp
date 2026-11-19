@@ -133,6 +133,8 @@ void set_window_flags(unsigned flags) {
     ray::SetConfigFlags(flags);
 }
 
+void set_renderer_preference(const char*) {}
+
 void quiet_raylib_log() {
     ray::SetTraceLogLevel(ray::LOG_ERROR);
 }

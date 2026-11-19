@@ -443,6 +443,7 @@ Config get_config() {
     config.video.borderless = config_file["video"]["borderless"].value_or(false);
     config.video.target_fps = config_file["video"]["target_fps"].value_or(-1);
     config.video.vsync = config_file["video"]["vsync"].value_or(kDefaultVsync);
+    config.video.renderer = config_file["video"]["renderer"].value_or("auto");
     platform_load_config(config, config_file);
 
     return config;
@@ -633,7 +634,8 @@ void save_config(const Config& config) {
     config_table.insert("video", toml::table{{"fullscreen", config.video.fullscreen},
                                              {"borderless", config.video.borderless},
                                              {"target_fps", config.video.target_fps},
-                                             {"vsync", config.video.vsync}});
+                                             {"vsync", config.video.vsync},
+                                             {"renderer", config.video.renderer}});
 
     platform_save_config(config, config_table);
     fs::path tmp_path = config_path;

@@ -35,3 +35,7 @@ int emscripten_run_main_loop(void (*run_frame)()) {
 bool platform_retains_assets() {
     return false;
 }
+
+bool platform_threaded_renderer() {
+    return false;
+}

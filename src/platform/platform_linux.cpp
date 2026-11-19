@@ -37,3 +37,7 @@ void platform_close_window() {
         dlclose(egl_wayland);
     }
 }
+
+bool platform_threaded_renderer() {
+    return true;
+}
