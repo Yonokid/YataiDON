@@ -873,19 +873,20 @@ namespace {
 #endif
     }
 
-    // Vulkan first; if the device or driver cannot start it, fall back to GL / GLES.
     std::vector<bgfx::RendererType::Enum> renderer_candidates() {
-        const char* name = std::getenv("YATAIDON_BGFX_RENDERER");
-        if (!name && renderer_preference != "auto") {
-            name = renderer_preference.c_str();
-        }
-        if (name) {
-            for (int i = 0; i < bgfx::RendererType::Count; i++) {
-                if (SDL_strcasecmp(name, bgfx::getRendererName(static_cast<bgfx::RendererType::Enum>(i))) == 0) {
-                    return {static_cast<bgfx::RendererType::Enum>(i)};
+        if (renderer_preference != "auto") {
+            const char* name = renderer_preference.c_str();
+            static constexpr std::pair<const char*, bgfx::RendererType::Enum> known[] = {
+                {"vulkan", bgfx::RendererType::Vulkan},
+                {"opengl", bgfx::RendererType::OpenGL},
+                {"opengles", bgfx::RendererType::OpenGLES},
+            };
+            for (const auto& [key, type] : known) {
+                if (SDL_strcasecmp(name, key) == 0) {
+                    return {type};
                 }
             }
-            spdlog::warn("bgfx: unknown renderer '{}', using the default order", name);
+            spdlog::warn("bgfx: unknown renderer '{}' (vulkan, opengl, opengles), using the default order", name);
         }
         return {bgfx::RendererType::Vulkan, bgfx::RendererType::OpenGL, bgfx::RendererType::OpenGLES};
     }

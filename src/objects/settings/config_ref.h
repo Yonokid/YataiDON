@@ -319,6 +319,9 @@ inline ConfigRef get_config_ref(const std::string& path) {
     if (path == "video/vsync") {
         return &c->video.vsync;
     }
+    if (path == "video/renderer") {
+        return &c->video.renderer;
+    }
 
     throw std::runtime_error("Unknown config path: " + path);
 }
