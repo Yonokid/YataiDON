@@ -11,6 +11,7 @@
 #include "../libs/input/input.h"
 #include "../libs/math/animation.h"
 #include "../libs/network/network.h"
+#include "../libs/score_submission.h"
 
 void GameScreen::on_screen_start() {
     Screen::on_screen_start();
@@ -410,92 +411,84 @@ void GameScreen::save_score(const std::string& player_id, PlayerNum player_num) 
     if (pause_used) {
         return;
     }
+
     Player* target = nullptr;
+
     for (const auto& player : players) {
         if (player && player->player_num == player_num) {
-            if (player->is_auto_play() || player->is_replay()) {
-                return;
-            }
             target = player.get();
         }
     }
-    if (!target) {
+
+    if (!target || target->is_auto_play() || target->is_replay()) {
         return;
     }
+
+    SessionData& sd = global_data.session_data[static_cast<int>(player_num)];
+    auto& result = sd.result_data;
+
     if (target->get_modifiers().subdiff != 0) {
-        ResultData& result = global_data.session_data[static_cast<int>(player_num)].result_data;
         result.prev_score = result.score;
         return;
     }
 
     try {
-        Score score;
-        SessionData& session_data = global_data.session_data[static_cast<int>(player_num)];
-        std::string hash = session_data.song_hash;
-        score.score = session_data.result_data.score;
-        score.good = session_data.result_data.good;
-        score.ok = session_data.result_data.ok;
-        score.bad = session_data.result_data.bad;
-        score.max_combo = session_data.result_data.max_combo;
-        score.drumroll = session_data.result_data.total_drumroll;
-        auto prev_score = scores_manager.get_score(hash, session_data.selected_difficulty, player_id);
-        if (prev_score.has_value()) {
-            session_data.result_data.prev_score = prev_score->score;
+        const auto previous = scores_manager.get_score(sd.song_hash, sd.selected_difficulty, player_id);
+
+        if (previous) {
+            result.prev_score = previous->score;
         }
-        const bool run_skipped = skipped;
-        if (run_skipped) {
-            score.crown = Crown::NONE;
-        } else if (score.ok == 0 && score.bad == 0) {
-            score.crown = Crown::DFC;
-        } else if (score.bad == 0) {
-            score.crown = Crown::FC;
-        } else if (target->gauge->get_is_clear()) {
-            score.crown = Crown::CLEAR;
-        } else {
-            score.crown = Crown::NONE;
-        }
-        if (run_skipped) {
-            score.rank = Rank::_NONE;
-        } else {
-            score.rank = rank_for_score(score.score);
-        }
-        int64_t played_at = unix_now();
-        std::string modifiers_json = modifiers_to_json(target->get_modifiers());
-        scores_manager.save_score(hash, session_data.selected_difficulty, player_id, score, played_at, modifiers_json);
-        PlayerData pd = scores_manager.get_player_data(player_id).value_or(PlayerData{});
-        if (global_data.config->general.score_method != ScoreMethod::GEN3) {
-            std::string access_code;
-            if (player_id == scores_manager.player_1 && !global_data.config->network.access_code_1.empty()) {
-                access_code = global_data.config->network.access_code_1;
-            } else if (player_id == scores_manager.player_2 && !global_data.config->network.access_code_2.empty()) {
-                access_code = global_data.config->network.access_code_2;
-            }
-            if (!access_code.empty()) {
-                network.submit_score(hash, session_data.selected_difficulty, access_code, score, target->input_log,
-                                     played_at, modifiers_json, pd.chara_is_costume, pd.chara_cos_index,
-                                     session_data.selected_collection, static_cast<int>(target->gauge->get_length()),
-                                     target->judge_params());
-                session_data.result_data.submitted = true;
-                const int seat = static_cast<int>(player_num) - 1;
-                if (!run_skipped && (seat == 0 || seat == 1)) {
-                    global_data.credit_gauges[seat].push_back(static_cast<int>(target->gauge->get_length()));
-                    global_data.credit_titles[seat].push_back(session_data.song_title);
-                    network.submit_medals(seat, access_code);
-                }
-                if (!run_skipped && (seat == 0 || seat == 1) && global_data.kinotake_team[seat] >= 0) {
-                    const bool duet = std::ranges::count_if(players, [](const auto& p) {
-                                          return p && !p->is_auto_play() && !p->is_replay();
-                                      }) == 2;
-                    const bool kinotake_costume = pd.chara_is_costume && kinotake_costume_team(pd.chara_cos_index) >= 0;
-                    network.submit_kinotake(seat, access_code, global_data.kinotake_team[seat], score.score, duet,
-                                            kinotake_costume);
-                }
-            }
+
+        ScoreSubmissionRequest request{.player_id = player_id,
+                                       .hash = sd.song_hash,
+                                       .difficulty = sd.selected_difficulty,
+                                       .score = completed_play_score({.score = result.score,
+                                                                      .good = result.good,
+                                                                      .ok = result.ok,
+                                                                      .bad = result.bad,
+                                                                      .drumroll = result.total_drumroll,
+                                                                      .max_combo = result.max_combo},
+                                                                     skipped, target->gauge->get_is_clear()),
+                                       .modifiers = target->get_modifiers(),
+                                       .input_log = target->input_log,
+                                       .judge_params = target->judge_params()};
+
+        const auto submission =
+            score_submission_for(player_id, scores_manager, *global_data.config, sd.selected_collection,
+                                 static_cast<int>(target->gauge->get_length()));
+
+        if (const auto profile = ScoreSubmitter(scores_manager, network).submit(request, submission)) {
+            result.submitted = true;
+            reward_score(*target, *submission, *profile);
         }
     } catch (const std::exception& e) {
         spdlog::error("GameScreen::save_score failed for player {}: {}", player_id, e.what());
     } catch (...) {
         spdlog::error("GameScreen::save_score failed for player {}: unknown exception", player_id);
+    }
+}
+
+void GameScreen::reward_score(const Player& player, const RemoteScoreSubmission& submission,
+                              const PlayerData& profile) {
+    const int seat = static_cast<int>(player.player_num) - 1;
+
+    if (skipped || seat < 0 || seat > 1) {
+        return;
+    }
+
+    const auto& sd = global_data.session_data[static_cast<int>(player.player_num)];
+    global_data.credit_gauges[seat].push_back(submission.gauge);
+    global_data.credit_titles[seat].push_back(sd.song_title);
+    network.submit_medals(seat, submission.access_code);
+
+    if (global_data.kinotake_team[seat] >= 0) {
+        const bool duet = std::ranges::count_if(
+                              players, [](const auto& p) { return p && !p->is_auto_play() && !p->is_replay(); }) == 2;
+
+        const bool costume = profile.chara_is_costume && kinotake_costume_team(profile.chara_cos_index) >= 0;
+
+        network.submit_kinotake(seat, submission.access_code, global_data.kinotake_team[seat], sd.result_data.score,
+                                duet, costume);
     }
 }
 
