@@ -1072,19 +1072,17 @@ void NetworkClient::submit_kinotake(int seat, const std::string& access_code, in
     kinotake_tally_.seat[seat].duet = kinotake_tally_.seat[seat].duet || duet;
 }
 
-void NetworkClient::submit_don_points(int seat, const std::string& access_code, const std::vector<int>& gauges) {
-    if (!network_enabled() || is_guest_id(access_code) || !online || seat < 0 || seat > 1 || gauges.empty()) {
+void NetworkClient::submit_don_points(int seat, const std::string& access_code, int gauge, const std::string& title) {
+    if (!network_enabled() || is_guest_id(access_code) || !online || seat < 0 || seat > 1) {
         return;
     }
-    std::string list;
-    for (size_t i = 0; i < std::min<size_t>(gauges.size(), 16); ++i) {
-        list += (list.empty() ? "" : ",") + std::to_string(gauges[i]);
-    }
-    std::map<std::string, std::string> params{{"access_code", access_code}, {"gauges", list}};
-    pending_don_points.emplace_back(
-        seat, cpr::PostAsync(cpr::Url{network_url("/don_points")}, signed_headers("POST", "/don_points", params),
-                             cpr::Parameters{{"access_code", access_code}, {"gauges", list}},
-                             cpr::Timeout{5000} NETWORK_CA_OPT));
+    const std::string gauges = std::to_string(gauge);
+    std::map<std::string, std::string> params{{"access_code", access_code}, {"gauges", gauges}};
+    pending_don_points.push_back(
+        {seat, title,
+         cpr::PostAsync(cpr::Url{network_url("/don_points")}, signed_headers("POST", "/don_points", params),
+                        cpr::Parameters{{"access_code", access_code}, {"gauges", gauges}},
+                        cpr::Timeout{5000} NETWORK_CA_OPT)});
 }
 
 void NetworkClient::submit_medals(int seat, const std::string& access_code) {
@@ -1494,23 +1492,25 @@ void NetworkClient::update(double current_ms) {
     kinotake_pending_count_ = static_cast<int>(pending_kinotake.size());
 
     for (auto it = pending_don_points.begin(); it != pending_don_points.end();) {
-        if (it->second.wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
+        if (it->response.wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
             ++it;
             continue;
         }
-        cpr::Response response = it->second.get();
+        cpr::Response response = it->response.get();
         rapidjson::Document doc;
         if (response.status_code == 200 && !doc.Parse(response.text.c_str()).HasParseError() && doc.IsObject()) {
             const auto integer = [](const rapidjson::Value& v, const char* key, int fallback) {
                 return v.HasMember(key) && v[key].IsInt() ? v[key].GetInt() : fallback;
             };
-            DonSeat seat;
+            DonSeat& seat = don_seats[it->seat];
+            if (!seat.answered) {
+                seat.current = integer(doc, "current", 0);
+                seat.aim = integer(doc, "aim", -1);
+            }
             seat.answered = true;
-            seat.current = integer(doc, "current", 0);
-            seat.aim = integer(doc, "aim", -1);
             if (doc.HasMember("songs") && doc["songs"].IsArray()) {
                 for (const auto& v : doc["songs"].GetArray()) {
-                    seat.songs.push_back(v.IsInt() ? v.GetInt() : 0);
+                    seat.songs.push_back({it->title, v.IsInt() ? v.GetInt() : 0});
                 }
             }
             if (doc.HasMember("titles") && doc["titles"].IsArray()) {
@@ -1528,7 +1528,6 @@ void NetworkClient::update(double current_ms) {
                     }
                 }
             }
-            don_seats[it->first] = std::move(seat);
         } else {
             spdlog::warn("Don point tally failed: HTTP {} - {}", response.status_code, response.text);
         }
@@ -1946,7 +1945,7 @@ std::optional<std::string> NetworkClient::take_song_jump_result() {
     return std::nullopt;
 }
 void NetworkClient::submit_kinotake(int, const std::string&, int, int, bool, bool) {}
-void NetworkClient::submit_don_points(int, const std::string&, const std::vector<int>&) {}
+void NetworkClient::submit_don_points(int, const std::string&, int, const std::string&) {}
 void NetworkClient::submit_medals(int, const std::string&) {}
 void NetworkClient::submit_revive_result(const std::string&, bool) {}
 void NetworkClient::submit_ai_battle(const std::string&, const std::string&, int, int, bool, bool, const std::string&) {

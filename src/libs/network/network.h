@@ -102,11 +102,15 @@ struct DonTitle {
     std::string name;
     int points = 0;
 };
+struct DonSong {
+    std::string title;
+    int points = 0;
+};
 struct DonSeat {
     bool answered = false;
-    std::vector<int> songs; // points per song, in play order
+    std::vector<DonSong> songs; // in answer order
     std::vector<DonTitle> titles;
-    int current = 0;
+    int current = 0; // meter before the first answer since the last reset
     int aim = -1;
     std::vector<DonPresent> presents;
 };
@@ -291,7 +295,7 @@ public:
     bool kinotake_pending() const { return kinotake_pending_count_ > 0; }
     const KinotakeTally& kinotake_tally() const { return kinotake_tally_; }
     void reset_kinotake_tally() { kinotake_tally_ = {}; }
-    void submit_don_points(int seat, const std::string& access_code, const std::vector<int>& gauges);
+    void submit_don_points(int seat, const std::string& access_code, int gauge, const std::string& title);
     bool don_points_pending() const {
 #if defined(NETWORK_ENABLED)
         return !pending_don_points.empty();
@@ -381,7 +385,12 @@ private:
     std::optional<cpr::AsyncResponse> pending_gacha;
 
     std::vector<std::pair<int, cpr::AsyncResponse>> pending_kinotake;
-    std::vector<std::pair<int, cpr::AsyncResponse>> pending_don_points;
+    struct PendingDonPoints {
+        int seat;
+        std::string title;
+        cpr::AsyncResponse response;
+    };
+    std::vector<PendingDonPoints> pending_don_points;
     std::vector<std::pair<int, cpr::AsyncResponse>> pending_medals;
     std::vector<cpr::AsyncResponse> pending_ai_battle;
     std::vector<cpr::AsyncResponse> pending_battle;

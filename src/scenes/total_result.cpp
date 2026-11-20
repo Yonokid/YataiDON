@@ -10,22 +10,14 @@ static constexpr double kAnswerTimeoutMs = 5000.0;
 static Screens after_total_result();
 
 static void clear_credit_tally() {
-    for (int i = 0; i < 2; i++) {
-        global_data.credit_gauges[i].clear();
-        global_data.credit_titles[i].clear();
-    }
+    global_data.credit_songs[0] = global_data.credit_songs[1] = 0;
+    network.reset_don_points();
 }
 
 Screens begin_total_result() {
     global_data.songs_played = 0;
-    network.reset_don_points();
-    const std::string* codes[2] = {&global_data.config->network.access_code_1,
-                                   &global_data.config->network.access_code_2};
     for (int seat = 0; seat < 2; seat++) {
-        global_data.credit_seats[seat] = !global_data.credit_gauges[seat].empty();
-        if (!codes[seat]->empty()) {
-            network.submit_don_points(seat, *codes[seat], global_data.credit_gauges[seat]);
-        }
+        global_data.credit_seats[seat] = global_data.credit_songs[seat] > 0;
     }
     if (!tex.options[SCO::DISABLE_TOTAL_RESULT] && script_manager.has_lua_script("total_result")) {
         return Screens::TOTAL_RESULT;
@@ -78,7 +70,6 @@ Screens TotalResultScreen::on_screen_end(Screens next_screen) {
         charas[i].reset();
     }
     clear_credit_tally();
-    network.reset_don_points();
     return Screen::on_screen_end(next_screen);
 }
 

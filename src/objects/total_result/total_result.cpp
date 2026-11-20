@@ -4,7 +4,6 @@
 #include <spdlog/spdlog.h>
 
 #include "../../libs/file/filesystem.h"
-#include "../../libs/global_data.h"
 #include "../../libs/network/network.h"
 
 RewardArt reward_art(int type, int id) {
@@ -53,9 +52,8 @@ TotalResult::TotalResult() {
             continue;
         }
         sol::table songs = lua.create_table();
-        for (size_t s = 0; s < seat.songs.size(); s++) {
-            const std::string title = s < global_data.credit_titles[i].size() ? global_data.credit_titles[i][s] : "";
-            songs.add(lua.create_table_with("title", title, "points", seat.songs[s]));
+        for (const DonSong& song : seat.songs) {
+            songs.add(lua.create_table_with("title", song.title, "points", song.points));
         }
         sol::table titles = lua.create_table();
         for (const DonTitle& title : seat.titles) {

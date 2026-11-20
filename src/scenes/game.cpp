@@ -477,8 +477,8 @@ void GameScreen::reward_score(const Player& player, const RemoteScoreSubmission&
     }
 
     const auto& sd = global_data.session_data[static_cast<int>(player.player_num)];
-    global_data.credit_gauges[seat].push_back(submission.gauge);
-    global_data.credit_titles[seat].push_back(sd.song_title);
+    global_data.credit_songs[seat]++;
+    network.submit_don_points(seat, submission.access_code, submission.gauge, sd.song_title);
     network.submit_medals(seat, submission.access_code);
 
     if (global_data.kinotake_team[seat] >= 0) {
