@@ -888,7 +888,7 @@ namespace {
             }
             spdlog::warn("bgfx: unknown renderer '{}' (vulkan, opengl, opengles), using the default order", name);
         }
-        return {bgfx::RendererType::Vulkan, bgfx::RendererType::OpenGL, bgfx::RendererType::OpenGLES};
+        return {bgfx::RendererType::OpenGL, bgfx::RendererType::Vulkan, bgfx::RendererType::OpenGLES};
     }
 
     void reset_backbuffer() {

@@ -125,6 +125,7 @@ jobs:
             -DCMAKE_C_COMPILER=gcc-14 \
             -DYATAIDON_LIBNFC=${{ secrets.NETWORK_URL != '' && secrets.NETWORK_AUTH_KEY != '' && 'ON' || 'OFF' }} \
             -DYATAIDON_STATIC_DEPS=ON \
+            -DYATAIDON_GFX_BACKEND=bgfx \
             -DYATAIDON_FFMPEG_PREFIX="$PWD/.linux-ffmpeg" \
             -DNETWORK_URL="${{ secrets.NETWORK_URL }}" \
             -DNETWORK_AUTH_KEY="${{ secrets.NETWORK_AUTH_KEY }}"
