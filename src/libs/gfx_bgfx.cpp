@@ -860,6 +860,12 @@ namespace {
         type = bgfx::NativeWindowHandleType::Default;
         return;
 #endif
+#ifdef _WIN32
+        ndt = nullptr;
+        nwh = SDL_GetPointerProperty(props, SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr);
+        type = bgfx::NativeWindowHandleType::Default;
+        return;
+#endif
         if (std::strcmp(SDL_GetCurrentVideoDriver(), "wayland") == 0) {
             ndt = SDL_GetPointerProperty(props, SDL_PROP_WINDOW_WAYLAND_DISPLAY_POINTER, nullptr);
             nwh = SDL_GetPointerProperty(props, SDL_PROP_WINDOW_WAYLAND_SURFACE_POINTER, nullptr);
