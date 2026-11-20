@@ -1,0 +1,15 @@
+--- a/src/renderer_gl.cpp	2026-11-20 10:58:46.059443959 -0500
++++ b/src/renderer_gl.cpp	2026-11-20 10:58:46.071249635 -0500
+@@ -3332,12 +3332,6 @@
+ 			{
+ 				return;
+ 			}
+-
+-			if (m_timerQuerySupport
+-			&&  m_gpuTimer.hasPending() )
+-			{
+-				GL_CHECK(glFinish() );
+-			}
+ 		}
+ 
+ 		void createIndexBuffer(IndexBufferHandle _handle, const Memory* _mem, uint16_t _flags) override

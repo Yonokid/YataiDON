@@ -150,6 +150,9 @@ else()
     set(BGFX_BUILD_TOOLS OFF CACHE BOOL "" FORCE)
   endif()
   FetchContent_MakeAvailable(bgfx)
+  FetchContent_GetProperties(bgfx_source SOURCE_DIR _bgfx_patch_dir)
+  execute_process(COMMAND ${CMAKE_COMMAND} -DPATCH_FILE=${CMAKE_SOURCE_DIR}/cmake/patches/bgfx.patch
+                          -DSOURCE_DIR=${_bgfx_patch_dir} -P ${CMAKE_CURRENT_LIST_DIR}/apply_git_patch.cmake)
   if(CMAKE_CROSSCOMPILING)
     set(YATAIDON_HOST_SHADERC "${CMAKE_SOURCE_DIR}/.cmake-deps/bgfx-build/cmake/bgfx/shaderc"
         CACHE FILEPATH "Host shaderc")
