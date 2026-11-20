@@ -34,6 +34,23 @@
 #include "gfx/glyph_lookup.h"
 #include "gfx/mesh_bounds.h"
 #include "gfx/sdl_compat.h"
+#ifdef _WIN32
+#include "shaders/dxbc/fs_2d.sc.bin.h"
+#include "shaders/dxbc/fs_colortransform.sc.bin.h"
+#include "shaders/dxbc/fs_cutout.sc.bin.h"
+#include "shaders/dxbc/fs_face.sc.bin.h"
+#include "shaders/dxbc/fs_mesh.sc.bin.h"
+#include "shaders/dxbc/fs_null.sc.bin.h"
+#include "shaders/dxbc/fs_outline.sc.bin.h"
+#include "shaders/dxbc/fs_outline_fxaa.sc.bin.h"
+#include "shaders/dxbc/fs_sprite.sc.bin.h"
+#include "shaders/dxbc/vs_2d.sc.bin.h"
+#include "shaders/dxbc/vs_mesh.sc.bin.h"
+#include "shaders/dxbc/vs_mesh_skin.sc.bin.h"
+#include "shaders/dxbc/vs_outline.sc.bin.h"
+#include "shaders/dxbc/vs_outline_skin.sc.bin.h"
+#include "shaders/dxbc/vs_sprite.sc.bin.h"
+#endif
 #include "shaders/essl/fs_2d.sc.bin.h"
 #include "shaders/essl/fs_colortransform.sc.bin.h"
 #include "shaders/essl/fs_cutout.sc.bin.h"
@@ -811,8 +828,8 @@ namespace {
 
     // Shader binaries per backend family; the active renderer picks one at program creation.
     struct Bin {
-        const uint8_t *spv, *glsl, *essl;
-        uint32_t spv_size, glsl_size, essl_size;
+        const uint8_t *spv, *glsl, *essl, *dxbc;
+        uint32_t spv_size, glsl_size, essl_size, dxbc_size;
 
         std::pair<const uint8_t*, uint32_t> pick() const {
             switch (bgfx::getRendererType()) {
@@ -820,14 +837,25 @@ namespace {
                 return {glsl, glsl_size};
             case bgfx::RendererType::OpenGLES:
                 return {essl, essl_size};
+            case bgfx::RendererType::Direct3D11:
+            case bgfx::RendererType::Direct3D12:
+                return {dxbc, dxbc_size};
             default:
                 return {spv, spv_size};
             }
         }
     };
+#ifdef _WIN32
+#define BIN_DXBC(name) name##_dxbc
+#define BIN_DXBC_SIZE(name) sizeof(name##_dxbc)
+#else
+#define BIN_DXBC(name) nullptr
+#define BIN_DXBC_SIZE(name) 0u
+#endif
 #define BIN(name)                                                                                                      \
     Bin {                                                                                                              \
-        name##_spv, name##_glsl, name##_essl, sizeof(name##_spv), sizeof(name##_glsl), sizeof(name##_essl)             \
+        name##_spv, name##_glsl, name##_essl, BIN_DXBC(name), sizeof(name##_spv), sizeof(name##_glsl),                 \
+            sizeof(name##_essl), BIN_DXBC_SIZE(name)                                                                   \
     }
 
     bgfx::ShaderHandle make_shader(const Bin& bin) {
@@ -886,13 +914,15 @@ namespace {
                 {"vulkan", bgfx::RendererType::Vulkan},
                 {"opengl", bgfx::RendererType::OpenGL},
                 {"opengles", bgfx::RendererType::OpenGLES},
+                {"direct3d11", bgfx::RendererType::Direct3D11},
+                {"direct3d12", bgfx::RendererType::Direct3D12},
             };
             for (const auto& [key, type] : known) {
                 if (SDL_strcasecmp(name, key) == 0) {
                     return {type};
                 }
             }
-            spdlog::warn("bgfx: unknown renderer '{}' (vulkan, opengl, opengles), using the default order", name);
+            spdlog::warn("bgfx: unknown renderer '{}' (vulkan, opengl, opengles, direct3d11, direct3d12), using the default order", name);
         }
         return {bgfx::RendererType::OpenGL, bgfx::RendererType::Vulkan, bgfx::RendererType::OpenGLES};
     }

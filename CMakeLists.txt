@@ -273,6 +273,10 @@ else()
   include(${bgfx_SOURCE_DIR}/cmake/bgfxToolUtils.cmake)
   FetchContent_GetProperties(bgfx_source SOURCE_DIR _bgfx_src)
   set(_shader_dir ${CMAKE_SOURCE_DIR}/shader/bgfx)
+  set(_shader_profiles spirv 430 300_es)
+  if(WIN32)
+    list(APPEND _shader_profiles s_5_0) # Direct3D 11 and 12 both load DXBC
+  endif()
   foreach(_type VERTEX FRAGMENT)
     string(SUBSTRING ${_type} 0 1 _prefix)
     string(TOLOWER ${_prefix} _prefix)
@@ -283,7 +287,7 @@ else()
       VARYING_DEF ${_shader_dir}/varying.def.sc
       OUTPUT_DIR ${CMAKE_BINARY_DIR}/generated/shaders
       INCLUDE_DIRS ${_bgfx_src}/src
-      PROFILES spirv 430 300_es
+      PROFILES ${_shader_profiles}
       AS_HEADERS
       OUT_FILES_VAR _shader_headers
     )
