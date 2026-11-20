@@ -117,7 +117,6 @@ public:
 
     virtual ~Screen() = default;
 
-    // Scene identity is independent of its shared skin name and login seat.
     virtual bool two_player_audio() const { return false; }
 
     virtual void on_screen_start() {
@@ -128,7 +127,7 @@ public:
 
     virtual Screens on_screen_end(Screens next_screen) {
         screen_init = false;
-        game_over.reset(); // its Lua object holds textures unloaded below
+        game_over.reset();
         spdlog::info("{} ended, transitioning to {} screen", screen_name, next_screen);
         if (next_screen == Screens::TITLE) {
             revert_user_appearance();
@@ -161,7 +160,6 @@ public:
         }
     }
 
-    // While the game over plays, the main loop runs this instead of update()
     bool in_game_over() const { return game_over.active(); }
     std::optional<Screens> update_game_over() {
         game_over.update(get_current_ms());
@@ -174,8 +172,7 @@ public:
 protected:
     GameOverOverlay game_over;
 
-    // Game over plays over the screen that ends the credit; a guests-only credit gets the GAME_OVER screen's ad
-    static bool game_over_overlay() { return !global_data.guest_credit; }
+    static bool game_over_overlay() { return !global_data.credit.guest; }
 
     std::optional<Screens> end_or_game_over(Screens next_screen) {
         if (next_screen == Screens::GAME_OVER && game_over_overlay()) {
@@ -190,7 +187,6 @@ protected:
             screen_init = true;
             try {
                 on_screen_start();
-                // hits made during the previous screen's fade-out or this load must not act here
                 clear_input_buffers();
                 g_frame_ms = get_current_ms();
                 spdlog::info("{} initialized", screen_name);

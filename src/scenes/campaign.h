@@ -13,7 +13,7 @@ private:
     AllNetIcon allnet_indicator;
     CoinOverlay coin_overlay;
 
-    Screens next() const { return static_cast<Screens>(global_data.campaign_next); }
+    Screens next() const { return static_cast<Screens>(global_data.campaign.next); }
     void give_reward(int cos_index);
     void handle_input();
 

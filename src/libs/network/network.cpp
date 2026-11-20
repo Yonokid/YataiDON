@@ -955,7 +955,7 @@ void NetworkClient::submit_score(const std::string& hash, int difficulty, const 
 }
 
 void NetworkClient::submit_dan(const std::string& access_code, const std::string& course_id, const DanResultData& rd,
-                               const std::vector<DanSongEntry>& dan_songs, int arrival) {
+                               int arrival) {
     if (!network_enabled() || is_guest_id(access_code) || !online) {
         return;
     }
@@ -964,7 +964,7 @@ void NetworkClient::submit_dan(const std::string& access_code, const std::string
     auto& allocator = doc.GetAllocator();
     for (std::size_t i = 0; i < rd.songs.size(); i++) {
         const DanResultSong& song = rd.songs[i];
-        const std::string hash = i < dan_songs.size() ? dan_song_hash(dan_songs[i]) : "";
+        const std::string hash = i < rd.course.songs.size() ? dan_song_hash(rd.course.songs[i]) : "";
         rapidjson::Value entry(rapidjson::kObjectType);
         entry.AddMember("hash", rapidjson::Value(hash.c_str(), allocator), allocator);
         entry.AddMember("difficulty", song.selected_difficulty, allocator);
@@ -984,11 +984,11 @@ void NetworkClient::submit_dan(const std::string& access_code, const std::string
         {"access_code", access_code},
         {"course_id", course_id},
         {"title", rd.dan_title},
-        {"dan_index", std::to_string(rd.dan_index)},
-        {"dan_index_max", std::to_string(rd.dan_index_max)},
-        {"dan_color", std::to_string(rd.dan_color)},
-        {"dan_rank", std::to_string(rd.dan_rank)},
-        {"is_gaiden", rd.is_gaiden ? "true" : "false"},
+        {"dan_index", std::to_string(rd.course.index)},
+        {"dan_index_max", std::to_string(rd.course.index_max)},
+        {"dan_color", std::to_string(rd.course.color)},
+        {"dan_rank", std::to_string(rd.course.rank)},
+        {"is_gaiden", rd.course.gaiden ? "true" : "false"},
         {"odai_result", std::to_string(rd.odai_result)},
         {"score", std::to_string(rd.score)},
         {"max_combo", std::to_string(rd.max_combo)},
@@ -1907,8 +1907,7 @@ std::string NetworkClient::register_user(const std::string&, const std::string&)
 void NetworkClient::submit_score(const std::string&, int, const std::string&, const Score&, const InputLog&, int64_t,
                                  const std::string&, bool, int, const std::string&, int,
                                  const std::optional<JudgeParams>&) {}
-void NetworkClient::submit_dan(const std::string&, const std::string&, const DanResultData&,
-                               const std::vector<DanSongEntry>&, int) {}
+void NetworkClient::submit_dan(const std::string&, const std::string&, const DanResultData&, int) {}
 bool NetworkClient::check_import_requested(const std::string&) {
     return false;
 }

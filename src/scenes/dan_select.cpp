@@ -186,21 +186,20 @@ Screens DanSelectScreen::on_screen_end(Screens next_screen) {
     DanBox* current = dan_navigator.get_current();
     if (current && next_screen == Screens::GAME_DAN) {
         SessionData& sd = global_data.session_data[static_cast<int>(global_data.player_num)];
-        sd.selected_dan = current->songs;
-        sd.selected_dan_exam = current->exams;
+        sd.dan.songs = current->songs;
+        sd.dan.exams = current->exams;
         sd.song_title = current->dan_title;
-        sd.dan_color = current->dan_color;
-        sd.dan_rank = current->dan_rank;
-        sd.dan_index = current->dan_index;
-        sd.dan_index_max = -1;
+        sd.dan.color = current->dan_color;
+        sd.dan.rank = current->dan_rank;
+        sd.dan.index = current->dan_index;
+        sd.dan.index_max = -1;
         for (const auto& b : dan_navigator.boxes) {
-            sd.dan_index_max = std::max(sd.dan_index_max, b->dan_index);
+            sd.dan.index_max = std::max(sd.dan.index_max, b->dan_index);
         }
-        sd.dan_gaiden = current->gaiden;
-        // the version set Hiroba's is_profile_dan_version accepts
+        sd.dan.gaiden = current->gaiden;
         static const std::regex modern_version(R"(Arcade/3[0-5] Nijiiro 202[1-6]/)");
-        sd.dan_modern = std::regex_search(current->path.generic_string(), modern_version);
-        sd.dan_gen3 = current->gen3;
+        sd.dan.modern = std::regex_search(current->path.generic_string(), modern_version);
+        sd.dan.gen3 = current->gen3;
         if (!current->songs.empty()) {
             sd.selected_song = current->songs[0].song_path;
         }

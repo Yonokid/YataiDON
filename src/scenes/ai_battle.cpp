@@ -7,6 +7,10 @@
 #include "../libs/file/scores.h"
 #include "../libs/input/input.h"
 
+// rolled on song select, used by the game; the match tally is read by the section result board
+static double ai_condition = 0.95;
+static AIMatchResult ai_match;
+
 void AISongSelectScreen::play_call_voice() {
     audio.stop_sound("voice_enter");
     const bool kadai = status.answered && status.rank == AI_ASSIGNED_RANK;
@@ -25,7 +29,7 @@ void AISongSelectScreen::on_screen_start() {
     ai_data.chara_cos_index = AI_COSTUME;
     ai_chara = make_chara_from_player_data(&ai_data, global_data.player_num == PlayerNum::P1);
     ai_chara->set_anim(AnimIndex::DON_SELECT_LOOP);
-    global_data.ai_condition = ai_roll_condition();
+    ai_condition = ai_roll_condition();
     picker.reset();
     picker.support_menu()->set_status(status);
     if (wants_intro) {
@@ -117,7 +121,7 @@ void AISongSelectScreen::draw_overlays() {
     }
     picker.draw(get_current_ms(), picker.hovered_course(state, *player),
                 dynamic_cast<SongBox*>(navigator.get_current_item()), static_cast<int>(global_data.player_num),
-                ai_condition_tier(global_data.ai_condition));
+                ai_condition_tier(ai_condition));
     SongSelectScreen::draw_overlays();
 }
 
@@ -201,9 +205,9 @@ void AIGameScreen::start_match() {
     match_recorded = false;
     ai_hits_seen = 0;
     section_won.clear();
-    global_data.ai_match = {};
+    ai_match = {};
 
-    brain = AIBrain{.condition = global_data.ai_condition};
+    brain = AIBrain{.condition = ai_condition};
     ai()->use_costume(AI_COSTUME);
     ai()->autoplay_judge = [this](const Note&) {
         return ai_pick_judgment(brain.rates(player_total), std::uniform_real_distribution<double>(0.0, 1.0)(rng));
@@ -322,8 +326,6 @@ void AIGameScreen::close_finished_sections() {
     if (current_section == section_count && !match_recorded) {
         match_recorded = true;
         SessionData& session = global_data.session_data[static_cast<int>(global_data.player_num)];
-        session.ai_sections_won = sections_won;
-        session.ai_sections_total = section_count;
         spdlog::info("AI battle over: player won {} of {} sections", sections_won, section_count);
         record_match(session);
         if (overlay) {
@@ -333,7 +335,7 @@ void AIGameScreen::close_finished_sections() {
 }
 
 void AIGameScreen::record_match(const SessionData& session) {
-    AIMatchResult& match = global_data.ai_match;
+    AIMatchResult& match = ai_match;
     match.sections.clear();
     for (int section = 0; section < section_count; ++section) {
         const AITally& tally = tallies[HUMAN][section];
@@ -458,12 +460,12 @@ void AIResultScreen::on_screen_start() {
     board.reset();
     flow.reset();
     board_started = false;
-    if (global_data.ai_match.sections.empty() || !script_manager.has_lua_script("ai_section_result")) {
+    if (ai_match.sections.empty() || !script_manager.has_lua_script("ai_section_result")) {
         return;
     }
     audio.stop_sound("bgm");
     audio.load_screen_sounds("ai_section_result");
-    board.emplace(global_data.ai_match);
+    board.emplace(ai_match);
     if (board->unavailable()) {
         board.reset();
         audio.play_sound("bgm", VolumePreset::MUSIC);
@@ -478,7 +480,7 @@ void AIResultScreen::on_screen_start() {
 Screens AIResultScreen::on_screen_end(Screens next_screen) {
     flow.reset();
     board.reset();
-    global_data.ai_match = {};
+    ai_match = {};
     return ResultScreen::on_screen_end(next_screen);
 }
 

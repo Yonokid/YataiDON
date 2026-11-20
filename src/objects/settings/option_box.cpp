@@ -351,7 +351,7 @@ void AccountOptionBox::confirm() {
     data = scores_manager.get_player_data(value).value_or(PlayerData{});
     data.player_id = value;
     // A pick made during a card session outlives it; title and save_config would otherwise undo it.
-    global_data.card_override[slot] = false;
+    global_data.card.overridden[slot] = false;
 }
 
 // Both slots sharing an account would overwrite each other's data, so the other slot's account is skipped.

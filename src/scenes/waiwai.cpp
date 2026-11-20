@@ -13,6 +13,12 @@
 #include "../libs/file/scores.h"
 #include "../libs/input/input.h"
 
+static struct {
+    std::string collab = "taiko"; // the song's collab art set (Graphics/waiwai_game/tips/<collab>.png)
+    int rare_total = 0;           // rare notes per player this song
+    unsigned rare_hits = 0;       // bit n: either player hit their n-th rare note
+} waiwai_state;
+
 static const std::string WAIWAI_BEGIN_VOICE_1P = "voice_waiwai_begin_1p";
 
 static fs::path waiwai_tips_path(const std::string& collab) {
@@ -65,9 +71,9 @@ void WaiwaiSongSelectScreen::select_song(SongBox* song) {
     audio.play_sound(WAIWAI_BEGIN_VOICE_1P, VolumePreset::VOICE);
     audio.play_sound(WAIWAI_BEGIN_VOICE_2P, VolumePreset::VOICE);
     SongSelect2PScreen::select_song(song);
-    global_data.waiwai_collab = waiwai_collab(song->parser.metadata.scene_preset);
+    waiwai_state.collab = waiwai_collab(song->parser.metadata.scene_preset);
     if (game_transition) {
-        game_transition->add_tips(tex.resolve_skin_path(waiwai_tips_path(global_data.waiwai_collab)).string());
+        game_transition->add_tips(tex.resolve_skin_path(waiwai_tips_path(waiwai_state.collab)).string());
     }
 }
 
@@ -141,7 +147,7 @@ void WaiwaiGameScreen::apply_shared_art() {
                                load_synchro_art("synchro_big_katsu_" + side)};
     }
 
-    const std::string& collab = global_data.waiwai_collab;
+    const std::string& collab = waiwai_state.collab;
     std::vector<std::string> rare_keys;
     const std::string rare_folder = "rare/" + collab;
     if (fs::exists(tex.resolve_skin_path(fs::path("Graphics/waiwai_game") / rare_folder / "texture.json"))) {
@@ -153,9 +159,9 @@ void WaiwaiGameScreen::apply_shared_art() {
         }
     }
     const uint64_t seed = std::hash<std::string>{}(global_data.session_data[static_cast<int>(PlayerNum::P1)].song_hash);
-    global_data.waiwai_rare_total = rare_keys.empty() ? 0 : 1 + static_cast<int>(seed % 3);
+    waiwai_state.rare_total = rare_keys.empty() ? 0 : 1 + static_cast<int>(seed % 3);
     for (auto& player : players) {
-        player->set_rare_notes(rare_keys, global_data.waiwai_rare_total,
+        player->set_rare_notes(rare_keys, waiwai_state.rare_total,
                                seed ^ (player->player_num == PlayerNum::P2 ? 0x9e3779b97f4a7c15ULL : 0ULL));
     }
 }
@@ -167,9 +173,9 @@ void WaiwaiGameScreen::initialize_chart(const fs::path& song) {
 
 void WaiwaiGameScreen::on_screen_start() {
     Game2PScreen::on_screen_start();
-    global_data.waiwai_collab = waiwai_collab(scene_preset);
+    waiwai_state.collab = waiwai_collab(scene_preset);
     if (transition) {
-        transition->add_tips(tex.resolve_skin_path(waiwai_tips_path(global_data.waiwai_collab)).string());
+        transition->add_tips(tex.resolve_skin_path(waiwai_tips_path(waiwai_state.collab)).string());
     }
     overlay.emplace("WaiwaiGame", "waiwai_game");
     apply_shared_art();
@@ -177,7 +183,7 @@ void WaiwaiGameScreen::on_screen_start() {
 
 Screens WaiwaiGameScreen::on_screen_end(Screens next_screen) {
     if (!players.empty()) {
-        global_data.waiwai_rare_hits = players.front()->rare_hit_mask | players.back()->rare_hit_mask;
+        waiwai_state.rare_hits = players.front()->rare_hit_mask | players.back()->rare_hit_mask;
     }
     overlay.reset();
     return Game2PScreen::on_screen_end(next_screen);
@@ -269,8 +275,8 @@ void WaiwaiResultScreen::on_screen_start() {
     }
     overlay.emplace("WaiwaiResult", "waiwai_result");
     const WaiwaiScore score = waiwai_score();
-    overlay->set_result(score.gauge_point, score.duet_percent, score.message, retry_pending(),
-                        global_data.waiwai_collab, global_data.waiwai_rare_total, global_data.waiwai_rare_hits);
+    overlay->set_result(score.gauge_point, score.duet_percent, score.message, retry_pending(), waiwai_state.collab,
+                        waiwai_state.rare_total, waiwai_state.rare_hits);
 }
 
 Screens WaiwaiResultScreen::on_screen_end(Screens next_screen) {

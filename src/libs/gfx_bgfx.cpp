@@ -911,10 +911,8 @@ namespace {
         if (renderer_preference != "auto") {
             const char* name = renderer_preference.c_str();
             static constexpr std::pair<const char*, bgfx::RendererType::Enum> known[] = {
-                {"vulkan", bgfx::RendererType::Vulkan},
-                {"opengl", bgfx::RendererType::OpenGL},
-                {"opengles", bgfx::RendererType::OpenGLES},
-                {"direct3d11", bgfx::RendererType::Direct3D11},
+                {"vulkan", bgfx::RendererType::Vulkan},         {"opengl", bgfx::RendererType::OpenGL},
+                {"opengles", bgfx::RendererType::OpenGLES},     {"direct3d11", bgfx::RendererType::Direct3D11},
                 {"direct3d12", bgfx::RendererType::Direct3D12},
             };
             for (const auto& [key, type] : known) {
@@ -922,7 +920,9 @@ namespace {
                     return {type};
                 }
             }
-            spdlog::warn("bgfx: unknown renderer '{}' (vulkan, opengl, opengles, direct3d11, direct3d12), using the default order", name);
+            spdlog::warn("bgfx: unknown renderer '{}' (vulkan, opengl, opengles, direct3d11, direct3d12), using the "
+                         "default order",
+                         name);
         }
         return {bgfx::RendererType::OpenGL, bgfx::RendererType::Vulkan, bgfx::RendererType::OpenGLES};
     }

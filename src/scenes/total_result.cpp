@@ -10,14 +10,14 @@ static constexpr double kAnswerTimeoutMs = 5000.0;
 static Screens after_total_result();
 
 static void clear_credit_tally() {
-    global_data.credit_songs[0] = global_data.credit_songs[1] = 0;
+    global_data.credit.songs[0] = global_data.credit.songs[1] = 0;
     network.reset_don_points();
 }
 
 Screens begin_total_result() {
-    global_data.songs_played = 0;
+    global_data.credit.songs_played = 0;
     for (int seat = 0; seat < 2; seat++) {
-        global_data.credit_seats[seat] = global_data.credit_songs[seat] > 0;
+        global_data.credit.seats[seat] = global_data.credit.songs[seat] > 0;
     }
     if (!tex.options[SCO::DISABLE_TOTAL_RESULT] && script_manager.has_lua_script("total_result")) {
         return Screens::TOTAL_RESULT;
@@ -29,7 +29,7 @@ Screens begin_total_result() {
 static Screens after_total_result() {
     if (!tex.options[SCO::DISABLE_REWARD_SHOP] && script_manager.has_lua_script("reward_shop") &&
         (network.medal_seat(0).answered || network.medal_seat(1).answered || network.reward_shop_pending())) {
-        global_data.reward_shop_from_entry = false;
+        global_data.credit.reward_shop_from_entry = false;
         return Screens::REWARD_SHOP;
     }
     network.reset_medals();

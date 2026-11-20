@@ -1,20 +1,17 @@
 #pragma once
 
-#include <algorithm>
-#include <cassert>
-#include <cmath>
+#include <array>
 #include <filesystem>
-#include <iterator>
 #include <map>
 #include <memory>
 #include <optional>
 #include <string>
-#include <string_view>
 #include <vector>
 
 #include "file/config.h"
 #include "gfx.h" // IWYU pragma: keep
 #include "gfx/color_utils.h"
+#include "session_types.h" // IWYU pragma: export
 
 namespace fs = std::filesystem;
 
@@ -64,211 +61,26 @@ enum class Rank {
     _RAINBOW = 7
 };
 
-struct Exam {
-    std::string type; // "gauge","combo","judgebad","judgegood","judgeperfect","hit","score"
-    int red = 0;
-    int gold = 0;
-    std::string range; // "less" or "more"
-    bool gothrough = true;
-    std::vector<int> song_red;
-    std::vector<int> song_gold;
-    static constexpr int GOLD_FULL = -1;
-    bool per_song() const { return !song_red.empty(); }
-    // The exam as it applies to song i: red/gold swapped for that song's pair.
-    Exam for_song(int i) const {
-        assert(!per_song() || (i >= 0 && i < std::ssize(song_red)));
-        Exam ex = *this;
-        if (per_song() && i >= 0 && i < std::ssize(song_red)) {
-            ex.red = song_red[i];
-            ex.gold = i < std::ssize(song_gold) ? song_gold[i] : song_red[i];
-        }
-        // the view of one song is a plain pair again (captions print a single number)
-        ex.song_red.clear();
-        ex.song_gold.clear();
-        return ex;
-    }
-};
-
-inline std::string_view dan_bar_state(const Exam& exam, int value, bool live = false, bool near_end = false,
-                                      bool just_before_end = false) {
-    const bool down = (exam.range == "less");
-    // CheckMax
-    if (exam.gold > 0 && ((down && value < exam.gold) || (!down && value >= exam.gold))) {
-        if (!live || !down) {
-            return "max";
-        }
-        if (just_before_end) {
-            return "max_soon2";
-        }
-        if (near_end) {
-            return "max_soon";
-        }
-        // fall through to the flat palette -- no `max` during play
-    }
-    int gauge = (exam.red > 0) ? static_cast<int>(std::floor(100.0 * value / exam.red)) : 100;
-    gauge = std::clamp(gauge, 0, 100);
-    if (down) {
-        gauge = 100 - gauge;
-    }
-    if (gauge <= 0) {
-        return "empty";
-    }
-    if (!down) {
-        if (gauge <= 49) {
-            return "up_50";
-        }
-        if (gauge <= 99) {
-            return "up_80";
-        }
-        return "up_100";
-    }
-    const int good =
-        (exam.red > 0 && exam.gold > 0) ? 100 - static_cast<int>(std::floor(100.0 * exam.gold / exam.red)) : 100;
-    if (gauge < 30) {
-        return "down_80";
-    }
-    if (gauge <= good) {
-        return "up_80";
-    }
-    return "down_100";
-}
-
-struct DanSongEntry {
-    fs::path song_path;
-    int genre_index = 0;
-    int difficulty = 0;
-    int level = 0;
-    bool hidden = false;
-};
-
-struct DanResultSong {
-    int selected_difficulty = 0;
-    int diff_level = 0;
-    std::string song_title = "default_title";
-    int genre_index = 0;
-    int good = 0;
-    int ok = 0;
-    int bad = 0;
-    int drumroll = 0;
-    bool hidden = false;
-    bool unreached = false;
-    int64_t score_id = -1;
-};
-
-struct DanResultExam {
-    float progress = 0.0f;
-    int counter_value = 0;
-    std::string bar_texture = "exam_red";
-    bool failed = false;
-    int song_value[3] = {0, 0, 0};
-    float song_progress[3] = {0.0f, 0.0f, 0.0f};
-    int song_count = 0;
-    int tier = 0;
-    std::string bar_state = "empty";
-    std::string song_state[3] = {"empty", "empty", "empty"};
-};
-
-struct DanResultData {
-    int dan_color = 0;
-    int dan_rank = -1;
-    int dan_index = -1;
-    int dan_index_max = -1;
-    bool is_gaiden = false;
-    bool is_modern = true; // older versions are recorded but never rank up the profile or grant the costume
-    std::string dan_title = "default_title";
-    int score = 0;
-    float gauge_length = 0.0f;
-    int max_combo = 0;
-    std::vector<DanResultSong> songs;
-    std::vector<Exam> exams;
-    std::vector<DanResultExam> exam_data;
-    int odai_result = -1;
-    bool skipped = false; // the player skipped out: nothing is recorded
-};
-
-struct ResultData {
-    int score = 0;
-    int good = 0;
-    int ok = 0;
-    int bad = 0;
-    int max_combo = 0;
-    int total_drumroll = 0;
-    float gauge_length = 0.0f;
-    bool cleared = true;
-    int prev_score = 0;
-    bool submitted = false;
-    double hit_offset_sum_ms = 0.0;
-    int hit_offset_count = 0;
-};
-
-struct AISectionTally {
-    int good = 0;
-    int ok = 0;
-    int bad = 0;
-    int drumroll = 0;
-    bool won = false;
-};
-
-struct AIMatchResult {
-    std::vector<AISectionTally> sections;
-    bool won = false;
-    bool saves = false;
-    int stars = 1;
-};
-
-// one battle mode song, for its result screen
-struct BattleTally {
-    bool played = false;
-    int stage = 1;
-    int difficulty = 0;
-    bool boss = false;
-    int boss_hp = 0; // before the song
-    int boss_hp_max = 0;
-    int kills = 0;
-    int damage = 0;
-    int power = 0;
-    int chests = 0;
-    int orb_chests = 0;
-};
+struct ReplayData;
 
 struct SessionData {
     fs::path selected_song;
     std::string selected_collection; // the song select folder it was picked from, sent with the score
     std::string song_hash;
-    fs::path selected_dan_folder;
-    fs::path selected_tutorial;
-    std::vector<DanSongEntry> selected_dan;
-    std::vector<Exam> selected_dan_exam;
-    int dan_color = 0;
-    int dan_rank = -1;
-    int dan_index = -1;
-    int dan_index_max = -1;
-    bool dan_gaiden = false;
-    bool dan_modern = true;
-    bool dan_gen3 = false;
     int selected_difficulty = 0;
     int subdiff = 0;
-    int ai_sections_won = 0;
-    int ai_sections_total = 0;
-    bool ai_assigned = false;
     std::string song_title = "default_title";
     std::string song_subtitle = "default_subtitle";
     bool song_subtitle_full_display = false;
     int genre_index = 0;
     std::string genre_label;
+    fs::path selected_dan_folder;
+    fs::path selected_tutorial;
+    DanCourse dan;
+    bool ai_assigned = false;
+    std::shared_ptr<const ReplayData> replay; // set when song select starts a downloaded replay
     ResultData result_data;
     DanResultData dan_result_data;
-    std::optional<std::vector<std::pair<double, int>>> replay_input_log;
-    std::string replay_username;
-    std::string replay_title;
-    int replay_title_bg = 0;
-    Color replay_chara_color_1 = Color{0x68, 0xBF, 0xC0, 0xFF};
-    Color replay_chara_color_2 = Color{0xF9, 0x47, 0x28, 0xFF};
-    Color replay_chara_color_3 = Color{0xF9, 0xF0, 0xE1, 0xFF};
-    int replay_chara_head_index = 0;
-    int replay_chara_body_index = 0;
-    int replay_chara_cos_index = 0;
-    bool replay_chara_is_costume = true;
 };
 
 struct CameraConfig {
@@ -282,69 +94,63 @@ struct CameraConfig {
 
 class PracticeTimer;
 
-struct GlobalData {
-    std::shared_ptr<PracticeTimer> practice_timer; // session countdown, spans practice select + game
+struct CardSession {
+    std::string reader_hex; // 16-char hex card ID
+    bool reader_valid = false;
+    std::string prev_code[2];
+    bool overridden[2] = {false, false};
+};
+
+struct EntryResume {
+    bool join_pending = false;
+    PlayerNum joined_seat = PlayerNum::P1;
+    bool campaign_resume = false;
+    PlayerNum resume_seats[2] = {PlayerNum::ALL, PlayerNum::ALL};
+};
+
+struct CampaignSession {
+    std::string name;
+    int next = 0;
+    int kinotake_team[2] = {-1, -1};
+    int kinotake_next = 0;
+};
+
+struct CreditSession {
     int songs_played = 0;
-    double ai_condition = 0.95;
+    int songs[2] = {0, 0};               // scored songs this credit, per seat
+    bool seats[2] = {false, false};      // seats that played the credit that just ended
+    bool guest = false;                  // every seat is a guest (set leaving entry): game over shows the ad
+    bool reward_shop_from_entry = false; // mode select opened the shop: no reward time, back to entry
+    int bncoin = 99999;
+};
+
+struct GlobalData {
+    Config* config = nullptr;
+    PlayerNum player_num = PlayerNum::P1;
+    PlayerNum first_login_player = PlayerNum::P1;
+    std::array<SessionData, 3> session_data;
+    std::array<int, 3> last_difficulty = {-1, -1, -1};
+    std::array<fs::path, 3> dan_folder;
+    CameraConfig camera;
+
     std::string current_screen = "LOADING";
     std::string previous_screen;
     bool in_transition = false;
-    std::string title_state;
-    double title_state_start_ms = 0.0;
-    int live_skip_count = -1;
-    bool live_skip_used = false;
-    bool force_auto_play = false;
     bool skinless = false;
     bool skin_reload_pending = false;
     bool needs_onboarding = false;
     bool returned_from_result = false;
-    bool entry_join_pending = false;
-    PlayerNum entry_joined_seat = PlayerNum::P1;
-    std::string campaign;
-    int bncoin = 99999;
-    int campaign_next = 0;
-    bool entry_campaign_resume = false;
-    PlayerNum entry_resume_seats[2] = {PlayerNum::ALL, PlayerNum::ALL};
-    int kinotake_team[2] = {-1, -1};
-    int kinotake_next = 0;
-    AIMatchResult ai_match;
-    bool battle_tracked = false;
-    int battle_bond = 1;
-    std::string waiwai_collab = "taiko"; // the waiwai song's collab art set (Graphics/waiwai_game/tips/<collab>.png)
-    int waiwai_rare_total = 0;           // rare notes per player this song
-    unsigned waiwai_rare_hits = 0;       // bit n: either player hit their n-th rare note
-    int battle_best_power = 0;
-    int battle_stage = 1;
-    int battle_boss_hp = 0; // the stage's boss, if it has one
-    int battle_boss_hp_max = 0;
-    int battle_moves = 1;           // special moves unlocked
-    bool battle_hacchake = false;   // the Maou event's move, bought with orbs
-    bool battle_orbs = false;       // white chests can drop
-    std::vector<int> battle_skills; // the skill picker's slots; empty until the first battle select
-    BattleTally battle_song;
-    bool hold_genre_voice = false;         // a song select story/intro is running: folder voices wait for it
-    int credit_songs[2] = {0, 0};          // scored songs this credit, per seat
-    bool reward_shop_from_entry = false;   // mode select opened the shop: no reward time, back to entry
-    bool credit_seats[2] = {false, false}; // seats that played the credit that just ended
-    bool guest_credit = false;             // every seat is a guest (set leaving entry): game over shows the ad
-    // Card reader
-    std::string card_reader_card_id_hex; // 16-char hex card ID
-    bool card_reader_card_valid = false;
-    std::string card_prev_code[2];
-    bool card_override[2] = {false, false};
-    CameraConfig camera;
-    Config* config = nullptr; // Using pointer, initialize appropriately
-    int total_songs = 0;
-    PlayerNum player_num = PlayerNum::P1;
-    PlayerNum first_login_player = PlayerNum::P1;
-    std::vector<SessionData> session_data = std::vector<SessionData>(3);
-    std::vector<int> last_difficulty = std::vector<int>(3, -1);
-    std::vector<fs::path> dan_folder = std::vector<fs::path>(3);
+    bool force_auto_play = false;
+    bool hold_genre_voice = false; // a song select story/intro is running: folder voices wait for it
+    int live_skip_count = -1;
 
-    GlobalData() {
-        // Initialize vectors with default-constructed elements
-        session_data.resize(3);
-    }
+    std::shared_ptr<PracticeTimer> practice_timer; // session countdown, spans practice select + game
+    std::vector<int> battle_skills;                // the skill picker's slots; empty until the first battle select
+
+    CardSession card;
+    EntryResume entry;
+    CampaignSession campaign;
+    CreditSession credit;
 };
 
 void reset_session();

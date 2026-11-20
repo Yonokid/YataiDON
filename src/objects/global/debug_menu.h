@@ -914,14 +914,12 @@ private:
         f.push_back(
             {"first_login_player", DataField::Kind::PLAYER_NUM, nullptr, nullptr, nullptr, &g.first_login_player});
         f.push_back(
-            {"entry_joined_seat", DataField::Kind::PLAYER_NUM, nullptr, nullptr, nullptr, &g.entry_joined_seat});
-        f.push_back({"songs_played", DataField::Kind::INT, &g.songs_played});
-        f.push_back({"total_songs", DataField::Kind::INT, &g.total_songs});
+            {"entry_joined_seat", DataField::Kind::PLAYER_NUM, nullptr, nullptr, nullptr, &g.entry.joined_seat});
+        f.push_back({"songs_played", DataField::Kind::INT, &g.credit.songs_played});
         f.push_back({"force_auto_play", DataField::Kind::BOOL, nullptr, &g.force_auto_play});
         f.push_back({"returned_from_result", DataField::Kind::BOOL, nullptr, &g.returned_from_result});
-        f.push_back({"entry_join_pending", DataField::Kind::BOOL, nullptr, &g.entry_join_pending});
+        f.push_back({"entry_join_pending", DataField::Kind::BOOL, nullptr, &g.entry.join_pending});
         f.push_back({"live_skip_count", DataField::Kind::INT, &g.live_skip_count});
-        f.push_back({"live_skip_used", DataField::Kind::BOOL, nullptr, &g.live_skip_used});
 
         if (g.session_data.empty()) {
             return f;
@@ -934,11 +932,11 @@ private:
         f.push_back({"session.song_subtitle", DataField::Kind::STRING, nullptr, nullptr, &sd.song_subtitle});
         f.push_back({"session.subtitle_full_display", DataField::Kind::BOOL, nullptr, &sd.song_subtitle_full_display});
         f.push_back({"session.song_hash", DataField::Kind::STRING, nullptr, nullptr, &sd.song_hash});
-        f.push_back({"session.dan_color", DataField::Kind::INT, &sd.dan_color});
-        f.push_back({"session.dan_rank", DataField::Kind::INT, &sd.dan_rank});
-        f.push_back({"session.dan_index", DataField::Kind::INT, &sd.dan_index});
-        f.push_back({"session.dan_index_max", DataField::Kind::INT, &sd.dan_index_max});
-        f.push_back({"session.dan_gaiden", DataField::Kind::BOOL, nullptr, &sd.dan_gaiden});
+        f.push_back({"session.dan_color", DataField::Kind::INT, &sd.dan.color});
+        f.push_back({"session.dan_rank", DataField::Kind::INT, &sd.dan.rank});
+        f.push_back({"session.dan_index", DataField::Kind::INT, &sd.dan.index});
+        f.push_back({"session.dan_index_max", DataField::Kind::INT, &sd.dan.index_max});
+        f.push_back({"session.dan_gaiden", DataField::Kind::BOOL, nullptr, &sd.dan.gaiden});
         f.push_back({"session.result.score", DataField::Kind::INT, &sd.result_data.score});
         f.push_back({"session.result.good", DataField::Kind::INT, &sd.result_data.good});
         f.push_back({"session.result.ok", DataField::Kind::INT, &sd.result_data.ok});
@@ -949,11 +947,11 @@ private:
                      &sd.result_data.gauge_length});
         f.push_back({"session.result.prev_score", DataField::Kind::INT, &sd.result_data.prev_score});
         DanResultData& dr = sd.dan_result_data;
-        f.push_back({"session.dan_result.dan_color", DataField::Kind::INT, &dr.dan_color});
-        f.push_back({"session.dan_result.dan_rank", DataField::Kind::INT, &dr.dan_rank});
-        f.push_back({"session.dan_result.dan_index", DataField::Kind::INT, &dr.dan_index});
-        f.push_back({"session.dan_result.dan_index_max", DataField::Kind::INT, &dr.dan_index_max});
-        f.push_back({"session.dan_result.is_gaiden", DataField::Kind::BOOL, nullptr, &dr.is_gaiden});
+        f.push_back({"session.dan_result.dan_color", DataField::Kind::INT, &dr.course.color});
+        f.push_back({"session.dan_result.dan_rank", DataField::Kind::INT, &dr.course.rank});
+        f.push_back({"session.dan_result.dan_index", DataField::Kind::INT, &dr.course.index});
+        f.push_back({"session.dan_result.dan_index_max", DataField::Kind::INT, &dr.course.index_max});
+        f.push_back({"session.dan_result.is_gaiden", DataField::Kind::BOOL, nullptr, &dr.course.gaiden});
         f.push_back({"session.dan_result.dan_title", DataField::Kind::STRING, nullptr, nullptr, &dr.dan_title});
         f.push_back({"session.dan_result.score", DataField::Kind::INT, &dr.score});
         f.push_back({"session.dan_result.gauge_length", DataField::Kind::FLOAT, nullptr, nullptr, nullptr, nullptr,

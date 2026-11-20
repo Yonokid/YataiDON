@@ -82,7 +82,7 @@ std::optional<Screens> RetryGameScreen::update() {
         }
         reset_session();
         if (global_data.config->limits.song_limit > 0 &&
-            global_data.config->limits.song_limit == global_data.songs_played) {
+            global_data.config->limits.song_limit == global_data.credit.songs_played) {
             return end_or_game_over(begin_total_result());
         }
         global_data.returned_from_result = true;

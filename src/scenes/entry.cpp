@@ -20,7 +20,7 @@ void EntryScreen::on_screen_start() {
     kinotake_indicator = KinotakeIndicator("entry");
     side = 1;
     is_2p = false;
-    box_manager = std::make_unique<BoxManager>(global_data.entry_join_pending);
+    box_manager = std::make_unique<BoxManager>(global_data.entry.join_pending);
     state = EntryState::WAITING;
 
     const bool online = global_data.config->network.online_play;
@@ -36,12 +36,12 @@ void EntryScreen::on_screen_start() {
     access_code_popup_.reset();
     practice_help_.reset();
     entry_info_.reset();
-    const bool resuming = global_data.entry_join_pending || global_data.entry_campaign_resume;
+    const bool resuming = global_data.entry.join_pending || global_data.entry.campaign_resume;
     campaign_shown_ = resuming;
     if (!resuming) {
         clear_user_appearance();
-        global_data.campaign.clear();
-        global_data.kinotake_team[0] = global_data.kinotake_team[1] = -1;
+        global_data.campaign.name.clear();
+        global_data.campaign.kinotake_team[0] = global_data.campaign.kinotake_team[1] = -1;
     }
 
     if (online) {
@@ -49,13 +49,13 @@ void EntryScreen::on_screen_start() {
     }
 
     // Card scanned on title (case 5) or auto login (case 3): join on first update
-    if (global_data.card_reader_card_valid && !global_data.card_reader_card_id_hex.empty()) {
-        pending_card_hex_ = global_data.card_reader_card_id_hex;
+    if (global_data.card.reader_valid && !global_data.card.reader_hex.empty()) {
+        pending_card_hex_ = global_data.card.reader_hex;
         used_cards_.push_back(pending_card_hex_);
         title_card_hex_ = pending_card_hex_;
     }
-    global_data.card_reader_card_valid = false;
-    global_data.card_reader_card_id_hex.clear();
+    global_data.card.reader_valid = false;
+    global_data.card.reader_hex.clear();
 
 #ifdef CARD_READER_ENABLED
     next_card_start_ms_ = 0;
@@ -88,11 +88,11 @@ void EntryScreen::on_screen_start() {
     players.resize(2);
     audio.play_sound("bgm", VolumePreset::MUSIC);
 
-    if (global_data.entry_join_pending) {
-        global_data.entry_join_pending = false;
+    if (global_data.entry.join_pending) {
+        global_data.entry.join_pending = false;
         start_second_player_join();
-    } else if (global_data.entry_campaign_resume) {
-        global_data.entry_campaign_resume = false;
+    } else if (global_data.entry.campaign_resume) {
+        global_data.entry.campaign_resume = false;
         resume_from_campaign();
     }
 }
@@ -129,7 +129,7 @@ std::optional<Screens> EntryScreen::on_timeout() {
 
 void EntryScreen::resume_from_campaign() {
     int n = 0;
-    for (const PlayerNum seat : global_data.entry_resume_seats) {
+    for (const PlayerNum seat : global_data.entry.resume_seats) {
         if (seat == PlayerNum::ALL) {
             continue;
         }
@@ -140,7 +140,7 @@ void EntryScreen::resume_from_campaign() {
     }
     is_2p = n == 2;
     audio.set_two_player_mode(is_2p);
-    global_data.player_num = is_2p ? PlayerNum::P1 : global_data.entry_resume_seats[0];
+    global_data.player_num = is_2p ? PlayerNum::P1 : global_data.entry.resume_seats[0];
     side = 1;
     state = EntryState::SELECT_MODE;
     start_timer(MODE_SECONDS);
@@ -157,10 +157,10 @@ bool EntryScreen::login_slot(const std::string& card_hex, std::function<void()> 
     const bool net = cfg.online_play && network.is_online() && !local_login_;
 
     if (cfg.guest_mode && card_hex.empty() && local_login_) {
-        if (!global_data.card_override[slot]) {
-            global_data.card_prev_code[slot] = code;
+        if (!global_data.card.overridden[slot]) {
+            global_data.card.prev_code[slot] = code;
         }
-        global_data.card_override[slot] = true;
+        global_data.card.overridden[slot] = true;
         code = guest_id(slot);
         finish_slot(slot, scores_manager.get_player_data(code).value_or(PlayerData{}));
         then();
@@ -168,10 +168,10 @@ bool EntryScreen::login_slot(const std::string& card_hex, std::function<void()> 
     }
 
     if (cfg.online_play && local_login_ && code != "0" && code != "1") {
-        if (!global_data.card_override[slot]) {
-            global_data.card_prev_code[slot] = code;
+        if (!global_data.card.overridden[slot]) {
+            global_data.card.prev_code[slot] = code;
         }
-        global_data.card_override[slot] = true;
+        global_data.card.overridden[slot] = true;
         code = slot == 0 ? "0" : "1";
     }
 
@@ -261,10 +261,10 @@ void EntryScreen::finish_login(RemoteLogin remote) {
     auto& cfg = global_data.config->network;
     std::string& code = slot == 0 ? cfg.access_code_1 : cfg.access_code_2;
     if (remote.card) {
-        if (!global_data.card_override[slot]) {
-            global_data.card_prev_code[slot] = code;
+        if (!global_data.card.overridden[slot]) {
+            global_data.card.prev_code[slot] = code;
         }
-        global_data.card_override[slot] = true;
+        global_data.card.overridden[slot] = true;
         code = remote.code;
     } else if (!remote.replaced_code.empty()) {
         scores_manager.migrate_player_id(remote.replaced_code, remote.code);
@@ -315,8 +315,8 @@ void EntryScreen::finish_login(RemoteLogin remote) {
             apply_user_appearance();
             if (global_data.skin_reload_pending) {
                 g_appearance_reloaded = true;
-                global_data.card_reader_card_valid = true;
-                global_data.card_reader_card_id_hex = title_card_hex_;
+                global_data.card.reader_valid = true;
+                global_data.card.reader_hex = title_card_hex_;
             }
         }
         apply_account_modifiers(pd, u.settings);
@@ -442,7 +442,7 @@ void EntryScreen::on_card_login() {
 
 void EntryScreen::start_second_player_join() {
     audio.set_two_player_mode(true);
-    const PlayerNum first = global_data.entry_joined_seat;
+    const PlayerNum first = global_data.entry.joined_seat;
     const PlayerNum second = (first == PlayerNum::P1) ? PlayerNum::P2 : PlayerNum::P1;
     PlayerSoundScope audio_owner(second);
 
@@ -488,7 +488,7 @@ void EntryScreen::reload_preview_chara(PlayerNum player_num) {
 
 Screens EntryScreen::on_screen_end(Screens next_screen) {
     g_appearance_reloaded = false;
-    global_data.guest_credit = next_screen != Screens::TITLE && guests_only(is_2p);
+    global_data.credit.guest = next_screen != Screens::TITLE && guests_only(is_2p);
     // Not on the 2P join restart: that credit has not started yet.
     if (next_screen != Screens::TITLE && next_screen != Screens::ENTRY) {
         apply_user_appearance();
@@ -795,8 +795,8 @@ std::optional<Screens> EntryScreen::update() {
 #endif
 
     allnet_indicator.update(current_time);
-    kinotake_on =
-        (global_data.kinotake_team[0] >= 0 || global_data.kinotake_team[1] >= 0) && kinotake_indicator.refresh();
+    kinotake_on = (global_data.campaign.kinotake_team[0] >= 0 || global_data.campaign.kinotake_team[1] >= 0) &&
+                  kinotake_indicator.refresh();
     kinotake_indicator.update(current_time);
     network_msg.update(current_time);
     if (login_pending() || network.probing()) {
@@ -864,7 +864,7 @@ std::optional<Screens> EntryScreen::update() {
         bncoin_popup_->update(current_time);
         if (bncoin_popup_->is_done()) {
             if (bncoin_popup_->paid()) {
-                global_data.bncoin -= BNCOIN_PRACTICE_COST;
+                global_data.credit.bncoin -= BNCOIN_PRACTICE_COST;
             }
             const bool paid = bncoin_popup_->paid();
             bncoin_popup_.reset();
@@ -907,7 +907,7 @@ std::optional<Screens> EntryScreen::update() {
         }
         if (box_manager->selected_box() == Screens::REWARD_SHOP) {
             leave_for_campaign(); // same resume: back to mode select with these seats
-            global_data.reward_shop_from_entry = true;
+            global_data.credit.reward_shop_from_entry = true;
         }
         return on_screen_end(box_manager->selected_box());
     }
@@ -950,7 +950,7 @@ void EntryScreen::open_reward_shop() {
         enter_reward_shop();
         return;
     }
-    auto popup = std::make_unique<BanaCoinPopup>("cantshop", global_data.bncoin, 0);
+    auto popup = std::make_unique<BanaCoinPopup>("cantshop", global_data.credit.bncoin, 0);
     if (popup->unavailable()) {
         audio.play_sound("kat", VolumePreset::HITSOUND);
         return;
@@ -961,8 +961,10 @@ void EntryScreen::open_reward_shop() {
 
 void EntryScreen::open_bncoin_popup() {
     const bool two_players = !box_manager->selection_allowed();
-    const char* kind = two_players ? "onlyplay" : global_data.bncoin < BNCOIN_PRACTICE_COST ? "shortage" : "practice";
-    auto popup = std::make_unique<BanaCoinPopup>(kind, global_data.bncoin, BNCOIN_PRACTICE_COST);
+    const char* kind = two_players                                        ? "onlyplay"
+                       : global_data.credit.bncoin < BNCOIN_PRACTICE_COST ? "shortage"
+                                                                          : "practice";
+    auto popup = std::make_unique<BanaCoinPopup>(kind, global_data.credit.bncoin, BNCOIN_PRACTICE_COST);
     if (popup->unavailable()) { // skin without the popups: practice as before
         if (two_players) {
             audio.play_sound("kat", VolumePreset::HITSOUND);
@@ -1015,7 +1017,7 @@ bool EntryScreen::update_campaign(double current_ms) {
         std::vector<std::string> campaigns = network.active_campaigns();
         std::erase(campaigns, "mario");
         if (std::ranges::contains(campaigns, "kinotake") && script_manager.has_lua_script("campaign_event")) {
-            global_data.campaign = "kinotake";
+            global_data.campaign.name = "kinotake";
             spdlog::info("[entry] campaign: kinotake");
             leave_for_campaign();
             return true;
@@ -1036,12 +1038,12 @@ bool EntryScreen::update_campaign(double current_ms) {
     campaign_menu_->update(current_ms);
     if (campaign_menu_->is_done()) {
         const std::string choice = campaign_menu_->get_choice();
-        global_data.campaign = choice == "skip" ? "" : choice;
-        spdlog::info("[entry] campaign: {}", global_data.campaign.empty() ? "none" : global_data.campaign);
+        global_data.campaign.name = choice == "skip" ? "" : choice;
+        spdlog::info("[entry] campaign: {}", global_data.campaign.name.empty() ? "none" : global_data.campaign.name);
         campaign_menu_.reset();
         state = EntryState::SELECT_MODE;
 
-        if (!global_data.campaign.empty()) {
+        if (!global_data.campaign.name.empty()) {
             leave_for_campaign();
             return true;
         }
@@ -1050,11 +1052,11 @@ bool EntryScreen::update_campaign(double current_ms) {
 }
 
 void EntryScreen::leave_for_campaign() {
-    global_data.campaign_next = static_cast<int>(Screens::ENTRY);
-    global_data.entry_campaign_resume = true;
+    global_data.campaign.next = static_cast<int>(Screens::ENTRY);
+    global_data.entry.campaign_resume = true;
     int n = 0;
     for (const auto& player : players) {
-        global_data.entry_resume_seats[n++] = player ? player->player_num : PlayerNum::ALL;
+        global_data.entry.resume_seats[n++] = player ? player->player_num : PlayerNum::ALL;
     }
 }
 

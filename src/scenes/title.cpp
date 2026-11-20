@@ -38,20 +38,20 @@ void TitleScreen::on_screen_start() {
 
     // Session over: undo card-login access code overrides
     for (int i = 0; i < 2; i++) {
-        if (!global_data.card_override[i]) {
+        if (!global_data.card.overridden[i]) {
             continue;
         }
         (i == 0 ? global_data.config->network.access_code_1 : global_data.config->network.access_code_2) =
-            global_data.card_prev_code[i];
-        global_data.card_override[i] = false;
+            global_data.card.prev_code[i];
+        global_data.card.overridden[i] = false;
     }
     scores_manager.clear_guests();
     set_song_list_account("");
-    global_data.guest_credit = false;
+    global_data.credit.guest = false;
     scores_manager.player_1 = global_data.config->network.access_code_1;
     scores_manager.player_2 = global_data.config->network.access_code_2;
-    global_data.card_reader_card_valid = false;
-    global_data.card_reader_card_id_hex.clear();
+    global_data.card.reader_valid = false;
+    global_data.card.reader_hex.clear();
 
 #ifdef CARD_READER_ENABLED
     g_next_card_start_ms = 0;
@@ -119,8 +119,6 @@ void TitleScreen::reset_attract_objects() {
 
 Screens TitleScreen::on_screen_end(Screens next_screen) {
     reset_attract_objects();
-    global_data.title_state = "";
-    global_data.title_state_start_ms = 0.0;
 
 #ifdef CARD_READER_ENABLED
     // Clean up card reader
@@ -261,8 +259,8 @@ std::optional<Screens> TitleScreen::update() {
         const bool accepts_card = !fade_out->is_started;
         g_card_reader->set_accepting_cards(accepts_card);
         if (auto event = g_card_reader->take_event(); accepts_card && event) {
-            global_data.card_reader_card_id_hex = event->card.card_id;
-            global_data.card_reader_card_valid = true;
+            global_data.card.reader_hex = event->card.card_id;
+            global_data.card.reader_valid = true;
 
             spdlog::info("Card detected, transitioning to entry screen");
             g_card_reader->set_led_color(0, 255, 0);

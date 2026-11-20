@@ -1279,7 +1279,7 @@ void ScoresManager::save_dan_score(const std::string& player_id, const std::stri
     sqlite3_bind_text(stmt, 1, player_id.c_str(), -1, SQLITE_TRANSIENT);
     sqlite3_bind_text(stmt, 2, course_id.c_str(), -1, SQLITE_TRANSIENT);
     sqlite3_bind_text(stmt, 3, rd.dan_title.c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_int(stmt, 4, rd.dan_index);
+    sqlite3_bind_int(stmt, 4, rd.course.index);
     sqlite3_bind_int(stmt, 5, rd.odai_result);
     sqlite3_bind_int(stmt, 6, rd.score);
     sqlite3_bind_int(stmt, 7, rd.max_combo);

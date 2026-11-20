@@ -7,11 +7,11 @@ namespace {
     sol::table build_rd_table(const DanResultData& rd) {
         sol::state& lua = *script_manager.lua;
         sol::table t = lua.create_table();
-        t["dan_color"] = rd.dan_color;
-        t["dan_rank"] = rd.dan_rank;
-        t["dan_index"] = rd.dan_index;
-        t["dan_index_max"] = rd.dan_index_max;
-        t["is_gaiden"] = rd.is_gaiden;
+        t["dan_color"] = rd.course.color;
+        t["dan_rank"] = rd.course.rank;
+        t["dan_index"] = rd.course.index;
+        t["dan_index_max"] = rd.course.index_max;
+        t["is_gaiden"] = rd.course.gaiden;
         t["dan_title"] = rd.dan_title;
         t["score"] = rd.score;
         t["gauge_length"] = rd.gauge_length;
@@ -39,8 +39,8 @@ namespace {
         t["songs"] = songs;
 
         sol::table exams = lua.create_table();
-        for (size_t i = 0; i < rd.exams.size(); i++) {
-            const Exam& e = rd.exams[i];
+        for (size_t i = 0; i < rd.course.exams.size(); i++) {
+            const Exam& e = rd.course.exams[i];
             sol::table et = lua.create_table();
             et["type"] = e.type;
             et["red"] = e.red;

@@ -85,11 +85,11 @@ void DanResultScreen::on_screen_start() {
     }
     gauge_exam = -1;
     const DanResultData& rd = sd.dan_result_data;
-    for (int i = 0; i < std::ssize(rd.exams) && i < std::ssize(rd.exam_data); i++) {
-        if (rd.exams[i].type == "gauge") {
+    for (int i = 0; i < std::ssize(rd.course.exams) && i < std::ssize(rd.exam_data); i++) {
+        if (rd.course.exams[i].type == "gauge") {
             gauge_exam = i;
             gauge_value = std::max(0, std::min(100, rd.exam_data[i].counter_value));
-            gauge_border = std::max(0, std::min(100, rd.exams[i].red));
+            gauge_border = std::max(0, std::min(100, rd.course.exams[i].red));
             break;
         }
     }
@@ -129,7 +129,7 @@ void DanResultScreen::apply_reward() {
     }
 
     const std::string pid = get_player_id(global_data.player_num);
-    const std::string course_id = dan_course_id(sd.selected_dan, rd.exams);
+    const std::string course_id = dan_course_id(rd.course.songs, rd.course.exams);
     auto prev = scores_manager.get_dan_record(pid, course_id);
     prev_best = prev ? prev->rank : 0;
     prev_best_score = prev ? prev->score : 0;
@@ -143,24 +143,24 @@ void DanResultScreen::apply_reward() {
         }
     }
 
-    shodan = rd.odai_result > 0 && new_rank > prev_best && !rd.is_gaiden && rd.is_modern;
+    shodan = rd.odai_result > 0 && new_rank > prev_best && !rd.course.gaiden && rd.course.modern;
 
     best_score_show = rd.odai_result > 0 && prev_best > 0 && prev_best <= new_rank && rd.score > prev_best_score;
 
-    congrats_due =
-        shodan && rd.dan_index >= 0 && rd.dan_index_max >= 0 && rd.dan_index == rd.dan_index_max && prev_best <= 1;
+    congrats_due = shodan && rd.course.index >= 0 && rd.course.index_max >= 0 &&
+                   rd.course.index == rd.course.index_max && prev_best <= 1;
 
-    if (shodan && rd.dan_index >= 0) {
+    if (shodan && rd.course.index >= 0) {
         if (auto pd = scores_manager.get_player_data(pid)) {
-            if (pd->dan <= rd.dan_index) {
-                pd->dan = rd.dan_index;
+            if (pd->dan <= rd.course.index) {
+                pd->dan = rd.course.index;
                 pd->gold = rd.odai_result >= 4;
                 pd->rainbow = rd.odai_result == 6;
                 scores_manager.save_player_data(*pd);
                 spdlog::info("Dan rank-up: '{}' -> nameplate dan={} gold={} rainbow={} (rank {} > prev {})",
                              rd.dan_title, pd->dan, pd->gold, pd->rainbow, new_rank, prev_best);
             }
-            pd->chara_cos_index = dan_costume_id(rd.dan_index);
+            pd->chara_cos_index = dan_costume_id(rd.course.index);
             pd->chara_is_costume = true;
             save_player_costume(*pd);
             (pid == scores_manager.player_1 ? scores_manager.player_1_data : scores_manager.player_2_data) = *pd;
@@ -184,7 +184,7 @@ void DanResultScreen::apply_reward() {
         access_code = global_data.config->network.access_code_2;
     }
     if (!access_code.empty() && !is_guest_id(pid)) {
-        network.submit_dan(access_code, course_id, rd, sd.selected_dan, arrival);
+        network.submit_dan(access_code, course_id, rd, arrival);
     }
 }
 
@@ -212,7 +212,7 @@ void DanResultScreen::build_page2_timeline() {
     }
     totals_end = totals_start + totals_dur;
 
-    const size_t row_count = std::min(rd.exams.size(), rd.exam_data.size());
+    const size_t row_count = std::min(rd.course.exams.size(), rd.exam_data.size());
     rows.assign(row_count, DanResultRowSchedule{});
     se_row_fill.assign(row_count, false);
     se_row_judge.assign(row_count, false);
@@ -229,11 +229,11 @@ void DanResultScreen::build_page2_timeline() {
         const DanResultExam& re = rd.exam_data[i];
         float p = re.progress;
 
-        float travel = (rd.exams[i].range == "less") ? (1.0f - p) : p;
-        if (!rd.exams[i].gothrough) {
+        float travel = (rd.course.exams[i].range == "less") ? (1.0f - p) : p;
+        if (!rd.course.exams[i].gothrough) {
             travel = 0.0f;
             for (float sp : re.song_progress) {
-                travel = std::max(travel, (rd.exams[i].range == "less") ? (1.0f - sp) : sp);
+                travel = std::max(travel, (rd.course.exams[i].range == "less") ? (1.0f - sp) : sp);
             }
         }
         r.land = t;
@@ -407,7 +407,7 @@ void DanResultScreen::update_sounds(double now) {
         }
         if (!se_row_fill[i] && on_page >= rows[i].fill0 && rows[i].filld > 0 && !page2_skipped) {
             se_row_fill[i] = true;
-            const bool less = i < std::ssize(rd.exams) && rd.exams[i].range == "less";
+            const bool less = i < std::ssize(rd.course.exams) && rd.course.exams[i].range == "less";
             audio.play_sound(less ? "gauge_down_loop" : "gauge_up_loop", VolumePreset::SOUND);
         }
         if (!se_row_judge[i] && on_page >= rows[i].numin && !page2_skipped) {

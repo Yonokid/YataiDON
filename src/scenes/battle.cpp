@@ -6,6 +6,20 @@
 // the special move's slash lands this long after the cut-in starts
 static constexpr double SKILL_HIT_MS = 1300.0;
 
+// filled by battle song select from Hiroba, read by the game and result screens
+static struct {
+    bool tracked = false;
+    int bond = 1;
+    int best_power = 0;
+    int stage = 1;
+    int boss_hp = 0; // the stage's boss, if it has one
+    int boss_hp_max = 0;
+    int moves = 1;         // special moves unlocked
+    bool hacchake = false; // the Maou event's move, bought with orbs
+    bool orbs = false;     // white chests can drop
+    BattleTally song;
+} battle;
+
 static const std::string& battle_access_code() {
     return global_data.player_num == PlayerNum::P1 ? global_data.config->network.access_code_1
                                                    : global_data.config->network.access_code_2;
@@ -14,16 +28,16 @@ static const std::string& battle_access_code() {
 void BattleSongSelectScreen::on_screen_start() {
     const std::string& code = battle_access_code();
     const BattleStatus status = code.empty() ? BattleStatus{} : network.fetch_battle_status(code);
-    global_data.battle_tracked = status.answered;
-    global_data.battle_bond = status.answered ? status.bond : BATTLE_DEFAULT_BOND;
-    global_data.battle_best_power = status.best_power;
-    global_data.battle_stage = status.answered ? status.stage : 1;
-    const auto boss = status.bosses.find(global_data.battle_stage);
-    global_data.battle_boss_hp = boss == status.bosses.end() ? 0 : boss->second.hp;
-    global_data.battle_boss_hp_max = boss == status.bosses.end() ? 0 : boss->second.max;
-    global_data.battle_moves = status.answered ? status.moves : 1;
-    global_data.battle_hacchake = status.orb_rewards > 0;
-    global_data.battle_orbs = status.orb_cost > 0;
+    battle.tracked = status.answered;
+    battle.bond = status.answered ? status.bond : BATTLE_DEFAULT_BOND;
+    battle.best_power = status.best_power;
+    battle.stage = status.answered ? status.stage : 1;
+    const auto boss = status.bosses.find(battle.stage);
+    battle.boss_hp = boss == status.bosses.end() ? 0 : boss->second.hp;
+    battle.boss_hp_max = boss == status.bosses.end() ? 0 : boss->second.max;
+    battle.moves = status.answered ? status.moves : 1;
+    battle.hacchake = status.orb_rewards > 0;
+    battle.orbs = status.orb_cost > 0;
     if (status.answered && global_data.battle_skills.empty()) {
         global_data.battle_skills = status.skills;
     }
@@ -33,8 +47,8 @@ void BattleSongSelectScreen::on_screen_start() {
         player->start_voice = "voice_battle_begin";
     }
     const int side = global_data.player_num == PlayerNum::P2 ? 2 : 1;
-    info.emplace(status, global_data.battle_stage, side);
-    skills.emplace(global_data.battle_moves, global_data.battle_hacchake, side);
+    info.emplace(status, battle.stage, side);
+    skills.emplace(battle.moves, battle.hacchake, side);
     picker.reset();
     if (!status.story.empty() && script_manager.has_lua_script("battle_story")) {
         story = std::make_unique<StoryScript>("BattleStory", "battle_story", sol::as_table(status.story));
@@ -144,9 +158,9 @@ void BattleGameScreen::initialize_chart(const fs::path& song) {
 }
 
 void BattleGameScreen::start_battle() {
-    stage = global_data.battle_stage;
-    boss = battle_is_boss_stage(stage) && global_data.battle_boss_hp_max > 0;
-    attack = battle_base_attack(global_data.battle_bond);
+    stage = battle.stage;
+    boss = battle_is_boss_stage(stage) && battle.boss_hp_max > 0;
+    attack = battle_base_attack(battle.bond);
     difficulty = global_data.session_data[static_cast<int>(global_data.player_num)].selected_difficulty;
     total_damage = 0;
     skill_notes = 0;
@@ -155,12 +169,12 @@ void BattleGameScreen::start_battle() {
     chests = 0;
     orb_chests = 0;
     kills = 0;
-    global_data.battle_song = {};
+    battle.song = {};
     skill_lands_ms.reset();
     gogo = false;
     skill_slots = global_data.battle_skills;
     ended = false;
-    boss_hp = global_data.battle_boss_hp;
+    boss_hp = battle.boss_hp;
     field.clear();
     while (!boss && std::ssize(field) < BATTLE_FIELD_SIZE) {
         field.push_back(battle_next_enemy(stage, rng));
@@ -174,11 +188,10 @@ void BattleGameScreen::announce_battle() {
     if (!overlay_active()) {
         return;
     }
-    overlay->reset(JudgePos::X, JudgePos::Y, stage, global_data.battle_orbs,
-                   global_data.battle_tracked ? global_data.battle_best_power : -1);
+    overlay->reset(JudgePos::X, JudgePos::Y, stage, battle.orbs, battle.tracked ? battle.best_power : -1);
     const double now = get_current_ms();
     if (boss) {
-        overlay->boss(now, boss_hp, global_data.battle_boss_hp_max);
+        overlay->boss(now, boss_hp, battle.boss_hp_max);
     }
     for (const int kind : field) {
         overlay->pop_enemy(now, kind);
@@ -263,8 +276,7 @@ void BattleGameScreen::on_note(const Note& note, Judgments judgment) {
     if (skill_lands_ms || skill_notes < battle_skill_threshold(difficulty, skills_fired)) {
         return;
     }
-    const int move =
-        battle_slot_move(skill_slots, global_data.battle_moves, global_data.battle_hacchake, skills_fired, rng);
+    const int move = battle_slot_move(skill_slots, battle.moves, battle.hacchake, skills_fired, rng);
     if (move >= 0) {
         ++skills_fired;
         skill_lands_ms = now + SKILL_HIT_MS;
@@ -272,7 +284,7 @@ void BattleGameScreen::on_note(const Note& note, Judgments judgment) {
             overlay->start_skill(now, move + 1);
         }
         std::uniform_real_distribution<double> roll(0.0, 1.0);
-        if (global_data.battle_orbs && orb_chests < BATTLE_MAX_CHESTS && roll(rng) < BATTLE_ORB_CHEST_CHANCE) {
+        if (battle.orbs && orb_chests < BATTLE_MAX_CHESTS && roll(rng) < BATTLE_ORB_CHEST_CHANCE) {
             ++orb_chests;
             if (overlay_active()) {
                 overlay->drop_chest(now, true);
@@ -302,17 +314,10 @@ void BattleGameScreen::update_battle() {
     }
     if (!ended && clock.position() >= players[0]->end_time) {
         ended = true;
-        global_data.battle_song = {true,
-                                   stage,
-                                   difficulty,
-                                   boss,
-                                   global_data.battle_boss_hp,
-                                   global_data.battle_boss_hp_max,
-                                   kills,
-                                   total_damage,
-                                   total_damage / BATTLE_POWER_DAMAGE,
-                                   chests,
-                                   orb_chests};
+        battle.song = {true,   stage,          difficulty,
+                       boss,   battle.boss_hp, battle.boss_hp_max,
+                       kills,  total_damage,   total_damage / BATTLE_POWER_DAMAGE,
+                       chests, orb_chests};
         submit_song();
         if (overlay_active()) {
             overlay->song_end(now, players[0]->get_bad() == 0);
@@ -334,7 +339,7 @@ void BattleGameScreen::update_battle() {
 void BattleGameScreen::submit_song() {
     const std::string& code = battle_access_code();
     const Player& player = *players[0];
-    if (!global_data.battle_tracked || code.empty() || player.is_auto_play() || player.is_replay()) {
+    if (!battle.tracked || code.empty() || player.is_auto_play() || player.is_replay()) {
         return;
     }
     const SessionData& session = global_data.session_data[static_cast<int>(global_data.player_num)];
@@ -379,13 +384,13 @@ void BattleResultScreen::on_screen_start() {
     allow_retry = false;
     board.reset();
     board_started = false;
-    const BattleTally& song = global_data.battle_song;
+    const BattleTally& song = battle.song;
     if (!song.played || !script_manager.has_lua_script("battle_result")) {
         return;
     }
     audio.stop_sound("bgm");
     audio.load_screen_sounds("battle_result");
-    board.emplace(song, song_number, global_data.battle_bond);
+    board.emplace(song, song_number, battle.bond);
     if (board->unavailable()) {
         board.reset();
         audio.play_sound("bgm", VolumePreset::MUSIC);
@@ -398,7 +403,7 @@ void BattleResultScreen::on_screen_start() {
 
 Screens BattleResultScreen::on_screen_end(Screens next_screen) {
     board.reset();
-    global_data.battle_song = {};
+    battle.song = {};
     return ResultScreen::on_screen_end(next_screen);
 }
 

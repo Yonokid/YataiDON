@@ -17,7 +17,7 @@ private:
     CoinOverlay coin_overlay;
     double wait_since = 0;
 
-    Screens next() const { return static_cast<Screens>(global_data.kinotake_next); }
+    Screens next() const { return static_cast<Screens>(global_data.campaign.kinotake_next); }
     void start();
 
 public:

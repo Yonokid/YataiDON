@@ -18,12 +18,12 @@ static PlayerNum seat_num(int seat) {
 
 void RewardShopScreen::on_screen_start() {
     Screen::on_screen_start();
-    from_entry = global_data.reward_shop_from_entry;
-    global_data.reward_shop_from_entry = false;
+    from_entry = global_data.credit.reward_shop_from_entry;
+    global_data.credit.reward_shop_from_entry = false;
     for (int i = 0; i < 2; i++) {
-        joined[i] = from_entry ? (global_data.entry_resume_seats[0] == seat_num(i) ||
-                                  global_data.entry_resume_seats[1] == seat_num(i))
-                               : global_data.credit_seats[i];
+        joined[i] = from_entry ? (global_data.entry.resume_seats[0] == seat_num(i) ||
+                                  global_data.entry.resume_seats[1] == seat_num(i))
+                               : global_data.credit.seats[i];
     }
     shop.reset();
     timer.reset();

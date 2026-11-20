@@ -13,7 +13,7 @@ void ResultScreen::on_screen_start() {
     song_subtitle = (session_data.song_subtitle_full_display && !session_data.song_subtitle.empty())
                         ? session_data.song_subtitle
                         : std::string();
-    song_number = global_data.songs_played; // the game already counted this song
+    song_number = global_data.credit.songs_played; // the game already counted this song
     audio.play_sound("bgm", VolumePreset::MUSIC);
     fade_out = dynamic_cast<FadeAnimation*>(tex.get_animation(0));
     retry_message.reset();
@@ -59,8 +59,8 @@ bool ResultScreen::run_failed() const {
 }
 
 bool ResultScreen::retry_pending() const {
-    const bool limit_reached =
-        global_data.config->limits.song_limit > 0 && global_data.config->limits.song_limit == global_data.songs_played;
+    const bool limit_reached = global_data.config->limits.song_limit > 0 &&
+                               global_data.config->limits.song_limit == global_data.credit.songs_played;
     return allow_retry && !tex.options[SCO::DISABLE_RETRY_GAME] && run_failed() && !limit_reached &&
            script_manager.has_lua_script("retry_game");
 }
@@ -81,7 +81,7 @@ void ResultScreen::begin_exit() {
 
 void ResultScreen::start_fade_out() {
     const bool credit_end = quitting || (global_data.config->limits.song_limit > 0 &&
-                                         global_data.config->limits.song_limit == global_data.songs_played);
+                                         global_data.config->limits.song_limit == global_data.credit.songs_played);
     if (credit_end && credit_end_screen() == Screens::GAME_OVER && game_over_overlay()) {
         game_over.start();
         if (audio.has_sound("bgm")) {
@@ -152,7 +152,7 @@ Screens ResultScreen::credit_end_screen() {
         !script_manager.has_lua_script("kinotake_result")) {
         return next;
     }
-    global_data.kinotake_next = static_cast<int>(next);
+    global_data.campaign.kinotake_next = static_cast<int>(next);
     credit_next = Screens::KINOTAKE_RESULT;
     return *credit_next;
 }

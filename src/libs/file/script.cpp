@@ -1075,12 +1075,12 @@ void ScriptManager::register_lua_bindings() {
         return genre_to_ref_frame(static_cast<GenreIndex>(static_cast<int>(genre_index)));
     });
 
-    tex.set_function("songs_played", [] -> int { return global_data.songs_played; });
+    tex.set_function("songs_played", [] -> int { return global_data.credit.songs_played; });
 
     tex.set_function("song_limit", [] -> int { return global_data.config->limits.song_limit; });
 
     tex.set_function("last_input_ms", [] -> double { return get_last_input_ms(); });
-    tex.set_function("guest_credit", [] { return global_data.guest_credit; }); // every seat is a guest
+    tex.set_function("guest_credit", [] { return global_data.credit.guest; }); // every seat is a guest
 
     tex.set_function("log", [](const std::string& msg) { spdlog::info("[lua] {}", msg); });
 

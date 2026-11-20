@@ -489,10 +489,10 @@ void save_config(const Config& config) {
 
     // Network
     config_table.insert("network",
-                        toml::table{{"access_code_1", global_data.card_override[0] ? global_data.card_prev_code[0]
-                                                                                   : config.network.access_code_1},
-                                    {"access_code_2", global_data.card_override[1] ? global_data.card_prev_code[1]
-                                                                                   : config.network.access_code_2},
+                        toml::table{{"access_code_1", global_data.card.overridden[0] ? global_data.card.prev_code[0]
+                                                                                     : config.network.access_code_1},
+                                    {"access_code_2", global_data.card.overridden[1] ? global_data.card.prev_code[1]
+                                                                                     : config.network.access_code_2},
                                     {"online_play", config.network.online_play},
                                     {"sync_scores", config.network.sync_scores},
                                     {"auto_login", config.network.auto_login},

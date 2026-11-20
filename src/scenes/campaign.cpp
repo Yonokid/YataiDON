@@ -7,14 +7,14 @@
 void CampaignScreen::on_screen_start() {
     Screen::on_screen_start();
     event.reset();
-    if (!global_data.campaign.empty()) {
+    if (!global_data.campaign.name.empty()) {
         std::vector<int> seats;
-        for (const PlayerNum seat : global_data.entry_resume_seats) {
+        for (const PlayerNum seat : global_data.entry.resume_seats) {
             if (seat != PlayerNum::ALL) {
                 seats.push_back(static_cast<int>(seat));
             }
         }
-        event = std::make_unique<CampaignEvent>(global_data.campaign, seats);
+        event = std::make_unique<CampaignEvent>(global_data.campaign.name, seats);
         if (event->unavailable()) {
             event.reset();
         }
@@ -47,8 +47,8 @@ void CampaignScreen::give_reward(int cos_index) {
 
 void CampaignScreen::handle_input() {
     const bool two =
-        global_data.entry_resume_seats[0] != PlayerNum::ALL && global_data.entry_resume_seats[1] != PlayerNum::ALL;
-    for (const PlayerNum seat : global_data.entry_resume_seats) {
+        global_data.entry.resume_seats[0] != PlayerNum::ALL && global_data.entry.resume_seats[1] != PlayerNum::ALL;
+    for (const PlayerNum seat : global_data.entry.resume_seats) {
         if (seat == PlayerNum::ALL) {
             continue;
         }
@@ -80,13 +80,13 @@ std::optional<Screens> CampaignScreen::update() {
     handle_input();
     if (event->is_done()) {
         for (const PlayerNum seat : {PlayerNum::P1, PlayerNum::P2}) {
-            global_data.kinotake_team[static_cast<int>(seat) - 1] = event->get_team(static_cast<int>(seat));
+            global_data.campaign.kinotake_team[static_cast<int>(seat) - 1] = event->get_team(static_cast<int>(seat));
         }
         if (const int cos = event->get_reward(); cos >= 0) {
             give_reward(cos);
         }
         const auto& net = global_data.config->network;
-        for (const PlayerNum seat : global_data.entry_resume_seats) {
+        for (const PlayerNum seat : global_data.entry.resume_seats) {
             const std::string& code = seat == PlayerNum::P1 ? net.access_code_1 : net.access_code_2;
             if (seat == PlayerNum::ALL || code.empty()) {
                 continue;

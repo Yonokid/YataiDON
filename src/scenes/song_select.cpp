@@ -86,7 +86,7 @@ void SongSelectScreen::on_screen_start() {
     player->script = script.get();
 
     indicator = std::make_unique<Indicator>(Indicator::State::SELECT);
-    song_num = std::make_unique<SongNum>(global_data.songs_played + 1);
+    song_num = std::make_unique<SongNum>(global_data.credit.songs_played + 1);
     select_timer = std::make_unique<Timer>(100, get_current_ms(), [this] { on_select_timeout(); });
     diff_select_timer = nullptr;
     join_request_ms = -1.0;
@@ -231,17 +231,7 @@ std::optional<Screens> SongSelectScreen::start_replay(const ReplayData& replay) 
     session_data.selected_song = *song_path;
     session_data.selected_difficulty = replay.difficulty;
     session_data.song_hash = replay.hash;
-    session_data.replay_input_log = replay.input_log;
-    session_data.replay_username = replay.player_data.username;
-    session_data.replay_title = replay.player_data.title;
-    session_data.replay_title_bg = replay.player_data.title_bg;
-    session_data.replay_chara_color_1 = replay.player_data.chara_color_1;
-    session_data.replay_chara_color_2 = replay.player_data.chara_color_2;
-    session_data.replay_chara_color_3 = replay.player_data.chara_color_3;
-    session_data.replay_chara_head_index = replay.player_data.chara_head_index;
-    session_data.replay_chara_body_index = replay.player_data.chara_body_index;
-    session_data.replay_chara_cos_index = replay.player_data.chara_cos_index;
-    session_data.replay_chara_is_costume = replay.player_data.chara_is_costume;
+    session_data.replay = std::make_shared<const ReplayData>(replay);
     return on_screen_end(Screens::GAME);
 }
 
@@ -252,8 +242,8 @@ std::optional<Screens> SongSelectScreen::poll_second_player_join(double current_
             return std::nullopt;
         }
         join_request_ms = -1.0;
-        global_data.entry_join_pending = true;
-        global_data.entry_joined_seat = join_existing_seat;
+        global_data.entry.join_pending = true;
+        global_data.entry.joined_seat = join_existing_seat;
         spdlog::info("[2P join] returning to ENTRY, {}P stays in", static_cast<int>(join_existing_seat));
         return on_screen_end(Screens::ENTRY);
     }
@@ -261,7 +251,7 @@ std::optional<Screens> SongSelectScreen::poll_second_player_join(double current_
     if (!allows_second_player_join()) {
         return std::nullopt;
     }
-    if (global_data.songs_played >= 2) {
+    if (global_data.credit.songs_played >= 2) {
         return std::nullopt;
     }
     if (game_transition.has_value() || dan_transition.has_value()) {

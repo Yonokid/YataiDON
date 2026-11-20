@@ -45,7 +45,7 @@ void GameScreen::on_screen_start() {
     spdlog::info("Chart initialized for song: {}", session_data.selected_song.string());
     load_hitsounds();
     song_info = SongInfo(session_data.song_title, session_data.song_subtitle, parser->metadata.subtitle_full_display,
-                         session_data.genre_index, global_data.songs_played + 1, session_data.genre_label);
+                         session_data.genre_index, global_data.credit.songs_played + 1, session_data.genre_label);
     result_transition = ResultTransition(scene_player_num());
     bpm = parser->metadata.bpm;
     scene_preset = parser->metadata.scene_preset;
@@ -146,26 +146,13 @@ void GameScreen::create_players() {
                                                get_player_modifiers(global_data.player_num)));
     players.back()->allow_papamama();
 
-    SessionData& replay_session_data = global_data.session_data[player_index];
-    if (replay_session_data.replay_input_log.has_value()) {
+    if (const auto& replay = global_data.session_data[player_index].replay) {
         InputLog typed_log;
-        for (const auto& [ms, type] : *replay_session_data.replay_input_log) {
+        for (const auto& [ms, type] : replay->input_log) {
             typed_log.emplace_back(ms, static_cast<InputLogType>(type));
         }
         players.back()->load_replay(typed_log);
-
-        PlayerData replay_pd;
-        replay_pd.username = replay_session_data.replay_username;
-        replay_pd.title = replay_session_data.replay_title;
-        replay_pd.title_bg = replay_session_data.replay_title_bg;
-        replay_pd.chara_color_1 = replay_session_data.replay_chara_color_1;
-        replay_pd.chara_color_2 = replay_session_data.replay_chara_color_2;
-        replay_pd.chara_color_3 = replay_session_data.replay_chara_color_3;
-        replay_pd.chara_head_index = replay_session_data.replay_chara_head_index;
-        replay_pd.chara_body_index = replay_session_data.replay_chara_body_index;
-        replay_pd.chara_cos_index = replay_session_data.replay_chara_cos_index;
-        replay_pd.chara_is_costume = replay_session_data.replay_chara_is_costume;
-        players.back()->apply_replay_appearance(replay_pd);
+        players.back()->apply_replay_appearance(replay->player_data);
     }
 }
 
@@ -477,18 +464,18 @@ void GameScreen::reward_score(const Player& player, const RemoteScoreSubmission&
     }
 
     const auto& sd = global_data.session_data[static_cast<int>(player.player_num)];
-    global_data.credit_songs[seat]++;
+    global_data.credit.songs[seat]++;
     network.submit_don_points(seat, submission.access_code, submission.gauge, sd.song_title);
     network.submit_medals(seat, submission.access_code);
 
-    if (global_data.kinotake_team[seat] >= 0) {
+    if (global_data.campaign.kinotake_team[seat] >= 0) {
         const bool duet = std::ranges::count_if(
                               players, [](const auto& p) { return p && !p->is_auto_play() && !p->is_replay(); }) == 2;
 
         const bool costume = profile.chara_is_costume && kinotake_costume_team(profile.chara_cos_index) >= 0;
 
-        network.submit_kinotake(seat, submission.access_code, global_data.kinotake_team[seat], sd.result_data.score,
-                                duet, costume);
+        network.submit_kinotake(seat, submission.access_code, global_data.campaign.kinotake_team[seat],
+                                sd.result_data.score, duet, costume);
     }
 }
 
@@ -517,7 +504,6 @@ void GameScreen::init_skip() {
     skipped = false;
     skip_text.reset();
     global_data.live_skip_count = -1;
-    global_data.live_skip_used = false;
 
     if (!tex.options[SCO::OPTION_SKIP_ROW]) {
         return;
@@ -569,7 +555,6 @@ void GameScreen::update_skip() {
 
 void GameScreen::push_skip_state() {
     global_data.live_skip_count = skip_count;
-    global_data.live_skip_used = skipped;
     if (!background.has_value() || !background->wants_skip()) {
         return;
     }
@@ -692,7 +677,7 @@ void GameScreen::end_song(double end_time, double transition_delay, BackgroundNo
             }
         }
 
-        global_data.songs_played += 1;
+        global_data.credit.songs_played += 1;
         score_saved = true;
     }
 
