@@ -3,6 +3,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <csignal>
+#include <fstream>
 #include <jni.h>
 #include <mutex>
 #include <unistd.h>
@@ -19,7 +20,10 @@ extern "C" {
 std::filesystem::path platform_get_working_directory() {
     std::filesystem::path dir("/sdcard/YataiDON");
     std::error_code ec;
-    std::filesystem::create_directories(dir, ec);
+    std::filesystem::create_directories(dir / "Skins", ec);
+    if (!std::filesystem::exists(dir / "Skins" / ".nomedia", ec)) {
+        std::ofstream(dir / "Skins" / ".nomedia");
+    }
     return dir;
 }
 
