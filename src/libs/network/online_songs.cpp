@@ -35,6 +35,10 @@ namespace online_songs {
 #include <cpr/cpr.h>
 #include <curl/curl.h>
 
+#ifdef GetObject
+#undef GetObject
+#endif
+
 #include "android_ca.h"
 
 namespace online_songs {

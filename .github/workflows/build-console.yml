@@ -343,7 +343,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: main
           submodules: false
 
       - name: Restore optimized media libraries
