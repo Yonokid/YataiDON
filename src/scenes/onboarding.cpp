@@ -110,8 +110,6 @@ void OnboardingScreen::on_screen_start() {
     skinless_start = global_data.skinless;
     error.clear();
     // no skin means no drum on screen, so phones pick rows by tapping them instead
-    set_touch_drum_enabled(false);
-    take_touch_tap();
     screen_init = true;
 }
 
@@ -242,7 +240,6 @@ void OnboardingScreen::toggle_row(int r) {
 }
 
 Screens OnboardingScreen::on_screen_end(Screens next_screen) {
-    set_touch_drum_enabled(true);
     return Screen::on_screen_end(next_screen);
 }
 

@@ -146,6 +146,16 @@ void Box::move_down() {
     moving_down = true;
 }
 
+bool Box::contains(Vec2 world, bool vertical) const {
+    const TextureObject* box = tex.textures.at("mode_select/box").get();
+    const float top = vertical ? y_pos : static_cast<float>(box->y[0]);
+    const float left = is_selected ? left_x : x;
+    const float right = is_selected
+                            ? right_x + static_cast<float>(tex.textures.at("mode_select/box_highlight_right")->width)
+                            : x + width;
+    return world.x >= left && world.x < right && world.y >= top && world.y < top + static_cast<float>(box->height);
+}
+
 void Box::draw(float fade, bool has_prev, bool has_next, bool disabled) {
     call(fn_draw, "EntryBox:draw", x, left_x, right_x, is_selected, move->is_finished,
          static_cast<float>(open->attribute), fade, y_pos, has_prev, has_next, disabled);

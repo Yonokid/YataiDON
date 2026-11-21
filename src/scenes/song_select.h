@@ -63,6 +63,17 @@ protected:
     virtual SongSelectPlayer* second_player() { return nullptr; }
 
     virtual void handle_input(double current_ms);
+    void handle_touch();
+    // Steps the wheel once per box pitch in `travel`, leaving the remainder in it.
+    void step_wheel(float& travel);
+    void fling_wheel(double now);
+    std::optional<float> drag_start_x; // browsing drag: canvas position the wheel last stepped at
+    float drag_last = 0.0f;            // last finger position along the wheel, for its speed
+    double drag_last_ms = 0.0;
+    float drag_velocity = 0.0f;  // px per ms
+    float fling_velocity = 0.0f; // wheel momentum after a flick, px per ms
+    float fling_travel = 0.0f;
+    double fling_last_ms = 0.0;
 
     virtual void handle_input_browsing(double current_ms);
     virtual void handle_input_selecting();
@@ -96,6 +107,7 @@ protected:
     virtual Screens get_game_screen_target() { return Screens::GAME; }
 
 public:
+    TouchInput touch_input() const override { return TouchInput::SCREEN; }
     SongSelectScreen() : Screen("song_select") {}
 
     explicit SongSelectScreen(const std::string& name) : Screen(name) {}

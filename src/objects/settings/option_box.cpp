@@ -29,6 +29,100 @@ static std::unique_ptr<FadeAnimation> make_flicker() {
     return fa;
 }
 
+static constexpr float DROPDOWN_ROW_BASE = 50.0f;
+static constexpr float DROPDOWN_PAD_BASE = 20.0f;
+static constexpr float DROPDOWN_BOTTOM_BASE = 585.0f;
+static constexpr float DROPDOWN_MARGIN_BASE = 10.0f;
+static constexpr float DROPDOWN_LINE_BASE = 3.0f;
+static constexpr Color DROPDOWN_FILL{255, 248, 230, 240};
+static constexpr Color DROPDOWN_LINE{109, 68, 24, 255};
+static constexpr Color DROPDOWN_CURRENT{255, 160, 40, 255};
+
+void ValueDropdown::show(const std::vector<std::string>& texts, int current, Rect button) {
+    const float s = tex.screen_scale;
+    const float pad = DROPDOWN_PAD_BASE * s;
+    const float margin = DROPDOWN_MARGIN_BASE * s;
+    labels.clear();
+    float widest = button.width;
+    for (const auto& text : texts) {
+        labels.push_back(
+            std::make_unique<OutlinedText>(text, option_font_size(), Color::WHITE, Color::BLACK, false, 4, -4));
+        widest = std::max(widest, labels.back()->width + (2.0f * pad));
+    }
+    row_height = DROPDOWN_ROW_BASE * s;
+    const float top = button.y + button.height;
+    const float rows = std::max(1.0f, std::floor(((DROPDOWN_BOTTOM_BASE * s) - top) / row_height));
+    const float width = std::min(widest, tex.screen_width - (2.0f * margin));
+    const float x =
+        std::clamp(button.x + (button.width / 2.0f) - (width / 2.0f), margin, tex.screen_width - margin - width);
+    area = {x, top, width, std::min(static_cast<float>(labels.size()), rows) * row_height};
+    reveal(current);
+    open = true;
+}
+
+float ValueDropdown::max_scroll() const {
+    return std::max(0.0f, (static_cast<float>(labels.size()) * row_height) - area.height);
+}
+
+std::optional<int> ValueDropdown::pick(Vec2 world) const {
+    if (world.x < area.x || world.x >= area.x + area.width || world.y < area.y || world.y >= area.y + area.height) {
+        return std::nullopt;
+    }
+    const int row = static_cast<int>((world.y - area.y + scroll) / row_height);
+    if (row < 0 || row >= std::ssize(labels)) {
+        return std::nullopt;
+    }
+    return row;
+}
+
+void ValueDropdown::scroll_by(float dy) {
+    scroll = std::clamp(scroll - dy, 0.0f, max_scroll());
+}
+
+void ValueDropdown::reveal(int index) {
+    scroll =
+        std::clamp((static_cast<float>(index) * row_height) - ((area.height - row_height) / 2.0f), 0.0f, max_scroll());
+}
+
+void ValueDropdown::draw(int current) const {
+    if (!open || labels.empty()) {
+        return;
+    }
+    const float s = tex.screen_scale;
+    const float pad = DROPDOWN_PAD_BASE * s;
+    draw_rectangle(area, DROPDOWN_FILL);
+    const int sx = virtual_to_screen_x(area.x);
+    const int sy = virtual_to_screen_y(area.y);
+    begin_scissor_mode(sx, sy, virtual_to_screen_x(area.x + area.width) - sx,
+                       virtual_to_screen_y(area.y + area.height) - sy);
+    for (int i = static_cast<int>(scroll / row_height); i < std::ssize(labels); i++) {
+        const float row_y = area.y + (static_cast<float>(i) * row_height) - scroll;
+        if (row_y >= area.y + area.height) {
+            break;
+        }
+        if (i == current) {
+            draw_rectangle({area.x, row_y, area.width, row_height}, DROPDOWN_CURRENT);
+        }
+        OutlinedText& label = *labels[i];
+        const float w = std::min(label.width, area.width - pad);
+        label.draw({.x = area.x + (area.width / 2.0f) - (w / 2.0f),
+                    .y = row_y + (row_height / 2.0f) - (label.height / 2.0f),
+                    .x2 = w - label.width});
+    }
+    end_scissor_mode();
+    draw_rectangle_lines_ex(area, DROPDOWN_LINE_BASE * s, DROPDOWN_LINE);
+}
+
+template<class List>
+static std::vector<std::string> list_labels(const List& list) {
+    std::vector<std::string> out;
+    out.reserve(list.size());
+    for (const auto& [key, label] : list) {
+        out.push_back(label);
+    }
+    return out;
+}
+
 BaseOptionBox::BaseOptionBox(const std::string& name, const std::string& description, const std::string& path)
     : description_text(word_wrap(description, static_cast<int>(DESC_FONT_SIZE_BASE * tex.screen_scale), 1,
                                  DESC_MAX_WIDTH_BASE * tex.screen_scale)),
@@ -37,6 +131,10 @@ BaseOptionBox::BaseOptionBox(const std::string& name, const std::string& descrip
       t_overlay(tex.get_texture("background/overlay")), t_title(tex.get_texture("background/title")),
       t_title_highlight(tex.get_texture("background/title_highlight")),
       t_button_on(tex.get_texture("option/button_on")), t_button_off(tex.get_texture("option/button_off")) {}
+
+OptionTap BaseOptionBox::tap(Vec2 world) {
+    return texture_hit(t_button_on, 2, world) ? OptionTap::Select : OptionTap::None;
+}
 
 void BaseOptionBox::draw_base() const {
     tex.draw_texture(t_overlay, {.scale = 0.70f});
@@ -71,6 +169,18 @@ void BoolOptionBox::update(double /*current_time*/) {
     if (!is_highlighted) {
         value = config_ref.get_bool();
     }
+}
+
+OptionTap BoolOptionBox::tap(Vec2 world) {
+    for (const int i : {0, 1}) {
+        if (texture_hit(t_button_on, i, world)) {
+            value = i == 1;
+            confirm();
+            is_highlighted = false;
+            return OptionTap::Handled;
+        }
+    }
+    return OptionTap::None;
 }
 
 void BoolOptionBox::move_left() {
@@ -156,8 +266,42 @@ void IntOptionBox::confirm() {
     config_ref.set_int(value);
 }
 
+OptionTap IntOptionBox::tap(Vec2 world) {
+    if (dropdown.open) {
+        if (const auto row = dropdown.pick(world)) {
+            value_index = *row;
+            value = value_list[value_index].first;
+            rebuild_text();
+            confirm();
+        }
+        dropdown.open = false;
+        is_highlighted = false;
+        return OptionTap::Handled;
+    }
+    if (value_list.empty() || !texture_hit(t_button_on, 2, world)) {
+        return BaseOptionBox::tap(world);
+    }
+    dropdown.show(list_labels(value_list), value_index, button_rect(2));
+    is_highlighted = true;
+    return OptionTap::Handled;
+}
+
+bool IntOptionBox::scroll(float dy) {
+    if (dropdown.open) {
+        dropdown.scroll_by(dy);
+    }
+    return dropdown.open;
+}
+
+void IntOptionBox::draw_overlay() {
+    dropdown.draw(value_index);
+}
+
 void IntOptionBox::update(double current_time) {
     flicker_fade->update(current_time);
+    if (!is_highlighted) {
+        dropdown.open = false;
+    }
     // The engine can adjust a value after it is set (e.g. a display rejecting a refresh rate).
     if (!is_highlighted && config_ref.get_int() != value) {
         value = config_ref.get_int();
@@ -174,6 +318,7 @@ void IntOptionBox::move_left() {
     if (!value_list.empty()) {
         value_index = std::max(0, value_index - 1);
         value = value_list[value_index].first;
+        dropdown.reveal(value_index);
     } else {
         value--;
     }
@@ -184,6 +329,7 @@ void IntOptionBox::move_right() {
     if (!value_list.empty()) {
         value_index = std::min(static_cast<int>(value_list.size()) - 1, value_index + 1);
         value = value_list[value_index].first;
+        dropdown.reveal(value_index);
     } else {
         value++;
     }
@@ -243,8 +389,42 @@ bool StrOptionBox::needs_text_input() const {
     return value_list.empty();
 }
 
+OptionTap StrOptionBox::tap(Vec2 world) {
+    if (dropdown.open) {
+        if (const auto row = dropdown.pick(world)) {
+            value_index = *row;
+            value = value_list[value_index].first;
+            rebuild_text();
+            confirm();
+        }
+        dropdown.open = false;
+        is_highlighted = false;
+        return OptionTap::Handled;
+    }
+    if (value_list.empty() || !texture_hit(t_button_on, 2, world)) {
+        return BaseOptionBox::tap(world);
+    }
+    dropdown.show(list_labels(value_list), value_index, button_rect(2));
+    is_highlighted = true;
+    return OptionTap::Handled;
+}
+
+bool StrOptionBox::scroll(float dy) {
+    if (dropdown.open) {
+        dropdown.scroll_by(dy);
+    }
+    return dropdown.open;
+}
+
+void StrOptionBox::draw_overlay() {
+    dropdown.draw(value_index);
+}
+
 void StrOptionBox::update(double current_time) {
     flicker_fade->update(current_time);
+    if (!is_highlighted) {
+        dropdown.open = false;
+    }
     // Nameplate options point at the active account, which AccountOptionBox can swap.
     if (!is_highlighted && value_list.empty() && config_ref.get_str() != value) {
         value = input_string = config_ref.get_str();
@@ -279,6 +459,7 @@ void StrOptionBox::move_left() {
     if (!value_list.empty()) {
         value_index = std::max(0, value_index - 1);
         value = value_list[value_index].first;
+        dropdown.reveal(value_index);
         rebuild_text();
     }
 }
@@ -287,6 +468,7 @@ void StrOptionBox::move_right() {
     if (!value_list.empty()) {
         value_index = std::min(static_cast<int>(value_list.size()) - 1, value_index + 1);
         value = value_list[value_index].first;
+        dropdown.reveal(value_index);
         rebuild_text();
     }
 }
@@ -360,16 +542,27 @@ void AccountOptionBox::step(int direction) {
     const std::string& other = slot == 0 ? network.access_code_2 : network.access_code_1;
     for (int i = account_index + direction; i >= 0 && i < std::ssize(accounts); i += direction) {
         if (accounts[i] != other) {
-            account_index = i;
-            value = accounts[i];
-            chara.reset();
-            if (qr_texture) {
-                unload_texture(*qr_texture);
-                qr_texture.reset();
-            }
+            choose(i);
             return;
         }
     }
+}
+
+void AccountOptionBox::choose(int index) {
+    account_index = index;
+    value = accounts[index];
+    code_revealed = false;
+    chara.reset();
+    if (qr_texture) {
+        unload_texture(*qr_texture);
+        qr_texture.reset();
+    }
+    dropdown.reveal(dropdown_row());
+}
+
+int AccountOptionBox::dropdown_row() const {
+    return static_cast<int>(
+        std::distance(dropdown_accounts.begin(), std::ranges::find(dropdown_accounts, account_index)));
 }
 
 void AccountOptionBox::move_left() {
@@ -395,10 +588,69 @@ void AccountOptionBox::load_preview() {
     chara->set_anim(AnimIndex::DON_ENTRY_LOOP);
 }
 
+Rect AccountOptionBox::code_box() const {
+    const float s = tex.screen_scale;
+    return {t_button_off->x[2] + (CODE_BOX_X_OFFSET_BASE * s), t_button_off->y[2] + (CODE_BOX_Y_OFFSET_BASE * s),
+            t_button_off->x2[2] + (CODE_BOX_EXTRA_WIDTH_BASE * s), static_cast<float>(t_button_off->y2[2])};
+}
+
+OptionTap AccountOptionBox::tap(Vec2 world) {
+    if (dropdown.open) {
+        if (const auto row = dropdown.pick(world)) {
+            choose(dropdown_accounts[*row]);
+            is_highlighted = false;
+            confirm();
+        }
+        dropdown.open = false;
+        is_highlighted = false;
+        return OptionTap::Handled;
+    }
+    if (texture_hit(t_button_on, 2, world)) {
+        const auto& network = global_data.config->network;
+        const std::string& other = slot == 0 ? network.access_code_2 : network.access_code_1;
+        std::vector<std::string> names;
+        dropdown_accounts.clear();
+        int current = 0;
+        for (int i = 0; i < std::ssize(accounts); i++) {
+            if (accounts[i] == other) {
+                continue;
+            }
+            const std::string name = accounts[i] == slot_data().player_id
+                                         ? slot_data().username
+                                         : scores_manager.get_player_data(accounts[i]).value_or(PlayerData{}).username;
+            if (i == account_index) {
+                current = static_cast<int>(names.size());
+            }
+            names.push_back(name.empty() ? accounts[i] : name);
+            dropdown_accounts.push_back(i);
+        }
+        dropdown.show(names, current, button_rect(2));
+        is_highlighted = true;
+        return OptionTap::Handled;
+    }
+    const Rect box = code_box();
+    if (world.x >= box.x && world.x < box.x + box.width && world.y >= box.y && world.y < box.y + box.height) {
+        code_revealed = !code_revealed;
+        return OptionTap::Handled;
+    }
+    return BaseOptionBox::tap(world);
+}
+
+bool AccountOptionBox::scroll(float dy) {
+    if (dropdown.open) {
+        dropdown.scroll_by(dy);
+    }
+    return dropdown.open;
+}
+
 void AccountOptionBox::update(double current_time) {
     flicker_fade->update(current_time);
+    if (!is_highlighted) {
+        dropdown.open = false;
+    }
     if (!drawn) {
         chara.reset();
+        code_revealed = false;
     }
     drawn = false;
     if (chara) {
@@ -427,18 +679,16 @@ void AccountOptionBox::draw() {
     chara->draw(ACCOUNT_CHARA_X_BASE * s, ACCOUNT_CHARA_Y_BASE * s);
     nameplate->draw(ACCOUNT_PLATE_X_BASE * s, ACCOUNT_PLATE_Y_BASE * s);
 
-    const float box_x = t_button_off->x[2] + (CODE_BOX_X_OFFSET_BASE * s);
-    const float box_y = t_button_off->y[2] + (CODE_BOX_Y_OFFSET_BASE * s);
-    const float box_w = t_button_off->x2[2] + (CODE_BOX_EXTRA_WIDTH_BASE * s);
-    const float box_h = t_button_off->y2[2];
+    const auto [box_x, box_y, box_w, box_h] = code_box();
     tex.draw_texture(t_button_off, {.x = CODE_BOX_X_OFFSET_BASE * s,
                                     .y = CODE_BOX_Y_OFFSET_BASE * s,
                                     .x2 = CODE_BOX_EXTRA_WIDTH_BASE * s,
                                     .index = 2});
     const Vec2 mouse = get_screen_to_world_2d(mouse_position(), compute_camera2d(tex.screen_width, tex.screen_height));
-    const bool hovered = mouse.x >= box_x && mouse.x < box_x + box_w && mouse.y >= box_y && mouse.y < box_y + box_h;
-    OutlinedText& code = hovered ? *code_text : *masked_text;
-    qr_visible = hovered && !value.empty();
+    const bool shown =
+        code_revealed || (mouse.x >= box_x && mouse.x < box_x + box_w && mouse.y >= box_y && mouse.y < box_y + box_h);
+    OutlinedText& code = shown ? *code_text : *masked_text;
+    qr_visible = shown && !value.empty();
     if (qr_visible) {
         if (!qr_texture) {
             qr_texture = make_qr_texture(access_code_login_url(value));
@@ -451,12 +701,12 @@ void AccountOptionBox::draw() {
 }
 
 void AccountOptionBox::draw_overlay() {
-    if (!qr_visible || !qr_texture) {
-        return;
+    if (qr_visible && qr_texture) {
+        qr_visible = false;
+        const float src = static_cast<float>(qr_texture->width);
+        draw_texture_pro(*qr_texture, {0, 0, src, src}, qr_rect, {0, 0}, 0.0f, Color::WHITE);
     }
-    qr_visible = false;
-    const float src = static_cast<float>(qr_texture->width);
-    draw_texture_pro(*qr_texture, {0, 0, src, src}, qr_rect, {0, 0}, 0.0f, Color::WHITE);
+    dropdown.draw(dropdown_row());
 }
 
 KeybindOptionBox::KeybindOptionBox(const std::string& name, const std::string& description, const std::string& path)
@@ -644,18 +894,45 @@ void AudioOffsetOptionBox::rebuild_text() {
 
 void AudioOffsetOptionBox::confirm() {
     if (is_highlighted) {
-        return; // entering — act on exit only
+        editing_value = false;
+        return;
+    }
+    if (editing_value) {
+        config_ref.set_int(value);
+        editing_value = false;
+        return;
     }
     if (offset_highlighted) {
-        config_ref.set_int(value);
-    } else {
-        wants_screen_change = true;
-        pending_screen = calibrate_screen;
+        is_highlighted = true;
+        editing_value = true;
+        return;
     }
+    wants_screen_change = true;
+    pending_screen = calibrate_screen;
+}
+
+OptionTap AudioOffsetOptionBox::tap(Vec2 world) {
+    if (texture_hit(t_button_on, 0, world)) {
+        if (editing_value) {
+            return OptionTap::Select;
+        }
+        is_highlighted = true;
+        offset_highlighted = true;
+        editing_value = true;
+        return OptionTap::Handled;
+    }
+    if (texture_hit(t_button_on, 1, world)) {
+        is_highlighted = false;
+        offset_highlighted = false;
+        editing_value = false;
+        confirm();
+        return OptionTap::Handled;
+    }
+    return OptionTap::None;
 }
 
 void AudioOffsetOptionBox::move_left() {
-    if (offset_highlighted) {
+    if (editing_value) {
         value -= 1;
         rebuild_text();
     } else {
@@ -664,7 +941,10 @@ void AudioOffsetOptionBox::move_left() {
 }
 
 void AudioOffsetOptionBox::move_right() {
-    if (offset_highlighted) {
+    if (editing_value) {
+        value += 1;
+        rebuild_text();
+    } else {
         offset_highlighted = false;
     }
 }
@@ -678,7 +958,7 @@ void AudioOffsetOptionBox::draw() {
 
     // Offset value button (index 0)
     if (offset_highlighted && is_highlighted) {
-        tex.draw_texture(t_button_on, {.fade = flicker_fade->attribute, .index = 0});
+        tex.draw_texture(t_button_on, {.fade = editing_value ? 1.1 : flicker_fade->attribute, .index = 0});
     } else {
         tex.draw_texture(t_button_off, {.index = 0});
     }

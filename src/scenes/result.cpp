@@ -96,7 +96,8 @@ void ResultScreen::handle_input(double current_ms) {
     if (!fade_out) {
         return;
     }
-    if (!menu_confirm_pressed()) {
+    const bool tapped = take_touch_tap().has_value();
+    if (!menu_confirm_pressed() && !tapped) {
         return;
     }
 

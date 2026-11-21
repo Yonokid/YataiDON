@@ -35,4 +35,6 @@ public:
     void move_up();
     void move_down();
     void draw(float fade, bool has_prev = false, bool has_next = false, bool disabled = false);
+    // Touch hit test on the board as drawn: the closed box, or the opened highlight while selected.
+    bool contains(Vec2 world, bool vertical) const;
 };

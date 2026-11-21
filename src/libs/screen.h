@@ -119,6 +119,13 @@ public:
 
     virtual bool two_player_audio() const { return false; }
 
+    enum class TouchInput {
+        DRUM,         // gameplay: the touch drum is shown and played
+        SCREEN,       // the screen reads its own taps and gestures
+        TAPS_AS_DRUM, // drum hidden; a tap is a left kat, don or right kat by screen third
+    };
+    virtual TouchInput touch_input() const { return TouchInput::TAPS_AS_DRUM; }
+
     virtual void on_screen_start() {
         audio.set_two_player_mode(two_player_audio());
         tex.load_screen_textures(screen_name);
@@ -185,6 +192,10 @@ protected:
     std::optional<Screens> _do_screen_start() {
         if (!screen_init) {
             screen_init = true;
+            set_touch_drum_enabled(touch_input() == TouchInput::DRUM);
+            set_touch_taps_as_drum(touch_input() == TouchInput::TAPS_AS_DRUM);
+            clear_touch_pointer(); // the finger that left the last screen is not a tap here
+            take_touch_tap();
             try {
                 on_screen_start();
                 clear_input_buffers();

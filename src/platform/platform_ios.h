@@ -15,10 +15,3 @@ void ios_configure_window_flags(unsigned int& flags);
 // iOS-specific main loop (UIKit owns the event loop).
 // Returns exit code, or -1 if not on iOS.
 int ios_run_main_loop(void (*run_frame)());
-
-// iOS touch drum navigation labels (Back/Pause buttons).
-void ios_draw_touch_navigation_labels(float screen_width, float screen_height);
-
-// Handles iOS-specific touch navigation (Back/Pause buttons in top corners).
-// Returns the vkey to use (may be different from the original quadrant vkey).
-int ios_handle_touch_navigation(int quadrant_vkey, float touch_x, float touch_y);

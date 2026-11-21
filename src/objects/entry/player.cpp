@@ -144,6 +144,18 @@ float EntryPlayer::get_nameplate_fadein() {
     return call_r<float>(fn_get_nameplate_fade, "EntryPlayer:get_nameplate_fade").value_or(1.0f);
 }
 
+void EntryPlayer::confirm() {
+    PlayerSoundScope audio_owner(player_num);
+    audio.play_player_sound("don", player_num, VolumePreset::HITSOUND);
+    if (box_manager->is_costume_box()) {
+        box_manager->open_costume_menu(player_num);
+    } else {
+        box_manager->opening_player = player_num;
+        box_manager->select_box();
+        chara->set_anim(AnimIndex::DON_ENTRY1P_OUT);
+    }
+}
+
 void EntryPlayer::handle_input() {
     PlayerSoundScope audio_owner(player_num);
     if (costume_menu) {
@@ -226,14 +238,7 @@ void EntryPlayer::handle_input() {
     }
 
     if (menu_confirm_pressed(player_num)) {
-        audio.play_player_sound("don", player_num, VolumePreset::HITSOUND);
-        if (box_manager->is_costume_box()) {
-            box_manager->open_costume_menu(player_num);
-        } else {
-            box_manager->opening_player = player_num;
-            box_manager->select_box();
-            chara->set_anim(AnimIndex::DON_ENTRY1P_OUT);
-        }
+        confirm();
     }
     if (menu_left_pressed(player_num)) {
         audio.play_player_sound("kat", player_num, VolumePreset::HITSOUND);

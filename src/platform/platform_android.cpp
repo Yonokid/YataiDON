@@ -101,3 +101,7 @@ extern "C" JNIEXPORT void JNICALL Java_com_yataidon_app_YataiDONActivity_nativeD
 bool platform_threaded_renderer() {
     return false;
 }
+
+bool platform_touch_back_button() {
+    return false;
+}

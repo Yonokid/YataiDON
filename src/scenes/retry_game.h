@@ -22,6 +22,7 @@ protected:
     virtual Screens select_screen() const { return Screens::SONG_SELECT; }
 
 public:
+    TouchInput touch_input() const override { return TouchInput::DRUM; }
     static constexpr int needed_hits = 30;
 
     RetryGameScreen() : Screen("retry_game") {}

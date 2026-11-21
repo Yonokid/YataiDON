@@ -56,33 +56,8 @@ int ios_run_main_loop(void (*run_frame)()) {
     return 0;
 }
 
-void ios_draw_touch_navigation_labels(float screen_width, float screen_height) {
-    int font_size = std::max(16, static_cast<int>(screen_height * 0.04f));
-    const char* labels[] = {"Back", "Pause"};
-    for (int i = 0; i < 2; ++i) {
-        float x = screen_width * (0.36f + i * 0.15f);
-        draw_rectangle({x, screen_height * 0.025f, screen_width * 0.13f, screen_height * 0.10f},
-                       fade(Color::BLACK, 0.6f));
-        draw_text(labels[i], static_cast<int>(x + (screen_width * 0.13f - measure_text(labels[i], font_size)) / 2),
-                  static_cast<int>(screen_height * 0.075f - font_size / 2), font_size, Color::WHITE);
-    }
-}
-
-int ios_handle_touch_navigation(int quadrant_vkey, float touch_x, float touch_y) {
-    // The two top-center controls remain clear of landscape notches.
-    bool navigation = touch_y >= 0.025f && touch_y <= 0.125f;
-    if (navigation && touch_x >= 0.36f && touch_x <= 0.49f) {
-        // Back button area
-        if (global_data.config) {
-            return global_data.config->keys.back_key;
-        }
-    } else if (navigation && touch_x >= 0.51f && touch_x <= 0.64f) {
-        // Pause button area
-        if (global_data.config) {
-            return global_data.config->keys.back_key;
-        }
-    }
-    return quadrant_vkey;
+bool platform_touch_back_button() {
+    return true;
 }
 
 bool platform_threaded_renderer() {

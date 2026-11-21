@@ -440,3 +440,7 @@ void platform_load_config(Config& config, const toml::table& file) {
 void platform_save_config(const Config&, toml::table& out) {
     out.insert("switch", toml::table{{"controller_layout_version", 2}});
 }
+
+bool platform_touch_back_button() {
+    return false;
+}

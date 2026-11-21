@@ -12,6 +12,7 @@ private:
     std::vector<std::unique_ptr<Box>> boxes;
     int num_boxes = 0;
     int selected_box_index{0};
+    int target_box_index{-1}; // a tapped board the selection is still stepping towards
     FadeAnimation* fade_out;
     bool is_2p;
     bool is_vertical = false;
@@ -47,6 +48,10 @@ public:
     Screens selected_box() const;
     void move_left();
     void move_right();
+    std::optional<int> box_at(Vec2 world) const;
+    int selected_index() const { return selected_box_index; }
+    // Steps the selection one board per move animation until it reaches `index`.
+    void move_to(int index) { target_box_index = index; }
     void update(double current_time_ms, bool two_player);
     void draw();
 };

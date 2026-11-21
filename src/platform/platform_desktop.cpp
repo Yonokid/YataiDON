@@ -20,3 +20,7 @@ void* platform_second_screen(int&, int&) {
 bool platform_hold_second_screen(void* window) {
     return window == nullptr;
 }
+
+bool platform_touch_back_button() {
+    return false;
+}

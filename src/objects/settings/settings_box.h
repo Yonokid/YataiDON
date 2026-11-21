@@ -8,6 +8,12 @@
 #include "../../libs/gfx/text.h"
 #include "option_box.h"
 
+enum class BoxTap {
+    None,
+    Left,
+    Right,
+};
+
 class SettingsBox {
 private:
     std::unique_ptr<OutlinedText> label;
@@ -41,6 +47,11 @@ public:
 
     void set_y(float new_y);
     float center_y() const { return t_box ? y + t_box->y[0] + t_box->y2[0] / 2.0f : y; }
+    float top() const { return y; }
+    bool contains(Vec2 world) const;
+    float right() const { return t_box ? x + t_box->x[0] + t_box->x2[0] : x; }
+    // Free scroll; wraps around like the carousel, but only once a box is off screen.
+    void scroll_by(float dy);
     void set_box_count(int box_count);
 
     bool can_move() const;
@@ -55,6 +66,9 @@ public:
     void move_option_right();
 
     void select_option();
+    // Touch inside the open box; arrow taps come back so the manager moves like the drum would.
+    BoxTap tap(Vec2 world);
+    bool scroll_option(float dy);
     bool editing_text() const;
     bool editing() const;
 

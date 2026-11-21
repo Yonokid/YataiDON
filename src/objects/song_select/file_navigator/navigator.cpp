@@ -1277,19 +1277,10 @@ void Navigator::set_positions(bool init, float duration) {
 
         float position;
         if (vertical_gallery) {
-            float base_spacing = 120 * tex.screen_scale;
+            const auto [base_spacing, expand_gap] = row_pitch();
             float center_y = 360 * tex.screen_scale;
             float fixed_x = 640 * tex.screen_scale;
-            float expand_gap = 90 * tex.screen_scale;
             float horizontal_spacing = 30 * tex.screen_scale;
-            if (const SkinInfo* pitch = tex.get_skin_config(SC::SONG_SELECT_ROW_PITCH)) {
-                if (pitch->x > 0) {
-                    base_spacing = pitch->x;
-                }
-                if (pitch->y > 0) {
-                    expand_gap = pitch->y;
-                }
-            }
             if (const SkinInfo* curve = tex.get_skin_config(SC::SONG_SELECT_ROW_CURVE); curve && curve->x > 0) {
                 horizontal_spacing = curve->x;
             }
@@ -1318,6 +1309,66 @@ void Navigator::set_positions(bool init, float duration) {
             }
         }
     }
+}
+
+std::pair<float, float> Navigator::row_pitch() const {
+    float spacing = 120 * tex.screen_scale;
+    float gap = 90 * tex.screen_scale;
+    if (const SkinInfo* pitch = tex.get_skin_config(SC::SONG_SELECT_ROW_PITCH)) {
+        if (pitch->x > 0) {
+            spacing = pitch->x;
+        }
+        if (pitch->y > 0) {
+            gap = pitch->y;
+        }
+    }
+    return {spacing, gap};
+}
+
+float Navigator::box_pitch() const {
+    return vertical_gallery ? row_pitch().first : 100 * tex.screen_scale;
+}
+
+std::optional<int> Navigator::offset_at(Vec2 world) const {
+    if (items.empty()) {
+        return std::nullopt;
+    }
+    int offset = 0;
+    if (vertical_gallery) {
+        const auto [spacing, gap] = row_pitch();
+        const float d = world.y - (360 * tex.screen_scale);
+        const float beyond = std::abs(d) - gap - (spacing / 2.0f);
+        if (beyond > 0) {
+            offset = (1 + static_cast<int>(beyond / spacing)) * (d < 0 ? -1 : 1);
+        }
+    } else {
+        const TextureObject* band = tex.get_texture("box/folder_texture_left");
+        if (band && (world.y < band->y[0] || world.y >= band->y[0] + band->y2[0])) {
+            return std::nullopt;
+        }
+        const float pitch = box_pitch();
+        const float open_left = slot_x(-1) + pitch;
+        const float open_right = slot_x(1);
+        if (world.x < open_left) {
+            offset = static_cast<int>(std::floor((world.x - open_left) / pitch));
+        } else if (world.x >= open_right) {
+            offset = static_cast<int>((world.x - open_right) / pitch) + 1;
+        }
+    }
+    // a short list leaves the far slots empty
+    const auto count = static_cast<int>(items.size());
+    for (int i = 0; i < count; i++) {
+        float slot = static_cast<float>(i - open_index);
+        if (slot > static_cast<float>(count) / 2) {
+            slot -= static_cast<float>(count);
+        } else if (slot < -static_cast<float>(count) / 2) {
+            slot += static_cast<float>(count);
+        }
+        if (static_cast<int>(slot) == offset) {
+            return offset;
+        }
+    }
+    return std::nullopt;
 }
 
 float Navigator::slot_x(float offset) const {

@@ -57,6 +57,7 @@ protected:
     std::optional<Screens> update_pause_menu();
 
 public:
+    TouchInput touch_input() const override { return TouchInput::DRUM; }
     GameScreen() : Screen("game") {}
 
     double start_delay = 1000.0;

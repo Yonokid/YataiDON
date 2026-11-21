@@ -36,6 +36,7 @@ private:
     void draw_line(const std::string& text, float y, int size, Color color);
 
 public:
+    TouchInput touch_input() const override { return TouchInput::SCREEN; }
     OnboardingScreen() : Screen("onboarding") {}
 
     void on_screen_start() override;

@@ -54,6 +54,7 @@ enum class SC : unsigned int {
     MOD_BADGE_GRID,
     SONG_SELECT_ROW_PITCH,
     SONG_SELECT_ROW_CURVE,
+    SONG_SELECT_DIFF_PITCH,
     AI_GAME_SONG_INFO,
 };
 
@@ -85,6 +86,7 @@ const std::unordered_map<std::string, SC> skin_config_map{
     {"mod_badge_grid", SC::MOD_BADGE_GRID},
     {"song_select_row_pitch", SC::SONG_SELECT_ROW_PITCH},
     {"song_select_row_curve", SC::SONG_SELECT_ROW_CURVE},
+    {"song_select_diff_pitch", SC::SONG_SELECT_DIFF_PITCH},
     {"ai_game_song_info", SC::AI_GAME_SONG_INFO},
     {"dan_select_exam_info", SC::DAN_SELECT_EXAM_INFO},
     {"dan_select_subtitle", SC::DAN_SELECT_SUBTITLE},

@@ -51,6 +51,8 @@ public:
     bool is_cloud_animation_finished();
     float get_nameplate_fadein();
     void handle_input();
+    // Enter the selected board, as a don press would.
+    void confirm();
     void refresh_from_player_data();
     void finish_loading(); // data equipped: let the held cloud fade away
 };

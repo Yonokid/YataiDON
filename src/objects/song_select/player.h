@@ -21,6 +21,9 @@ public:
     double hold_start = 0, next_repeat = 0;
     int hold_dir = 0;
     double pending_select_ms = -1; // a don pressed while the wheel still scrolls, taken once it settles
+    bool touch_select = false;     // a tapped box: opened like a don once the wheel settles on it
+    std::optional<Difficulty> touch_difficulty;
+    bool touch_ura_swipe = false; // a sideways swipe: swap Oni and Ura
     double last_browse_ms = 0;
     int open_frames = 0; // frames the current box has been open (drawn open by the skin)
     bool selected_song;
@@ -71,6 +74,8 @@ public:
     void reset_selection();
     SongSelectState handle_input_browsing(double current_ms);
     SongSelectState handle_input_selecting();
+    // Course or back / option slot under a canvas point in the difficulty select.
+    std::optional<Difficulty> difficulty_at(Vec2 world) const;
     std::optional<std::pair<int, int>> handle_input_diff_sort(DiffSortSelect* diff_sort_selector);
     std::optional<std::string> handle_input_search();
 
@@ -87,6 +92,8 @@ private:
     void navigate_difficulty_left();
     void navigate_difficulty_right();
     void toggle_ura_mode();
+    // Walks the cursor to a slot with the normal left/right moves, stopping at the last available course.
+    void walk_difficulty_to(Difficulty target);
     void start_background_diffs();
     // The panel just closed: keep the account's server-side copy in step
     void push_modifiers();

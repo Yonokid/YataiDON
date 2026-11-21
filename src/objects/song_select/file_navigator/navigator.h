@@ -109,6 +109,7 @@ private:
 
     void navigate(int delta, bool snap);
     void set_positions(bool init, float duration);
+    std::pair<float, float> row_pitch() const; // vertical gallery: row spacing, gap around the open row
 
     void setup_back_box(const fs::path& path, bool has_children, const BaseBox* from = nullptr);
 
@@ -176,6 +177,12 @@ public:
     void move_right();
     void skip_left();
     void skip_right();
+    void move_by(int delta) { navigate(delta, false); }
+    bool is_vertical() const { return vertical_gallery; }
+    // Distance (in boxes) of a canvas point from the open box, or nullopt off the wheel.
+    std::optional<int> offset_at(Vec2 world) const;
+    // Canvas pixels a drag travels per box.
+    float box_pitch() const;
 
     void update(double current_ms);
     void draw_background();

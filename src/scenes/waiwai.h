@@ -35,6 +35,7 @@ class WaiwaiTutorialScreen : public Screen {
     int kat_hits = 0;
 
 public:
+    TouchInput touch_input() const override { return TouchInput::DRUM; }
     WaiwaiTutorialScreen() : Screen("waiwai_tutorial") {}
     bool two_player_audio() const override { return true; }
     void on_screen_start() override;

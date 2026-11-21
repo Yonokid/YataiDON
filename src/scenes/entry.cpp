@@ -587,10 +587,54 @@ void EntryScreen::join_player(PlayerNum player_num, bool do_login) {
     }
 }
 
+// Side and mode boards are tapped directly; anything else still runs on the drum, so taps there stand in for it.
+void EntryScreen::handle_touch() {
+    const auto touch = take_touch_pointer_world();
+    if (!touch || !touch_is_tap(*touch)) {
+        return;
+    }
+    const Vec2 p = touch->start;
+    if (state == EntryState::WAITING) {
+        press_touch_drum({tex.screen_width / 2.0f, 0.0f});
+    } else if (state == EntryState::SELECT_SIDE) {
+        static constexpr std::array buttons{"side_select/1P", "side_select/cancel", "side_select/2P"};
+        for (int i = 0; i < std::ssize(buttons); i++) {
+            const TextureObject* t = tex.textures.at(buttons[i]).get();
+            if (p.x < t->x[0] || p.x >= t->x[0] + t->x2[0] || p.y < t->y[0] || p.y >= t->y[0] + t->y2[0]) {
+                continue;
+            }
+            // the joined player's own side is not offered again
+            if (players[0] && i == (players[0]->player_num == PlayerNum::P1 ? 0 : 2)) {
+                return;
+            }
+            side = i;
+            press_touch_drum({tex.screen_width / 2.0f, 0.0f});
+            return;
+        }
+    } else if (state == EntryState::SELECT_MODE) {
+        const auto player = std::ranges::find_if(players, [](const auto& pl) { return pl != nullptr; });
+        if (player == players.end() || !mode_select_ready() || box_manager->is_box_selected()) {
+            return;
+        }
+        if (const auto index = box_manager->box_at(p)) {
+            if (*index == box_manager->selected_index()) {
+                (*player)->confirm();
+            } else {
+                audio.play_sound("kat", VolumePreset::HITSOUND);
+                box_manager->move_to(*index);
+            }
+        }
+    } else {
+        press_touch_drum(p);
+    }
+}
+
 std::optional<Screens> EntryScreen::handle_input() {
     if (login_pending() || network.probing()) {
+        take_touch_pointer();
         return std::nullopt;
     }
+    handle_touch();
     if (state == EntryState::NAME_ENTRY) {
         if (menu_left_pressed()) {
             audio.play_sound("kat", VolumePreset::HITSOUND);

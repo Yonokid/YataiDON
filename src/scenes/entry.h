@@ -103,6 +103,7 @@ private:
     void draw_mode_select();
     bool mode_select_ready();
     std::optional<Screens> handle_input();
+    void handle_touch();
 
     std::future<RemoteLogin> pending_login_;
     int pending_login_slot_ = 0;
@@ -139,6 +140,7 @@ private:
     void leave_for_campaign();
 
 public:
+    TouchInput touch_input() const override { return TouchInput::SCREEN; }
     EntryScreen() : Screen("entry") {}
     void on_screen_start() override;
     Screens on_screen_end(Screens next_screen) override;

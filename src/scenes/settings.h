@@ -44,6 +44,7 @@ private:
     std::optional<Screens> handle_input();
 
 public:
+    TouchInput touch_input() const override { return TouchInput::SCREEN; }
     SettingsScreen() : Screen("settings") {}
 
     void on_screen_start() override;

@@ -126,6 +126,9 @@ bool platform_preload_song_previews();
 // (see asset_cache.h), so revisiting a screen skips disk reads and decoding.
 bool platform_retains_assets();
 
+// True where the OS has no back gesture or button of its own (iOS): a touch back button is drawn top right.
+bool platform_touch_back_button();
+
 void* platform_second_screen(int& w, int& h);
 
 bool platform_hold_second_screen(void* window);

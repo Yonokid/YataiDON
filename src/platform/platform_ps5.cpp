@@ -249,3 +249,7 @@ float platform_supersample() {
 bool platform_preload_song_previews() {
     return true;
 }
+
+bool platform_touch_back_button() {
+    return false;
+}

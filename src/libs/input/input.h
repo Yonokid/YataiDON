@@ -73,10 +73,31 @@ bool is_text_input_key(int key);
 
 // Enable/disable touch drum
 void set_touch_drum_enabled(bool enabled);
+// With the drum off, turn each finger press into a press_touch_drum() at that point.
+void set_touch_taps_as_drum(bool enabled);
 
 // Latest finger press since the last call, 0..1 across the window; works with the drum disabled
 std::optional<Vec2> take_touch_tap();
 
+// Latest finger to go down, 0..1 across the window; works with the drum disabled.
+// Once the finger lifts, one call returns it with down == false and clears it.
+struct TouchPointer {
+    Vec2 start;
+    Vec2 pos;
+    bool down;
+};
+std::optional<TouchPointer> take_touch_pointer();
+// Drops the current gesture; the rest of it (motion, lift) is ignored.
+void clear_touch_pointer();
+// take_touch_pointer() with start and pos in the skin's virtual canvas (tex.screen_width x tex.screen_height).
+std::optional<TouchPointer> take_touch_pointer_world();
+// A lifted gesture that stayed within the tap slop.
+bool touch_is_tap(const TouchPointer& pointer);
+// Feeds a tap at a canvas position to drum-driven menus: left third = left kat, right third = right kat,
+// middle = don (player 1).
+void press_touch_drum(Vec2 world);
+
+// Also draws the touch back button where platform_touch_back_button() asks for one.
 void draw_touch_drum(Camera2D camera);
 void push_second_screen_touch(bool down, int id, float x, float y, int w, int h);
 
