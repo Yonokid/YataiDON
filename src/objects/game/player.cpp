@@ -233,7 +233,7 @@ void Player::spawn_ending_anim(Background* background) {
         ending_anim = FailAnimation(is_2p);
         kind = "fail";
     } else if (bad_count == 0) {
-        ending_anim = FCAnimation(is_2p, ok_count == 0);
+        ending_anim = FCAnimation(is_2p, ok_count == 0, kusudama_partner != nullptr);
         kind = (ok_count == 0) ? "donderful" : "full_combo";
         chara->set_anim(AnimIndex::DON_FULL_COMBO);
     } else {
@@ -540,6 +540,9 @@ void Player::update(double ms_from_start, double current_ms, std::optional<Backg
     }
 
     end_frame(ms_from_start);
+    if (!tempo_map.points.empty()) {
+        chara->set_beat(tempo_map.beat_at(ms_from_start));
+    }
     chara->update(current_ms);
 }
 

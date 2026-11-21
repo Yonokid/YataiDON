@@ -223,6 +223,8 @@ private:
     AnimIndex requested_anim = AnimIndex::DON_NORMAL;
 
     float bpm = 100;
+    double beat = -std::numeric_limits<double>::infinity();
+    bool beat_advanced = false;
     bool mirror = false;
     double last_frame_ms = 0;
 
@@ -307,6 +309,7 @@ public:
 
     void set_tint(Color color, float amount);
     void set_bpm(float bpm);
+    void set_beat(double chart_beat);
     void set_anim(AnimIndex idx);
     void set_rotation(float x, float y, float z);
     void use_default_pose(bool mirror);

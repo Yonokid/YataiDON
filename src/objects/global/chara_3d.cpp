@@ -1059,6 +1059,11 @@ void Chara3D::set_bpm(float bpm) {
     this->bpm = bpm;
 }
 
+void Chara3D::set_beat(double chart_beat) {
+    beat_advanced = chart_beat > beat;
+    beat = chart_beat;
+}
+
 int Chara3D::get_anim_count() const {
     return part_anim_count.empty() ? 0 : part_anim_count[0];
 }
@@ -1073,8 +1078,9 @@ void Chara3D::update(double current_ms) {
         if (bpm > 0.0f && kf > 0 && !holding) {
             double ms_per_beat = 60000.0 / bpm;
             const int base = base_anim(anim_index);
-            if (base >= EXTRA_START && kf > 2) {
-                ms_per_beat = (kf - 1) * 1000.0 / 60.0; // not beat-synced: the glTF's own 60 fps length
+            const bool beat_synced = base < EXTRA_START || kf <= 2;
+            if (!beat_synced) {
+                ms_per_beat = (kf - 1) * 1000.0 / 60.0;
             } else if (base == static_cast<int>(AnimIndex::DON_NORMAL)) {
                 ms_per_beat *= 3;
             } else if (base == static_cast<int>(AnimIndex::DON_SABI)) {
@@ -1089,6 +1095,18 @@ void Chara3D::update(double current_ms) {
                     last_frame_ms = current_ms;
                     set_anim(prev_anim_idx);
                     is_looping = true;
+                }
+            } else if (is_looping && beat_synced && beat_advanced) {
+                const double beats_per_loop = ms_per_beat * bpm / 60000.0;
+                double phase = std::fmod(beat, beats_per_loop);
+                if (phase < 0.0) {
+                    phase += beats_per_loop;
+                }
+                const int frame = std::min(static_cast<int>(phase / beats_per_loop * loop_frames), loop_frames - 1);
+                last_frame_ms = current_ms;
+                if (frame != anim_frame) {
+                    anim_frame = frame;
+                    apply_pose();
                 }
             } else {
                 const double ms_per_frame = ms_per_beat / loop_frames;

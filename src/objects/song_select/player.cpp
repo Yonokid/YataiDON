@@ -270,6 +270,7 @@ SongSelectState SongSelectPlayer::select_song() {
             return SongSelectState::BROWSING;
         }
         navigator.enter_diff_select();
+        audio.play_sound("voice_select_diff", VolumePreset::VOICE);
         selected_song = true;
         init_diff_cursor();
         selected_diff_bounce->start();

@@ -1,7 +1,7 @@
 #include "fc_animation.h"
 
-FCAnimation::FCAnimation(bool is_2p, bool donderful) {
-    if (!load("FCAnimation", "fc_animation", is_2p, donderful)) {
+FCAnimation::FCAnimation(bool is_2p, bool donderful, bool two_player) {
+    if (!load("FCAnimation", "fc_animation", is_2p, donderful, two_player)) {
         return;
     }
     fn_update = lua_object["update"];

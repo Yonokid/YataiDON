@@ -68,8 +68,6 @@ void WaiwaiSongSelectScreen::handle_input(double current_ms) {
 }
 
 void WaiwaiSongSelectScreen::select_song(SongBox* song) {
-    audio.play_sound(WAIWAI_BEGIN_VOICE_1P, VolumePreset::VOICE);
-    audio.play_sound(WAIWAI_BEGIN_VOICE_2P, VolumePreset::VOICE);
     SongSelect2PScreen::select_song(song);
     waiwai_state.collab = waiwai_collab(song->parser.metadata.scene_preset);
     if (game_transition) {

@@ -12,6 +12,8 @@ void SongSelect2PScreen::on_screen_start() {
     player_2->script = script.get();
     player->solo = false;
     player_2->solo = false;
+    player->shared_start_voice = player->own_start_voice();
+    player_2->shared_start_voice = player_2->own_start_voice();
 }
 
 static void init_player_diffs(SongSelectPlayer* p, SongBox* song) {
@@ -80,6 +82,8 @@ void SongSelect2PScreen::handle_input_selecting() {
 
 void SongSelect2PScreen::select_song(SongBox* song) {
     navigator.add_to_recent(song);
+    audio.play_sound(player->shared_start_voice, VolumePreset::VOICE);
+    audio.play_sound(player_2->shared_start_voice, VolumePreset::VOICE);
 
     const auto p1_index = static_cast<int>(PlayerNum::P1);
     auto& sd1 = global_data.session_data[p1_index];
