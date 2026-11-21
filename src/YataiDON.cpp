@@ -731,7 +731,6 @@ static int game_main(int argc, char* argv[]) {
     set_renderer_preference(global_data.config->video.renderer.c_str());
     quiet_raylib_log();
     setup_logging(global_data.config->general.log_level);
-
     platform_init_window();
     try {
         load_skin();
