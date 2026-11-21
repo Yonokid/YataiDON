@@ -354,6 +354,21 @@ if(NETWORK_ENABLED)
   )
 endif()
 
+option(YATAIDON_UPDATE_CHECK "Toast when the updater release's checksum differs from this binary (release CI only)" OFF)
+if(YATAIDON_UPDATE_CHECK AND NETWORK_ENABLED)
+  if(WIN32)
+    set(YATAIDON_UPDATE_OS windows)
+  elseif(APPLE)
+    set(YATAIDON_UPDATE_OS macos)
+  else()
+    set(YATAIDON_UPDATE_OS linux)
+  endif()
+  target_compile_definitions(${PROJECT_NAME} PRIVATE
+    YATAIDON_UPDATE_CHECKSUMS="checksums-${YATAIDON_UPDATE_OS}.sha256"
+    YATAIDON_UPDATE_BINARY="$<TARGET_FILE_NAME:${PROJECT_NAME}>"
+  )
+endif()
+
 if(NOT ANDROID AND NOT IOS AND NOT EMSCRIPTEN)
   target_link_libraries(${PROJECT_NAME} PRIVATE cpptrace::cpptrace)
   target_compile_definitions(${PROJECT_NAME} PRIVATE YATAIDON_HAS_CPPTRACE)

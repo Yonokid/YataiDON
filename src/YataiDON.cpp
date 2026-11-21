@@ -759,9 +759,7 @@ static int game_main(int argc, char* argv[]) {
         scores_manager.player_2_data = *pd;
     }
 
-#ifdef PLATFORM_ANDROID
-    network.check_and_install_android_update();
-#endif
+    network.check_for_client_update();
     if (global_data.config->general.skin_updater) {
         skin_updater.start();
     }

@@ -18,6 +18,7 @@
 
 #include <array>
 #include <atomic>
+#include <future>
 #include <map>
 #include <memory>
 #include <optional>
@@ -261,7 +262,7 @@ public:
     // One GET /user for the whole profile. Blocking; safe to call from a worker thread
     std::optional<RemoteUser> fetch_user(const std::string& access_code);
 
-    void check_and_install_android_update();
+    void check_for_client_update();
 
     bool probe_online();
     // Non-blocking probe_online: sends a heartbeat now; is_online() updates when it lands
@@ -408,6 +409,7 @@ private:
     void request_popular();
     void start_leaderboard_fetch(const std::string& hash);
 
+    std::future<bool> pending_desktop_update;
 #if defined(__ANDROID__)
     std::optional<cpr::AsyncResponse> pending_update_checksum;
     std::optional<cpr::AsyncResponse> pending_update_apk;

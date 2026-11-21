@@ -9,12 +9,14 @@
 #include <cstdio>
 #include <cstdlib>
 #include <format>
+#include <fstream>
 #include <map>
 #include <random>
 #include <rapidjson/document.h>
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
 #include <spdlog/spdlog.h>
+#include <sstream>
 
 #include "../file/scores.h"
 #include "../gfx/color_utils.h"
@@ -26,9 +28,7 @@
 #include "android_ca.h"
 
 #if defined(NETWORK_ENABLED) && defined(__ANDROID__)
-#include <fstream>
 #include <jni.h>
-#include <sstream>
 #include <vector>
 
 #include "../gfx/sdl_compat.h"
@@ -540,17 +540,8 @@ std::optional<RemoteUser> NetworkClient::fetch_user(const std::string& access_co
     return user;
 }
 
-#if defined(__ANDROID__)
 namespace {
-    constexpr char kUpdateChecksumUrl[] =
-        "https://github.com/yonokid/YataiDON/releases/download/updater/checksums-android.sha256";
-    constexpr char kUpdateApkUrl[] =
-        "https://github.com/yonokid/YataiDON/releases/download/updater/YataiDON-Android-Update.apk";
-    constexpr char kUpdateMarkerPath[] = "update_apk.sha256";
-    constexpr char kUpdateApkPath[] = "/sdcard/YataiDON/update.apk";
-    constexpr char kUpdateApkTmpPath[] = "/sdcard/YataiDON/update.apk.part";
-
-    std::optional<std::string> sha256_of_file(const fs::path& path) {
+    [[maybe_unused]] std::optional<std::string> sha256_of_file(const fs::path& path) {
         std::ifstream in(path, std::ios::binary);
         if (!in) {
             return std::nullopt;
@@ -564,15 +555,57 @@ namespace {
     }
 } // namespace
 
-void NetworkClient::check_and_install_android_update() {
+#if defined(__ANDROID__)
+namespace {
+    constexpr char kUpdateChecksumUrl[] =
+        "https://github.com/yonokid/YataiDON/releases/download/updater/checksums-android.sha256";
+    constexpr char kUpdateApkUrl[] =
+        "https://github.com/yonokid/YataiDON/releases/download/updater/YataiDON-Android-Update.apk";
+    constexpr char kUpdateMarkerPath[] = "update_apk.sha256";
+    constexpr char kUpdateApkPath[] = "/sdcard/YataiDON/update.apk";
+    constexpr char kUpdateApkTmpPath[] = "/sdcard/YataiDON/update.apk.part";
+
+} // namespace
+
+void NetworkClient::check_for_client_update() {
     if (android_update_checked) {
         return;
     }
     android_update_checked = true;
     pending_update_checksum = cpr::GetAsync(cpr::Url{kUpdateChecksumUrl}, cpr::Timeout{5000} NETWORK_CA_OPT);
 }
+#elif defined(YATAIDON_UPDATE_CHECKSUMS)
+namespace {
+    bool desktop_update_available() {
+        cpr::Response response = cpr::Get(
+            cpr::Url{"https://github.com/yonokid/YataiDON/releases/download/updater/" YATAIDON_UPDATE_CHECKSUMS},
+            cpr::Timeout{5000});
+        if (response.status_code != 200) {
+            spdlog::warn("Update check: could not fetch {} (HTTP {})", YATAIDON_UPDATE_CHECKSUMS, response.status_code);
+            return false;
+        }
+        std::istringstream lines(response.text);
+        std::string expected_sha256;
+        std::string path;
+        while (lines >> expected_sha256 >> path) {
+            if (path == YATAIDON_UPDATE_BINARY || path == "*" YATAIDON_UPDATE_BINARY) {
+                std::optional<std::string> installed_sha256 = sha256_of_file(YATAIDON_UPDATE_BINARY);
+                spdlog::info("Update check: {}", installed_sha256 == expected_sha256 ? "up to date" : "newer build");
+                return installed_sha256 && *installed_sha256 != expected_sha256;
+            }
+        }
+        spdlog::warn("Update check: {} has no {} entry", YATAIDON_UPDATE_CHECKSUMS, YATAIDON_UPDATE_BINARY);
+        return false;
+    }
+} // namespace
+
+void NetworkClient::check_for_client_update() {
+    if (!pending_desktop_update.valid()) {
+        pending_desktop_update = std::async(std::launch::async, desktop_update_available);
+    }
+}
 #else
-void NetworkClient::check_and_install_android_update() {}
+void NetworkClient::check_for_client_update() {}
 #endif
 
 void NetworkClient::update_costume(const std::string& access_code, int head_index, int body_index, int cos_index,
@@ -1407,6 +1440,13 @@ void NetworkClient::update(double current_ms) {
     }
 #endif
 
+    if (pending_desktop_update.valid() &&
+        pending_desktop_update.wait_for(std::chrono::seconds(0)) == std::future_status::ready &&
+        pending_desktop_update.get() && !outdated_notified) {
+        outdated_notified = true;
+        notify("Update available");
+    }
+
     if (!network_enabled()) {
         online = false;
         probing_ = false;
@@ -1934,7 +1974,7 @@ bool NetworkClient::fetch_costume(const std::string&, int&, int&, int&, bool&) {
 std::optional<RemoteUser> NetworkClient::fetch_user(const std::string&) {
     return std::nullopt;
 }
-void NetworkClient::check_and_install_android_update() {}
+void NetworkClient::check_for_client_update() {}
 void NetworkClient::update_costume(const std::string&, int, int, int, bool) {}
 std::vector<RemoteScore> NetworkClient::fetch_scores(const std::string&) {
     return {};
