@@ -79,7 +79,12 @@ target_link_libraries(YataiDON PRIVATE bgfx bx yataidon_lua yataidon_sqlite yata
   sndfile samplerate miniz ebur128 SDL2-static ${switch_media_libraries} Vulkan::Vulkan)
 target_compile_options(YataiDON PRIVATE ${SWITCH_MEDIA_CFLAGS_OTHER})
 target_link_options(YataiDON PRIVATE ${SWITCH_MEDIA_STATIC_LDFLAGS_OTHER})
-find_package(Iconv REQUIRED)
+if(YATAIDON_MEDIA_LIBRARY_DIR AND EXISTS "${YATAIDON_MEDIA_LIBRARY_DIR}/libiconv.a")
+  add_library(Iconv::Iconv UNKNOWN IMPORTED)
+  set_property(TARGET Iconv::Iconv PROPERTY IMPORTED_LOCATION "${YATAIDON_MEDIA_LIBRARY_DIR}/libiconv.a")
+else()
+  find_package(Iconv REQUIRED)
+endif()
 if(YATAIDON_MEDIA_LIBRARY_DIR AND EXISTS "${YATAIDON_MEDIA_LIBRARY_DIR}/libiconv.a")
   get_target_property(iconv_target_type Iconv::Iconv TYPE)
   if(iconv_target_type STREQUAL "INTERFACE_LIBRARY")
@@ -97,6 +102,7 @@ add_custom_command(OUTPUT "${font_output}"
     -DOUT=${font_output} -DNAME=default_font_ttf_data -P ${game_root}/cmake/embed.cmake
   DEPENDS "${game_root}/src/libs/gfx/default.ttf" "${game_root}/cmake/embed.cmake" VERBATIM)
 target_sources(YataiDON PRIVATE "${font_output}")
+string(TIMESTAMP _nacp_version "%Y.%m.%d" UTC)
 nx_generate_nacp("${CMAKE_BINARY_DIR}/YataiDON.nacp"
-  NAME "YataiDON" AUTHOR "YataiDON contributors" VERSION "${PROJECT_VERSION}")
-nx_create_nro(YataiDON NACP "${CMAKE_BINARY_DIR}/YataiDON.nacp")
+  NAME "YataiDON" AUTHOR "Yonokid" VERSION "${_nacp_version}")
+nx_create_nro(YataiDON NACP "${CMAKE_BINARY_DIR}/YataiDON.nacp" ICON "${CMAKE_CURRENT_SOURCE_DIR}/icon.jpg")

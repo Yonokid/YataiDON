@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <memory>
@@ -54,6 +55,15 @@ void platform_init_window();
 int platform_apply_target_fps(int fps);
 
 bool platform_present_paces_frames();
+
+// Texture uploads are split into chunk_bytes pieces and flushed to the GPU once flush_bytes are
+// queued. flush_after_draws also flushes after the frame has draws, dropping that frame.
+struct TextureUploadBudget {
+    size_t chunk_bytes;
+    size_t flush_bytes;
+    bool flush_after_draws;
+};
+TextureUploadBudget platform_texture_upload_budget();
 bool platform_threaded_renderer();
 
 // A platform's own audio output, used in place of SDL/RtAudio where it has one. The mix

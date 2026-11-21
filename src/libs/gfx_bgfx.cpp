@@ -426,7 +426,7 @@ namespace {
     // Texture data queued for the next bgfx::frame(). bgfx uploads it all inside that call,
     // so a screen that loads hundreds of textures would hitch on its first frame.
     size_t pending_upload_bytes = 0;
-    constexpr size_t UPLOAD_FLUSH_BYTES = 32u << 20;
+    const TextureUploadBudget upload_budget = platform_texture_upload_budget();
     unsigned submits_this_frame = 0;
     bool screen_drawn = false; // a screen view this frame has a clear or a draw
 
@@ -445,10 +445,8 @@ namespace {
     }
 
     void flush_uploads_if_idle() {
-        // Screens load in update(), after begin_drawing() but before any draw. While nothing is
-        // submitted yet, FLUSH runs the queued uploads (and any pending clears) without presenting,
-        // so the cost stays in the loading frame, as with raylib's glTexImage2D.
-        if (pending_upload_bytes >= UPLOAD_FLUSH_BYTES && submits_this_frame == 0) {
+        if (pending_upload_bytes >= upload_budget.flush_bytes &&
+            (submits_this_frame == 0 || upload_budget.flush_after_draws)) {
             advance_frame(BGFX_FRAME_FLUSH);
             pending_upload_bytes = 0;
         }
@@ -793,10 +791,18 @@ namespace {
         std::vector<uint8_t> next, prev;
         int w = rgba.width, h = rgba.height;
         for (int mip = 0; mip < levels; mip++) {
-            const auto bytes = static_cast<uint32_t>(w * h * 4);
-            bgfx::updateTexture2D(slot.handle, 0, static_cast<uint8_t>(mip), 0, 0, static_cast<uint16_t>(w),
-                                  static_cast<uint16_t>(h), bgfx::copy(level, bytes));
-            pending_upload_bytes += bytes;
+            const size_t row_bytes = static_cast<size_t>(w) * 4;
+            const size_t rows_per_upload = std::max<size_t>(1, upload_budget.chunk_bytes / row_bytes);
+            for (int y = 0; y < h;) {
+                const int upload_height = static_cast<int>(std::min<size_t>(h - y, rows_per_upload));
+                const uint32_t upload_bytes = static_cast<uint32_t>(row_bytes * upload_height);
+                bgfx::updateTexture2D(slot.handle, 0, static_cast<uint8_t>(mip), 0, static_cast<uint16_t>(y),
+                                      static_cast<uint16_t>(w), static_cast<uint16_t>(upload_height),
+                                      bgfx::copy(level + static_cast<size_t>(y) * row_bytes, upload_bytes));
+                pending_upload_bytes += upload_bytes;
+                flush_uploads_if_idle();
+                y += upload_height;
+            }
             if (mip + 1 == levels) {
                 break;
             }

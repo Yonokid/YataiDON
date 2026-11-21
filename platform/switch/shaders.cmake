@@ -1,4 +1,3 @@
-file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/generated/shaders/spirv")
 file(GLOB shader_files CONFIGURE_DEPENDS "${game_root}/shader/bgfx/[fv]s_*.sc")
 file(GLOB shader_includes CONFIGURE_DEPENDS "${game_root}/shader/bgfx/*.sh")
 foreach(shader_file ${shader_files})
@@ -8,11 +7,29 @@ foreach(shader_file ${shader_files})
   else()
     set(type fragment)
   endif()
-  set(output "${CMAKE_BINARY_DIR}/generated/shaders/spirv/${shader}.sc.bin.h")
-  add_custom_command(OUTPUT "${output}"
-    COMMAND "${YATAIDON_SHADERC}" -f "${shader_file}" -o "${output}"
-      --type ${type} --platform linux -p spirv --bin2c ${shader}_spv
-      --varyingdef "${game_root}/shader/bgfx/varying.def.sc" -i "${vendor}/bgfx.cmake/bgfx/src"
-    DEPENDS "${shader_file}" ${shader_includes} "${game_root}/shader/bgfx/varying.def.sc" VERBATIM)
-  target_sources(YataiDON PRIVATE "${output}")
+  foreach(backend IN ITEMS spirv essl glsl)
+    if(backend STREQUAL "spirv")
+      set(shader_platform linux)
+      set(shader_profile spirv)
+    elseif(backend STREQUAL "essl")
+      set(shader_platform android)
+      set(shader_profile 300_es)
+    else()
+      set(shader_platform linux)
+      set(shader_profile 330)
+    endif()
+    if(backend STREQUAL "spirv")
+      set(shader_suffix spv)
+    else()
+      set(shader_suffix ${backend})
+    endif()
+    set(output "${CMAKE_BINARY_DIR}/generated/shaders/${backend}/${shader}.sc.bin.h")
+    add_custom_command(OUTPUT "${output}"
+      COMMAND "${YATAIDON_SHADERC}" -f "${shader_file}" -o "${output}"
+        --type ${type} --platform ${shader_platform} -p ${shader_profile}
+        --bin2c ${shader}_${shader_suffix} --varyingdef "${game_root}/shader/bgfx/varying.def.sc"
+        -i "${vendor}/bgfx.cmake/bgfx/src"
+      DEPENDS "${shader_file}" ${shader_includes} "${game_root}/shader/bgfx/varying.def.sc" VERBATIM)
+    target_sources(YataiDON PRIVATE "${output}")
+  endforeach()
 endforeach()

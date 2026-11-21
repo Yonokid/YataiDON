@@ -11,6 +11,10 @@ void platform_initialize_animation_worker() {}
 bool platform_present_paces_frames() {
     return false;
 }
+
+TextureUploadBudget platform_texture_upload_budget() {
+    return {SIZE_MAX, 32u << 20, false};
+}
 bool platform_list_directory(const std::filesystem::path&, std::vector<PlatformFileEntry>&) {
     return false;
 }

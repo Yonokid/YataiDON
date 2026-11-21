@@ -121,6 +121,10 @@ void platform_begin_file_scan() {
 bool platform_present_paces_frames() {
     return true;
 }
+
+TextureUploadBudget platform_texture_upload_budget() {
+    return {SIZE_MAX, 32u << 20, false};
+}
 bool platform_threaded_renderer() {
     return true;
 }

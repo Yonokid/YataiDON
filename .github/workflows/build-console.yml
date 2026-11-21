@@ -300,6 +300,7 @@ jobs:
         run: |
           mkdir -p release/stage/switch/YataiDON
           cp platform/switch/build/YataiDON.nro release/stage/switch/YataiDON/
+          cp -R Songs release/stage/switch/YataiDON/
           cd release/stage && zip -r ../YataiDON-Switch.zip switch
 
       - name: Upload Switch package
@@ -310,8 +311,105 @@ jobs:
           compression-level: 0
           if-no-files-found: error
 
+  build-switch2:
+    name: Build for Switch 2
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    container:
+      image: devkitpro/devkita64:20260219
+      options: --user root
+    env:
+      DEPS: /opt/switch2-deps
+      BUILD_JOBS: 4
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Install build dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            build-essential cmake ninja-build pkg-config patch zip \
+            curl ca-certificates git xz-utils glslang-tools \
+            libgl-dev libx11-dev
+
+      - name: Install Ounce devkit
+        run: |
+          git clone --depth 1 https://github.com/ouncebrew/ounce-devkit.git "$RUNNER_TEMP/ounce-devkit"
+          sh "$RUNNER_TEMP/ounce-devkit/install.sh"
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          submodules: false
+
+      - name: Restore optimized media libraries
+        id: cache-media-switch2
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            /opt/switch2-deps/media/lib
+            /opt/switch2-deps/media/iconv/include/iconv.h
+          key: switch2-media-${{ hashFiles('platform/switch/build-o3-media.sh', 'platform/switch/prepare-o3-media.py') }}
+
+      - name: Build optimized media libraries
+        if: steps.cache-media-switch2.outputs.cache-hit != 'true'
+        env:
+          YATAIDON_MEDIA_WORKDIR: /opt/switch2-deps/media
+        run: bash platform/switch/build-o3-media.sh
+
+      - name: Save optimized media libraries
+        if: steps.cache-media-switch2.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            /opt/switch2-deps/media/lib
+            /opt/switch2-deps/media/iconv/include/iconv.h
+          key: ${{ steps.cache-media-switch2.outputs.cache-primary-key }}
+
+      - name: Build host shader compiler
+        run: |
+          python3 platform/switch/prepare-game.py
+          cmake -S platform/switch/vendor/bgfx.cmake -B build-host-bgfx -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBGFX_WITH_WAYLAND=OFF \
+            -DBGFX_BUILD_EXAMPLES=OFF \
+            -DBGFX_BUILD_TESTS=OFF \
+            -DBGFX_BUILD_TOOLS=ON \
+            -DBGFX_BUILD_TOOLS_TEXTURE=OFF \
+            -DBGFX_BUILD_TOOLS_GEOMETRY=OFF \
+            -DBGFX_BUILD_TOOLS_BIN2C=OFF
+          cmake --build build-host-bgfx --target shaderc --parallel "$BUILD_JOBS"
+
+      - name: Build Switch 2 NRO
+        env:
+          YATAIDON_SHADERC: ${{ github.workspace }}/build-host-bgfx/cmake/bgfx/shaderc
+          SWITCH_MESA_PREFIX: /opt/devkitpro/portlibs/switch2
+          YATAIDON_MEDIA_LIBRARY_DIR: /opt/switch2-deps/media/lib
+        run: |
+          source "$DEVKITPRO/switch2vars.sh"
+          bash platform/switch2/build-game.sh
+
+      - name: Package Switch 2
+        run: |
+          mkdir -p release/stage/switch/YataiDON
+          cp platform/switch2/build/YataiDON.nro release/stage/switch/YataiDON/YataiDON.nro
+          cp -R Songs release/stage/switch/YataiDON/
+          cd release/stage && zip -r ../YataiDON-Switch2.zip switch
+
+      - name: Upload Switch 2 build
+        uses: actions/upload-artifact@v4
+        with:
+          name: YataiDON-Switch2
+          path: release/YataiDON-Switch2.zip
+          if-no-files-found: error
+          compression-level: 0
+
   release:
-    needs: [build-ps5, build-switch]
+    needs: [build-ps5, build-switch, build-switch2]
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch'
     steps:
@@ -327,12 +425,19 @@ jobs:
           name: YataiDON-Switch
           path: switch-out/
 
+      - name: Download Switch 2 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: YataiDON-Switch2
+          path: switch2-out/
+
       - name: Upload Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             ps5-out/YataiDON-PS5.zip
             switch-out/YataiDON-Switch.zip
+            switch2-out/YataiDON-Switch2.zip
           name: "YataiDON [Latest Release]"
           tag_name: "latest"
           make_latest: true
