@@ -84,9 +84,12 @@ string(CONCAT _native_archives
   "$<TARGET_FILE:miniz>\n$<TARGET_FILE:ebur128>\n$<TARGET_FILE:SDL2-static>\n")
 file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/native-archives.txt CONTENT "${_native_archives}")
 
-file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/generated/shaders/spirv")
 file(GLOB shader_files CONFIGURE_DEPENDS "${game_root}/shader/bgfx/[fv]s_*.sc")
 file(GLOB shader_includes CONFIGURE_DEPENDS "${game_root}/shader/bgfx/*.sh")
+# gfx_bgfx.cpp includes every backend's headers, so all three are generated
+foreach(backend IN ITEMS spirv essl glsl)
+  file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/generated/shaders/${backend}")
+endforeach()
 foreach(shader_file ${shader_files})
   get_filename_component(shader "${shader_file}" NAME_WE)
   if(shader MATCHES "^vs_")
@@ -94,13 +97,21 @@ foreach(shader_file ${shader_files})
   else()
     set(type fragment)
   endif()
-  set(output "${CMAKE_BINARY_DIR}/generated/shaders/spirv/${shader}.sc.bin.h")
-  add_custom_command(OUTPUT "${output}"
-    COMMAND "${YATAIDON_SHADERC}" -f "${shader_file}" -o "${output}"
-      --type ${type} --platform linux -p spirv --bin2c ${shader}_spv
-      --varyingdef "${game_root}/shader/bgfx/varying.def.sc" -i "${BGFX_SOURCE_DIR}/bgfx/src"
-    DEPENDS "${shader_file}" ${shader_includes} "${game_root}/shader/bgfx/varying.def.sc" VERBATIM)
-  target_sources(yataidon_ps5_game PRIVATE "${output}")
+  foreach(backend IN ITEMS spirv essl glsl)
+    if(backend STREQUAL "spirv")
+      set(shader_args --platform linux -p spirv --bin2c ${shader}_spv)
+    elseif(backend STREQUAL "essl")
+      set(shader_args --platform android -p 300_es --bin2c ${shader}_essl)
+    else()
+      set(shader_args --platform linux -p 330 --bin2c ${shader}_glsl)
+    endif()
+    set(output "${CMAKE_BINARY_DIR}/generated/shaders/${backend}/${shader}.sc.bin.h")
+    add_custom_command(OUTPUT "${output}"
+      COMMAND "${YATAIDON_SHADERC}" -f "${shader_file}" -o "${output}" --type ${type} ${shader_args}
+        --varyingdef "${game_root}/shader/bgfx/varying.def.sc" -i "${BGFX_SOURCE_DIR}/bgfx/src"
+      DEPENDS "${shader_file}" ${shader_includes} "${game_root}/shader/bgfx/varying.def.sc" VERBATIM)
+    target_sources(yataidon_ps5_game PRIVATE "${output}")
+  endforeach()
 endforeach()
 set(font_output "${CMAKE_BINARY_DIR}/generated/default_font.cpp")
 add_custom_command(OUTPUT "${font_output}"
