@@ -4,6 +4,7 @@
 
 #include "../libs/input/input.h"
 #include "../libs/network/network.h"
+#include "../libs/network/online_songs.h"
 #include "../objects/global/practice_timer.h"
 
 void SongSelectScreen::update_box_bgm() {
@@ -97,6 +98,7 @@ void SongSelectScreen::select_song(SongBox* song) {
     const auto player_index = static_cast<int>(global_data.player_num);
     SessionData& session_data = global_data.session_data[player_index];
     session_data.selected_song = song->path;
+    start_song_download(song->path);
     session_data.selected_collection = song->collection;
     session_data.selected_difficulty = static_cast<int>(player->selected_difficulty);
     session_data.song_hash = song->hash_for(session_data.selected_difficulty);
@@ -108,6 +110,14 @@ void SongSelectScreen::select_song(SongBox* song) {
         game_transition->add_loading_graphic((session_data.selected_song.parent_path() / "Loading.png").string());
     }
     game_transition->start();
+}
+
+void SongSelectScreen::start_song_download(const fs::path& song) {
+    song_download = std::async(std::launch::async, online_songs::fetch_song, song);
+}
+
+bool SongSelectScreen::song_download_pending() const {
+    return song_download.valid() && song_download.wait_for(std::chrono::seconds(0)) != std::future_status::ready;
 }
 
 void SongSelectScreen::on_select_timeout() {
@@ -211,6 +221,13 @@ std::optional<Screens> SongSelectScreen::take_replay_jump() {
         network.request_replay(*score_id);
     }
     if (auto replay = network.take_replay_result()) {
+        if (auto song_path = replay->ok ? scores_manager.get_path_by_diff_hash(replay->hash) : std::nullopt) {
+            start_song_download(*song_path);
+        }
+        pending_replay = std::make_shared<const ReplayData>(std::move(*replay));
+    }
+    if (pending_replay && !song_download_pending()) {
+        const auto replay = std::move(pending_replay);
         return start_replay(*replay);
     }
     return std::nullopt;
@@ -400,7 +417,7 @@ std::optional<Screens> SongSelectScreen::update() {
 
     if (game_transition.has_value() && join_request_ms < 0.0) {
         game_transition->update(current_time);
-        if (game_transition->is_finished() && !player->is_voice_playing()) {
+        if (game_transition->is_finished() && !player->is_voice_playing() && !song_download_pending()) {
             return on_screen_end(get_game_screen_target());
         }
     }

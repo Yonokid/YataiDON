@@ -369,6 +369,12 @@ Config get_config() {
 
     // Parse paths
     config.paths.tja_path = parsePathArrayOrDefault(config_file, "paths", "tja_path", {fs::path("Songs")});
+    for (fs::path& path : config.paths.tja_path) {
+        if (online_songs::is_manifest_url(path.string())) {
+            config.paths.song_manifests.emplace_back(path.string(), online_songs::mirror_dir(path.string()));
+            path = config.paths.song_manifests.back().second;
+        }
+    }
     config.paths.start_path = fs::path(config_file["paths"]["start_path"].value_or(""));
     config.paths.skin = fs::path(config_file["paths"]["skin"].value_or(""));
 
@@ -507,7 +513,9 @@ void save_config(const Config& config) {
     // Paths
     toml::array tja_path_array;
     for (const auto& path : config.paths.tja_path) {
-        tja_path_array.push_back(path.string());
+        auto manifest =
+            std::ranges::find(config.paths.song_manifests, path, &online_songs::Manifests::value_type::second);
+        tja_path_array.push_back(manifest != config.paths.song_manifests.end() ? manifest->first : path.string());
     }
     config_table.insert("paths", toml::table{{"tja_path", tja_path_array},
                                              {"start_path", config.paths.start_path.string()},

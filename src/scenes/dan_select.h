@@ -1,5 +1,6 @@
 #pragma once
 
+#include <future>
 #include <memory>
 #include <optional>
 #include <sol/sol.hpp>
@@ -73,6 +74,8 @@ private:
 
     std::optional<Screens> tick_timer(double current_ms);
     std::optional<Screens> start_dan_transition();
+    std::future<void> dan_download;
+    void start_dan_download();
     void open_confirm(double current_ms);
     bool back_requested = false;
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <future>
 #include <stop_token>
 
 #include "../libs/gfx/color_utils.h"
@@ -35,6 +36,8 @@ protected:
     Statistics cached_stats;
     std::stop_source stats_stop;
     std::future<Statistics> stats_future;
+    std::future<bool> song_download;
+    std::shared_ptr<const ReplayData> pending_replay;
 
     Shader shader;
     Color color;
@@ -53,6 +56,8 @@ protected:
     std::optional<SearchBox> search_box;
 
     virtual void select_song(SongBox* song);
+    void start_song_download(const fs::path& song);
+    bool song_download_pending() const;
     virtual void on_select_timeout();
     void on_diff_select_timeout();
     virtual SongSelectPlayer* second_player() { return nullptr; }

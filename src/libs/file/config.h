@@ -6,6 +6,8 @@
 #include <toml++/toml.h>
 #include <vector>
 
+#include "../network/online_songs.h"
+
 namespace fs = std::filesystem;
 
 struct Config;
@@ -59,6 +61,7 @@ struct NetworkConfig {
 
 struct PathsConfig {
     std::vector<fs::path> tja_path;
+    online_songs::Manifests song_manifests; // tja_path entries that are manifest URLs, and the mirror each became
     fs::path start_path; // box folder song select opens in: absolute or relative to a tja_path; empty for the roots
     fs::path skin;
 };

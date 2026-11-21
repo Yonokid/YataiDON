@@ -11,6 +11,8 @@ private:
     std::vector<bool> selected;
     std::vector<bool> installed;
     bool online = false;
+    bool online_songs = false;
+    bool songs_added = false;
     std::string language;
     int row = 0;
 
@@ -22,7 +24,9 @@ private:
     int skin_count() const;
     int language_row() const { return skin_count(); }
     int online_row() const { return skin_count() + 1; }
-    int continue_row() const { return skin_count() + 2; }
+    int songs_row() const { return online ? skin_count() + 2 : -1; }
+    int continue_row() const { return skin_count() + (online ? 3 : 2); }
+    void toggle_row(int r);
     void cycle_language();
     int required_by(int skin) const;
     void toggle_skin(int skin);

@@ -88,6 +88,7 @@ void SongSelect2PScreen::select_song(SongBox* song) {
     const auto p1_index = static_cast<int>(PlayerNum::P1);
     auto& sd1 = global_data.session_data[p1_index];
     sd1.selected_song = song->path;
+    start_song_download(song->path);
     sd1.selected_collection = song->collection;
     sd1.selected_difficulty = static_cast<int>(player->selected_difficulty);
     sd1.song_hash = song->hash_for(sd1.selected_difficulty);
@@ -149,7 +150,8 @@ std::optional<Screens> SongSelect2PScreen::update() {
 
     if (game_transition.has_value()) {
         game_transition->update(current_time);
-        if (game_transition->is_finished() && !player->is_voice_playing() && !player_2->is_voice_playing()) {
+        if (game_transition->is_finished() && !player->is_voice_playing() && !player_2->is_voice_playing() &&
+            !song_download_pending()) {
             return on_screen_end(get_game_screen_target());
         }
     }

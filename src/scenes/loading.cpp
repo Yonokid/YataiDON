@@ -7,6 +7,7 @@
 #include "../libs/file/script.h"
 #include "../libs/global_data.h"
 #include "../libs/input/input.h"
+#include "../libs/network/online_songs.h"
 #include "../libs/network/skin_updater.h"
 #include "../libs/parsers/song_parser.h"
 #include "../libs/song_library.h"
@@ -19,6 +20,8 @@ void LoadingScreen::on_screen_start() {
     init_visuals();
 
     start_ms = get_current_ms();
+    loading_complete = false;
+    progress = 0.0f;
     const bool populate_library = get_song_library().begin_loading();
     try {
         loading_thread = std::thread(&LoadingScreen::load_song_hashes, this, populate_library);
@@ -75,6 +78,9 @@ void LoadingScreen::load_song_hashes(bool populate_library) {
             populate_library = get_song_library().begin_loading();
         }
 
+        online_songs::sync(global_data.config->paths.song_manifests, progress);
+        progress = 0.0f;
+
         // Listed here, not in on_screen_start: the screen keeps drawing while a large library is walked
         songs = get_song_files(global_data.config->paths.tja_path);
         std::atomic<int> songs_loaded = 0;
@@ -116,7 +122,9 @@ void LoadingScreen::load_song_hashes(bool populate_library) {
                     try {
                         SongParser parser(songs[i]);
                         spdlog::debug("Parsing song: {}", path);
-                        if (songs[i].extension() == ".osu") {
+                        if (auto mirrored = online_songs::chart_hashes(songs[i])) {
+                            stamp.hashes = *mirrored;
+                        } else if (songs[i].extension() == ".osu") {
                             stamp.hashes[0] = parser.get_diff_hash(0);
                         } else {
                             for (const auto& [course, course_data] : parser.metadata.course_data) {
