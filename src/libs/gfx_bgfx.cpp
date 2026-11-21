@@ -426,13 +426,7 @@ namespace {
     // Texture data queued for the next bgfx::frame(). bgfx uploads it all inside that call,
     // so a screen that loads hundreds of textures would hitch on its first frame.
     size_t pending_upload_bytes = 0;
-#ifdef YATAIDON_PLATFORM_SWITCH2
-    constexpr size_t UPLOAD_CHUNK_BYTES = 4u << 20;
-    constexpr size_t UPLOAD_FLUSH_BYTES = 16u << 20;
-#else
-    constexpr size_t UPLOAD_CHUNK_BYTES = static_cast<size_t>(-1);
-    constexpr size_t UPLOAD_FLUSH_BYTES = 32u << 20;
-#endif
+    const TextureUploadBudget upload_budget = platform_texture_upload_budget();
     unsigned submits_this_frame = 0;
     bool screen_drawn = false; // a screen view this frame has a clear or a draw
 
@@ -451,9 +445,8 @@ namespace {
     }
 
     void flush_uploads_if_idle() {
-        // Screen changes can queue uploads after the outgoing screen already submitted draws.
-        // FLUSH processes them without presenting that frame; the incoming screen draws normally next frame.
-        if (pending_upload_bytes >= UPLOAD_FLUSH_BYTES) {
+        if (pending_upload_bytes >= upload_budget.flush_bytes &&
+            (submits_this_frame == 0 || upload_budget.flush_after_draws)) {
             advance_frame(BGFX_FRAME_FLUSH);
             pending_upload_bytes = 0;
         }
@@ -799,7 +792,7 @@ namespace {
         int w = rgba.width, h = rgba.height;
         for (int mip = 0; mip < levels; mip++) {
             const size_t row_bytes = static_cast<size_t>(w) * 4;
-            const size_t rows_per_upload = std::max<size_t>(1, UPLOAD_CHUNK_BYTES / row_bytes);
+            const size_t rows_per_upload = std::max<size_t>(1, upload_budget.chunk_bytes / row_bytes);
             for (int y = 0; y < h;) {
                 const int upload_height = static_cast<int>(std::min<size_t>(h - y, rows_per_upload));
                 const uint32_t upload_bytes = static_cast<uint32_t>(row_bytes * upload_height);

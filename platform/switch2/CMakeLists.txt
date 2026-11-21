@@ -102,7 +102,7 @@ target_compile_definitions(YataiDON PRIVATE YATAIDON_HAVE_ICONV)
 if(YATAIDON_MEDIA_LIBRARY_DIR AND EXISTS "${YATAIDON_MEDIA_LIBRARY_DIR}/libiconv.a" )
   target_compile_definitions(YataiDON PRIVATE iconv_open=libiconv_open iconv=libiconv iconv_close=libiconv_close)
 endif()
-include("${CMAKE_CURRENT_SOURCE_DIR}/shaders.cmake")
+include("${switch_platform}/shaders.cmake")
 set(font_output "${CMAKE_BINARY_DIR}/generated/default_font.cpp")
 add_custom_command(OUTPUT "${font_output}"
   COMMAND ${CMAKE_COMMAND} -DIN=${game_root}/src/libs/gfx/default.ttf

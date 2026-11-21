@@ -12,19 +12,19 @@
 #include <stdexcept>
 #include <string>
 #include <switch.h>
-#include <vulkan/vulkan.h>
 #include <unistd.h>
 #include <unordered_map>
 #include <utility>
+#include <vulkan/vulkan.h>
 
 #include "../../platform/switch/controller-layout.h"
 #include "../../platform/switch/input.h"
 #include "../../platform/switch/keyboard.h"
 #include "../../platform/switch/sqlite-vfs.h"
 #include "../../src/libs/file/config.h"
-#include "../../src/libs/global_data.h"
 #include "../../src/libs/gfx.h"
 #include "../../src/libs/gfx/sdl_compat.h"
+#include "../../src/libs/global_data.h"
 #include "../../src/libs/input/ime_ui.h"
 #include "../../src/platform/platform.h"
 
@@ -129,6 +129,10 @@ void platform_begin_file_scan() {
 
 bool platform_present_paces_frames() {
     return true;
+}
+
+TextureUploadBudget platform_texture_upload_budget() {
+    return {4u << 20, 16u << 20, true};
 }
 bool platform_threaded_renderer() {
     return true;
@@ -259,8 +263,8 @@ namespace {
 
         const u32 width = docked ? docked_width : 1920;
         const u32 height = docked ? docked_height : 1080;
-        if (update_window && (get_screen_width() != static_cast<int>(width) ||
-                              get_screen_height() != static_cast<int>(height))) {
+        if (update_window &&
+            (get_screen_width() != static_cast<int>(width) || get_screen_height() != static_cast<int>(height))) {
             set_window_size(static_cast<int>(width), static_cast<int>(height));
             // SDL applies a fixed NWindow size; restore the docked/handheld size pair afterwards.
             nwindowSetModeDimensions(native_window, 1920, 1080, docked_width, docked_height);
@@ -454,9 +458,9 @@ bool platform_offers_setting(std::string_view path, std::string_view value) {
         const auto parsed = std::from_chars(value.data(), value.data() + value.size(), frames);
         return parsed.ec == std::errc{} && parsed.ptr == value.data() + value.size() && frames >= 1024;
     }
-    if (path == "video/vsync" || path == "video/renderer" || path == "video/fullscreen" ||
-        path == "video/borderless" || path == "keys/fullscreen_key" || path == "keys/borderless_key" ||
-        path == "audio/device" || path == "audio/device_type") {
+    if (path == "video/vsync" || path == "video/renderer" || path == "video/fullscreen" || path == "video/borderless" ||
+        path == "keys/fullscreen_key" || path == "keys/borderless_key" || path == "audio/device" ||
+        path == "audio/device_type") {
         return false;
     }
     return path != "video/target_fps" || value.empty() || value == "60" || value == "120";
