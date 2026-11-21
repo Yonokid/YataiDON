@@ -27,7 +27,7 @@ FILES = {
         "57ea7ec8ed26d13d3172d0fd589b7883d22f0c180d50b7434fcc73fb2b3ab7d7",
     ),
     "libiconv-1.18.tar.gz": (
-        "https://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.18.tar.gz",
+        "https://ftpmirror.gnu.org/libiconv/libiconv-1.18.tar.gz",
         "3b08f5f4f9b4eb82f151a7040bfd6fe6c6fb922efe4b1659c66ea933276965e8",
     ),
 }
