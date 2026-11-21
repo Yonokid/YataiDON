@@ -55,7 +55,6 @@ android {
         into shaderOutDir
     }
 
-    def bundleGameData = (findProperty('bundleGameData') ?: 'true').toBoolean()
     def gameDataOutDir = layout.buildDirectory.dir('generated/game_data_assets')
 
     task copyGameDataAssets(type: Copy) {
@@ -65,14 +64,12 @@ android {
 
     sourceSets {
         main {
-            assets.srcDirs = bundleGameData
-                ? ['src/main/assets', layout.buildDirectory.dir('generated/shader_assets').get(), gameDataOutDir.get()]
-                : ['src/main/assets', layout.buildDirectory.dir('generated/shader_assets').get()]
+            assets.srcDirs = ['src/main/assets', layout.buildDirectory.dir('generated/shader_assets').get(), gameDataOutDir.get()]
         }
     }
 
     preBuild.dependsOn copyShaderAssets
-    if (bundleGameData) preBuild.dependsOn copyGameDataAssets
+    preBuild.dependsOn copyGameDataAssets
 
     lint {
         abortOnError false
