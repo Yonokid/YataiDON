@@ -3,7 +3,6 @@
 #include "../libs/audio/audio.h"
 #include "../libs/file/filesystem.h"
 #include "../libs/file/scores.h"
-#include "../libs/gfx/camera_utils.h"
 #include "../libs/global_data.h"
 #include "../libs/input/input.h"
 #include "../libs/network/network.h"
@@ -105,12 +104,8 @@ std::optional<Screens> SettingsScreen::handle_input() {
         return on_screen_end(Screens::INPUT_TEST);
     }
     const bool typing = box_manager->editing_text();
-    if (const auto touch = take_touch_pointer(); touch && !typing) {
-        const Camera2D camera = compute_camera2d(tex.screen_width, tex.screen_height);
-        const auto world = [&](Vec2 v) {
-            return get_screen_to_world_2d({v.x * get_screen_width(), v.y * get_screen_height()}, camera);
-        };
-        if (box_manager->touch(world(touch->start), world(touch->pos), touch->down)) {
+    if (const auto touch = take_touch_pointer_world(); touch && !typing) {
+        if (box_manager->touch(touch->start, touch->pos, touch->down)) {
             return on_screen_end(Screens::ENTRY);
         }
     }

@@ -3,7 +3,6 @@
 #include <algorithm>
 
 #include "../libs/file/filesystem.h"
-#include "../libs/gfx/camera_utils.h"
 #include "../libs/gfx/text.h"
 #include "../libs/global_data.h"
 #include "../libs/input/input.h"
@@ -205,9 +204,7 @@ bool OnboardingScreen::apply() {
 }
 
 void OnboardingScreen::handle_tap(Vec2 tap) {
-    const Vec2 pixel{tap.x * get_screen_width(), tap.y * get_screen_height()};
-    const Camera2D camera = compute_camera2d(tex.screen_width, tex.screen_height);
-    const float y = get_screen_to_world_2d(pixel, camera).y * 720.0f / tex.screen_height; // draw()'s coordinates
+    const float y = touch_to_world(tap).y * 720.0f / tex.screen_height; // draw()'s coordinates
 
     if (y >= 165 && y < 165 + kSkinCount * 42) {
         row = static_cast<int>((y - 165) / 42);

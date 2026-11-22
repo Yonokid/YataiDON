@@ -732,17 +732,20 @@ static void draw_drum_texture(float size, double fade) {
                             {.scale = scale, .center = true, .y = y_fix, .fade = fade});
 }
 
+// The camera works in render pixels, which differ from window units on high-density displays.
+Vec2 touch_to_world(Vec2 normalized) {
+    return get_screen_to_world_2d(
+        {normalized.x * static_cast<float>(get_render_width()), normalized.y * static_cast<float>(get_render_height())},
+        compute_camera2d(tex.screen_width, tex.screen_height));
+}
+
 std::optional<TouchPointer> take_touch_pointer_world() {
     auto pointer = take_touch_pointer();
     if (!pointer) {
         return std::nullopt;
     }
-    const Camera2D camera = compute_camera2d(tex.screen_width, tex.screen_height);
-    const auto world = [&](Vec2 v) {
-        return get_screen_to_world_2d({v.x * get_screen_width(), v.y * get_screen_height()}, camera);
-    };
-    pointer->start = world(pointer->start);
-    pointer->pos = world(pointer->pos);
+    pointer->start = touch_to_world(pointer->start);
+    pointer->pos = touch_to_world(pointer->pos);
     return pointer;
 }
 
@@ -790,8 +793,8 @@ static void draw_touch_back_button() {
     }
     draw_text_ex(font, label, pos, size, 1, Color::WHITE);
 
-    const auto sw = static_cast<float>(get_screen_width());
-    const auto sh = static_cast<float>(get_screen_height());
+    const auto sw = static_cast<float>(get_render_width());
+    const auto sh = static_cast<float>(get_render_height());
     const float left = static_cast<float>(virtual_to_screen_x(rect.x)) / sw;
     const float top = static_cast<float>(virtual_to_screen_y(rect.y)) / sh;
     const Rect hit{left, top, (static_cast<float>(virtual_to_screen_x(rect.x + rect.width)) / sw) - left,

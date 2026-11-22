@@ -89,7 +89,9 @@ struct TouchPointer {
 std::optional<TouchPointer> take_touch_pointer();
 // Drops the current gesture; the rest of it (motion, lift) is ignored.
 void clear_touch_pointer();
-// take_touch_pointer() with start and pos in the skin's virtual canvas (tex.screen_width x tex.screen_height).
+// A 0..1 window position in the skin's virtual canvas (tex.screen_width x tex.screen_height).
+Vec2 touch_to_world(Vec2 normalized);
+// take_touch_pointer() with start and pos in the canvas.
 std::optional<TouchPointer> take_touch_pointer_world();
 // A lifted gesture that stayed within the tap slop.
 bool touch_is_tap(const TouchPointer& pointer);
