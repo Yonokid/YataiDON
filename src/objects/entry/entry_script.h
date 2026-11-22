@@ -18,6 +18,7 @@ private:
     sol::protected_function fn_draw_waiting;
     sol::protected_function fn_wait_chara_pos;
     sol::protected_function fn_draw_player_entry;
+    sol::protected_function fn_side_at;
 
 public:
     EntryScript();
@@ -33,4 +34,7 @@ public:
     void draw_waiting(double idle_ms);
     std::optional<std::pair<float, float>> wait_chara_pos(bool p2);
     void draw_player_entry();
+    // Touch: whether the skin places the side buttons itself, and which side (0 / 1 / 2) is at a canvas point.
+    bool has_side_at() { return fn_side_at.valid(); }
+    std::optional<int> side_at(Vec2 world);
 };

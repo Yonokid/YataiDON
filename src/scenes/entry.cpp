@@ -597,20 +597,26 @@ void EntryScreen::handle_touch() {
     if (state == EntryState::WAITING) {
         press_touch_drum({tex.screen_width / 2.0f, 0.0f});
     } else if (state == EntryState::SELECT_SIDE) {
-        static constexpr std::array buttons{"side_select/1P", "side_select/cancel", "side_select/2P"};
-        for (int i = 0; i < std::ssize(buttons); i++) {
-            const TextureObject* t = tex.textures.at(buttons[i]).get();
-            if (p.x < t->x[0] || p.x >= t->x[0] + t->x2[0] || p.y < t->y[0] || p.y >= t->y[0] + t->y2[0]) {
-                continue;
+        std::optional<int> tapped;
+        if (lua_entry->has_side_at()) {
+            tapped = lua_entry->side_at(p);
+        } else {
+            static constexpr std::array buttons{"side_select/1P", "side_select/cancel", "side_select/2P"};
+            for (int i = 0; i < std::ssize(buttons) && !tapped; i++) {
+                const auto t = tex.textures.find(buttons[i]);
+                if (t != tex.textures.end() && p.x >= t->second->x[0] && p.x < t->second->x[0] + t->second->x2[0] &&
+                    p.y >= t->second->y[0] && p.y < t->second->y[0] + t->second->y2[0]) {
+                    tapped = i;
+                }
             }
-            // the joined player's own side is not offered again
-            if (players[0] && i == (players[0]->player_num == PlayerNum::P1 ? 0 : 2)) {
-                return;
-            }
-            side = i;
-            press_touch_drum({tex.screen_width / 2.0f, 0.0f});
+        }
+        // the joined player's own side is not offered again
+        if (!tapped || *tapped < 0 || *tapped > 2 ||
+            (players[0] && *tapped == (players[0]->player_num == PlayerNum::P1 ? 0 : 2))) {
             return;
         }
+        side = *tapped;
+        press_touch_drum({tex.screen_width / 2.0f, 0.0f});
     } else if (state == EntryState::SELECT_MODE) {
         const auto player = std::ranges::find_if(players, [](const auto& pl) { return pl != nullptr; });
         if (player == players.end() || !mode_select_ready() || box_manager->is_box_selected()) {

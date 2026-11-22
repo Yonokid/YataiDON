@@ -48,7 +48,7 @@ public:
     Screens selected_box() const;
     void move_left();
     void move_right();
-    std::optional<int> box_at(Vec2 world) const;
+    std::optional<int> box_at(Vec2 world);
     int selected_index() const { return selected_box_index; }
     // Steps the selection one board per move animation until it reaches `index`.
     void move_to(int index) { target_box_index = index; }

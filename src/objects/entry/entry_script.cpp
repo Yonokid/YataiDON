@@ -16,6 +16,7 @@ EntryScript::EntryScript() {
     fn_draw_waiting = lua_object["draw_waiting"];
     fn_wait_chara_pos = lua_object["wait_chara_pos"];
     fn_draw_player_entry = lua_object["draw_player_entry"];
+    fn_side_at = lua_object["side_at"];
 }
 
 void EntryScript::update(double current_ms) {
@@ -60,6 +61,14 @@ std::optional<std::pair<float, float>> EntryScript::wait_chara_pos(bool p2) {
         return std::nullopt;
     }
     return std::make_pair(*x, *y);
+}
+
+std::optional<int> EntryScript::side_at(Vec2 world) {
+    const auto side = call_r<sol::object>(fn_side_at, "Entry:side_at", world.x, world.y);
+    if (side && side->is<int>()) {
+        return side->as<int>();
+    }
+    return std::nullopt;
 }
 
 float EntryScript::get_side_select_fade() {

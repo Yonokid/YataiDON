@@ -64,6 +64,7 @@ private:
     sol::protected_function fn_draw_background;
     sol::protected_function fn_draw_genre_bg;
     sol::protected_function fn_draw_selector;
+    sol::protected_function fn_difficulty_at;
     sol::protected_function fn_draw_option_panel;
     sol::protected_function fn_draw_sort_window;
     sol::protected_function fn_default_option_panel;
@@ -94,6 +95,9 @@ public:
     bool draw_background(Navigator* nav);
     bool draw_genre_bg(GenreBG* genre_bg);
     // true when the skin's own hook drew it (the default player_ui module draws it otherwise)
+    // Touch: whether the skin places the difficulty slots itself, and the slot (a Difficulty) at a canvas point.
+    bool has_difficulty_at() { return fn_difficulty_at.valid(); }
+    std::optional<int> difficulty_at(SongSelectPlayer* player, Vec2 world);
     bool draw_selector(SongSelectPlayer* player, bool is_half, float fade_in, int pass);
     bool draw_background_diffs(SongSelectPlayer* player);
     // the search overlay: search text and the open animation (bg_resize, fade_in)

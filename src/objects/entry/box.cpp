@@ -66,6 +66,7 @@ Box::Box(const std::string& text_str, int font_size, Screens location, const std
         return;
     }
     fn_draw = lua_object["draw"];
+    fn_contains = lua_object["contains"];
 }
 
 void Box::set_positions(float x, float y) {
@@ -146,14 +147,20 @@ void Box::move_down() {
     moving_down = true;
 }
 
-bool Box::contains(Vec2 world, bool vertical) const {
-    const TextureObject* box = tex.textures.at("mode_select/box").get();
-    const float top = vertical ? y_pos : static_cast<float>(box->y[0]);
+bool Box::contains(Vec2 world, bool vertical) {
+    if (fn_contains.valid()) {
+        return call_r<bool>(fn_contains, "EntryBox:contains", world.x, world.y).value_or(false);
+    }
+    const auto box = tex.textures.find("mode_select/box");
+    const auto highlight = tex.textures.find("mode_select/box_highlight_right");
+    if (box == tex.textures.end() || highlight == tex.textures.end()) {
+        return false;
+    }
+    const float top = vertical ? y_pos : static_cast<float>(box->second->y[0]);
     const float left = is_selected ? left_x : x;
-    const float right = is_selected
-                            ? right_x + static_cast<float>(tex.textures.at("mode_select/box_highlight_right")->width)
-                            : x + width;
-    return world.x >= left && world.x < right && world.y >= top && world.y < top + static_cast<float>(box->height);
+    const float right = is_selected ? right_x + static_cast<float>(highlight->second->width) : x + width;
+    return world.x >= left && world.x < right && world.y >= top &&
+           world.y < top + static_cast<float>(box->second->height);
 }
 
 void Box::draw(float fade, bool has_prev, bool has_next, bool disabled) {

@@ -150,7 +150,7 @@ void BoxManager::change_board_list() {
     target_box_index = -1;
 }
 
-std::optional<int> BoxManager::box_at(Vec2 world) const {
+std::optional<int> BoxManager::box_at(Vec2 world) {
     for (int i = 0; i < num_boxes; i++) {
         if (boxes[i]->contains(world, is_vertical)) {
             return i;

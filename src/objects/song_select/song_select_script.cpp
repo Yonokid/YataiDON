@@ -23,6 +23,7 @@ SongSelectScript::SongSelectScript() {
     fn_draw_background = lua_object["draw_background"];
     fn_draw_genre_bg = lua_object["draw_genre_bg"];
     fn_draw_selector = lua_object["draw_selector"];
+    fn_difficulty_at = lua_object["difficulty_at"];
     fn_draw_option_panel = lua_object["draw_option_panel"];
     fn_draw_sort_window = lua_object["draw_sort_window"];
     fn_default_option_panel = load_default_hook("song_select/option_panel", "draw_option_panel");
@@ -176,6 +177,14 @@ bool SongSelectScript::draw_genre_bg(GenreBG* genre_bg) {
     }
     call(fn_draw_genre_bg, "SongSelect:draw_genre_bg", genre_bg);
     return true;
+}
+
+std::optional<int> SongSelectScript::difficulty_at(SongSelectPlayer* player, Vec2 world) {
+    const auto diff = call_r<sol::object>(fn_difficulty_at, "SongSelect:difficulty_at", player, world.x, world.y);
+    if (diff && diff->is<int>()) {
+        return diff->as<int>();
+    }
+    return std::nullopt;
 }
 
 bool SongSelectScript::draw_selector(SongSelectPlayer* player, bool is_half, float fade_in, int pass) {

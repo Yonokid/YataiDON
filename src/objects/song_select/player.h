@@ -75,7 +75,7 @@ public:
     SongSelectState handle_input_browsing(double current_ms);
     SongSelectState handle_input_selecting();
     // Course or back / option slot under a canvas point in the difficulty select.
-    std::optional<Difficulty> difficulty_at(Vec2 world) const;
+    std::optional<Difficulty> difficulty_at(Vec2 world);
     std::optional<std::pair<int, int>> handle_input_diff_sort(DiffSortSelect* diff_sort_selector);
     std::optional<std::string> handle_input_search();
 

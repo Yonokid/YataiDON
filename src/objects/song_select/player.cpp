@@ -486,7 +486,14 @@ static bool neiro_slot_used() {
     return !tex.options[SCO::OPTION_NEIRO_ROW] || global_data.current_screen == "BATTLE_SELECT";
 }
 
-std::optional<Difficulty> SongSelectPlayer::difficulty_at(Vec2 world) const {
+std::optional<Difficulty> SongSelectPlayer::difficulty_at(Vec2 world) {
+    if (script && script->has_difficulty_at()) {
+        const auto diff = script->difficulty_at(this, world);
+        if (!diff || *diff < static_cast<int>(Difficulty::BACK) || *diff > static_cast<int>(Difficulty::URA)) {
+            return std::nullopt;
+        }
+        return Difficulty(*diff);
+    }
     const float s = tex.screen_scale;
     float course_pitch = 115 * s;
     float option_pitch = 70 * s;
