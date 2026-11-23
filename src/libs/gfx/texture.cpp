@@ -1212,9 +1212,22 @@ void TextureWrapper::load_screen_textures(const std::string& screen_name) {
         }
     }
 
-    // every PNG those folders hold (frame folders included), one group per subset
-    std::vector<std::vector<fs::path>> groups(subsets.size());
-    std::unordered_set<std::string> border_keys;
+    load_folders(screen_name, subsets);
+
+    spdlog::info("Screen textures loaded for: {}", screen_name);
+}
+
+// One group per subset: the PNGs load_folder will need (frame folders included). A file shared by
+// several keys through "file" is decoded once.
+void TextureWrapper::prefetch_groups(const std::string& screen_name, const std::vector<std::string>& subsets,
+                                     std::vector<std::vector<fs::path>>& groups,
+                                     std::unordered_set<std::string>& border_keys) {
+    DirIndex local_dirs;
+    DirIndex& dirs = dir_index ? *dir_index : local_dirs;
+    std::vector<fs::path> roots{graphics_path};
+    roots.insert(roots.end(), ancestor_graphics_paths.begin(), ancestor_graphics_paths.end());
+
+    groups.assign(subsets.size(), {});
     for (size_t g = 0; g < subsets.size(); ++g) {
         for (const fs::path& root : roots) {
             const fs::path dir = root / screen_name / subsets[g];
@@ -1264,21 +1277,46 @@ void TextureWrapper::load_screen_textures(const std::string& screen_name) {
             }
         }
     }
+}
 
-    {
-        ImagePrefetch prefetch(groups, border_keys, kPrefetchBudgetBytes);
-        image_prefetch = &prefetch;
-        struct Reset {
-            ImagePrefetch*& p;
-            ~Reset() { p = nullptr; }
-        } reset{image_prefetch};
-        for (size_t g = 0; g < subsets.size(); ++g) {
-            load_folder(screen_name, subsets[g]);
-            prefetch.finish_group(g);
+void TextureWrapper::load_folders(const std::string& screen_name, const std::vector<std::string>& subsets) {
+    std::vector<std::string> pending;
+    for (const std::string& subset : subsets) {
+        const std::string key = std::format("{}/{}", screen_name, fs::path(subset).filename().string());
+        if (!loaded_subsets.contains(key)) {
+            pending.push_back(subset);
         }
     }
+    if (pending.empty()) {
+        return;
+    }
 
-    spdlog::info("Screen textures loaded for: {}", screen_name);
+    DirIndex local_dirs;
+    DirIndex* previous_dirs = dir_index;
+    if (!dir_index) {
+        dir_index = &local_dirs;
+    }
+    struct Restore {
+        DirIndex*& p;
+        DirIndex* v;
+        ~Restore() { p = v; }
+    } restore{dir_index, previous_dirs};
+
+    std::vector<std::vector<fs::path>> groups;
+    std::unordered_set<std::string> border_keys;
+    prefetch_groups(screen_name, pending, groups, border_keys);
+
+    // the workers decode every folder up front; each load_folder only waits for its own images
+    ImagePrefetch prefetch(groups, border_keys, kPrefetchBudgetBytes);
+    image_prefetch = &prefetch;
+    struct Reset {
+        ImagePrefetch*& p;
+        ~Reset() { p = nullptr; }
+    } reset{image_prefetch};
+    for (size_t g = 0; g < pending.size(); ++g) {
+        load_folder(screen_name, pending[g]);
+        prefetch.finish_group(g);
+    }
 }
 
 void TextureWrapper::clear_screen(const Color& color) {

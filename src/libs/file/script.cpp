@@ -778,6 +778,18 @@ void ScriptManager::register_lua_bindings() {
         script_manager.tex.load_folder(screen_name, subset);
     });
 
+    tex.set_function("load_folders", [](const std::string& screen_name, sol::table subsets) {
+        std::vector<std::string> list;
+        list.reserve(subsets.size());
+        for (std::size_t i = 1; i <= subsets.size(); ++i) {
+            sol::object value = subsets[i];
+            if (value.is<std::string>()) {
+                list.push_back(value.as<std::string>());
+            }
+        }
+        script_manager.tex.load_folders(screen_name, list);
+    });
+
     tex.set_function("unload_folder", [](const std::string& screen_name, const std::string& subset) {
         script_manager.tex.unload_folder(screen_name, subset);
     });

@@ -185,6 +185,8 @@ private:
     class DirIndex* dir_index = nullptr;
 
     bool read_screen_animations(const std::string& screen_name, rapidjson::Document& out);
+    void prefetch_groups(const std::string& screen_name, const std::vector<std::string>& subsets,
+                         std::vector<std::vector<fs::path>>& groups, std::unordered_set<std::string>& border_keys);
 
 public:
     std::unordered_map<std::string, std::shared_ptr<TextureObject>> textures;
@@ -276,6 +278,10 @@ public:
     void load_animations(const std::string& screen_name);
 
     void load_folder(const std::string& screen_name, const std::string& subset);
+
+    // Several folders at once: every PNG is decoded on the worker pool while the earlier ones upload,
+    // so a skin's per-song set costs roughly max(decode, upload) instead of their sum.
+    void load_folders(const std::string& screen_name, const std::vector<std::string>& subsets);
 
     void unload_folder(const std::string& screen_name, const std::string& subset);
 
