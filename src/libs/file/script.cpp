@@ -911,21 +911,23 @@ void ScriptManager::register_lua_bindings() {
             return 1;
         });
 
-    tex.set_function("draw_texture", [](const std::shared_ptr<TextureObject>& id, sol::variadic_args args) {
-        if (!id) {
-            DrawLogEntry entry{"null_texture", {}};
-            log_lua_site(entry, args.lua_state());
-            if (entry.from_lua) {
-                spdlog::warn("draw_texture: null texture (called from {}:{} in {})", entry.lua_source, entry.lua_line,
-                             entry.lua_function.empty() ? "?" : entry.lua_function);
-            } else {
-                spdlog::warn("draw_texture: null texture");
-            }
-            return;
-        }
-        script_manager.tex.draw_texture(id.get(),
-                                        parse_draw_params(args.lua_state(), args.size() ? args.stack_index() : 0));
-    });
+    tex.set_function("draw_texture",
+                     [](const sol::optional<std::shared_ptr<TextureObject>>& opt, sol::variadic_args args) {
+                         const std::shared_ptr<TextureObject> id = opt ? *opt : nullptr;
+                         if (!id) {
+                             DrawLogEntry entry{"null_texture", {}};
+                             log_lua_site(entry, args.lua_state());
+                             if (entry.from_lua) {
+                                 spdlog::warn("draw_texture: null texture (called from {}:{} in {})", entry.lua_source,
+                                              entry.lua_line, entry.lua_function.empty() ? "?" : entry.lua_function);
+                             } else {
+                                 spdlog::warn("draw_texture: null texture");
+                             }
+                             return;
+                         }
+                         script_manager.tex.draw_texture(
+                             id.get(), parse_draw_params(args.lua_state(), args.size() ? args.stack_index() : 0));
+                     });
 
     tex.set_function("get_texture", [](const std::string& path, sol::this_state state) -> sol::stack_count {
         TextureWrapper& w = script_manager.tex;
