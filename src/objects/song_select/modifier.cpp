@@ -56,6 +56,9 @@ ModifierSelector::ModifierSelector(PlayerNum player_num, PlayerData* player) : p
     if (tex.options[SCO::OPTION_SKIP_ROW]) {
         mod_names.emplace_back("skip");
     }
+    if (tex.options[SCO::OPTION_NEIRO_ROW]) {
+        mod_names.emplace_back("offset");
+    }
     if (neiro_in_option_panel()) {
         load_neiro_names();
         mod_names.emplace_back("neiro");
@@ -111,6 +114,12 @@ void ModifierSelector::step_neiro(int dir) {
     }
 }
 
+void ModifierSelector::step_offset(int dir) {
+    int& offset = global_data.config->general.visual_offset;
+    offset = std::clamp(offset + dir, -300, 300);
+    offset_dirty = true;
+}
+
 void ModifierSelector::update(double current_ms) {
     PlayerSoundScope audio_owner(player_num);
     move->update(current_ms);
@@ -128,6 +137,10 @@ void ModifierSelector::confirm() {
     current_mod_index++;
     if (current_mod_index == std::ssize(mod_names)) {
         is_confirmed = true;
+        if (offset_dirty) {
+            save_config(*global_data.config);
+            offset_dirty = false;
+        }
         if (move_out) {
             move = move_out;
             move->start();
@@ -181,6 +194,9 @@ void ModifierSelector::left() {
     if (mod_name == "speed") {
         player->modifier_speed = speed_step(player->modifier_speed, -1);
         start_text_animation(1);
+    } else if (mod_name == "offset") {
+        step_offset(-1);
+        start_text_animation(1);
     } else if (mod_name == "neiro") {
         step_neiro(-1);
         start_text_animation(1);
@@ -205,6 +221,9 @@ void ModifierSelector::right() {
     if (mod_name == "speed") {
         player->modifier_speed = speed_step(player->modifier_speed, +1);
         start_text_animation(-1);
+    } else if (mod_name == "offset") {
+        step_offset(1);
+        start_text_animation(-1);
     } else if (mod_name == "neiro") {
         step_neiro(1);
         start_text_animation(-1);
@@ -218,7 +237,7 @@ void ModifierSelector::right() {
 }
 
 std::string ModifierSelector::row_label(const std::string& n) const {
-    if (std::ranges::contains(BASE_MOD_NAMES, n) || n == "skip" || n == "neiro") {
+    if (std::ranges::contains(BASE_MOD_NAMES, n) || n == "skip" || n == "neiro" || n == "offset") {
         return font_manager.get_text_label("modifier_name_" + n);
     }
     return std::string();
@@ -241,6 +260,11 @@ std::vector<ModifierSelector::ModRow> ModifierSelector::lua_rows() {
             r.value = std::format("{:.1f}", player->modifier_speed / 10.0f);
             r.state = player->modifier_speed;
             r.changed = player->modifier_speed != 10;
+        } else if (n == "offset") {
+            const int offset = global_data.config->general.visual_offset;
+            r.value = std::format("{:+d} ms", offset);
+            r.state = offset;
+            r.changed = offset != 0;
         } else if (n == "neiro") {
             r.value = neiro_names.empty() ? std::string() : neiro_names[neiro_index];
             r.state = neiro_index;
