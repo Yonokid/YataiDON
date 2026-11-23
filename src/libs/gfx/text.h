@@ -98,6 +98,7 @@ inline std::string localized_text(const std::map<std::string, std::string>& valu
 }
 
 struct CachedOutlinedText;
+struct TextBuildJob;
 
 // Fill color for the bytes [begin, end) of a text with its markup removed.
 struct TextColorSpan {
@@ -120,14 +121,13 @@ private:
 
     Font worker_font;
 
-    std::optional<Image> pending_image;
-    mutable std::mutex pending_mutex;
+    std::optional<Image> pending_image; // synchronous builds only
 
     std::optional<Texture> texture;
     std::shared_ptr<CachedOutlinedText> cached_texture;
     std::string cache_key;
 
-    std::future<void> build_future;
+    std::shared_ptr<TextBuildJob> build_job;
 
     struct BuildData {
         Image img;
@@ -137,6 +137,8 @@ private:
 
     BuildData build_horizontal_text(Color color, Color outline_color, float spacing);
     BuildData build_vertical_text(Color color, Color outline_color, float spacing);
+
+    friend struct TextBuildJob;
 
 public:
     float width = 0.0f;
@@ -158,8 +160,6 @@ public:
     bool is_ready() const { return texture.has_value(); }
 
     const std::string& get_text() const { return text; }
-
-    void finish();
 
     void draw(const DrawTextureParams& = {});
 };

@@ -1,11 +1,15 @@
 #include "text.h"
 
+#include <algorithm>
 #include <atomic>
 #include <cmath>
+#include <condition_variable>
 #include <cstdlib>
+#include <deque>
 #include <format>
 #include <regex>
 #include <spdlog/spdlog.h>
+#include <thread>
 #include <vector>
 
 #include "../../platform/platform.h"
@@ -29,6 +33,72 @@ static AssetCache<CachedOutlinedText>& outlined_text_cache() {
     static AssetCache<CachedOutlinedText> cache(asset_cache_budget(48u << 20));
     return cache;
 }
+
+struct TextBuildJob {
+    std::mutex mutex;
+    OutlinedText* text = nullptr;
+    Color color;
+    Color outline_color;
+    float spacing = 0;
+    bool vertical = false;
+    std::optional<Image> image;
+
+    void run() {
+        std::scoped_lock lock(mutex);
+        if (!text) {
+            return;
+        }
+        auto data = vertical ? text->build_vertical_text(color, outline_color, spacing)
+                             : text->build_horizontal_text(color, outline_color, spacing);
+        image = data.img;
+    }
+};
+
+namespace {
+    class TextBuildPool {
+    public:
+        TextBuildPool() {
+            const unsigned n = std::clamp(std::thread::hardware_concurrency() / 2, 1u, 4u);
+            for (unsigned i = 0; i < n; ++i) {
+                workers.emplace_back([this] { run(); });
+            }
+        }
+
+        void submit(const std::shared_ptr<TextBuildJob>& job) {
+            {
+                std::scoped_lock lock(mutex);
+                queue.push_back(job);
+            }
+            cv.notify_one();
+        }
+
+    private:
+        void run() {
+            for (;;) {
+                std::shared_ptr<TextBuildJob> job;
+                {
+                    std::unique_lock lock(mutex);
+                    cv.wait(lock, [this] { return !queue.empty(); });
+                    job = std::move(queue.front());
+                    queue.pop_front();
+                }
+                job->run();
+            }
+        }
+
+        std::mutex mutex;
+        std::condition_variable cv;
+        std::deque<std::shared_ptr<TextBuildJob>> queue;
+        std::vector<std::thread> workers;
+    };
+
+    // Leaked on purpose: the workers run for the life of the process and must not be joined
+    // during static destruction
+    TextBuildPool& text_build_pool() {
+        static TextBuildPool* pool = new TextBuildPool();
+        return *pool;
+    }
+} // namespace
 
 FontManager::FontManager() : generation(next_font_generation.fetch_add(1, std::memory_order_relaxed)) {}
 
@@ -853,32 +923,28 @@ OutlinedText::OutlinedText(std::string text, int font_size, Color color, Color o
         pending_image = data.img;
         return;
     }
-    if (is_vertical) {
-        build_future = std::async(std::launch::async, [this, color, outline_color, spacing] {
-            auto data = build_vertical_text(color, outline_color, spacing);
-            std::scoped_lock lock(pending_mutex);
-            pending_image = data.img;
-        });
-    } else {
-        build_future = std::async(std::launch::async, [this, color, outline_color, spacing] {
-            auto data = build_horizontal_text(color, outline_color, spacing);
-            std::scoped_lock lock(pending_mutex);
-            pending_image = data.img;
-        });
-    }
+    build_job = std::make_shared<TextBuildJob>();
+    build_job->text = this;
+    build_job->color = color;
+    build_job->outline_color = outline_color;
+    build_job->spacing = spacing;
+    build_job->vertical = is_vertical;
+    text_build_pool().submit(build_job);
 #endif
 }
 
 OutlinedText::~OutlinedText() {
-    if (build_future.valid()) {
-        build_future.wait();
-    }
-    {
-        std::scoped_lock lock(pending_mutex);
-        if (pending_image.has_value()) {
-            unload_image(pending_image.value());
-            pending_image.reset();
+    if (build_job) {
+        std::scoped_lock lock(build_job->mutex);
+        build_job->text = nullptr;
+        if (build_job->image.has_value()) {
+            unload_image(build_job->image.value());
+            build_job->image.reset();
         }
+    }
+    if (pending_image.has_value()) {
+        unload_image(pending_image.value());
+        pending_image.reset();
     }
     if (worker_font.glyphCount > 0) {
         worker_font.texture = {};
@@ -1107,8 +1173,16 @@ OutlinedText::BuildData OutlinedText::build_vertical_text(Color color, Color out
 
 bool OutlinedText::upload_pending() {
     std::optional<Image> img;
-    {
-        std::scoped_lock lock(pending_mutex);
+    std::unique_lock<std::mutex> build_lock;
+    if (build_job) {
+        build_lock = std::unique_lock<std::mutex>(build_job->mutex, std::try_to_lock);
+        if (!build_lock.owns_lock() || !build_job->image.has_value()) {
+            return false;
+        }
+        img = build_job->image;
+        build_job->image.reset();
+        build_lock.unlock();
+    } else {
         if (!pending_image.has_value()) {
             return false;
         }
@@ -1117,9 +1191,6 @@ bool OutlinedText::upload_pending() {
     }
 
     // the build task still reads worker_font; only release it once the task has finished
-    if (build_future.valid()) {
-        build_future.wait();
-    }
     worker_font.texture = {};
     unload_font(worker_font);
     worker_font = {};
@@ -1142,13 +1213,6 @@ bool OutlinedText::upload_pending() {
         outlined_text_cache().put(cache_key, cached_texture, static_cast<size_t>(tex.width) * tex.height * 4);
     }
     return true;
-}
-
-void OutlinedText::finish() {
-    if (build_future.valid()) {
-        build_future.get();
-    }
-    upload_pending();
 }
 
 void OutlinedText::draw(const DrawTextureParams& params) {
