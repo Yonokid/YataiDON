@@ -804,6 +804,55 @@ int NetworkClient::popular_rank(const std::string& hash) {
     return it == popular_ranks->end() ? 0 : it->second;
 }
 
+// a {lang: title} object: the UI language, then English, then any
+static std::string localized_title(const rapidjson::Value& t) {
+    if (!t.IsObject()) {
+        return t.IsString() ? t.GetString() : "";
+    }
+    const std::string& lang = global_data.config->general.language;
+    for (const char* key : {lang.c_str(), "en"}) {
+        if (t.HasMember(key) && t[key].IsString() && t[key].GetStringLength() > 0) {
+            return t[key].GetString();
+        }
+    }
+    for (auto it = t.MemberBegin(); it != t.MemberEnd(); ++it) {
+        if (it->value.IsString()) {
+            return it->value.GetString();
+        }
+    }
+    return "";
+}
+
+const std::vector<NetworkClient::TopPlayer>* NetworkClient::top_players() {
+    if (!network_enabled() || !online) {
+        return nullptr;
+    }
+    if (!top_player_list.has_value()) {
+        if (!pending_top_players.has_value()) {
+            pending_top_players =
+                cpr::GetAsync(cpr::Url{network_url("/leaderboard")}, signed_headers("GET", "/leaderboard", {}),
+                              cpr::Timeout{5000} NETWORK_CA_OPT);
+        }
+        return nullptr;
+    }
+    return &*top_player_list;
+}
+
+const std::vector<NetworkClient::PopularSong>* NetworkClient::new_songs() {
+    if (!network_enabled() || !online) {
+        return nullptr;
+    }
+    if (!new_song_list.has_value()) {
+        if (!pending_new_songs.has_value()) {
+            pending_new_songs = cpr::GetAsync(cpr::Url{network_url("/new_songs")},
+                                              signed_headers("GET", "/new_songs", {{"limit", "2"}}),
+                                              cpr::Parameters{{"limit", "2"}}, cpr::Timeout{5000} NETWORK_CA_OPT);
+        }
+        return nullptr;
+    }
+    return &*new_song_list;
+}
+
 void NetworkClient::request_popular() {
     if (!pending_popular.has_value()) {
         pending_popular =
@@ -1841,24 +1890,13 @@ void NetworkClient::update(double current_ms) {
             std::map<std::string, int> ranks;
             popular_list.clear();
             int place = 0;
-            const std::string& lang = global_data.config->general.language;
             for (const auto& row : doc["songs"].GetArray()) {
                 if (!row.IsObject() || ++place > 10) {
                     continue;
                 }
                 PopularSong song;
-                if (row.HasMember("title") && row["title"].IsObject()) {
-                    const auto& t = row["title"];
-                    for (const char* key : {lang.c_str(), "en"}) {
-                        if (song.title.empty() && t.HasMember(key) && t[key].IsString()) {
-                            song.title = t[key].GetString();
-                        }
-                    }
-                    for (auto it = t.MemberBegin(); song.title.empty() && it != t.MemberEnd(); ++it) {
-                        if (it->value.IsString()) {
-                            song.title = it->value.GetString();
-                        }
-                    }
+                if (row.HasMember("title")) {
+                    song.title = localized_title(row["title"]);
                 }
                 if (row.HasMember("genre") && row["genre"].IsString()) {
                     song.genre = row["genre"].GetString();
@@ -1878,6 +1916,55 @@ void NetworkClient::update(double current_ms) {
         } else {
             spdlog::warn("most_played_songs: HTTP {} - {}", response.status_code, response.text);
             popular_ranks.emplace();
+        }
+    }
+
+    if (pending_top_players.has_value() &&
+        pending_top_players->wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+        cpr::Response response = pending_top_players->get();
+        pending_top_players.reset();
+        rapidjson::Document doc;
+        top_player_list.emplace();
+        if (response.status_code == 200 && !doc.Parse(response.text.c_str()).HasParseError() &&
+            doc.HasMember("leaderboard") && doc["leaderboard"].IsArray()) {
+            for (const auto& row : doc["leaderboard"].GetArray()) {
+                if (top_player_list->size() >= 20) {
+                    break;
+                }
+                if (!row.IsObject() || !row.HasMember("username") || !row["username"].IsString() ||
+                    !row.HasMember("rating") || !row["rating"].IsNumber() || row["rating"].GetDouble() <= 0) {
+                    continue;
+                }
+                top_player_list->push_back({row["username"].GetString(), row["rating"].GetDouble()});
+            }
+        } else {
+            spdlog::warn("leaderboard: HTTP {} - {}", response.status_code, response.text);
+        }
+    }
+
+    if (pending_new_songs.has_value() &&
+        pending_new_songs->wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+        cpr::Response response = pending_new_songs->get();
+        pending_new_songs.reset();
+        rapidjson::Document doc;
+        new_song_list.emplace();
+        if (response.status_code == 200 && !doc.Parse(response.text.c_str()).HasParseError() &&
+            doc.HasMember("songs") && doc["songs"].IsArray()) {
+            for (const auto& row : doc["songs"].GetArray()) {
+                if (!row.IsObject() || !row.HasMember("title")) {
+                    continue;
+                }
+                PopularSong song;
+                song.title = localized_title(row["title"]);
+                if (row.HasMember("genre") && row["genre"].IsString()) {
+                    song.genre = row["genre"].GetString();
+                }
+                if (!song.title.empty()) {
+                    new_song_list->push_back(std::move(song));
+                }
+            }
+        } else {
+            spdlog::warn("new_songs: HTTP {} - {}", response.status_code, response.text);
         }
     }
 
@@ -1915,6 +2002,12 @@ void NetworkClient::shutdown() {
     if (pending_popular.has_value()) {
         pending_popular->wait();
         pending_popular.reset();
+    }
+    for (auto* pending : {&pending_top_players, &pending_new_songs}) {
+        if (pending->has_value()) {
+            (*pending)->wait();
+            pending->reset();
+        }
     }
 #if defined(__ANDROID__)
     if (pending_update_checksum.has_value()) {
@@ -2028,6 +2121,12 @@ int NetworkClient::popular_rank(const std::string&) {
     return 0;
 }
 const std::vector<NetworkClient::PopularSong>* NetworkClient::popular_songs() {
+    return nullptr;
+}
+const std::vector<NetworkClient::TopPlayer>* NetworkClient::top_players() {
+    return nullptr;
+}
+const std::vector<NetworkClient::PopularSong>* NetworkClient::new_songs() {
     return nullptr;
 }
 std::optional<ReplayData> NetworkClient::take_replay_result() {

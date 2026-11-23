@@ -1175,6 +1175,32 @@ void ScriptManager::register_lua_bindings() {
         }
         return out;
     });
+    // {name, rating} rows of Hiroba's player leaderboard (top 20, rated players), or nil while loading / offline
+    network_tbl.set_function("top_players", [](sol::this_state state) -> sol::object {
+        sol::state_view lua_view(state);
+        const auto* players = network.top_players();
+        if (!players) {
+            return sol::lua_nil;
+        }
+        sol::table out = lua_view.create_table();
+        for (const auto& player : *players) {
+            out.add(lua_view.create_table_with("name", player.name, "rating", player.rating));
+        }
+        return out;
+    });
+    // {title, genre} rows of Hiroba's two newest songs, or nil while loading / offline
+    network_tbl.set_function("new_songs", [](sol::this_state state) -> sol::object {
+        sol::state_view lua_view(state);
+        const auto* songs = network.new_songs();
+        if (!songs) {
+            return sol::lua_nil;
+        }
+        sol::table out = lua_view.create_table();
+        for (const auto& song : *songs) {
+            out.add(lua_view.create_table_with("title", song.title, "genre", song.genre));
+        }
+        return out;
+    });
     lua["network"] = network_tbl;
 
     register_song_select_lua_bindings(lua);

@@ -287,6 +287,13 @@ public:
         std::string genre;
     };
     const std::vector<PopularSong>* popular_songs();
+    // Hiroba's player leaderboard (by rating) and newest songs; nullptr until the first request answers
+    struct TopPlayer {
+        std::string name;
+        double rating = 0;
+    };
+    const std::vector<TopPlayer>* top_players();
+    const std::vector<PopularSong>* new_songs();
 
     void spin_gacha(const std::string& access_code);
     std::optional<GachaResult> take_gacha_result();
@@ -407,6 +414,10 @@ private:
     std::optional<std::map<std::string, int>> popular_ranks;
     std::vector<PopularSong> popular_list;
     void request_popular();
+    std::optional<cpr::AsyncResponse> pending_top_players;
+    std::optional<std::vector<TopPlayer>> top_player_list;
+    std::optional<cpr::AsyncResponse> pending_new_songs;
+    std::optional<std::vector<PopularSong>> new_song_list;
     void start_leaderboard_fetch(const std::string& hash);
 
     std::future<bool> pending_desktop_update;
