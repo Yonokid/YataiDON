@@ -29,7 +29,7 @@ void GameOverOverlay::start() {
         return;
     }
     // added to the host's assets; the host's on_screen_end unloads them with its own
-    tex.load_folder("game_over", "global");
+    tex.load_folders("game_over", {"global"});
     audio.load_screen_sounds("game_over");
     // the credit-ending screen's bgm must not play under the curtain (the jingle is the only music here)
     if (audio.has_sound("bgm")) {

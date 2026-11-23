@@ -551,7 +551,7 @@ public:
                 for (int idx = 0; idx < frame_count; idx++) {
                     FrameCellButtons b = frame_cell_buttons(idx, panel_x, frames_top);
                     if (in_rect(mouse, b.left) && idx > 0) {
-                        std::swap(framed->frames[idx], framed->frames[idx - 1]);
+                        std::swap(framed->textures[idx], framed->textures[idx - 1]);
                         // Keep the highlighted frame following the slot it moved into.
                         if (selected_tex_index == idx) {
                             selected_tex_index = idx - 1;
@@ -562,7 +562,7 @@ public:
                     }
 
                     if (in_rect(mouse, b.right) && idx < frame_count - 1) {
-                        std::swap(framed->frames[idx], framed->frames[idx + 1]);
+                        std::swap(framed->textures[idx], framed->textures[idx + 1]);
                         if (selected_tex_index == idx) {
                             selected_tex_index = idx + 1;
                         } else if (selected_tex_index == idx + 1) {
@@ -1578,9 +1578,9 @@ private:
             Rect thumb_bg = {cell_x + (FRAME_CELL_WIDTH - FRAME_THUMB_SIZE) * 0.5f, row_y, FRAME_THUMB_SIZE,
                              FRAME_THUMB_SIZE};
             draw_rectangle(thumb_bg, fade(Color::BLACK, 0.5f));
-            const Texture& t = *framed->frames[idx].texture;
+            const Texture& t = *framed->textures[idx];
             Rect src = {0, 0, static_cast<float>(t.width), static_cast<float>(t.height)};
-            draw_texture_pro(t, src, thumb_bg, {0, 0}, 0, Color::WHITE, framed->frame_layer(idx));
+            draw_texture_pro(t, src, thumb_bg, {0, 0}, 0, Color::WHITE);
             draw_rectangle_lines_ex(thumb_bg, 1.0f, fade(Color::WHITE, 0.4f));
 
             FrameCellButtons b = frame_cell_buttons(idx, panel_x, frames_top);

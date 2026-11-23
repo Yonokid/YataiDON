@@ -507,27 +507,25 @@ static sol::optional<std::shared_ptr<TextureObject>> resolve_lua_texture(const s
 
     std::string subset_key = fs::path(subset).filename().string();
     std::string base = subset_key + "/" + texture_name;
+    const std::string localized = base + "_" + global_data.config->general.language;
 
-    for (const auto& v : script_manager.tex.language_variants(base + "_" + global_data.config->general.language)) {
-        if (script_manager.tex.has_texture(v)) {
-            return script_manager.tex.get_texture_shared(v);
+    auto found = [&]() -> sol::optional<std::shared_ptr<TextureObject>> {
+        for (const auto& v : script_manager.tex.language_variants(localized)) {
+            if (script_manager.tex.has_texture(v)) {
+                return script_manager.tex.get_texture_shared(v);
+            }
         }
-    }
-    if (script_manager.tex.has_texture(base)) {
-        return script_manager.tex.get_texture_shared(base);
-    }
-
-    script_manager.tex.load_folder(screen_name, subset);
-
-    for (const auto& v : script_manager.tex.language_variants(base + "_" + global_data.config->general.language)) {
-        if (script_manager.tex.has_texture(v)) {
-            return script_manager.tex.get_texture_shared(v);
+        if (script_manager.tex.has_texture(base)) {
+            return script_manager.tex.get_texture_shared(base);
         }
+        return sol::nullopt;
+    };
+
+    if (auto texture = found()) {
+        return texture;
     }
-    if (script_manager.tex.has_texture(base)) {
-        return script_manager.tex.get_texture_shared(base);
-    }
-    return sol::nullopt;
+    script_manager.tex.load_folders(screen_name, {subset});
+    return found();
 }
 
 // sol2 gives a usertype that binds member variables (or has base classes) a C __index, and
@@ -775,7 +773,7 @@ void ScriptManager::register_lua_bindings() {
     });
 
     tex.set_function("load_folder", [](const std::string& screen_name, const std::string& subset) {
-        script_manager.tex.load_folder(screen_name, subset);
+        script_manager.tex.load_folders(screen_name, {subset});
     });
 
     tex.set_function("load_folders", [](const std::string& screen_name, sol::table subsets) {
@@ -857,12 +855,8 @@ void ScriptManager::register_lua_bindings() {
     tex.set_function("get_skin_config", [](const std::string& config_key, sol::this_state state) -> sol::stack_count {
         const SkinInfo* skin_ptr = font_manager.get_text_info(config_key);
         if (!skin_ptr) {
-            auto config_it = script_manager.tex.skin_config_by_name.find(config_key);
-            if (config_it == script_manager.tex.skin_config_by_name.end()) {
-                lua_pushnil(state);
-                return 1;
-            }
-            skin_ptr = &config_it->second;
+            lua_pushnil(state);
+            return 1;
         }
 
         lua_metadata::push_skin(state, {skin_ptr->x, skin_ptr->y, skin_ptr->font_size, skin_ptr->width,
@@ -987,19 +981,11 @@ void ScriptManager::register_lua_bindings() {
                          std::array<double, 4> outline_color, bool is_vertical, float outline_thickness, float spacing,
                          const sol::optional<std::string>& font) -> std::unique_ptr<OutlinedText> {
                           const SkinInfo* cfg = font_manager.get_text_info(skin_config_key);
-                          std::string text;
-                          if (cfg) {
-                              text = font_manager.get_text_label(skin_config_key);
-                          } else { // a position-only skin_config entry draws empty text
-                              cfg = [&] -> const SkinInfo* {
-                                  auto it = script_manager.tex.skin_config_by_name.find(skin_config_key);
-                                  return it == script_manager.tex.skin_config_by_name.end() ? nullptr : &it->second;
-                              }();
-                              if (!cfg) {
-                                  spdlog::error("Skin config key not found: {}", skin_config_key);
-                                  throw sol::error("Skin config key not found: " + skin_config_key);
-                              }
+                          if (!cfg) {
+                              spdlog::error("Skin config key not found: {}", skin_config_key);
+                              throw sol::error("Skin config key not found: " + skin_config_key);
                           }
+                          std::string text = font_manager.get_text_label(skin_config_key);
                           int font_size = cfg->font_size;
                           auto to_u8 = [](double v) {
                               return static_cast<uint8_t>(std::clamp(static_cast<int>(v), 0, 255));

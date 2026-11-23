@@ -825,6 +825,14 @@ fs::path parent_skin_root() {
 }
 
 fs::path resolve_skin_path(const fs::path& relative_path) {
+    if (relative_path.is_absolute()) {
+        return {};
+    }
+    for (const auto& part : relative_path) {
+        if (part == "..") {
+            return {};
+        }
+    }
     fs::path child_root;
     std::vector<fs::path> chain;
     {

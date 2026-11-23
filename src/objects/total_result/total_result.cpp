@@ -21,8 +21,8 @@ RewardArt reward_art(int type, int id) {
     const std::string icon_dir = type == 2   ? std::string("costume_icon")
                                  : type == 5 ? std::string("acce")
                                              : std::string("costume_") + key + "_icon";
-    art.icon = tex.resolve_skin_path(fs::path("Models") / icon_dir / (id_str + ".png"));
-    fs::path names_path = tex.resolve_skin_path("Models/costume_names.json");
+    art.icon = resolve_skin_path(fs::path("Models") / icon_dir / (id_str + ".png"));
+    fs::path names_path = resolve_skin_path("Models/costume_names.json");
     if (fs::exists(names_path)) {
         try {
             auto doc = read_json_file(names_path);

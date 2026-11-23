@@ -1,7 +1,6 @@
 #include "texture.h"
 
 #include <algorithm>
-#include <atomic>
 #include <charconv>
 #include <cmath>
 #include <condition_variable>
@@ -30,19 +29,6 @@ struct CachedGPUTexture {
 static AssetCache<CachedGPUTexture>& gpu_asset_cache() {
     static AssetCache<CachedGPUTexture> cache(asset_cache_budget(128u << 20));
     return cache;
-}
-
-// Stable key for a run of image files packed as one array texture: a hash of their paths.
-static std::string array_cache_key(const std::vector<fs::path>& files, const std::vector<size_t>& members, size_t begin,
-                                   size_t end) {
-    uint64_t hash = 1469598103934665603ull;
-    for (size_t k = begin; k < end; ++k) {
-        for (const char c : files[members[k]].string()) {
-            hash = (hash ^ static_cast<unsigned char>(c)) * 1099511628211ull;
-        }
-        hash = (hash ^ '\n') * 1099511628211ull;
-    }
-    return "array:" + std::to_string(hash) + ":" + std::to_string(end - begin);
 }
 
 namespace {
@@ -133,6 +119,10 @@ std::string TextureWrapper::skin_text(const std::string& key, const std::string&
     return t == info->text.end() ? fallback : t->second;
 }
 
+const SkinInfo* TextureWrapper::get_skin_config(SC key) const {
+    return font_manager.get_skin_config(key);
+}
+
 void TextureWrapper::init(const fs::path& skin_path) {
     graphics_path = skin_path;
 
@@ -144,8 +134,6 @@ void TextureWrapper::init(const fs::path& skin_path) {
     // skin's (and its parent's) json actually specifies. A key the previous
     // skin set but this one doesn't mention would otherwise survive the
     // switch with the old skin's value.
-    skin_info.clear();
-    skin_config_by_name.clear();
     options.clear();
     chara_3d_config = Chara3DConfig{};
     chara_positions.clear();
@@ -165,35 +153,6 @@ void TextureWrapper::init(const fs::path& skin_path) {
         screen_height = static_cast<int>(h);
         screen_scale = w / 1280.0f;
     }
-
-    auto load_entry = [this](const std::string& name, const Value& v, float scale) {
-        if (!v.IsObject()) {
-            return;
-        }
-        float x = static_cast<float>(json_member(v, "x", 0.0)) * scale;
-        float y = static_cast<float>(json_member(v, "y", 0.0)) * scale;
-        int font_size = static_cast<int>(json_member(v, "font_size", 0) * scale);
-        float width = static_cast<float>(json_member(v, "width", 0.0)) * scale;
-        float height = static_cast<float>(json_member(v, "height", 0.0)) * scale;
-
-        std::map<std::string, std::string> text_map;
-        if (v.HasMember("text") && v["text"].IsObject()) {
-            for (auto& t : v["text"].GetObject()) {
-                text_map[t.name.GetString()] = t.value.GetString();
-            }
-        }
-
-        float outline = static_cast<float>(json_member(v, "outline", -1.0));
-
-        SkinInfo info(x, y, font_size, width, height, text_map, outline);
-
-        skin_config_by_name[name] = info;
-
-        auto sc_it = skin_config_map.find(name);
-        if (sc_it != skin_config_map.end()) {
-            skin_info[sc_it->second] = std::move(info);
-        }
-    };
 
     // "nameplate": an [x, y] per place the nameplate is drawn, same scaling.
     // "chara_3d": the model's scale and rotation, plus a [x, y] per place it is drawn ("entry",
@@ -256,25 +215,13 @@ void TextureWrapper::init(const fs::path& skin_path) {
             ancestor_scales.push_back(static_cast<float>(screen_width) / aw);
         }
     }
-    parent_graphics_path = ancestor_graphics_paths.empty() ? graphics_path : ancestor_graphics_paths.front();
     for (size_t i = ancestor_graphics_paths.size(); i-- > 0;) {
         auto ancestor_config = read_json_file(ancestor_graphics_paths[i] / "skin_config.json");
-        for (auto& m : ancestor_config.GetObject()) {
-            load_entry(m.name.GetString(), m.value, ancestor_scales[i]);
-        }
         load_chara(ancestor_config, ancestor_scales[i]);
     }
 
     // Load child skin_config ??overrides parent defaults.
-    for (auto& m : skin_config_file.GetObject()) {
-        load_entry(m.name.GetString(), m.value, 1.0f);
-    }
     load_chara(skin_config_file, 1.0f);
-
-    // a skin whose chain defines no value for a required key reads as zeroes
-    for (unsigned int k = 0; k < static_cast<unsigned int>(SC::OPTIONAL_KEYS); k++) {
-        skin_info.try_emplace(static_cast<SC>(k));
-    }
 
     if (skin_config_file.HasMember("screen") && skin_config_file["screen"].HasMember("options")) {
         const Value& opts = skin_config_file["screen"]["options"];
@@ -296,8 +243,8 @@ void TextureWrapper::unload_textures() {
     textures.clear();
     loaded_subsets.clear();
     animations.clear();
+    animations_screen.clear();
     copied_animations.clear();
-    screen_animations.clear();
     subset_loaded_ids.clear();
     tex_id_refcount.clear();
     debug_draw_log.clear();
@@ -305,36 +252,37 @@ void TextureWrapper::unload_textures() {
 }
 
 BaseAnimation* TextureWrapper::get_animation(const int id, bool is_copy) {
-    if (!animations.contains(id)) {
+    auto screen_it = animations.find(animations_screen);
+    if (screen_it == animations.end() || !screen_it->second.contains(id)) {
         throw std::runtime_error("Unable to find animation: " + std::to_string(id));
     }
 
-    if (is_copy) {
-        auto new_anim = animations[id]->copy();
-        if (animations[id]->isStarted()) {
-            new_anim->start();
-        }
-        // Note: Returning raw pointer from unique_ptr requires careful management
-        copied_animations.push_back(std::move(new_anim));
-        return copied_animations.back().get();
+    auto& anim = screen_it->second[id];
+    if (!is_copy) {
+        return anim.get();
     }
-
-    return animations[id].get();
+    auto new_anim = anim->copy();
+    if (anim->isStarted()) {
+        new_anim->start();
+    }
+    // Note: Returning raw pointer from unique_ptr requires careful management
+    copied_animations.push_back(std::move(new_anim));
+    return copied_animations.back().get();
 }
 
 BaseAnimation* TextureWrapper::get_animation(const int id, const std::string& screen_name) {
-    if (!screen_animations.contains(screen_name)) {
+    if (!animations.contains(screen_name)) {
         Document anim_config;
         if (read_screen_animations(screen_name, anim_config)) {
             AnimationParser parser;
-            screen_animations[screen_name] = parser.parse_animations(anim_config);
+            animations[screen_name] = parser.parse_animations(anim_config);
         } else {
             spdlog::warn("No animation.json found for screen: {}", screen_name);
         }
     }
 
-    auto screen_it = screen_animations.find(screen_name);
-    if (screen_it == screen_animations.end()) {
+    auto screen_it = animations.find(screen_name);
+    if (screen_it == animations.end()) {
         throw std::runtime_error("No animations available for screen: " + screen_name);
     }
     auto& anim_map = screen_it->second;
@@ -351,23 +299,23 @@ BaseAnimation* TextureWrapper::get_animation(const int id, const std::string& sc
     return copied_animations.back().get();
 }
 
-// Reorders an animation's frames (and their layers) by the skin's frame_order table.
+// Reorders an animation's frames by the skin's frame_order table.
 static void apply_frame_order(TextureObject* tex_obj, const rapidjson::Value& order) {
     auto* framed = dynamic_cast<FramedTexture*>(tex_obj);
     if (!framed) {
         return;
     }
-    std::vector<FramedTexture::Frame> reordered;
+    std::vector<std::shared_ptr<Texture>> reordered;
     reordered.reserve(order.Size());
     for (rapidjson::SizeType j = 0; j < order.Size(); j++) {
         const int idx = static_cast<int>(json_number(order[j]));
-        if (idx < 0 || idx >= static_cast<int>(framed->frames.size())) {
+        if (idx < 0 || idx >= static_cast<int>(framed->textures.size())) {
             spdlog::error("Invalid frame_order index {} for texture {}", idx, tex_obj->name);
             continue;
         }
-        reordered.push_back(framed->frames[idx]);
+        reordered.push_back(framed->textures[idx]);
     }
-    framed->frames = std::move(reordered);
+    framed->textures = std::move(reordered);
 }
 
 void TextureWrapper::read_tex_obj_data(const Value& tex_mapping, TextureObject* tex_obj, float scale) {
@@ -509,10 +457,11 @@ bool TextureWrapper::read_screen_animations(const std::string& screen_name, Docu
 void TextureWrapper::load_animations(const std::string& screen_name) {
     PROFILE_SCOPE();
     PROFILE_ZONE_TEXT(screen_name);
+    animations_screen = screen_name;
     Document anim_config;
     if (read_screen_animations(screen_name, anim_config)) {
         AnimationParser parser;
-        animations = parser.parse_animations(anim_config);
+        animations[screen_name] = parser.parse_animations(anim_config);
         spdlog::info("Animations loaded for screen: {}", screen_name);
     }
 }
@@ -531,38 +480,15 @@ std::shared_ptr<Texture> shared_texture(Texture tex) {
     });
 }
 
-void decode_images_parallel(const std::vector<fs::path>& files, std::vector<Image>& out) {
+void decode_images_serial(const std::vector<fs::path>& files, std::vector<Image>& out) {
     out.assign(files.size(), Image{});
-    if (files.empty()) {
-        return;
-    }
-
-    unsigned hw = std::thread::hardware_concurrency();
-    size_t workers = std::min<size_t>(files.size(), hw ? hw : 4);
-    if (workers <= 1) {
-        for (size_t i = 0; i < files.size(); ++i) {
+    for (size_t i = 0; i < files.size(); ++i) {
+        try {
             out[i] = load_image(files[i].string().c_str());
+        } catch (const std::exception& e) {
+            spdlog::error("Failed to decode image {}: {}", files[i].string(), e.what());
+            out[i] = Image{};
         }
-        return;
-    }
-
-    std::atomic<size_t> next{0};
-    std::vector<std::thread> pool;
-    pool.reserve(workers);
-    for (size_t w = 0; w < workers; ++w) {
-        pool.emplace_back([&files, &out, &next] {
-            for (size_t i = next.fetch_add(1); i < files.size(); i = next.fetch_add(1)) {
-                try {
-                    out[i] = load_image(files[i].string().c_str());
-                } catch (const std::exception& e) {
-                    spdlog::error("Failed to decode image {}: {}", files[i].string(), e.what());
-                    out[i] = Image{};
-                }
-            }
-        });
-    }
-    for (auto& t : pool) {
-        t.join();
     }
 }
 
@@ -998,83 +924,21 @@ void TextureWrapper::load_folder(const std::string& screen_name, const std::stri
                 }
             }
             std::vector<Image> decoded;
-            decode_images_parallel(rest, decoded);
+            decode_images_serial(rest, decoded);
             for (size_t k = 0; k < rest.size(); ++k) {
                 images[rest_index[k]] = decoded[k];
             }
 
             try {
-                // Same-size images share one array texture: each unique file becomes a layer, so a
-                // folder's sprites cost one sampler slot per size group instead of one per image.
-                const bool arrays = supports_texture_arrays();
-                constexpr size_t array_min_layers = 4; // small sets save a slot but cost a program switch
-                constexpr size_t array_max_layers = 256;
-                constexpr size_t array_max_bytes = 64u << 20;
-                std::vector<std::shared_ptr<Texture>> file_tex(files.size());
-                std::vector<int> file_layer(files.size(), 0);
-                if (arrays) {
-                    std::map<std::pair<int, int>, std::vector<size_t>> groups;
-                    for (size_t i = 0; i < files.size(); ++i) {
-                        if (images[i].data && images[i].width > 0 && images[i].height > 0) {
-                            groups[{images[i].width, images[i].height}].push_back(i);
-                        }
-                    }
-                    for (const auto& [size, members] : groups) {
-                        const size_t layer_bytes = static_cast<size_t>(size.first) * size.second * 4;
-                        // a stray layer would be a plain 2D texture; huge layers would make an array
-                        // cost more VRAM than it saves
-                        if (members.size() < array_min_layers || layer_bytes > array_max_bytes / array_min_layers) {
-                            continue;
-                        }
-                        const size_t chunk = std::clamp(array_max_bytes / std::max<size_t>(layer_bytes, 1),
-                                                        array_min_layers, array_max_layers);
-                        for (size_t begin = 0; begin < members.size(); begin += chunk) {
-                            const size_t end = std::min(begin + chunk, members.size());
-                            if (end - begin < array_min_layers) {
-                                break; // a lone leftover run stays 2D textures
-                            }
-                            std::vector<Image> layer_images;
-                            layer_images.reserve(end - begin);
-                            for (size_t k = begin; k < end; ++k) {
-                                layer_images.push_back(images[members[k]]);
-                            }
-                            const std::string key = array_cache_key(files, members, begin, end);
-                            std::shared_ptr<Texture> shared;
-                            if (auto cached = gpu_asset_cache().get(key)) {
-                                shared = cached->texture;
-                            } else {
-                                Texture t = load_texture_array(layer_images, false);
-                                if (!is_texture_valid(t)) {
-                                    continue; // falls back to standalone textures below
-                                }
-                                shared = shared_texture(t);
-                                if (gpu_asset_cache().enabled()) {
-                                    const size_t bytes =
-                                        (layer_bytes * (end - begin) + 65535u) & ~static_cast<size_t>(65535u);
-                                    gpu_asset_cache().put(
-                                        key,
-                                        std::make_shared<CachedGPUTexture>(CachedGPUTexture{shared, Rect{}, false}),
-                                        bytes);
-                                }
-                            }
-                            for (size_t k = begin; k < end; ++k) {
-                                file_tex[members[k]] = shared;
-                                file_layer[members[k]] = static_cast<int>(k - begin);
-                                gpu[members[k]].reset(); // the array replaces any cached 2D upload
-                            }
-                        }
-                    }
-                }
-
                 // GPU textures indexed by file, so keys that share one atlas PNG
                 // (via "file" + "crop") upload it once and share the texture.
                 for (const auto& p : pending) {
                     bool ok = true;
-                    std::vector<FramedTexture::Frame> frames;
-                    frames.reserve(p.file_count);
+                    std::vector<std::shared_ptr<Texture>> texs;
+                    texs.reserve(p.file_count);
                     for (size_t i = 0; i < p.file_count; ++i) {
                         const size_t fi = p.first_file + i;
-                        std::shared_ptr<Texture> tex = file_tex[fi] ? file_tex[fi] : gpu[fi];
+                        std::shared_ptr<Texture> tex = gpu[fi];
                         if (!tex) {
                             const Image& img = images[fi];
                             if (!img.data) {
@@ -1110,7 +974,7 @@ void TextureWrapper::load_folder(const std::string& screen_name, const std::stri
                         if (!ok) {
                             break;
                         }
-                        frames.push_back({tex, arrays ? file_layer[fi] : 0});
+                        texs.push_back(std::move(tex));
                     }
                     if (!ok) {
                         continue;
@@ -1118,9 +982,9 @@ void TextureWrapper::load_folder(const std::string& screen_name, const std::stri
 
                     std::shared_ptr<TextureObject> obj;
                     if (p.framed) {
-                        obj = std::make_shared<FramedTexture>(p.id, std::move(frames));
+                        obj = std::make_shared<FramedTexture>(p.id, std::move(texs));
                     } else {
-                        obj = std::make_shared<SingleTexture>(p.id, frames[0].texture, frames[0].layer);
+                        obj = std::make_shared<SingleTexture>(p.id, texs[0]);
                     }
 
                     read_tex_obj_data(*p.mapping, obj.get(), tex_scale);
@@ -1522,14 +1386,13 @@ void TextureWrapper::draw_texture(TextureObject* tex_obj, const DrawTextureParam
 
     const Texture* frame_tex = tex_obj->frame_texture(params.frame);
     if (frame_tex) {
-        const int layer = tex_obj->frame_layer(params.frame);
         if (params.blend.has_value()) {
             begin_blend_mode(params.blend.value());
-            draw_texture_pro(*frame_tex, source_rect, dest_rect, params.origin, params.rotation, final_color, layer);
+            draw_texture_pro(*frame_tex, source_rect, dest_rect, params.origin, params.rotation, final_color);
             end_blend_mode();
             return;
         }
-        draw_texture_pro(*frame_tex, source_rect, dest_rect, params.origin, params.rotation, final_color, layer);
+        draw_texture_pro(*frame_tex, source_rect, dest_rect, params.origin, params.rotation, final_color);
     }
 }
 

@@ -8,8 +8,8 @@ void InputTestScreen::on_screen_start() {
     // previous screen's on_screen_end had already unloaded everything.
     Screen::on_screen_start();
     tex.load_animations("game");
-    tex.load_folder("game", "practice");
-    tex.load_folder("settings", "background");
+    tex.load_folders("game", {"practice"});
+    tex.load_folders("settings", {"background"});
 
     t_background = tex.get_texture("background/background");
     t_large_drum = tex.get_texture("practice/large_drum");

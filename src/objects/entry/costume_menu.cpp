@@ -51,7 +51,7 @@ void CostumeMenu::load_costume_icons(const std::string& subdir, const std::strin
     costume_names.clear();
     costume_icon_index = 0;
 
-    fs::path dir = tex.resolve_skin_path(fs::path("Models") / subdir);
+    fs::path dir = resolve_skin_path(fs::path("Models") / subdir);
     if (!fs::exists(dir)) {
         return;
     }
@@ -83,7 +83,7 @@ void CostumeMenu::load_costume_icons(const std::string& subdir, const std::strin
         costume_icons.push_back(t);
     }
 
-    fs::path names_path = tex.resolve_skin_path("Models/costume_names.json");
+    fs::path names_path = resolve_skin_path("Models/costume_names.json");
     if (fs::exists(names_path)) {
         try {
             auto doc = read_json_file(names_path);
@@ -121,7 +121,7 @@ void CostumeMenu::load_preset_data() {
     }
     preset_data_loaded = true;
 
-    fs::path dir = tex.resolve_skin_path(fs::path("Models") / "costume_icon");
+    fs::path dir = resolve_skin_path(fs::path("Models") / "costume_icon");
     if (fs::exists(dir)) {
         for (auto& e : fs::directory_iterator(dir)) {
             if (e.path().extension() != ".png") {
@@ -143,7 +143,7 @@ void CostumeMenu::load_preset_data() {
         {"random", "costume_select/random_item"},
     };
 
-    fs::path presets_path = tex.resolve_skin_path("Models/costume_presets.json");
+    fs::path presets_path = resolve_skin_path("Models/costume_presets.json");
     if (fs::exists(presets_path)) {
         try {
             auto doc = read_json_file(presets_path);

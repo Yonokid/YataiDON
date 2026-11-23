@@ -64,6 +64,7 @@ public:
 
     const SkinInfo* get_text_info(const std::string& key);
     SkinInfo* get_text_info_mut(const std::string& key);
+    const SkinInfo* get_skin_config(SC key) const;
 };
 
 enum class LocalizedTextFallback {

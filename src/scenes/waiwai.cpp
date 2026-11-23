@@ -10,6 +10,7 @@
 #include <string_view>
 #include <vector>
 
+#include "../libs/file/filesystem.h"
 #include "../libs/file/scores.h"
 #include "../libs/input/input.h"
 
@@ -27,7 +28,7 @@ static fs::path waiwai_tips_path(const std::string& collab) {
 
 static std::string waiwai_collab(std::string preset) {
     std::ranges::transform(preset, preset.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-    if (!preset.empty() && fs::exists(tex.resolve_skin_path(waiwai_tips_path(preset)))) {
+    if (!preset.empty() && fs::exists(resolve_skin_path(waiwai_tips_path(preset)))) {
         return preset;
     }
     return "taiko";
@@ -71,7 +72,7 @@ void WaiwaiSongSelectScreen::select_song(SongBox* song) {
     SongSelect2PScreen::select_song(song);
     waiwai_state.collab = waiwai_collab(song->parser.metadata.scene_preset);
     if (game_transition) {
-        game_transition->add_tips(tex.resolve_skin_path(waiwai_tips_path(waiwai_state.collab)).string());
+        game_transition->add_tips(resolve_skin_path(waiwai_tips_path(waiwai_state.collab)).string());
     }
 }
 
@@ -148,8 +149,8 @@ void WaiwaiGameScreen::apply_shared_art() {
     const std::string& collab = waiwai_state.collab;
     std::vector<std::string> rare_keys;
     const std::string rare_folder = "rare/" + collab;
-    if (fs::exists(tex.resolve_skin_path(fs::path("Graphics/waiwai_game") / rare_folder / "texture.json"))) {
-        tex.load_folder("waiwai_game", rare_folder);
+    if (fs::exists(resolve_skin_path(fs::path("Graphics/waiwai_game") / rare_folder / "texture.json"))) {
+        tex.load_folders("waiwai_game", {rare_folder});
         for (int kind = 0; kind < 3; ++kind) {
             if (std::string key = std::format("{}/note_{}", collab, kind); tex.has_texture(key)) {
                 rare_keys.push_back(std::move(key));
@@ -173,7 +174,7 @@ void WaiwaiGameScreen::on_screen_start() {
     Game2PScreen::on_screen_start();
     waiwai_state.collab = waiwai_collab(scene_preset);
     if (transition) {
-        transition->add_tips(tex.resolve_skin_path(waiwai_tips_path(waiwai_state.collab)).string());
+        transition->add_tips(resolve_skin_path(waiwai_tips_path(waiwai_state.collab)).string());
     }
     overlay.emplace("WaiwaiGame", "waiwai_game");
     apply_shared_art();

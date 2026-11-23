@@ -56,7 +56,7 @@ void DanSelectScreen::on_screen_start() {
     wheel_tick_epoch = get_current_ms();
     wheel_tick_seen = 0;
 
-    tex.load_folder("song_select", "modifier");
+    tex.load_folders("song_select", {"modifier"});
     if (auto pd = scores_manager.get_player_data(get_player_id(global_data.player_num))) {
         dan_player_data = *pd;
     }

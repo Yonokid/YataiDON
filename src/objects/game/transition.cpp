@@ -71,7 +71,7 @@ void Transition::add_loading_graphic(const std::string& path) {
 
 void Transition::set_dan(int color, const std::string& rank_name) {
     dan_color = color;
-    global_tex.load_folder("dan_loading", "loading_dan");
+    global_tex.load_folders("dan_loading", {"loading_dan"});
     t_loading_dan_night = global_tex.get_texture("loading_dan/night");
     t_loading_dan_plaque = global_tex.get_texture("loading_dan/plaque");
     load_rainbow_bg();

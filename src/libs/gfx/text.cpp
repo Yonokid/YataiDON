@@ -126,6 +126,7 @@ void FontManager::init(const fs::path& font_path) {
 }
 
 static std::unordered_map<std::string, SkinInfo> text_entries;
+static std::unordered_map<SC, SkinInfo> skin_config;
 
 static double json_member(const rapidjson::Value& o, const char* key, double fallback) {
     return o.HasMember(key) && o[key].IsNumber() ? o[key].GetDouble() : fallback;
@@ -142,24 +143,27 @@ static void read_text_entries(const fs::path& file, float scale) {
         }
         for (auto& m : doc.GetObject()) {
             const auto& v = m.value;
-            if (!v.IsObject() || !v.HasMember("text") || !v["text"].IsObject()) {
+            const std::string name = m.name.GetString();
+            if (!v.IsObject() || name == "screen" || name == "chara_3d" || name == "nameplate") {
                 continue;
             }
             std::map<std::string, std::string> labels;
-            for (auto& t : v["text"].GetObject()) {
-                if (t.value.IsString()) {
-                    labels[t.name.GetString()] = t.value.GetString();
+            if (v.HasMember("text") && v["text"].IsObject()) {
+                for (auto& t : v["text"].GetObject()) {
+                    if (t.value.IsString()) {
+                        labels[t.name.GetString()] = t.value.GetString();
+                    }
                 }
             }
-            text_entries[m.name.GetString()] = SkinInfo(static_cast<float>(json_member(v, "x", 0.0)) * scale,
-                                                        static_cast<float>(json_member(v, "y", 0.0)) * scale,
-                                                        static_cast<int>(json_member(v, "font_size", 0) * scale),
-                                                        static_cast<float>(json_member(v, "width", 0.0)) * scale,
-                                                        static_cast<float>(json_member(v, "height", 0.0)) * scale,
-                                                        labels, json_member(v, "outline", -1.0));
-            SkinInfo& entry = text_entries[m.name.GetString()];
-            entry.json_path = file;
-            entry.json_scale = scale;
+            SkinInfo info(static_cast<float>(json_member(v, "x", 0.0)) * scale,
+                          static_cast<float>(json_member(v, "y", 0.0)) * scale,
+                          static_cast<int>(json_member(v, "font_size", 0) * scale),
+                          static_cast<float>(json_member(v, "width", 0.0)) * scale,
+                          static_cast<float>(json_member(v, "height", 0.0)) * scale, labels,
+                          json_member(v, "outline", -1.0));
+            info.json_path = file;
+            info.json_scale = scale;
+            text_entries[name] = std::move(info);
         }
     } catch (const std::exception& e) {
         spdlog::warn("text_config {}: {}", file.string(), e.what());
@@ -186,6 +190,22 @@ void FontManager::load_text_config(const fs::path& skin_root) {
         read_text_entries(roots[i] / "Graphics" / "skin_config.json", scale);
         read_text_entries(roots[i] / "text_config.json", scale);
     }
+
+    skin_config.clear();
+    for (unsigned int k = 0; k < static_cast<unsigned int>(SC::OPTIONAL_KEYS); k++) {
+        skin_config.try_emplace(static_cast<SC>(k));
+    }
+    for (const auto& [name, key] : skin_config_map) {
+        auto it = text_entries.find(name);
+        if (it != text_entries.end()) {
+            skin_config[key] = it->second;
+        }
+    }
+}
+
+const SkinInfo* FontManager::get_skin_config(SC key) const {
+    auto it = skin_config.find(key);
+    return it == skin_config.end() ? nullptr : &it->second;
 }
 
 const SkinInfo* FontManager::get_text_info(const std::string& key) {

@@ -104,55 +104,38 @@ struct TextureObject {
 
     virtual const Texture* frame_texture(int frame) const { return nullptr; }
 
-    // Layer of `frame` in its texture when it is one layer of an array texture.
-    virtual int frame_layer(int) const { return 0; }
-
     virtual int frame_count() const { return 1; }
 };
 
 struct SingleTexture : public TextureObject {
     std::shared_ptr<Texture> texture;
-    int layer = 0;
 
-    SingleTexture(const std::string& name, std::shared_ptr<Texture> tex, int layer = 0)
-        : TextureObject(name, tex->width, tex->height), texture(std::move(tex)), layer(layer) {
+    SingleTexture(const std::string& name, std::shared_ptr<Texture> tex)
+        : TextureObject(name, tex->width, tex->height), texture(std::move(tex)) {
         set_texture_wrap(*texture, texture_wrap::CLAMP);
     }
 
     const Texture* frame_texture(int) const override { return texture.get(); }
-    int frame_layer(int) const override { return layer; }
 };
 
 struct FramedTexture : public TextureObject {
-    struct Frame {
-        std::shared_ptr<Texture> texture;
-        int layer = 0;
-    };
-    std::vector<Frame> frames;
+    std::vector<std::shared_ptr<Texture>> textures;
 
-    FramedTexture(const std::string& name, std::vector<Frame> frames)
-        : TextureObject(name, frames.empty() ? 0 : frames[0].texture->width,
-                        frames.empty() ? 0 : frames[0].texture->height),
-          frames(std::move(frames)) {
-        for (auto& frame : this->frames) {
-            set_texture_wrap(*frame.texture, texture_wrap::CLAMP);
+    FramedTexture(const std::string& name, std::vector<std::shared_ptr<Texture>> texs)
+        : TextureObject(name, texs.empty() ? 0 : texs[0]->width, texs.empty() ? 0 : texs[0]->height),
+          textures(std::move(texs)) {
+        for (auto& tex : textures) {
+            set_texture_wrap(*tex, texture_wrap::CLAMP);
         }
     }
 
-    int frame_count() const override { return static_cast<int>(frames.size()); }
+    int frame_count() const override { return static_cast<int>(textures.size()); }
 
     const Texture* frame_texture(int frame) const override {
-        if (frame < 0 || frame >= static_cast<int>(frames.size())) {
+        if (frame < 0 || frame >= static_cast<int>(textures.size())) {
             throw std::runtime_error("Frame " + std::to_string(frame) + " not available in framed texture " + name);
         }
-        return frames[frame].texture.get();
-    }
-
-    int frame_layer(int frame) const override {
-        if (frame < 0 || frame >= static_cast<int>(frames.size())) {
-            return 0;
-        }
-        return frames[frame].layer;
+        return textures[frame].get();
     }
 };
 
@@ -186,11 +169,10 @@ inline std::vector<DrawLogEntry> debug_draw_log_prev;
 
 class TextureWrapper {
 private:
-    std::unordered_map<int, std::unique_ptr<BaseAnimation>> animations;
+    std::unordered_map<std::string, std::unordered_map<int, std::unique_ptr<BaseAnimation>>> animations;
+    std::string animations_screen;
     std::vector<std::unique_ptr<BaseAnimation>> copied_animations;
-    std::unordered_map<std::string, std::unordered_map<int, std::unique_ptr<BaseAnimation>>> screen_animations;
     fs::path graphics_path;
-    fs::path parent_graphics_path;
     std::vector<fs::path> ancestor_graphics_paths;
     std::vector<float> ancestor_scales;
     std::unordered_set<std::string> loaded_subsets;
@@ -204,6 +186,7 @@ private:
     bool read_screen_animations(const std::string& screen_name, rapidjson::Document& out);
     void prefetch_groups(const std::string& screen_name, const std::vector<std::string>& subsets,
                          std::vector<std::vector<fs::path>>& groups, std::unordered_set<std::string>& border_keys);
+    void load_folder(const std::string& screen_name, const std::string& subset);
 
 public:
     std::unordered_map<std::string, std::shared_ptr<TextureObject>> textures;
@@ -211,8 +194,6 @@ public:
     // it every frame. Emptied whenever `textures` changes, and when the language changes.
     std::unordered_map<std::string, std::shared_ptr<TextureObject>> lua_texture_lookup;
     std::string lua_texture_lookup_lang;
-    std::unordered_map<SC, SkinInfo> skin_info; // read through get_skin_config
-    std::unordered_map<std::string, SkinInfo> skin_config_by_name;
     std::unordered_map<SCO, bool> options;
     Chara3DConfig chara_3d_config;
     std::map<std::string, std::pair<float, float>> chara_positions;
@@ -244,17 +225,12 @@ public:
 
     void init(const fs::path& skin_path);
 
-    const SkinInfo* get_skin_config(SC key) const {
-        auto it = skin_info.find(key);
-        return it == skin_info.end() ? nullptr : &it->second;
-    }
+    const SkinInfo* get_skin_config(SC key) const;
 
     // text_config label for `key` in exactly `language` (see font_manager.get_text_label)
     std::string skin_text(const std::string& key, const std::string& language, const std::string& fallback = "") const;
 
     fs::path skin_root() const { return graphics_path.parent_path(); }
-    fs::path parent_root() const { return parent_graphics_path.parent_path(); }
-    bool has_parent_skin() const { return parent_graphics_path != graphics_path; }
     // Graphics dirs of the skin and all its ancestors, nearest first
     std::vector<fs::path> all_graphics_roots() const {
         std::vector<fs::path> r{graphics_path};
@@ -262,39 +238,18 @@ public:
         return r;
     }
 
-    fs::path resolve_skin_path(const fs::path& relative_path) const {
-        if (relative_path.is_absolute()) {
-            return {};
-        }
-        for (const auto& part : relative_path) {
-            if (part == "..") {
-                return {};
-            }
-        }
-        fs::path child = skin_root() / relative_path;
-        if (fs::exists(child)) {
-            return child;
-        }
-        for (const fs::path& ancestor : ancestor_graphics_paths) {
-            fs::path p = ancestor.parent_path() / relative_path;
-            if (fs::exists(p)) {
-                return p;
-            }
-        }
-        return child;
-    }
-
     void unload_textures();
 
-    bool has_animation(const int id) const { return animations.contains(id); }
+    bool has_animation(const int id) const {
+        auto it = animations.find(animations_screen);
+        return it != animations.end() && it->second.contains(id);
+    }
     BaseAnimation* get_animation(int id, bool is_copy = false);
     BaseAnimation* get_animation(int id, const std::string& screen_name);
 
     void read_tex_obj_data(const Value& tex_mapping, TextureObject* tex_obj, float scale = 1.0f);
 
     void load_animations(const std::string& screen_name);
-
-    void load_folder(const std::string& screen_name, const std::string& subset);
 
     // Several folders at once: every PNG is decoded on the worker pool while the earlier ones upload,
     // so a skin's per-song set costs roughly max(decode, upload) instead of their sum.
