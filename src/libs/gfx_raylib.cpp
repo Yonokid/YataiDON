@@ -117,7 +117,7 @@ void draw_text_ex(Font font, const char* text, Vec2 pos, float font_size, float 
     ray::DrawTextEx(to<ray::Font>(font), text, pos, font_size, spacing, {tint.r, tint.g, tint.b, tint.a});
 }
 
-void draw_texture_pro(Texture tex, Rect src, Rect dst, Vec2 origin, float rotation, Color tint) {
+void draw_texture_pro(Texture tex, Rect src, Rect dst, Vec2 origin, float rotation, Color tint, int) {
     ray::DrawTexturePro(tex, src, dst, origin, rotation, {tint.r, tint.g, tint.b, tint.a});
 }
 
@@ -227,6 +227,14 @@ Texture load_texture_from_image(Image image, bool mipmaps) {
         ray::GenTextureMipmaps(&tex);
     }
     return tex;
+}
+
+bool supports_texture_arrays() {
+    return false;
+}
+
+Texture load_texture_array(std::span<const Image>, bool) {
+    return {};
 }
 
 void unload_texture(Texture tex) {

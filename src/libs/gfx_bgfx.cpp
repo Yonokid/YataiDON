@@ -44,6 +44,7 @@
 #include "shaders/dxbc/fs_outline.sc.bin.h"
 #include "shaders/dxbc/fs_outline_fxaa.sc.bin.h"
 #include "shaders/dxbc/fs_sprite.sc.bin.h"
+#include "shaders/dxbc/fs_sprite_array.sc.bin.h"
 #include "shaders/dxbc/vs_2d.sc.bin.h"
 #include "shaders/dxbc/vs_mesh.sc.bin.h"
 #include "shaders/dxbc/vs_mesh_skin.sc.bin.h"
@@ -60,6 +61,7 @@
 #include "shaders/essl/fs_outline.sc.bin.h"
 #include "shaders/essl/fs_outline_fxaa.sc.bin.h"
 #include "shaders/essl/fs_sprite.sc.bin.h"
+#include "shaders/essl/fs_sprite_array.sc.bin.h"
 #include "shaders/essl/vs_2d.sc.bin.h"
 #include "shaders/essl/vs_mesh.sc.bin.h"
 #include "shaders/essl/vs_mesh_skin.sc.bin.h"
@@ -75,6 +77,7 @@
 #include "shaders/glsl/fs_outline.sc.bin.h"
 #include "shaders/glsl/fs_outline_fxaa.sc.bin.h"
 #include "shaders/glsl/fs_sprite.sc.bin.h"
+#include "shaders/glsl/fs_sprite_array.sc.bin.h"
 #include "shaders/glsl/vs_2d.sc.bin.h"
 #include "shaders/glsl/vs_mesh.sc.bin.h"
 #include "shaders/glsl/vs_mesh_skin.sc.bin.h"
@@ -90,6 +93,7 @@
 #include "shaders/spirv/fs_outline.sc.bin.h"
 #include "shaders/spirv/fs_outline_fxaa.sc.bin.h"
 #include "shaders/spirv/fs_sprite.sc.bin.h"
+#include "shaders/spirv/fs_sprite_array.sc.bin.h"
 #include "shaders/spirv/vs_2d.sc.bin.h"
 #include "shaders/spirv/vs_mesh.sc.bin.h"
 #include "shaders/spirv/vs_mesh_skin.sc.bin.h"
@@ -229,14 +233,15 @@ namespace {
         return {to[0] - from[0], from[1] > 0 ? to[1] / from[1] : 1.0f, from[2] > 0 ? to[2] / from[2] : 1.0f, 1.0f};
     }
 
-    struct alignas(64) SpriteInstance {
+    struct alignas(16) SpriteInstance {
         std::array<float, 4> rectangle;
         std::array<float, 4> uv;
         std::array<float, 4> origin_rotation;
         std::array<float, 4> color_transform;
+        std::array<float, 4> layer; // x = layer in the texture array
 
         static SpriteInstance make(Rect destination, std::array<float, 4> uv, Vec2 origin, float rotation, Color tint,
-                                   uint32_t texture_index, std::array<float, 4> transform) {
+                                   uint32_t texture_index, float layer, std::array<float, 4> transform) {
             // Integer-valued floats preserve every packed bit without relying on NaN payloads.
             const uint32_t rg =
                 tint.r | (uint32_t{tint.g} << 8) | (texture_index << 16) | (uint32_t{transform[3] > 0.5f} << 19);
@@ -244,11 +249,12 @@ namespace {
             return {{destination.x, destination.y, destination.width, destination.height},
                     uv,
                     {origin.x, origin.y, rotation, static_cast<float>(rg)},
-                    transform};
+                    transform,
+                    {layer, 0.0f, 0.0f, 0.0f}};
         }
     };
 
-    static_assert(sizeof(SpriteInstance) == 64);
+    static_assert(sizeof(SpriteInstance) == 5 * 16);
 
     class SpriteTextures {
         std::array<unsigned, 8> textures{};
@@ -345,6 +351,7 @@ namespace {
         bgfx::TextureHandle handle = BGFX_INVALID_HANDLE;
         int filter = FILTER_POINT; // raylib's defaults
         int wrap = WRAP_REPEAT;
+        bool array = false; // a 2D array texture; drawn through the array sprite program
     };
 
     struct ProgramSlot {
@@ -390,6 +397,7 @@ namespace {
     bgfx::VertexLayout layout;
     bgfx::UniformHandle s_tex_color = BGFX_INVALID_HANDLE;
     unsigned white_texture = 0;
+    unsigned white_array = 0;
     Font default_font;
 
     // id = index + 1, so id 0 stays "none"
@@ -397,6 +405,7 @@ namespace {
     std::vector<ProgramSlot> programs; // [0] = default 2D program
     std::vector<TargetSlot> targets;
     ProgramSlot sprite_program;
+    ProgramSlot sprite_program_array;
     bool gpu_sprites_enabled = false;
     SpriteTextures sprite_textures;
     std::array<bgfx::UniformHandle, SpriteTextures::capacity> sprite_samplers = [] {
@@ -458,6 +467,7 @@ namespace {
     unsigned cur_program = 0; // index into programs
     bool cur_lines = false;
     bool cur_sprites = false;
+    bool cur_sprites_array = false;
     uint64_t cur_blend = 0;
     uint64_t custom_separate_blend = 0;
     Scissor cur_scissor;
@@ -604,7 +614,8 @@ namespace {
         }
         if (cur_sprites) {
             for (unsigned stage = 0; stage < SpriteTextures::capacity; ++stage) {
-                const auto id = stage < sprite_textures.size() ? sprite_textures[stage] : white_texture;
+                const auto id = stage < sprite_textures.size() ? sprite_textures[stage]
+                                                               : (cur_sprites_array ? white_array : white_texture);
                 const TextureSlot* texture = texture_slot(id);
                 if (!texture) {
                     texture = texture_slot(white_texture);
@@ -622,7 +633,8 @@ namespace {
         if (cur_scissor.on) {
             bgfx::setScissor(cur_scissor.x, cur_scissor.y, cur_scissor.w, cur_scissor.h);
         }
-        ProgramSlot& prog = cur_sprites ? sprite_program : programs[cur_program];
+        ProgramSlot& prog =
+            cur_sprites ? (cur_sprites_array ? sprite_program_array : sprite_program) : programs[cur_program];
         for (size_t i = 0; i < prog.uniforms.size(); i++) {
             bgfx::setUniform(prog.uniforms[i], prog.values[i].data());
         }
@@ -687,12 +699,14 @@ namespace {
         cur_scissor = {};
     }
 
-    void use(unsigned texture, bool lines, bool sprites = false) {
-        if ((!sprites && texture != cur_texture) || lines != cur_lines || sprites != cur_sprites) {
+    void use(unsigned texture, bool lines, bool sprites = false, bool array = false) {
+        if ((!sprites && texture != cur_texture) || lines != cur_lines || sprites != cur_sprites ||
+            (sprites && array != cur_sprites_array)) {
             flush();
             cur_texture = texture;
             cur_lines = lines;
             cur_sprites = sprites;
+            cur_sprites_array = array;
         }
     }
 
@@ -735,7 +749,7 @@ namespace {
                 r.height = -r.height;
             }
             Texture white;
-            white.id = white_texture;
+            white.id = (cur_sprites && cur_sprites_array) ? white_array : white_texture;
             white.width = white.height = 1;
             draw_texture_pro(white, {0, 0, 1, 1}, r, {}, 0, c);
             return;
@@ -771,22 +785,16 @@ namespace {
         }
     }
 
-    unsigned upload_texture(Image image, bool mipmaps) {
-        Image rgba = image;
-        if (image.format != pixel_format::RGBA8) {
-            rgba = image_copy(image);
-            image_format(&rgba, pixel_format::RGBA8);
-        }
+    int mip_levels(int w, int h) {
         int levels = 1;
-        if (mipmaps) {
-            for (int w = rgba.width, h = rgba.height; w > 1 || h > 1; w = std::max(1, w / 2), h = std::max(1, h / 2)) {
-                levels++;
-            }
+        for (; w > 1 || h > 1; w = std::max(1, w / 2), h = std::max(1, h / 2)) {
+            levels++;
         }
-        TextureSlot slot;
-        slot.handle = bgfx::createTexture2D(static_cast<uint16_t>(rgba.width), static_cast<uint16_t>(rgba.height),
-                                            levels > 1, 1, bgfx::TextureFormat::RGBA8);
-        // ponytail: box-filtered mips on the CPU; GPU generation if load time ever matters
+        return levels;
+    }
+
+    // Uploads a whole RGBA8 image (and its box-filtered mips) into one layer.
+    void upload_image_levels(bgfx::TextureHandle handle, uint16_t layer, Image rgba, int levels) {
         const auto* level = static_cast<const uint8_t*>(rgba.data);
         std::vector<uint8_t> next, prev;
         int w = rgba.width, h = rgba.height;
@@ -796,7 +804,7 @@ namespace {
             for (int y = 0; y < h;) {
                 const int upload_height = static_cast<int>(std::min<size_t>(h - y, rows_per_upload));
                 const uint32_t upload_bytes = static_cast<uint32_t>(row_bytes * upload_height);
-                bgfx::updateTexture2D(slot.handle, 0, static_cast<uint8_t>(mip), 0, static_cast<uint16_t>(y),
+                bgfx::updateTexture2D(handle, layer, static_cast<uint8_t>(mip), 0, static_cast<uint16_t>(y),
                                       static_cast<uint16_t>(w), static_cast<uint16_t>(upload_height),
                                       bgfx::copy(level + static_cast<size_t>(y) * row_bytes, upload_bytes));
                 pending_upload_bytes += upload_bytes;
@@ -825,8 +833,49 @@ namespace {
             w = nw;
             h = nh;
         }
+    }
+
+    unsigned upload_texture(Image image, bool mipmaps) {
+        Image rgba = image;
+        if (image.format != pixel_format::RGBA8) {
+            rgba = image_copy(image);
+            image_format(&rgba, pixel_format::RGBA8);
+        }
+        const int levels = mipmaps ? mip_levels(rgba.width, rgba.height) : 1;
+        TextureSlot slot;
+        slot.handle = bgfx::createTexture2D(static_cast<uint16_t>(rgba.width), static_cast<uint16_t>(rgba.height),
+                                            levels > 1, 1, bgfx::TextureFormat::RGBA8);
+        upload_image_levels(slot.handle, 0, rgba, levels);
         if (rgba.data != image.data) {
             unload_image(rgba);
+        }
+        flush_uploads_if_idle();
+        return add_slot(slot);
+    }
+
+    // Same-size images become the layers of one array texture, so a whole animation
+    // or sprite set costs a sampler slot instead of one texture per image.
+    unsigned upload_texture_array(std::span<const Image> images, bool mipmaps) {
+        if (images.size() < 2) {
+            return 0; // a single layer would be a plain 2D texture, not a texture array
+        }
+        const Image& first = images.front();
+        const int levels = mipmaps ? mip_levels(first.width, first.height) : 1;
+        TextureSlot slot;
+        slot.array = true;
+        slot.handle =
+            bgfx::createTexture2D(static_cast<uint16_t>(first.width), static_cast<uint16_t>(first.height), levels > 1,
+                                  static_cast<uint16_t>(images.size()), bgfx::TextureFormat::RGBA8);
+        for (uint16_t layer = 0; layer < images.size(); layer++) {
+            Image rgba = images[layer];
+            if (rgba.format != pixel_format::RGBA8) {
+                rgba = image_copy(images[layer]);
+                image_format(&rgba, pixel_format::RGBA8);
+            }
+            upload_image_levels(slot.handle, layer, rgba, levels);
+            if (rgba.data != images[layer].data) {
+                unload_image(rgba);
+            }
         }
         flush_uploads_if_idle();
         return add_slot(slot);
@@ -1137,7 +1186,7 @@ void init_window(int width, int height, const char* title) {
     s_tex_color = bgfx::createUniform("s_texColor", bgfx::UniformType::Sampler);
     programs.push_back(make_program(BIN(vs_2d), BIN(fs_2d)));
     gpu_sprites_enabled = false;
-    if (caps->limits.maxInstanceData >= 4 && caps->limits.maxVertexAttributes >= 5 &&
+    if (caps->limits.maxInstanceData >= 5 && caps->limits.maxVertexAttributes >= 6 &&
         caps->limits.maxTextureSamplers >= SpriteTextures::capacity) {
         sprite_instances.reserve(256);
         constexpr float corners[] = {0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0};
@@ -1145,18 +1194,31 @@ void init_window(int width, int height, const char* title) {
         quad_layout.begin().add(bgfx::Attrib::Position, 3, bgfx::AttribType::Float).end();
         sprite_quad = bgfx::createVertexBuffer(bgfx::copy(corners, sizeof(corners)), quad_layout);
         sprite_program = make_program(BIN(vs_sprite), BIN(fs_sprite));
+        sprite_program_array = make_program(BIN(vs_sprite), BIN(fs_sprite_array));
         for (unsigned stage = 0; stage < SpriteTextures::capacity; ++stage) {
             const std::string name = "s_sprite" + std::to_string(stage);
             sprite_samplers[stage] = bgfx::createUniform(name.c_str(), bgfx::UniformType::Sampler);
         }
         gpu_sprites_enabled =
             bgfx::isValid(sprite_quad) && bgfx::isValid(sprite_program.program) &&
+            bgfx::isValid(sprite_program_array.program) &&
             std::ranges::all_of(sprite_samplers, [](const auto& sampler) { return bgfx::isValid(sampler); });
     }
     init_3d();
 
     Image white = gen_image_color(1, 1, Color::WHITE);
     white_texture = upload_texture(white, false);
+    if (gpu_sprites_enabled) {
+        // an array program needs a real array even for its unused sampler slots
+        const std::array<Image, 2> white_layers{white, white};
+        white_array = upload_texture_array(white_layers, false);
+        if (!texture_slot(white_array)) {
+            gpu_sprites_enabled = false; // no usable white layer, so stay on the 2D sprite program
+            white_array = white_texture;
+        }
+    } else {
+        white_array = white_texture;
+    }
     unload_image(white);
 
     default_font = load_font_from_memory(default_font_ttf(), 32);
@@ -1180,6 +1242,10 @@ void close_window() {
     if (bgfx::isValid(sprite_program.program)) {
         bgfx::destroy(sprite_program.program);
         sprite_program = {};
+    }
+    if (bgfx::isValid(sprite_program_array.program)) {
+        bgfx::destroy(sprite_program_array.program);
+        sprite_program_array = {};
     }
     for (auto& sampler : sprite_samplers) {
         if (bgfx::isValid(sampler)) {
@@ -1511,6 +1577,24 @@ Texture load_texture_from_image(Image image, bool mipmaps) {
     return tex;
 }
 
+bool supports_texture_arrays() {
+    return gpu_sprites_enabled;
+}
+
+Texture load_texture_array(std::span<const Image> images, bool mipmaps) {
+    Texture tex;
+    if (!supports_texture_arrays() || images.size() < 2 || !images.front().data || images.front().width <= 0 ||
+        images.front().height <= 0) {
+        return tex;
+    }
+    tex.id = upload_texture_array(images, mipmaps);
+    tex.width = images.front().width;
+    tex.height = images.front().height;
+    tex.mipmaps = 1;
+    tex.format = pixel_format::RGBA8;
+    return tex;
+}
+
 void unload_texture(Texture tex) {
     if (TextureSlot* t = texture_slot(tex.id)) {
         if (batch_uses_texture(tex.id)) {
@@ -1707,10 +1791,12 @@ void end_shader_mode() {
 
 // ---- drawing --------------------------------------------------------------------------
 
-void draw_texture_pro(Texture tex, Rect src, Rect dst, Vec2 origin, float rotation, Color tint) {
-    if (!texture_slot(tex.id)) {
+void draw_texture_pro(Texture tex, Rect src, Rect dst, Vec2 origin, float rotation, Color tint, int layer) {
+    const TextureSlot* slot = texture_slot(tex.id);
+    if (!slot) {
         return;
     }
+    const bool as_array = slot->array;
     if (sprite_compatible(cur_program) && tint.a == 0 &&
         (cur_blend == blend_state(BLEND_ALPHA) || cur_blend == custom_separate_blend)) {
         return;
@@ -1739,12 +1825,22 @@ void draw_texture_pro(Texture tex, Rect src, Rect dst, Vec2 origin, float rotati
             }
         }
         const float u0 = src.x / w, u1 = (src.x + src.width) / w;
-        use(tex.id, false, true);
+        use(tex.id, false, true, as_array);
         const auto texture_index = sprite_textures.add(tex.id, [] { flush(); });
         static_assert(SpriteTextures::capacity <= 8);
-        sprite_instances.push_back(
-            SpriteInstance::make(dst, {flip_x ? u1 : u0, src.y / h, flip_x ? u0 : u1, (src.y + src.height) / h}, origin,
-                                 rotation * deg2rad, tint, texture_index, current_color_transform()));
+        sprite_instances.push_back(SpriteInstance::make(
+            dst, {flip_x ? u1 : u0, src.y / h, flip_x ? u0 : u1, (src.y + src.height) / h}, origin, rotation * deg2rad,
+            tint, texture_index, static_cast<float>(layer), current_color_transform()));
+        return;
+    }
+
+    if (as_array) {
+        // the 2D fallback program has a SAMPLER2D and cannot read an array texture
+        static bool warned = false;
+        if (!warned) {
+            spdlog::warn("bgfx: array texture drawn outside the sprite path, skipping");
+            warned = true;
+        }
         return;
     }
 

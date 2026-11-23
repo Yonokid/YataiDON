@@ -104,38 +104,55 @@ struct TextureObject {
 
     virtual const Texture* frame_texture(int frame) const { return nullptr; }
 
+    // Layer of `frame` in its texture when it is one layer of an array texture.
+    virtual int frame_layer(int) const { return 0; }
+
     virtual int frame_count() const { return 1; }
 };
 
 struct SingleTexture : public TextureObject {
     std::shared_ptr<Texture> texture;
+    int layer = 0;
 
-    SingleTexture(const std::string& name, std::shared_ptr<Texture> tex)
-        : TextureObject(name, tex->width, tex->height), texture(std::move(tex)) {
+    SingleTexture(const std::string& name, std::shared_ptr<Texture> tex, int layer = 0)
+        : TextureObject(name, tex->width, tex->height), texture(std::move(tex)), layer(layer) {
         set_texture_wrap(*texture, texture_wrap::CLAMP);
     }
 
     const Texture* frame_texture(int) const override { return texture.get(); }
+    int frame_layer(int) const override { return layer; }
 };
 
 struct FramedTexture : public TextureObject {
-    std::vector<std::shared_ptr<Texture>> textures;
+    struct Frame {
+        std::shared_ptr<Texture> texture;
+        int layer = 0;
+    };
+    std::vector<Frame> frames;
 
-    FramedTexture(const std::string& name, std::vector<std::shared_ptr<Texture>> texs)
-        : TextureObject(name, texs.empty() ? 0 : texs[0]->width, texs.empty() ? 0 : texs[0]->height),
-          textures(std::move(texs)) {
-        for (auto& tex : textures) {
-            set_texture_wrap(*tex, texture_wrap::CLAMP);
+    FramedTexture(const std::string& name, std::vector<Frame> frames)
+        : TextureObject(name, frames.empty() ? 0 : frames[0].texture->width,
+                        frames.empty() ? 0 : frames[0].texture->height),
+          frames(std::move(frames)) {
+        for (auto& frame : this->frames) {
+            set_texture_wrap(*frame.texture, texture_wrap::CLAMP);
         }
     }
 
-    int frame_count() const override { return static_cast<int>(textures.size()); }
+    int frame_count() const override { return static_cast<int>(frames.size()); }
 
     const Texture* frame_texture(int frame) const override {
-        if (frame < 0 || frame >= static_cast<int>(textures.size())) {
+        if (frame < 0 || frame >= static_cast<int>(frames.size())) {
             throw std::runtime_error("Frame " + std::to_string(frame) + " not available in framed texture " + name);
         }
-        return textures[frame].get();
+        return frames[frame].texture.get();
+    }
+
+    int frame_layer(int frame) const override {
+        if (frame < 0 || frame >= static_cast<int>(frames.size())) {
+            return 0;
+        }
+        return frames[frame].layer;
     }
 };
 

@@ -76,7 +76,7 @@ void draw_rectangle_lines_ex(Rect rec, float thickness, Color color);
 void draw_line(int x0, int y0, int x1, int y1, Color color);
 void draw_model(Model model, Vec3 pos, float scale, Color tint);
 void draw_text_ex(Font font, const char* text, Vec2 pos, float font_size, float spacing, Color tint);
-void draw_texture_pro(Texture tex, Rect src, Rect dst, Vec2 origin, float rotation, Color tint);
+void draw_texture_pro(Texture tex, Rect src, Rect dst, Vec2 origin, float rotation, Color tint, int layer = 0);
 void draw_text(const char* text, int x, int y, int font_size, Color color);
 int measure_text(const char* text, int font_size);
 void set_window_flags(unsigned flags);
@@ -104,6 +104,10 @@ bool begin_second_screen();
 void end_second_screen();
 Texture load_texture(const char* path);
 Texture load_texture_from_image(Image image, bool mipmaps = false);
+// Every image becomes one layer of a 2D array texture; all images must share width and height.
+// Returns an invalid Texture for fewer than two images (a single layer is a plain 2D texture).
+bool supports_texture_arrays();
+Texture load_texture_array(std::span<const Image> images, bool mipmaps = false);
 void unload_texture(Texture tex);
 void set_texture_filter(Texture tex, int filter);
 void set_texture_wrap(Texture tex, int wrap);

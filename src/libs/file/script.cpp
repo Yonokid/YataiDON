@@ -908,10 +908,7 @@ void ScriptManager::register_lua_bindings() {
 
             const auto& tex_obj = tex_it->second;
 
-            int frame_count = 1;
-            if (auto framed = dynamic_cast<FramedTexture*>(tex_obj.get())) {
-                frame_count = static_cast<int>(framed->textures.size());
-            }
+            int frame_count = tex_obj->frame_count();
             if (tex_obj->crop_data.has_value()) {
                 frame_count = std::max(frame_count, static_cast<int>(tex_obj->crop_data->size()));
             }

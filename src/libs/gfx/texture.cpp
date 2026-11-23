@@ -32,6 +32,19 @@ static AssetCache<CachedGPUTexture>& gpu_asset_cache() {
     return cache;
 }
 
+// Stable key for a run of image files packed as one array texture: a hash of their paths.
+static std::string array_cache_key(const std::vector<fs::path>& files, const std::vector<size_t>& members, size_t begin,
+                                   size_t end) {
+    uint64_t hash = 1469598103934665603ull;
+    for (size_t k = begin; k < end; ++k) {
+        for (const char c : files[members[k]].string()) {
+            hash = (hash ^ static_cast<unsigned char>(c)) * 1099511628211ull;
+        }
+        hash = (hash ^ '\n') * 1099511628211ull;
+    }
+    return "array:" + std::to_string(hash) + ":" + std::to_string(end - begin);
+}
+
 namespace {
 
     inline double json_number(const Value& v, double fallback = 0.0) {
@@ -338,6 +351,25 @@ BaseAnimation* TextureWrapper::get_animation(const int id, const std::string& sc
     return copied_animations.back().get();
 }
 
+// Reorders an animation's frames (and their layers) by the skin's frame_order table.
+static void apply_frame_order(TextureObject* tex_obj, const rapidjson::Value& order) {
+    auto* framed = dynamic_cast<FramedTexture*>(tex_obj);
+    if (!framed) {
+        return;
+    }
+    std::vector<FramedTexture::Frame> reordered;
+    reordered.reserve(order.Size());
+    for (rapidjson::SizeType j = 0; j < order.Size(); j++) {
+        const int idx = static_cast<int>(json_number(order[j]));
+        if (idx < 0 || idx >= static_cast<int>(framed->frames.size())) {
+            spdlog::error("Invalid frame_order index {} for texture {}", idx, tex_obj->name);
+            continue;
+        }
+        reordered.push_back(framed->frames[idx]);
+    }
+    framed->frames = std::move(reordered);
+}
+
 void TextureWrapper::read_tex_obj_data(const Value& tex_mapping, TextureObject* tex_obj, float scale) {
     if (tex_mapping.IsArray()) {
         // Check if crop data exists in the first mapping (index 0)
@@ -385,19 +417,7 @@ void TextureWrapper::read_tex_obj_data(const Value& tex_mapping, TextureObject* 
 
             // Handle frame_order
             if (mapping.HasMember("frame_order") && mapping["frame_order"].IsArray()) {
-                auto* framed = dynamic_cast<FramedTexture*>(tex_obj);
-                if (framed) {
-                    std::vector<std::shared_ptr<Texture>> reordered;
-                    for (SizeType j = 0; j < mapping["frame_order"].Size(); j++) {
-                        int idx = static_cast<int>(json_number(mapping["frame_order"][j]));
-                        if (idx < 0 || idx >= static_cast<int>(framed->textures.size())) {
-                            spdlog::error("Invalid frame_order index {} for texture {}", idx, tex_obj->name);
-                            continue;
-                        }
-                        reordered.push_back(framed->textures[idx]);
-                    }
-                    framed->textures = reordered;
-                }
+                apply_frame_order(tex_obj, mapping["frame_order"]);
             }
 
             // Apply crop dimensions to all indices if crop exists in first mapping
@@ -431,19 +451,7 @@ void TextureWrapper::read_tex_obj_data(const Value& tex_mapping, TextureObject* 
 
         // Handle frame_order
         if (tex_mapping.HasMember("frame_order") && tex_mapping["frame_order"].IsArray()) {
-            auto* framed = dynamic_cast<FramedTexture*>(tex_obj);
-            if (framed) {
-                std::vector<std::shared_ptr<Texture>> reordered;
-                for (SizeType j = 0; j < tex_mapping["frame_order"].Size(); j++) {
-                    int idx = static_cast<int>(json_number(tex_mapping["frame_order"][j]));
-                    if (idx < 0 || idx >= static_cast<int>(framed->textures.size())) {
-                        spdlog::error("Invalid frame_order index {} for texture {}", idx, tex_obj->name);
-                        continue;
-                    }
-                    reordered.push_back(framed->textures[idx]);
-                }
-                framed->textures = reordered;
-            }
+            apply_frame_order(tex_obj, tex_mapping["frame_order"]);
         }
     }
 
@@ -996,15 +1004,77 @@ void TextureWrapper::load_folder(const std::string& screen_name, const std::stri
             }
 
             try {
+                // Same-size images share one array texture: each unique file becomes a layer, so a
+                // folder's sprites cost one sampler slot per size group instead of one per image.
+                const bool arrays = supports_texture_arrays();
+                constexpr size_t array_min_layers = 4; // small sets save a slot but cost a program switch
+                constexpr size_t array_max_layers = 256;
+                constexpr size_t array_max_bytes = 64u << 20;
+                std::vector<std::shared_ptr<Texture>> file_tex(files.size());
+                std::vector<int> file_layer(files.size(), 0);
+                if (arrays) {
+                    std::map<std::pair<int, int>, std::vector<size_t>> groups;
+                    for (size_t i = 0; i < files.size(); ++i) {
+                        if (images[i].data && images[i].width > 0 && images[i].height > 0) {
+                            groups[{images[i].width, images[i].height}].push_back(i);
+                        }
+                    }
+                    for (const auto& [size, members] : groups) {
+                        const size_t layer_bytes = static_cast<size_t>(size.first) * size.second * 4;
+                        // a stray layer would be a plain 2D texture; huge layers would make an array
+                        // cost more VRAM than it saves
+                        if (members.size() < array_min_layers || layer_bytes > array_max_bytes / array_min_layers) {
+                            continue;
+                        }
+                        const size_t chunk = std::clamp(array_max_bytes / std::max<size_t>(layer_bytes, 1),
+                                                        array_min_layers, array_max_layers);
+                        for (size_t begin = 0; begin < members.size(); begin += chunk) {
+                            const size_t end = std::min(begin + chunk, members.size());
+                            if (end - begin < array_min_layers) {
+                                break; // a lone leftover run stays 2D textures
+                            }
+                            std::vector<Image> layer_images;
+                            layer_images.reserve(end - begin);
+                            for (size_t k = begin; k < end; ++k) {
+                                layer_images.push_back(images[members[k]]);
+                            }
+                            const std::string key = array_cache_key(files, members, begin, end);
+                            std::shared_ptr<Texture> shared;
+                            if (auto cached = gpu_asset_cache().get(key)) {
+                                shared = cached->texture;
+                            } else {
+                                Texture t = load_texture_array(layer_images, false);
+                                if (!is_texture_valid(t)) {
+                                    continue; // falls back to standalone textures below
+                                }
+                                shared = shared_texture(t);
+                                if (gpu_asset_cache().enabled()) {
+                                    const size_t bytes =
+                                        (layer_bytes * (end - begin) + 65535u) & ~static_cast<size_t>(65535u);
+                                    gpu_asset_cache().put(
+                                        key,
+                                        std::make_shared<CachedGPUTexture>(CachedGPUTexture{shared, Rect{}, false}),
+                                        bytes);
+                                }
+                            }
+                            for (size_t k = begin; k < end; ++k) {
+                                file_tex[members[k]] = shared;
+                                file_layer[members[k]] = static_cast<int>(k - begin);
+                                gpu[members[k]].reset(); // the array replaces any cached 2D upload
+                            }
+                        }
+                    }
+                }
+
                 // GPU textures indexed by file, so keys that share one atlas PNG
                 // (via "file" + "crop") upload it once and share the texture.
                 for (const auto& p : pending) {
                     bool ok = true;
-                    std::vector<std::shared_ptr<Texture>> texs;
-                    texs.reserve(p.file_count);
+                    std::vector<FramedTexture::Frame> frames;
+                    frames.reserve(p.file_count);
                     for (size_t i = 0; i < p.file_count; ++i) {
-                        size_t fi = p.first_file + i;
-                        std::shared_ptr<Texture> tex = gpu[fi];
+                        const size_t fi = p.first_file + i;
+                        std::shared_ptr<Texture> tex = file_tex[fi] ? file_tex[fi] : gpu[fi];
                         if (!tex) {
                             const Image& img = images[fi];
                             if (!img.data) {
@@ -1037,7 +1107,10 @@ void TextureWrapper::load_folder(const std::string& screen_name, const std::stri
                                 }
                             }
                         }
-                        texs.push_back(std::move(tex));
+                        if (!ok) {
+                            break;
+                        }
+                        frames.push_back({tex, arrays ? file_layer[fi] : 0});
                     }
                     if (!ok) {
                         continue;
@@ -1045,9 +1118,9 @@ void TextureWrapper::load_folder(const std::string& screen_name, const std::stri
 
                     std::shared_ptr<TextureObject> obj;
                     if (p.framed) {
-                        obj = std::make_shared<FramedTexture>(p.id, std::move(texs));
+                        obj = std::make_shared<FramedTexture>(p.id, std::move(frames));
                     } else {
-                        obj = std::make_shared<SingleTexture>(p.id, texs[0]);
+                        obj = std::make_shared<SingleTexture>(p.id, frames[0].texture, frames[0].layer);
                     }
 
                     read_tex_obj_data(*p.mapping, obj.get(), tex_scale);
@@ -1449,13 +1522,14 @@ void TextureWrapper::draw_texture(TextureObject* tex_obj, const DrawTextureParam
 
     const Texture* frame_tex = tex_obj->frame_texture(params.frame);
     if (frame_tex) {
+        const int layer = tex_obj->frame_layer(params.frame);
         if (params.blend.has_value()) {
             begin_blend_mode(params.blend.value());
-            draw_texture_pro(*frame_tex, source_rect, dest_rect, params.origin, params.rotation, final_color);
+            draw_texture_pro(*frame_tex, source_rect, dest_rect, params.origin, params.rotation, final_color, layer);
             end_blend_mode();
             return;
         }
-        draw_texture_pro(*frame_tex, source_rect, dest_rect, params.origin, params.rotation, final_color);
+        draw_texture_pro(*frame_tex, source_rect, dest_rect, params.origin, params.rotation, final_color, layer);
     }
 }
 

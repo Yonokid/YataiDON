@@ -1726,7 +1726,7 @@ void Player::draw_notes(double current_ms, float y) {
             TextureObject* t = tex.get_texture(rare_keys[rare % rare_keys.size()]);
             int frames = 1;
             if (auto* framed = dynamic_cast<FramedTexture*>(t)) {
-                frames = std::max<int>(1, static_cast<int>(framed->textures.size()));
+                frames = std::max(1, framed->frame_count());
             }
             tex.draw_texture(t, {.frame = static_cast<int>(current_ms / 150.0) % frames,
                                  .center = true,
