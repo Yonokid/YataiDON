@@ -21,6 +21,7 @@ struct PlayerData {
     std::string username;
     std::string title;
     int title_bg = 0;
+    int player_board = 3; // song-select board colour, 0-4 (kantan..ura)
     int dan = -1; // -1 = no 段位, matches the column default
     bool gold = false;
     bool rainbow = false;
@@ -137,7 +138,8 @@ public:
     int apply_remote_scores(const std::vector<RemoteScore>& scores, const std::string& player_id);
     std::optional<Score> get_score(const std::string& hash, int difficulty, const std::string& player_id);
     // Best-score ranks and crowns over every chart of player_id with difficulty >= min_difficulty.
-    RecordCounts get_record_counts(const std::string& player_id, int min_difficulty);
+    RecordCounts get_record_counts(const std::string& player_id, int min_difficulty,
+                                  int max_difficulty = 4);
     // diff hash -> number of saved plays for player_id
     std::unordered_map<std::string, int> get_play_counts(const std::string& player_id);
     // out_score_id (optional) receives the new scores row id, or -1 if the insert failed.

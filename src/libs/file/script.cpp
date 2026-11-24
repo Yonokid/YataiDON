@@ -1034,10 +1034,10 @@ void ScriptManager::register_lua_bindings() {
 
     tex.set_function("player_num", [] -> int { return static_cast<int>(global_data.player_num); });
 
-    tex.set_function("record_counts", [](int player_num, int min_course) -> sol::table {
+    tex.set_function("record_counts", [](int player_num, int min_course, sol::optional<int> max_course) -> sol::table {
         const auto& net = global_data.config->network;
-        const RecordCounts rc =
-            scores_manager.get_record_counts(player_num == 2 ? net.access_code_2 : net.access_code_1, min_course);
+        const RecordCounts rc = scores_manager.get_record_counts(player_num == 2 ? net.access_code_2 : net.access_code_1,
+                                                                min_course, max_course.value_or(4));
         sol::table t = script_manager.lua->create_table(0, 2);
         t["ranks"] = script_manager.lua->create_table_with();
         t["crowns"] = script_manager.lua->create_table_with();
@@ -1048,6 +1048,13 @@ void ScriptManager::register_lua_bindings() {
             t["crowns"][i + 1] = rc.crowns[i];
         }
         return t;
+    });
+
+    tex.set_function("player_board", [](sol::optional<int> player_num) -> int {
+        const auto& net = global_data.config->network;
+        const std::string& code = (player_num.value_or(1) == 2) ? net.access_code_2 : net.access_code_1;
+        const auto pd = scores_manager.get_player_data(code);
+        return pd ? pd->player_board : 3;
     });
 
     tex.set_function("display_bpm", [] -> bool { return global_data.config->general.display_bpm; });

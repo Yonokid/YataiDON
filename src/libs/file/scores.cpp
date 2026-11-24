@@ -287,6 +287,11 @@ ScoresManager::ScoresManager(const fs::path& db_path) {
         sqlite3_exec(db_fsd, "PRAGMA user_version = 8;", nullptr, nullptr, nullptr);
     }
 
+    // Migration v9: song-select player board colour (0-4 = kantan..ura), picked on the site.
+    if (version < 9 && run_migration("ALTER TABLE players ADD COLUMN player_board INTEGER NOT NULL DEFAULT 3;")) {
+        sqlite3_exec(db_fsd, "PRAGMA user_version = 9;", nullptr, nullptr, nullptr);
+    }
+
     ensure_dan_table(db_fsd);
 
     // Default player "1" (2P placeholder): Kat-chan, 2P chara colors, 2P title color. Only touches the untouched
@@ -602,11 +607,12 @@ std::optional<Score> ScoresManager::get_score(const std::string& hash, int diffi
     return std::nullopt;
 }
 
-RecordCounts ScoresManager::get_record_counts(const std::string& player_id, int min_difficulty) {
+RecordCounts ScoresManager::get_record_counts(const std::string& player_id, int min_difficulty, int max_difficulty) {
     std::scoped_lock lock(maps_mutex);
     RecordCounts out;
     for (const auto& [key, s] : score_cache) {
-        if (std::get<2>(key) != player_id || std::get<1>(key) < min_difficulty) {
+        if (std::get<2>(key) != player_id || std::get<1>(key) < min_difficulty ||
+            std::get<1>(key) > max_difficulty) {
             continue;
         }
         if (int r = static_cast<int>(s.rank); r >= 1 && r <= 7) {
@@ -984,7 +990,7 @@ std::optional<PlayerData> ScoresManager::get_player_data(const std::string& play
                         " modifier_auto, modifier_speed, modifier_display, modifier_inverse, modifier_random,"
                         " neiro_index, chara_color_1, chara_color_2, chara_color_3,"
                         " chara_head_index, chara_body_index, chara_cos_index, chara_is_costume,"
-                        " chara_paint_index, chara_face_index, chara_acce_index, modifier_skip"
+                        " chara_paint_index, chara_face_index, chara_acce_index, modifier_skip, player_board"
                         " FROM players WHERE player_id = ?;";
 
     if (sqlite3_prepare_v2(db_fsd, query, -1, &stmt, nullptr) != SQLITE_OK) {
@@ -1067,6 +1073,7 @@ std::optional<PlayerData> ScoresManager::get_player_data(const std::string& play
     p.chara_face_index = sqlite3_column_int(stmt, 21);
     p.chara_acce_index = sqlite3_column_int(stmt, 22);
     p.modifier_skip = sqlite3_column_int(stmt, 23);
+    p.player_board = sqlite3_column_int(stmt, 24);
 
     sqlite3_finalize(stmt);
     return p;
@@ -1103,8 +1110,8 @@ void ScoresManager::save_player_data(const PlayerData& player) {
         " modifier_auto = ?, modifier_speed = ?, modifier_display = ?, modifier_inverse = ?, modifier_random = ?,"
         " neiro_index = ?, chara_color_1 = ?, chara_color_2 = ?, chara_color_3 = ?,"
         " chara_head_index = ?, chara_body_index = ?, chara_cos_index = ?, chara_is_costume = ?,"
-        " chara_paint_index = ?, chara_face_index = ?, chara_acce_index = ?, modifier_skip = ?"
-        " WHERE player_id = ?;";
+        " chara_paint_index = ?, chara_face_index = ?, chara_acce_index = ?, modifier_skip = ?,"
+        " player_board = ? WHERE player_id = ?;";
 
     if (sqlite3_prepare_v2(db_fsd, query, -1, &stmt, nullptr) != SQLITE_OK) {
         spdlog::error("save_player: failed to prepare: {}", sqlite3_errmsg(db_fsd));
@@ -1138,7 +1145,8 @@ void ScoresManager::save_player_data(const PlayerData& player) {
     sqlite3_bind_int(stmt, 21, player.chara_face_index);
     sqlite3_bind_int(stmt, 22, player.chara_acce_index);
     sqlite3_bind_int(stmt, 23, player.modifier_skip);
-    sqlite3_bind_text(stmt, 24, player.player_id.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int(stmt, 24, player.player_board);
+    sqlite3_bind_text(stmt, 25, player.player_id.c_str(), -1, SQLITE_TRANSIENT);
 
     if (sqlite3_step(stmt) != SQLITE_DONE) {
         spdlog::error("save_player: failed to update player {}: {}", player.player_id, sqlite3_errmsg(db_fsd));

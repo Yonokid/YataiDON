@@ -291,6 +291,9 @@ void EntryScreen::finish_login(RemoteLogin remote) {
         if (u.title_bg) {
             pd.title_bg = *u.title_bg;
         }
+        if (u.player_board) {
+            pd.player_board = *u.player_board;
+        }
         if (u.costume) {
             pd.chara_head_index = u.costume->head_index;
             pd.chara_body_index = u.costume->body_index;

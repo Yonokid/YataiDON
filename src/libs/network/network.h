@@ -46,6 +46,7 @@ struct RemoteUser {
     std::optional<std::string> username;
     std::optional<std::string> title;
     std::optional<int> title_bg;
+    std::optional<int> player_board;
     std::optional<std::array<Color, 3>> chara_colors;
     struct Costume {
         int head_index, body_index, cos_index;

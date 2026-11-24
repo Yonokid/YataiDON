@@ -786,6 +786,15 @@ namespace {
         TextureSlot slot;
         slot.handle = bgfx::createTexture2D(static_cast<uint16_t>(rgba.width), static_cast<uint16_t>(rgba.height),
                                             levels > 1, 1, bgfx::TextureFormat::RGBA8);
+        if (!bgfx::isValid(slot.handle)) {
+            // updateTexture2D on an invalid handle dereferences a null handle block inside bgfx
+            spdlog::error("bgfx: could not create {}x{} texture (max {}, {} slots in use), skipping", rgba.width,
+                          rgba.height, caps->limits.maxTextureSize, textures.size());
+            if (rgba.data != image.data) {
+                unload_image(rgba);
+            }
+            return 0;
+        }
         // ponytail: box-filtered mips on the CPU; GPU generation if load time ever matters
         const auto* level = static_cast<const uint8_t*>(rgba.data);
         std::vector<uint8_t> next, prev;

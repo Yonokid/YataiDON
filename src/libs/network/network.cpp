@@ -491,6 +491,9 @@ std::optional<RemoteUser> NetworkClient::fetch_user(const std::string& access_co
     if (doc.HasMember("title_bg") && doc["title_bg"].IsInt()) {
         user.title_bg = doc["title_bg"].GetInt();
     }
+    if (doc.HasMember("player_board") && doc["player_board"].IsInt()) {
+        user.player_board = doc["player_board"].GetInt();
+    }
     if (doc.HasMember("chara_color_1") && doc["chara_color_1"].IsString() && doc.HasMember("chara_color_2") &&
         doc["chara_color_2"].IsString() && doc.HasMember("chara_color_3") && doc["chara_color_3"].IsString()) {
         try {
@@ -739,6 +742,9 @@ static ReplayData parse_replay_response(const cpr::Response& response) {
     }
     if (doc.HasMember("title_bg") && doc["title_bg"].IsInt()) {
         result.player_data.title_bg = doc["title_bg"].GetInt();
+    }
+    if (doc.HasMember("player_board") && doc["player_board"].IsInt()) {
+        result.player_data.player_board = doc["player_board"].GetInt();
     }
     try {
         if (doc.HasMember("chara_color_1") && doc["chara_color_1"].IsString()) {
