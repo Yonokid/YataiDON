@@ -2,6 +2,17 @@
 
 #include <stdexcept>
 
+#include "../../libs/global_data.h"
+
+namespace {
+    // Japanese is the base art (judge_good.png); other languages add a suffix, and the engine's
+    // language_variants order would try "_en" before the base for "ja", so ja asks for the bare name
+    std::string judge_text_name(const char* base) {
+        const std::string lang = global_data.config ? global_data.config->general.language : "";
+        return std::string("hit_effect/") + base + ((lang.empty() || lang == "ja") ? "" : "_" + lang);
+    }
+} // namespace
+
 Judgment::Judgment(Judgments type, bool big) : type(type) {
 
     big_outer = big && type != Judgments::BAD && tex.has_animation(68) && tex.has_animation(69);
@@ -64,13 +75,13 @@ Judgment::Judgment(Judgments type, bool big) : type(type) {
     if (type == Judgments::GOOD) {
         t_effect = tex.get_texture(big ? "hit_effect/hit_effect_good_big" : "hit_effect/hit_effect_good");
         t_outer_effect = tex.get_texture(big ? "hit_effect/outer_good_big" : "hit_effect/outer_good");
-        t_text = tex.get_texture("hit_effect/judge_good");
+        t_text = tex.get_texture(judge_text_name("judge_good"));
     } else if (type == Judgments::OK) {
         t_effect = tex.get_texture(big ? "hit_effect/hit_effect_ok_big" : "hit_effect/hit_effect_ok");
         t_outer_effect = tex.get_texture(big ? "hit_effect/outer_ok_big" : "hit_effect/outer_ok");
-        t_text = tex.get_texture("hit_effect/judge_ok");
+        t_text = tex.get_texture(judge_text_name("judge_ok"));
     } else if (type == Judgments::BAD) {
-        t_text = tex.get_texture("hit_effect/judge_bad");
+        t_text = tex.get_texture(judge_text_name("judge_bad"));
     }
 }
 

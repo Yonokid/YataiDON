@@ -88,7 +88,7 @@ private:
     std::string title_card_hex_;          // card that came from the title screen
     std::string pending_card_hex_;        // scanned on title, consumed on first update
     bool local_login_ = false;            // Don pressed: scores.db only, never register
-    bool login_ready_ = false;            // next join_player already logged in (Enter / auto login)
+    bool login_ready_ = false;            // next join_player already logged in (Insert / auto login)
 
     std::unique_ptr<Chara3D> make_preview_chara(PlayerNum player_num);
     void reload_preview_chara(PlayerNum player_num);

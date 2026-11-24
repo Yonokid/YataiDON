@@ -18,6 +18,18 @@ namespace {
         }
         return a;
     }
+
+    std::unique_ptr<OutlinedText> make_caption(const char* key, float* dx, float* dy) {
+        const SkinInfo* cfg = font_manager.get_text_info(key);
+        const std::string label = font_manager.get_text_label(key);
+        if (!cfg || label.empty()) {
+            return nullptr;
+        }
+        *dx = cfg->x;
+        *dy = cfg->y;
+        return std::make_unique<OutlinedText>(label, cfg->font_size, Color::WHITE, Color::BLACK, false,
+                                              cfg->outline >= 0 ? cfg->outline : 4.0f);
+    }
 } // namespace
 
 BranchIndicator::BranchIndicator() {
@@ -35,6 +47,9 @@ BranchIndicator::BranchIndicator() {
     t_diff[static_cast<int>(BranchDifficulty::NORMAL)] = tex.get_texture("branch/normal");
     t_diff[static_cast<int>(BranchDifficulty::EXPERT)] = tex.get_texture("branch/expert");
     t_diff[static_cast<int>(BranchDifficulty::MASTER)] = tex.get_texture("branch/master");
+
+    caption_up = make_caption("branch_level_up", &caption_dx, &caption_dy);
+    caption_down = make_caption("branch_level_down", &caption_dx, &caption_dy);
 }
 
 void BranchIndicator::update(double current_ms) {
@@ -79,6 +94,17 @@ void BranchIndicator::draw(float y) {
     tex.draw_texture(
         direction == -1 ? t_level_down : t_level_up,
         {.scale = static_cast<float>(level_scale->attribute), .center = true, .y = y, .fade = level_fade->attribute});
+
+    OutlinedText* caption = direction == -1 ? caption_down.get() : caption_up.get();
+    if (caption && t_level_up) {
+        const float s = static_cast<float>(level_scale->attribute);
+        const float cx = static_cast<float>(t_level_up->x[0]) + caption_dx * s;
+        const float cy = y + caption_dy * s;
+        caption->draw({.scale = s,
+                       .x = cx - caption->width * s / 2.0f,
+                       .y = cy - caption->height * s / 2.0f,
+                       .fade = level_fade->attribute});
+    }
 
     tex.draw_texture(t_diff[static_cast<int>(diff_2)],
                      {.y = y + static_cast<float>(diff_down->attribute - diff_up->attribute) * direction,

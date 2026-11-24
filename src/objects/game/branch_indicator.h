@@ -1,5 +1,8 @@
 #pragma once
 
+#include <memory>
+
+#include "../../libs/gfx/text.h"
 #include "../../libs/gfx/texture.h"
 #include "../../libs/math/animation.h"
 #include "../enums.h"
@@ -18,6 +21,11 @@ private:
     TextureObject* t_level_up = nullptr;
     TextureObject* t_level_down = nullptr;
     TextureObject* t_diff[3] = {}; // indexed by BranchDifficulty
+    // the banners are blank art; their caption is skin text (branch_level_up / branch_level_down)
+    std::unique_ptr<OutlinedText> caption_up;
+    std::unique_ptr<OutlinedText> caption_down;
+    float caption_dx = 0;
+    float caption_dy = 0;
 
 public:
     BranchDifficulty difficulty{BranchDifficulty::NORMAL};

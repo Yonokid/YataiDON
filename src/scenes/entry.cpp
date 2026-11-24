@@ -702,12 +702,12 @@ std::optional<Screens> EntryScreen::handle_input() {
         return std::nullopt;
     }
     if (state == EntryState::WAITING) {
-        const bool enter = key_pressed(SDL_SCANCODE_RETURN);
-        const bool joined = !enter && join_by_drum();
-        if (enter || joined || menu_left_pressed() || menu_right_pressed()) {
+        const bool insert = key_pressed(SDL_SCANCODE_INSERT);
+        const bool joined = !insert && join_by_drum();
+        if (insert || joined || menu_left_pressed() || menu_right_pressed()) {
             wait_idle_since_ = get_current_ms();
         }
-        if (!enter) {
+        if (!insert) {
             return std::nullopt;
         }
         local_login_ = global_data.config->network.guest_mode;
@@ -724,8 +724,8 @@ std::optional<Screens> EntryScreen::handle_input() {
         });
         return std::nullopt;
     }
-    // Enter again with one player in: online login (registers placeholder "1") for the free seat
-    if (global_data.config->network.online_play && key_pressed(SDL_SCANCODE_RETURN) &&
+    // Insert again with one player in: online login (registers placeholder "1") for the free seat
+    if (global_data.config->network.online_play && key_pressed(SDL_SCANCODE_INSERT) &&
         (state == EntryState::SELECT_SIDE || state == EntryState::SELECT_MODE) &&
         seat_joined(PlayerNum::P1) != seat_joined(PlayerNum::P2)) {
         local_login_ = false;
