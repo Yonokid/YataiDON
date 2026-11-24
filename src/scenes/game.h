@@ -23,6 +23,7 @@ protected:
 
     void update_gameplay(double current_ms);
     virtual void create_players();
+    void apply_personal_best(Player& player);
     virtual float song_playback_rate() const { return 1.0f; }
     enum class AudioLoadMode {
         Sync,

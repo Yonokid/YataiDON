@@ -58,6 +58,8 @@ void Game2PScreen::initialize_chart(const fs::path& song) {
 
     players.push_back(std::make_unique<Player>(parser, PlayerNum::P1, diff_1, false, mods_1));
     players.push_back(std::make_unique<Player>(parser_2p, PlayerNum::P2, diff_2, true, mods_2));
+    apply_personal_best(*players[0]);
+    apply_personal_best(*players[1]);
 
     players[0]->kusudama_partner = players[1].get();
     players[1]->kusudama_partner = players[0].get();

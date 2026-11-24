@@ -139,6 +139,22 @@ void GameScreen::set_session_song_info(PlayerNum player_num) {
     session.song_subtitle_full_display = metadata.subtitle_full_display;
 }
 
+void GameScreen::apply_personal_best(Player& player) {
+    if (player.is_auto_play() || player.is_replay() || player.get_modifiers().subdiff != 0) {
+        return;
+    }
+    const SessionData& sd = global_data.session_data[static_cast<int>(player.player_num)];
+    try {
+        const auto previous =
+            scores_manager.get_score(sd.song_hash, sd.selected_difficulty, get_player_id(player.player_num));
+        if (previous && previous->score > 0) {
+            player.set_personal_best(previous->score);
+        }
+    } catch (const std::exception& e) {
+        spdlog::error("GameScreen::apply_personal_best failed: {}", e.what());
+    }
+}
+
 void GameScreen::create_players() {
     const auto player_index = static_cast<int>(global_data.player_num);
     players.push_back(std::make_unique<Player>(parser, global_data.player_num,
@@ -154,6 +170,7 @@ void GameScreen::create_players() {
         players.back()->load_replay(typed_log);
         players.back()->apply_replay_appearance(replay->player_data);
     }
+    apply_personal_best(*players.back());
 }
 
 void GameScreen::load_song_audio(AudioLoadMode mode) {

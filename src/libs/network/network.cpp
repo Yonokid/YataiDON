@@ -1175,6 +1175,7 @@ void NetworkClient::submit_medals(int seat, const std::string& access_code) {
                                                      signed_headers("POST", "/medals", {{"access_code", access_code}}),
                                                      cpr::Parameters{{"access_code", access_code}},
                                                      cpr::Timeout{5000} NETWORK_CA_OPT));
+    medal_seats[seat].submitted++;
     reward_shop_pending_count_++;
 }
 
@@ -1754,9 +1755,15 @@ void NetworkClient::update(double current_ms) {
             seat.daily |= json_bool(doc, "daily");
             seat.weekly |= json_bool(doc, "weekly");
             seat.monthly |= json_bool(doc, "monthly");
+            seat.last_ok = seat.resolved + 1;
+            seat.last_add = json_int(doc, "add", 0);
+            seat.last_daily = json_bool(doc, "daily");
+            seat.last_weekly = json_bool(doc, "weekly");
+            seat.last_monthly = json_bool(doc, "monthly");
         } else {
             spdlog::warn("Medal claim failed: HTTP {} - {}", response.status_code, response.text);
         }
+        medal_seats[it->first].resolved++;
         it = pending_medals.erase(it);
         reward_shop_pending_count_--;
     }

@@ -1,6 +1,7 @@
 #include "player.h"
 
 #include <algorithm>
+#include <ctime>
 #include <iterator>
 
 #include "../../libs/audio/audio.h"
@@ -27,6 +28,7 @@ ResultPlayer::ResultPlayer(PlayerNum player_num, bool has_2p, bool is_2p)
     SessionData& sd = global_data.session_data[static_cast<int>(player_num)];
     ranking_name = pd ? pd->username : "";
     ranking_pending = sd.result_data.submitted && !ranking_name.empty();
+    medal_serial = sd.result_data.submitted ? network.medal_seat(static_cast<int>(player_num) - 1).submitted : 0;
     nameplate = Nameplate(pd ? pd->username : "", pd ? pd->title : "", player_num, pd ? pd->dan : -1,
                           pd ? pd->gold : false, pd ? pd->rainbow : false, pd ? pd->title_bg : 0);
     update_list = {{"good", sd.result_data.good},
@@ -186,6 +188,7 @@ void ResultPlayer::update(double current_ms, bool fade_in_finished, bool is_skip
     }
     update_score_animation(current_ms, is_skipped);
     update_ranking();
+    update_medals();
     if (!chara_revealed && lua_object.valid()) {
         sol::optional<bool> reveal = lua_object["chara_reveal"];
         if (reveal && reveal.value()) {
@@ -218,6 +221,23 @@ void ResultPlayer::update(double current_ms, bool fade_in_finished, bool is_skip
          total_drumroll, is_skipped);
     nameplate.update(current_ms);
     chara->update(current_ms);
+}
+
+void ResultPlayer::update_medals() {
+    if (medal_serial <= 0 || !lua_object.valid()) {
+        return;
+    }
+    const MedalSeat& seat = network.medal_seat(static_cast<int>(player_num) - 1);
+    if (seat.resolved < medal_serial) {
+        return;
+    }
+    if (seat.last_ok == medal_serial && seat.last_add > 0) {
+        const std::time_t now = std::time(nullptr);
+        lua_object["medals"] = script_manager.lua->create_table_with(
+            "add", seat.last_add, "daily", seat.last_daily, "weekly", seat.last_weekly, "monthly", seat.last_monthly,
+            "month", std::localtime(&now)->tm_mon + 1, "total", seat.now + seat.add);
+    }
+    medal_serial = 0;
 }
 
 void ResultPlayer::update_ranking() {

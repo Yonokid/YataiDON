@@ -21,7 +21,7 @@ void PracticeGameScreen::init_practice_textures() {
     t_notes_10 = tex.get_texture("notes/10");
     t_drumroll_big_tail = tex.get_texture("notes/drumroll_big_tail");
     t_drumroll_tail = tex.get_texture("notes/drumroll_tail");
-    t_moji = tex.get_texture("notes/moji");
+    t_moji = tex.get_texture("notes/moji_" + global_data.config->general.language);
     t_moji_drumroll_mid = tex.get_texture("notes/moji_drumroll_mid");
 
     t_large_drum = tex.get_texture("practice/large_drum");

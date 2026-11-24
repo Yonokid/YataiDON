@@ -122,6 +122,11 @@ struct MedalSeat {
     int add = 0; // every claim since then
     int max = 0;
     bool daily = false, weekly = false, monthly = false;
+    int submitted = 0; // claims sent since the last reset
+    int resolved = 0;  // claims answered or failed since then
+    int last_ok = 0;   // the `resolved` count of the latest answered claim
+    int last_add = 0;
+    bool last_daily = false, last_weekly = false, last_monthly = false;
 };
 struct AIBattleBest {
     int good = 0;

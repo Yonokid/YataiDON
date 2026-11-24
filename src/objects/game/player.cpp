@@ -112,7 +112,7 @@ void Player::init_player_textures() {
     t_notes_8 = tex.get_texture("notes/8");
     t_notes_9 = tex.get_texture("notes/9");
     t_notes_10 = tex.get_texture("notes/10");
-    t_moji = tex.get_texture("notes/moji");
+    t_moji = tex.get_texture("notes/moji_" + global_data.config->general.language);
     t_kusudama_star = tex.has_texture("notes/kusudama_star") ? tex.get_texture("notes/kusudama_star") : nullptr;
     if (tex.has_texture("notes/tetunagi_arm")) {
         t_tetunagi[0] = tex.get_texture("notes/tetunagi_don");

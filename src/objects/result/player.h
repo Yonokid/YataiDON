@@ -36,6 +36,8 @@ class ResultPlayer : public LuaScript {
     void update_ranking();
     std::string ranking_name;
     bool ranking_pending = false;
+    void update_medals();
+    int medal_serial = 0;
 
 public:
     ResultPlayer() = default;
