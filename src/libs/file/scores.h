@@ -22,6 +22,8 @@ struct PlayerData {
     std::string title;
     int title_bg = 0;
     int player_board = 3; // song-select board colour, 0-4 (kantan..ura)
+    int don_medals = 0;
+    int medals_max = 10000;
     int dan = -1; // -1 = no 段位, matches the column default
     bool gold = false;
     bool rainbow = false;

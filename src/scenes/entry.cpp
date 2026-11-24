@@ -294,6 +294,12 @@ void EntryScreen::finish_login(RemoteLogin remote) {
         if (u.player_board) {
             pd.player_board = *u.player_board;
         }
+        if (u.don_medals >= 0) {
+            pd.don_medals = u.don_medals;
+        }
+        if (u.medals_max > 0) {
+            pd.medals_max = u.medals_max;
+        }
         if (u.costume) {
             pd.chara_head_index = u.costume->head_index;
             pd.chara_body_index = u.costume->body_index;

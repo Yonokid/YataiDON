@@ -47,6 +47,8 @@ struct RemoteUser {
     std::optional<std::string> title;
     std::optional<int> title_bg;
     std::optional<int> player_board;
+    int don_medals = -1; // -1 = the server did not send it
+    int medals_max = 0;
     std::optional<std::array<Color, 3>> chara_colors;
     struct Costume {
         int head_index, body_index, cos_index;

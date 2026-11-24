@@ -494,6 +494,12 @@ std::optional<RemoteUser> NetworkClient::fetch_user(const std::string& access_co
     if (doc.HasMember("player_board") && doc["player_board"].IsInt()) {
         user.player_board = doc["player_board"].GetInt();
     }
+    if (doc.HasMember("don_medals") && doc["don_medals"].IsInt()) {
+        user.don_medals = doc["don_medals"].GetInt();
+    }
+    if (doc.HasMember("medals_max") && doc["medals_max"].IsInt()) {
+        user.medals_max = doc["medals_max"].GetInt();
+    }
     if (doc.HasMember("chara_color_1") && doc["chara_color_1"].IsString() && doc.HasMember("chara_color_2") &&
         doc["chara_color_2"].IsString() && doc.HasMember("chara_color_3") && doc["chara_color_3"].IsString()) {
         try {
@@ -1766,6 +1772,16 @@ void NetworkClient::update(double current_ms) {
             seat.last_daily = json_bool(doc, "daily");
             seat.last_weekly = json_bool(doc, "weekly");
             seat.last_monthly = json_bool(doc, "monthly");
+            // keep the stored balance current so the song-select medal chip is right without a relogin
+            const auto& net_cfg = global_data.config->network;
+            const std::string& code = it->first == 1 ? net_cfg.access_code_2 : net_cfg.access_code_1;
+            if (auto pd = scores_manager.get_player_data(code)) {
+                pd->don_medals = seat.now + seat.add;
+                if (seat.max > 0) {
+                    pd->medals_max = seat.max;
+                }
+                scores_manager.save_player_data(*pd);
+            }
         } else {
             spdlog::warn("Medal claim failed: HTTP {} - {}", response.status_code, response.text);
         }

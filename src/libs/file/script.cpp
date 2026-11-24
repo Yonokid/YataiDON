@@ -1057,6 +1057,19 @@ void ScriptManager::register_lua_bindings() {
         return pd ? pd->player_board : 3;
     });
 
+    tex.set_function("medals", [](sol::optional<int> player_num) -> int {
+        const auto& net = global_data.config->network;
+        const std::string& code = (player_num.value_or(1) == 2) ? net.access_code_2 : net.access_code_1;
+        const auto pd = scores_manager.get_player_data(code);
+        return pd ? pd->don_medals : 0;
+    });
+
+    tex.set_function("medals_max", [] -> int {
+        const auto& net = global_data.config->network;
+        const auto pd = scores_manager.get_player_data(net.access_code_1);
+        return pd && pd->medals_max > 0 ? pd->medals_max : 10000;
+    });
+
     tex.set_function("display_bpm", [] -> bool { return global_data.config->general.display_bpm; });
 
     tex.set_function("timing_offset", [](int player_num) -> sol::optional<std::string> {

@@ -292,6 +292,13 @@ ScoresManager::ScoresManager(const fs::path& db_path) {
         sqlite3_exec(db_fsd, "PRAGMA user_version = 9;", nullptr, nullptr, nullptr);
     }
 
+    // Migration v10: Don medal balance + the cap the server reports, for the song-select medal chip.
+    if (version < 10 &&
+        run_migration("ALTER TABLE players ADD COLUMN don_medals INTEGER NOT NULL DEFAULT 0;") &&
+        run_migration("ALTER TABLE players ADD COLUMN medals_max INTEGER NOT NULL DEFAULT 10000;")) {
+        sqlite3_exec(db_fsd, "PRAGMA user_version = 10;", nullptr, nullptr, nullptr);
+    }
+
     ensure_dan_table(db_fsd);
 
     // Default player "1" (2P placeholder): Kat-chan, 2P chara colors, 2P title color. Only touches the untouched
@@ -990,7 +997,8 @@ std::optional<PlayerData> ScoresManager::get_player_data(const std::string& play
                         " modifier_auto, modifier_speed, modifier_display, modifier_inverse, modifier_random,"
                         " neiro_index, chara_color_1, chara_color_2, chara_color_3,"
                         " chara_head_index, chara_body_index, chara_cos_index, chara_is_costume,"
-                        " chara_paint_index, chara_face_index, chara_acce_index, modifier_skip, player_board"
+                        " chara_paint_index, chara_face_index, chara_acce_index, modifier_skip, player_board,"
+                        " don_medals, medals_max"
                         " FROM players WHERE player_id = ?;";
 
     if (sqlite3_prepare_v2(db_fsd, query, -1, &stmt, nullptr) != SQLITE_OK) {
@@ -1074,6 +1082,8 @@ std::optional<PlayerData> ScoresManager::get_player_data(const std::string& play
     p.chara_acce_index = sqlite3_column_int(stmt, 22);
     p.modifier_skip = sqlite3_column_int(stmt, 23);
     p.player_board = sqlite3_column_int(stmt, 24);
+    p.don_medals = sqlite3_column_int(stmt, 25);
+    p.medals_max = sqlite3_column_int(stmt, 26);
 
     sqlite3_finalize(stmt);
     return p;
@@ -1111,7 +1121,7 @@ void ScoresManager::save_player_data(const PlayerData& player) {
         " neiro_index = ?, chara_color_1 = ?, chara_color_2 = ?, chara_color_3 = ?,"
         " chara_head_index = ?, chara_body_index = ?, chara_cos_index = ?, chara_is_costume = ?,"
         " chara_paint_index = ?, chara_face_index = ?, chara_acce_index = ?, modifier_skip = ?,"
-        " player_board = ? WHERE player_id = ?;";
+        " player_board = ?, don_medals = ?, medals_max = ? WHERE player_id = ?;";
 
     if (sqlite3_prepare_v2(db_fsd, query, -1, &stmt, nullptr) != SQLITE_OK) {
         spdlog::error("save_player: failed to prepare: {}", sqlite3_errmsg(db_fsd));
@@ -1146,7 +1156,9 @@ void ScoresManager::save_player_data(const PlayerData& player) {
     sqlite3_bind_int(stmt, 22, player.chara_acce_index);
     sqlite3_bind_int(stmt, 23, player.modifier_skip);
     sqlite3_bind_int(stmt, 24, player.player_board);
-    sqlite3_bind_text(stmt, 25, player.player_id.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int(stmt, 25, player.don_medals);
+    sqlite3_bind_int(stmt, 26, player.medals_max);
+    sqlite3_bind_text(stmt, 27, player.player_id.c_str(), -1, SQLITE_TRANSIENT);
 
     if (sqlite3_step(stmt) != SQLITE_DONE) {
         spdlog::error("save_player: failed to update player {}: {}", player.player_id, sqlite3_errmsg(db_fsd));
