@@ -490,6 +490,10 @@ std::optional<Screens> SongSelectScreen::update() {
     }
     SongSelectState prev_state = state;
     double current_time = get_current_ms();
+    if (current_time - last_lua_gc_ms >= 1000.0) {
+        last_lua_gc_ms = current_time;
+        script_manager.collect_garbage();
+    }
     update_selection_ui(current_time, join_request_ms < 0.0);
     update_diff_sort(current_time);
 
@@ -572,6 +576,12 @@ std::optional<Screens> SongSelectScreen::update() {
 }
 
 Screens SongSelectScreen::on_screen_end(Screens next_screen) {
+    navigator.script = nullptr;
+    navigator.release_text();
+    release_players();
+    song_num.reset();
+    script.reset();
+    script_manager.collect_garbage();
     diff_sort_selector.reset();
     if (search_box) {
         set_keyboard_visible(false);

@@ -19,6 +19,7 @@ void DanGameScreen::on_screen_start() {
     JudgePos::Y = tex.get_skin_config(SC::GAME_JUDGE_POS)->y;
     TJAParser::jpos_field_width = (tex.screen_width - JudgePos::X) / tex.screen_scale;
 
+    tex.load_folders("game", {"dan_info", "gauge_dan"});
     init_dan();
     load_hitsounds();
 

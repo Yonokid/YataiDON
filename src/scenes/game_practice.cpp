@@ -76,6 +76,7 @@ void PracticeGameScreen::init_practice_textures() {
 
 void PracticeGameScreen::on_screen_start() {
     GameScreen::on_screen_start();
+    tex.load_folders("game", {"practice"});
     init_practice_textures();
     menu.init_textures();
     pause_don_anim = dynamic_cast<TextureResizeAnimation*>(tex.get_animation(67, true));

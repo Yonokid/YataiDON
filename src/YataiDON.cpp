@@ -708,6 +708,7 @@ static void run_frame() {
 }
 
 static int game_main(int argc, char* argv[]) {
+    platform_configure_allocator();
     spdlog::info("Starting YataiDON");
     set_working_directory_to_executable();
     const bool had_config = std::filesystem::exists("config.toml");

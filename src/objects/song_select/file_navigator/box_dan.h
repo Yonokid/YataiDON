@@ -26,5 +26,6 @@ public:
            const std::vector<Exam>& exams, int total_notes);
 
     void load_text() override;
+    void unload_text() override;
     void update(double current_ms) override;
 };

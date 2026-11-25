@@ -13,6 +13,12 @@
 #include "../libs/network/network.h"
 #include "../libs/score_submission.h"
 
+std::span<const std::string> GameScreen::skipped_texture_subsets() const {
+    static const std::vector<std::string> skipped = {"ai_battle", "enso_battle", "battle_stage", "practice",
+                                                     "dan_info",  "gauge_ai",    "gauge_dan",    "tutorial"};
+    return skipped;
+}
+
 void GameScreen::on_screen_start() {
     Screen::on_screen_start();
     reset_playback();
@@ -74,6 +80,8 @@ void GameScreen::on_screen_start() {
             clock.seek(get_current_ms(), clock.position() - extra_delay);
         }
     }
+
+    platform_trim_heap();
 }
 
 Screens GameScreen::on_screen_end(Screens next_screen) {

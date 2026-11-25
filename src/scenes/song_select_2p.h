@@ -13,6 +13,10 @@ protected:
     void select_song(SongBox* song) override;
     void on_select_timeout() override;
     SongSelectPlayer* second_player() override { return player_2.get(); }
+    void release_players() override {
+        player.reset();
+        player_2.reset();
+    }
     bool is_2p_screen() override { return true; }
     Screens get_game_screen_target() override { return Screens::GAME_2P; }
 

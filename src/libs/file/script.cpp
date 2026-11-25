@@ -482,6 +482,12 @@ std::string ScriptManager::get_lua_script_path(const std::string& script_name) {
     return scripts[script_name];
 }
 
+void ScriptManager::collect_garbage() {
+    if (lua) {
+        lua_gc(lua->lua_state(), LUA_GCCOLLECT, 0);
+    }
+}
+
 void ScriptManager::shutdown() {
     // Don't unload textures here: tex aliases the global ::tex, whose lifetime
     // is managed by load_skin()/unload_skin() and main().

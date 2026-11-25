@@ -241,6 +241,7 @@ void AIGameScreen::apply_overlay_layout() {
 
 void AIGameScreen::on_screen_start() {
     Game2PScreen::on_screen_start();
+    tex.load_folders("game", {"ai_battle", "gauge_ai"});
     overlay.emplace();
     if (overlay->loaded()) {
         overlay->reset();

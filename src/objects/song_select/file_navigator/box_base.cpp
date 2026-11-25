@@ -58,6 +58,13 @@ void BaseBox::load_text() {
     text_loaded = true;
 }
 
+void BaseBox::unload_text() {
+    name.reset();
+    horizontal_name_cache.reset();
+    horizontal_name_large_cache.reset();
+    text_loaded = false;
+}
+
 void BaseBox::reset() {
     yellow_box_active = false;
     yellow_box_opened = false;

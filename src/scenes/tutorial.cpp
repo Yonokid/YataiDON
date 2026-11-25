@@ -53,6 +53,7 @@ void TutorialScreen::on_screen_start() {
                     : global_data.previous_screen == "WAIWAI_SONG_SELECT" ? Screens::WAIWAI_SONG_SELECT
                                                                           : Screens::SONG_SELECT;
     skip_player = return_screen == Screens::SONG_SELECT ? global_data.player_num : PlayerNum::ALL;
+    tex.load_folders("game", {"tutorial"});
     GameScreen::on_screen_start();
     transition->set_rainbow_only();
     overlay.emplace();

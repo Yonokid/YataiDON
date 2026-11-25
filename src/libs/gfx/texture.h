@@ -5,6 +5,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <span>
 #include <stdexcept>
 #include <string>
 #include <unordered_set>
@@ -257,7 +258,7 @@ public:
 
     void unload_folder(const std::string& screen_name, const std::string& subset);
 
-    void load_screen_textures(const std::string& screen_name);
+    void load_screen_textures(const std::string& screen_name, std::span<const std::string> skip_subsets = {});
 
     void control(TextureObject* tex_obj, int index = 0);
 

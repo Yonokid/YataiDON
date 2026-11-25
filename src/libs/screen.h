@@ -3,11 +3,13 @@
 #include <algorithm>
 #include <array>
 #include <optional>
+#include <span>
 #include <spdlog/spdlog.h>
 #include <string>
 #include <utility>
 
 #include "../objects/game_over/game_over.h"
+#include "../platform/platform.h"
 #include "audio/audio.h"
 #include "gfx/texture.h"
 #include "global_data.h"
@@ -126,9 +128,11 @@ public:
     };
     virtual TouchInput touch_input() const { return TouchInput::TAPS_AS_DRUM; }
 
+    virtual std::span<const std::string> skipped_texture_subsets() const { return {}; }
+
     virtual void on_screen_start() {
         audio.set_two_player_mode(two_player_audio());
-        tex.load_screen_textures(screen_name);
+        tex.load_screen_textures(screen_name, skipped_texture_subsets());
         audio.load_screen_sounds(screen_name);
     }
 
@@ -144,6 +148,7 @@ public:
         audio.unload_all_music();
 
         tex.unload_textures();
+        platform_trim_heap();
 
         return next_screen;
     }

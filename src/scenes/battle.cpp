@@ -218,6 +218,7 @@ void BattleGameScreen::apply_overlay_layout() {
 
 void BattleGameScreen::on_screen_start() {
     GameScreen::on_screen_start();
+    tex.load_folders("game", {"enso_battle", "battle_stage"});
     overlay.emplace();
     announce_battle();
     apply_overlay_layout();

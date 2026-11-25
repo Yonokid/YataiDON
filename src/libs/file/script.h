@@ -81,6 +81,7 @@ public:
 
     bool script_executed(const std::string& script_name) const { return executed_scripts.contains(script_name); }
     void mark_script_executed(const std::string& script_name) { executed_scripts.insert(script_name); }
+    void collect_garbage();
 };
 
 extern ScriptManager script_manager;

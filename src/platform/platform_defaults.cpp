@@ -1,8 +1,40 @@
-// platform.h hooks that only some platforms (currently PS5) override; every other build uses these.
+// platform.h hooks shared by every build, with per-OS branches where the allocator differs.
 #include "../libs/file/config.h"
 #include "../libs/gfx.h"
 #include "../libs/input/ime_ui.h"
 #include "platform.h"
+#if defined(__GLIBC__) || defined(__ANDROID__)
+#include <malloc.h>
+#elif defined(__APPLE__)
+#include <malloc/malloc.h>
+#endif
+
+void platform_configure_allocator() {
+#if defined(__GLIBC__)
+    mallopt(M_ARENA_MAX, 2);
+    mallopt(M_MMAP_THRESHOLD, 128 * 1024);
+    mallopt(M_TRIM_THRESHOLD, 128 * 1024);
+#elif defined(__ANDROID__)
+#if defined(M_DECAY_TIME)
+    mallopt(M_DECAY_TIME, 0); // return unused pages immediately
+#endif
+#endif
+}
+
+void platform_trim_heap() {
+#if defined(__GLIBC__)
+    malloc_trim(0);
+#elif defined(__ANDROID__)
+#if defined(M_PURGE_ALL)
+    mallopt(M_PURGE_ALL, 0);
+#endif
+#if defined(M_PURGE)
+    mallopt(M_PURGE, 0);
+#endif
+#elif defined(__APPLE__)
+    malloc_zone_pressure_relief(nullptr, 0);
+#endif
+}
 
 void platform_poll_input() {}
 

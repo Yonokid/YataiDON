@@ -1105,7 +1105,7 @@ void TextureWrapper::unload_folder(const std::string& screen_name, const std::st
 // decoded-but-not-yet-uploaded images load_screen_textures may hold ahead of load_folder
 constexpr size_t kPrefetchBudgetBytes = size_t{128} << 20;
 
-void TextureWrapper::load_screen_textures(const std::string& screen_name) {
+void TextureWrapper::load_screen_textures(const std::string& screen_name, std::span<const std::string> skip_subsets) {
     PROFILE_SCOPE();
     PROFILE_ZONE_TEXT(screen_name);
     std::vector<fs::path> roots{graphics_path};
@@ -1143,6 +1143,9 @@ void TextureWrapper::load_screen_textures(const std::string& screen_name) {
                 continue;
             }
             std::string name = entry.path.filename().string();
+            if (std::ranges::find(skip_subsets, name) != skip_subsets.end()) {
+                continue;
+            }
             if (seen.insert(name).second && !loaded_subsets.contains(std::format("{}/{}", screen_name, name))) {
                 subsets.push_back(std::move(name));
             }

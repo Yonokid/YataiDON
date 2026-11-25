@@ -22,6 +22,8 @@ public:
     ~FolderBox() override;
 
     void load_text() override;
+    void unload_text() override;
+
     void update(double current_time) override;
 
     void enter_box() override;

@@ -170,6 +170,15 @@ void Navigator::load_start_folder() {
     load_current_directory(target);
 }
 
+void Navigator::release_text() {
+    for (auto& box : items) {
+        box->unload_text();
+    }
+    if (inline_state && inline_state->saved_folder_box) {
+        inline_state->saved_folder_box->unload_text();
+    }
+}
+
 void Navigator::reset_for_skin_reload() {
     cancel_loading();
     inline_state.reset();
@@ -1552,13 +1561,16 @@ void Navigator::update(double current_ms) {
 
     SongBox::service_bgm_resume(current_ms);
 
-    for (auto& box : items) {
-        bool on_screen = vertical_gallery ? (box->position > -100 && box->position < tex.screen_height + 100)
-                                          : (box->box_x() > -100 && box->box_x() < tex.screen_width + 100);
-        if (on_screen && !box->text_loaded) {
-            box->load_text();
+    for (int i = 0; i < std::ssize(items); i++) {
+        BaseBox& box = *items[i];
+        bool on_screen = vertical_gallery ? (box.position > -100 && box.position < tex.screen_height + 100)
+                                          : (box.box_x() > -100 && box.box_x() < tex.screen_width + 100);
+        if (on_screen && !box.text_loaded) {
+            box.load_text();
+        } else if (!on_screen && i != open_index && box.text_loaded) {
+            box.unload_text();
         }
-        box->update(current_ms);
+        box.update(current_ms);
     }
     update_genre_edges();
 }

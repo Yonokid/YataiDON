@@ -152,6 +152,18 @@ void SongBox::load_text() {
     text_loaded = true;
 }
 
+void SongBox::unload_text() {
+    BaseBox::unload_text();
+    bpm_text.reset();
+    horizontal_subtitle_cache.reset();
+    horizontal_subtitle_large_cache.reset();
+    if (preimage.has_value()) {
+        unload_texture(preimage.value());
+        preimage.reset();
+    }
+    score_history.reset();
+}
+
 void SongBox::update(double current_time) {
     BaseBox::update(current_time);
     if (popular_rank < 0) {

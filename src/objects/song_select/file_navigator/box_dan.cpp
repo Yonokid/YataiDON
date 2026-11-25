@@ -127,6 +127,12 @@ void DanBox::load_text() {
     text_loaded = true;
 }
 
+void DanBox::unload_text() {
+    BaseBox::unload_text();
+    hori_name.reset();
+    song_texts.clear();
+}
+
 void DanBox::update(double current_ms) {
     BaseBox::update(current_ms);
     if (yellow_box_active && yellow_box_opened && !is_diff_select) {

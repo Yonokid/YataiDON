@@ -43,6 +43,18 @@ void FolderBox::load_text() {
     text_loaded = true;
 }
 
+void FolderBox::unload_text() {
+    BaseBox::unload_text();
+    if (box_texture.has_value()) {
+        unload_texture(box_texture.value());
+        box_texture.reset();
+    }
+    if (box_icon.has_value()) {
+        unload_texture(box_icon.value());
+        box_icon.reset();
+    }
+}
+
 std::string FolderBox::hover_voice() const {
     if (collection == WAIWAI_MODE_COLLECTION) {
         return "voice_waiwai_open";

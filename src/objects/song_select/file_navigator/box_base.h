@@ -81,6 +81,8 @@ public:
     virtual ~BaseBox();
 
     virtual void load_text();
+    // Drops the labels and images load_text() built; the next on-screen frame rebuilds them.
+    virtual void unload_text();
 
     virtual void preregister_text();
     virtual void get_scores() {}

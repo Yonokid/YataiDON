@@ -22,6 +22,7 @@ class SongSelectScreen : public Screen {
 protected:
     FadeAnimation* diff_fade_out = nullptr;
     std::unique_ptr<SongSelectScript> script;
+    double last_lua_gc_ms = 0.0;
     TextureObject* t_song_num_bg = nullptr;
 
     SongSelectState state = SongSelectState::BROWSING;
@@ -61,6 +62,7 @@ protected:
     virtual void on_select_timeout();
     void on_diff_select_timeout();
     virtual SongSelectPlayer* second_player() { return nullptr; }
+    virtual void release_players() { player.reset(); }
 
     virtual void handle_input(double current_ms);
     void handle_touch();
