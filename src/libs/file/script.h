@@ -101,6 +101,7 @@ bool LuaScript::load(const std::string& class_name, const std::string& script_na
     PROFILE_ZONE_TEXT(script_name);
     sol::state& lua = *script_manager.lua;
 
+    bool loaded_script = false;
     if (!script_manager.script_executed(script_name)) {
         // A skin that scripts some screens but not this one simply has no
         // script here; that is a plain "not scripted", not an error.
@@ -114,6 +115,7 @@ bool LuaScript::load(const std::string& class_name, const std::string& script_na
             return false;
         }
         script_manager.mark_script_executed(script_name);
+        loaded_script = true;
     }
 
     if (!lua[class_name].valid()) {
@@ -134,6 +136,10 @@ bool LuaScript::load(const std::string& class_name, const std::string& script_na
     }
 
     lua_object = call_result;
-    script_manager.refresh_method_cache();
+    if (loaded_script) {
+        // sol may create new metatables while the script runs; the once-a-second refresh in the
+        // main loop is too late for the frame that just loaded it
+        script_manager.refresh_method_cache();
+    }
     return true;
 }

@@ -35,6 +35,8 @@ public:
 
     void draw_outer_effect(float judge_x, float judge_y);
 
+    bool uses_additive() const { return t_outer_effect != nullptr; }
+
     void draw_text(float judge_x, float judge_y);
 
     bool is_finished() const;

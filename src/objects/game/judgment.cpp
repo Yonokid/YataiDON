@@ -106,13 +106,8 @@ void Judgment::draw_outer_effect(float judge_x, float judge_y) {
     int index = static_cast<int>(texture_animation->attribute);
     float hit_fade = fade_animation_1->attribute;
     float scale = outer_scale ? outer_scale->attribute : 1.0f;
-    tex.draw_texture(t_outer_effect, {.frame = index,
-                                      .scale = scale,
-                                      .center = true,
-                                      .x = judge_x,
-                                      .y = judge_y,
-                                      .fade = hit_fade,
-                                      .blend = blend_mode::ADDITIVE});
+    tex.draw_texture(t_outer_effect,
+                     {.frame = index, .scale = scale, .center = true, .x = judge_x, .y = judge_y, .fade = hit_fade});
 }
 
 void Judgment::draw_ray_effect(float judge_x, float judge_y) {
@@ -123,15 +118,13 @@ void Judgment::draw_ray_effect(float judge_x, float judge_y) {
                              .center = true,
                              .x = judge_x,
                              .y = judge_y,
-                             .fade = ray_fade->attribute,
-                             .blend = blend_mode::ADDITIVE});
+                             .fade = ray_fade->attribute});
     if (ray2_scale) {
         tex.draw_texture(t_ray, {.scale = static_cast<float>(ray2_scale->attribute),
                                  .center = true,
                                  .x = judge_x,
                                  .y = judge_y,
-                                 .fade = ray2_fade->attribute,
-                                 .blend = blend_mode::ADDITIVE});
+                                 .fade = ray2_fade->attribute});
     }
 }
 

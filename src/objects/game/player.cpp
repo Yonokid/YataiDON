@@ -591,9 +591,18 @@ void Player::draw(double ms_from_start, float x, float y) {
     }
 
     if (!hide_judgment) {
+        const bool additive = std::ranges::any_of(draw_judge_list, &Judgment::uses_additive);
+        if (additive) {
+            begin_blend_mode(blend_mode::ADDITIVE);
+        }
         for (Judgment& anim : draw_judge_list) {
             anim.draw_outer_effect(judge_x, y + judge_y);
             anim.draw_ray_effect(judge_x, y + judge_y);
+        }
+        if (additive) {
+            end_blend_mode();
+        }
+        for (Judgment& anim : draw_judge_list) {
             anim.draw_text(judge_x, y + judge_y);
         }
     }
@@ -642,9 +651,18 @@ void Player::draw_practice(double ms_from_start, float x, float y, bool draw_not
     }
 
     if (!hide_judgment) {
+        const bool additive = std::ranges::any_of(draw_judge_list, &Judgment::uses_additive);
+        if (additive) {
+            begin_blend_mode(blend_mode::ADDITIVE);
+        }
         for (Judgment& anim : draw_judge_list) {
             anim.draw_outer_effect(judge_x, y + judge_y);
             anim.draw_ray_effect(judge_x, y + judge_y);
+        }
+        if (additive) {
+            end_blend_mode();
+        }
+        for (Judgment& anim : draw_judge_list) {
             anim.draw_text(judge_x, y + judge_y);
         }
     }

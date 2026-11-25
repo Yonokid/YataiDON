@@ -109,6 +109,7 @@ struct RecordCounts {
 };
 
 struct RemoteScore;
+struct RemoteDan;
 
 class ScoresManager {
 private:
@@ -138,10 +139,10 @@ public:
     void export_to_hiroba(const std::string& access_code, const std::string& player_id);
 
     int apply_remote_scores(const std::vector<RemoteScore>& scores, const std::string& player_id);
+    void apply_remote_dans(const std::vector<RemoteDan>& dans, const std::string& player_id);
     std::optional<Score> get_score(const std::string& hash, int difficulty, const std::string& player_id);
     // Best-score ranks and crowns over every chart of player_id with difficulty >= min_difficulty.
-    RecordCounts get_record_counts(const std::string& player_id, int min_difficulty,
-                                  int max_difficulty = 4);
+    RecordCounts get_record_counts(const std::string& player_id, int min_difficulty, int max_difficulty = 4);
     // diff hash -> number of saved plays for player_id
     std::unordered_map<std::string, int> get_play_counts(const std::string& player_id);
     // out_score_id (optional) receives the new scores row id, or -1 if the insert failed.

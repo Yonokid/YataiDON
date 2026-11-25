@@ -294,6 +294,15 @@ void EntryScreen::finish_login(RemoteLogin remote) {
         if (u.player_board) {
             pd.player_board = *u.player_board;
         }
+        // never lower a local pass the server has not seen
+        if (u.dan && *u.dan > pd.dan) {
+            pd.dan = *u.dan;
+            pd.gold = u.gold;
+            pd.rainbow = u.rainbow;
+        } else if (u.dan && *u.dan == pd.dan) {
+            pd.gold |= u.gold;
+            pd.rainbow |= u.rainbow;
+        }
         if (u.don_medals >= 0) {
             pd.don_medals = u.don_medals;
         }
@@ -338,6 +347,9 @@ void EntryScreen::finish_login(RemoteLogin remote) {
     }
     if (cfg.sync_scores) {
         scores_manager.apply_remote_scores(remote.scores, code);
+        if (remote.user) {
+            scores_manager.apply_remote_dans(remote.user->dan_clears, code);
+        }
     }
 
     const bool fresh = remote.card || !remote.replaced_code.empty();

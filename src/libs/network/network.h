@@ -37,6 +37,16 @@ struct RemoteScore {
     Score score;
 };
 
+// best of every attempt at one dan course
+struct RemoteDan {
+    std::string course_id;
+    std::string title;
+    int dan_index = -1;
+    int odai_result = 0;
+    int score = 0;
+    int arrival = 0;
+};
+
 struct RankingEntry {
     std::string username;
     int score = 0;
@@ -47,6 +57,10 @@ struct RemoteUser {
     std::optional<std::string> title;
     std::optional<int> title_bg;
     std::optional<int> player_board;
+    std::optional<int> dan;
+    bool gold = false;
+    bool rainbow = false;
+    std::vector<RemoteDan> dan_clears;
     int don_medals = -1; // -1 = the server did not send it
     int medals_max = 0;
     std::optional<std::array<Color, 3>> chara_colors;

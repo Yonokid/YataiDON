@@ -568,7 +568,7 @@ void JudgeCore::check_balloon(double current_ms, DrumType drum_type, const Note&
     roll_hits[balloon.index] = curr_balloon_count;
     total_drumroll++;
     score += 100;
-    on_score_popup(100, false);
+    on_score_popup(100, true);
     const bool popped = curr_balloon_count == balloon.count.value();
     on_balloon_hit(balloon, current_ms, popped);
     if (popped) {
@@ -591,7 +591,7 @@ void JudgeCore::check_kusudama(double current_ms, DrumType drum_type, const Note
     }
     total_drumroll++;
     score += 100;
-    on_score_popup(100, false);
+    on_score_popup(100, true);
     owner->kusudama_shared_hits++;
     const bool popped = owner->kusudama_shared_hits == balloon.count.value();
     on_kusudama_hit(owner, balloon, current_ms, popped);

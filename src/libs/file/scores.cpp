@@ -293,8 +293,7 @@ ScoresManager::ScoresManager(const fs::path& db_path) {
     }
 
     // Migration v10: Don medal balance + the cap the server reports, for the song-select medal chip.
-    if (version < 10 &&
-        run_migration("ALTER TABLE players ADD COLUMN don_medals INTEGER NOT NULL DEFAULT 0;") &&
+    if (version < 10 && run_migration("ALTER TABLE players ADD COLUMN don_medals INTEGER NOT NULL DEFAULT 0;") &&
         run_migration("ALTER TABLE players ADD COLUMN medals_max INTEGER NOT NULL DEFAULT 10000;")) {
         sqlite3_exec(db_fsd, "PRAGMA user_version = 10;", nullptr, nullptr, nullptr);
     }
@@ -618,8 +617,7 @@ RecordCounts ScoresManager::get_record_counts(const std::string& player_id, int 
     std::scoped_lock lock(maps_mutex);
     RecordCounts out;
     for (const auto& [key, s] : score_cache) {
-        if (std::get<2>(key) != player_id || std::get<1>(key) < min_difficulty ||
-            std::get<1>(key) > max_difficulty) {
+        if (std::get<2>(key) != player_id || std::get<1>(key) < min_difficulty || std::get<1>(key) > max_difficulty) {
             continue;
         }
         if (int r = static_cast<int>(s.rank); r >= 1 && r <= 7) {
@@ -1250,6 +1248,38 @@ std::optional<DanRecord> ScoresManager::get_dan_record(const std::string& player
     }
     sqlite3_finalize(stmt);
     return out;
+}
+
+void ScoresManager::apply_remote_dans(const std::vector<RemoteDan>& dans, const std::string& player_id) {
+    if (is_guest_id(player_id)) {
+        return;
+    }
+    sqlite3_stmt* stmt;
+    const char* query = "INSERT INTO dan_scores (player_id, course_id, title, dan_index, odai_result, score, "
+                        "arrival, played_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?);";
+    if (sqlite3_prepare_v2(db_fsd, query, -1, &stmt, nullptr) != SQLITE_OK) {
+        spdlog::error("apply_remote_dans: failed to prepare: {}", sqlite3_errmsg(db_fsd));
+        return;
+    }
+    for (const RemoteDan& d : dans) {
+        const auto local = get_dan_record(player_id, d.course_id);
+        if (local && local->rank > d.odai_result && local->score >= d.score && local->arrival >= d.arrival) {
+            continue;
+        }
+        sqlite3_bind_text(stmt, 1, player_id.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(stmt, 2, d.course_id.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(stmt, 3, d.title.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_int(stmt, 4, d.dan_index);
+        sqlite3_bind_int(stmt, 5, d.odai_result);
+        sqlite3_bind_int(stmt, 6, d.score);
+        sqlite3_bind_int(stmt, 7, d.arrival);
+        sqlite3_bind_int64(stmt, 8, unix_now());
+        if (sqlite3_step(stmt) != SQLITE_DONE) {
+            spdlog::error("apply_remote_dans: failed for {}: {}", d.title, sqlite3_errmsg(db_fsd));
+        }
+        sqlite3_reset(stmt);
+    }
+    sqlite3_finalize(stmt);
 }
 
 void ScoresManager::save_ai_section_wins(const std::string& hash, int difficulty, const std::string& player_id, int won,

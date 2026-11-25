@@ -494,6 +494,29 @@ std::optional<RemoteUser> NetworkClient::fetch_user(const std::string& access_co
     if (doc.HasMember("player_board") && doc["player_board"].IsInt()) {
         user.player_board = doc["player_board"].GetInt();
     }
+    if (doc.HasMember("dan") && doc["dan"].IsInt()) {
+        user.dan = doc["dan"].GetInt();
+    }
+    user.gold = doc.HasMember("gold") && doc["gold"].IsBool() && doc["gold"].GetBool();
+    user.rainbow = doc.HasMember("rainbow") && doc["rainbow"].IsBool() && doc["rainbow"].GetBool();
+    if (doc.HasMember("dan_clears") && doc["dan_clears"].IsArray()) {
+        for (const auto& d : doc["dan_clears"].GetArray()) {
+            if (!d.IsObject() || !d.HasMember("course_id") || !d["course_id"].IsString()) {
+                continue;
+            }
+            auto number = [&d](const char* key, int fallback) {
+                return d.HasMember(key) && d[key].IsInt() ? d[key].GetInt() : fallback;
+            };
+            RemoteDan dan;
+            dan.course_id = d["course_id"].GetString();
+            dan.title = d.HasMember("title") && d["title"].IsString() ? d["title"].GetString() : "";
+            dan.dan_index = number("dan_index", -1);
+            dan.odai_result = number("odai_result", 0);
+            dan.score = number("score", 0);
+            dan.arrival = number("arrival", 0);
+            user.dan_clears.push_back(std::move(dan));
+        }
+    }
     if (doc.HasMember("don_medals") && doc["don_medals"].IsInt()) {
         user.don_medals = doc["don_medals"].GetInt();
     }
