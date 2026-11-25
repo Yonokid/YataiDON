@@ -338,10 +338,10 @@ void NavigationLoad::parse_song_list(const fs::path& path, const BoxDef& box_def
         SongParser parser = take_parser(preparsed, final_path);
         const auto& titles = parser.metadata.title;
         const auto& subtitles = parser.metadata.subtitle;
-        const std::string title = !parser.metadata.audio_tagged_title.empty() ? parser.metadata.audio_tagged_title
-                                  : titles.contains("en")                     ? titles.at("en")
-                                                                              : titles.begin()->second;
-        const std::string subtitle = subtitles.contains("en") ? subtitles.at("en") : subtitles.begin()->second;
+        const std::string title = !parser.metadata.audio_tagged_title.empty()
+                                      ? parser.metadata.audio_tagged_title
+                                      : localized_text(titles, "en", LocalizedTextFallback::ENGLISH_OR_FIRST);
+        const std::string subtitle = localized_text(subtitles, "en", LocalizedTextFallback::ENGLISH_OR_FIRST);
         const std::string correct_hash = scores_manager.get_single_hash(final_path);
         out_entries.push_back({correct_hash, title, subtitle});
         needs_rewrite |= entry.hash != correct_hash || entry.title != title || entry.subtitle != subtitle;

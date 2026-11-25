@@ -79,22 +79,30 @@ int DanNavigator::song_note_count(const fs::path& path, int difficulty) {
     return total;
 }
 
-int DanNavigator::box_genre(const fs::path& box_def_dir) {
+int DanNavigator::box_genre(const fs::path& box_def_dir, std::string* label) {
     if (memo_) {
         std::scoped_lock lock(memo_->mutex);
         if (auto it = memo_->genres.find(box_def_dir); it != memo_->genres.end()) {
-            return it->second;
+            if (label) {
+                *label = it->second.label;
+            }
+            return it->second.index;
         }
     }
-    int genre = static_cast<int>(GenreIndex::NAMCO);
+    GenreInfo info;
     if (fs::exists(box_def_dir / "box.def")) {
-        genre = static_cast<int>(Navigator::parse_box_def_uncached(box_def_dir).genre_index);
+        const BoxDef def = Navigator::parse_box_def_uncached(box_def_dir);
+        info.index = static_cast<int>(def.genre_index);
+        info.label = def.genre_label;
     }
     if (memo_) {
         std::scoped_lock lock(memo_->mutex);
-        memo_->genres.emplace(box_def_dir, genre);
+        memo_->genres.emplace(box_def_dir, info);
     }
-    return genre;
+    if (label) {
+        *label = info.label;
+    }
+    return info.index;
 }
 
 static std::string normalize_exam_type(std::string t) {
@@ -240,14 +248,15 @@ std::optional<DanSongEntry> DanNavigator::load_song_entry(const rapidjson::Value
             titles_out->second = localized_text(meta->subtitle, lang, LocalizedTextFallback::NONE);
         }
 
-        int genre = box_genre(path_opt->parent_path().parent_path());
+        std::string genre_label;
+        int genre = box_genre(path_opt->parent_path().parent_path(), &genre_label);
 
         bool hidden = chart.HasMember("hidden") && chart["hidden"].IsBool() && chart["hidden"].GetBool();
         if (chart.HasMember("title_show") && chart["title_show"].IsBool() && !chart.HasMember("hidden")) {
             hidden = !chart["title_show"].GetBool();
         }
 
-        return DanSongEntry{*path_opt, genre, diff, level, hidden};
+        return DanSongEntry{*path_opt, genre, diff, level, hidden, genre_label};
     } catch (...) {
         spdlog::warn("DanNavigator: failed to parse song entry");
         return std::nullopt;

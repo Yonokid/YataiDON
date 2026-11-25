@@ -166,10 +166,10 @@ void DanGameScreen::change_song() {
 
 void DanGameScreen::begin_song_presentation(const DanSongEntry& entry, int song_number) {
     const std::string& lang = global_data.config->general.language;
-    current_song_title = localized_text(parser->metadata.title, lang, LocalizedTextFallback::REQUIRED_ENGLISH);
+    current_song_title = localized_text(parser->metadata.title, lang, LocalizedTextFallback::ENGLISH_OR_FIRST);
     std::string subtitle = localized_text(parser->metadata.subtitle, lang, LocalizedTextFallback::NONE);
     song_info = SongInfo(current_song_title, subtitle, parser->metadata.subtitle_full_display, entry.genre_index - 1,
-                         song_number);
+                         song_number, entry.genre_label);
 
     between.start(get_current_ms(), current_song_title, subtitle, parser->metadata.subtitle_full_display);
     reset_song_clock(DanBetween::SONG_OPEN_MS);

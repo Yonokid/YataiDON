@@ -816,8 +816,8 @@ void Navigator::toggle_favorite(SongBox* song) {
     invalidate_folder_summaries(); // song_list.txt counts change
     auto& t = song->parser.metadata.title;
     auto& s = song->parser.metadata.subtitle;
-    std::string title = t.contains("en") ? t.at("en") : t.begin()->second;
-    std::string subtitle = s.contains("en") ? s.at("en") : s.begin()->second;
+    std::string title = localized_text(t, "en", LocalizedTextFallback::ENGLISH_OR_FIRST);
+    std::string subtitle = localized_text(s, "en", LocalizedTextFallback::ENGLISH_OR_FIRST);
     std::string key = title + "|" + subtitle;
 
     fs::path song_list_path = song_list_file(*favorite_folder_path);
@@ -856,8 +856,8 @@ void Navigator::add_to_recent(const SongBox* song) {
 
     auto& titles = song->parser.metadata.title;
     auto& subtitles = song->parser.metadata.subtitle;
-    std::string title = titles.contains("en") ? titles.at("en") : titles.begin()->second;
-    std::string subtitle = subtitles.contains("en") ? subtitles.at("en") : subtitles.begin()->second;
+    std::string title = localized_text(titles, "en", LocalizedTextFallback::ENGLISH_OR_FIRST);
+    std::string subtitle = localized_text(subtitles, "en", LocalizedTextFallback::ENGLISH_OR_FIRST);
     std::string hash = scores_manager.get_single_hash(song->parser.file_path);
 
     if (hash.empty()) {

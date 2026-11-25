@@ -85,6 +85,7 @@ struct DanSongEntry {
     int difficulty = 0;
     int level = 0;
     bool hidden = false;
+    std::string genre_label;
 };
 
 // the course picked on dan select

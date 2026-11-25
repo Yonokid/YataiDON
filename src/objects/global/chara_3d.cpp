@@ -990,6 +990,12 @@ std::string Chara3D::get_anim_name(int idx) {
     return "";
 }
 
+bool Chara3D::is_balloon_result() const {
+    const int base = base_anim(anim_index);
+    return base == static_cast<int>(AnimIndex::DON_BALLOON_SUCCESS) ||
+           base == static_cast<int>(AnimIndex::DON_BALLOON_FAILURE);
+}
+
 void Chara3D::set_tint(Color color, float amount) {
     tint_color = color;
     tint_amount = amount;
@@ -1084,7 +1090,7 @@ void Chara3D::update(double current_ms) {
             } else if (base == static_cast<int>(AnimIndex::DON_NORMAL)) {
                 ms_per_beat *= 3;
             } else if (base == static_cast<int>(AnimIndex::DON_SABI)) {
-                ms_per_beat *= 6;
+                ms_per_beat *= 8;
             }
             if (base == static_cast<int>(AnimIndex::DON_BALLOON_LOOP)) {
                 ms_per_beat /= 2;

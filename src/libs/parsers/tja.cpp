@@ -436,6 +436,14 @@ void TJAParser::get_metadata() {
             ex_data.limited_time = true;
         }
     }
+
+    // A custom chart may leave TITLE or SUBTITLE out; every reader indexes these maps.
+    if (metadata.title.empty()) {
+        metadata.title["en"] = file_path.stem().string();
+    }
+    if (metadata.subtitle.empty()) {
+        metadata.subtitle["en"] = "";
+    }
 }
 
 std::tuple<NoteList, std::deque<NoteList>, std::deque<NoteList>, std::deque<NoteList>>
