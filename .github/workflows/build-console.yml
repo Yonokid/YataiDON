@@ -337,6 +337,8 @@ jobs:
 
       - name: Install Ounce devkit
         run: |
+          # pkg.devkitpro.org answers 403 to CI runners; the image already has what the devkit needs.
+          sed -i '/^\[dkp-/,/^$/d' /opt/devkitpro/pacman/etc/pacman.conf
           git clone --depth 1 https://github.com/ouncebrew/ounce-devkit.git "$RUNNER_TEMP/ounce-devkit"
           sh "$RUNNER_TEMP/ounce-devkit/install.sh"
 

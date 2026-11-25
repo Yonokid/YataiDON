@@ -250,6 +250,5 @@ bool platform_preload_song_previews() {
     return true;
 }
 
-bool platform_touch_back_button() {
-    return false;
-}
+void platform_configure_allocator() {}
+void platform_trim_heap() {}

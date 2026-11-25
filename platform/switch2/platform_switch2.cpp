@@ -485,3 +485,10 @@ void platform_load_config(Config& config, const toml::table& file) {
 void platform_save_config(const Config&, toml::table& out) {
     out.insert("switch", toml::table{{"controller_layout_version", 2}});
 }
+
+void platform_configure_allocator() {}
+void platform_trim_heap() {}
+
+bool platform_touch_back_button() {
+    return false;
+}

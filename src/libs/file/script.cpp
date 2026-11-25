@@ -1042,8 +1042,8 @@ void ScriptManager::register_lua_bindings() {
 
     tex.set_function("record_counts", [](int player_num, int min_course, sol::optional<int> max_course) -> sol::table {
         const auto& net = global_data.config->network;
-        const RecordCounts rc = scores_manager.get_record_counts(player_num == 2 ? net.access_code_2 : net.access_code_1,
-                                                                min_course, max_course.value_or(4));
+        const RecordCounts rc = scores_manager.get_record_counts(
+            player_num == 2 ? net.access_code_2 : net.access_code_1, min_course, max_course.value_or(4));
         sol::table t = script_manager.lua->create_table(0, 2);
         t["ranks"] = script_manager.lua->create_table_with();
         t["crowns"] = script_manager.lua->create_table_with();

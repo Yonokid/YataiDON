@@ -444,3 +444,6 @@ void platform_save_config(const Config&, toml::table& out) {
 bool platform_touch_back_button() {
     return false;
 }
+
+void platform_configure_allocator() {}
+void platform_trim_heap() {}
