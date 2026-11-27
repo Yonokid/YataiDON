@@ -350,64 +350,61 @@ bool is_kat_held(bool left, PlayerNum player_num) {
                             left ? c.gamepad_2p.left_kat : c.gamepad_2p.right_kat, PlayerNum::P2));
 }
 
-bool is_l_don_pressed(PlayerNum player_num, float* strength) {
+struct DrumInput {
+    std::vector<int> DrumBindings::* member;
+    int touch_key;
+    MenuAction menu_action;
+};
+
+static constexpr DrumInput drum_inputs[] = {
+    {&DrumBindings::left_kat, TOUCH_L_KAT, MenuAction::Left},
+    {&DrumBindings::left_don, TOUCH_L_DON, MenuAction::Confirm},
+    {&DrumBindings::right_don, TOUCH_R_DON, MenuAction::Confirm},
+    {&DrumBindings::right_kat, TOUCH_R_KAT, MenuAction::Right},
+};
+
+static bool drum_input_pressed(const DrumInput& input, PlayerNum player_num, float* strength) {
     if (player_num == PlayerNum::ALL && separate_players()) {
-        return is_l_don_pressed(PlayerNum::P1, strength) || is_l_don_pressed(PlayerNum::P2, strength);
+        return drum_input_pressed(input, PlayerNum::P1, strength) || drum_input_pressed(input, PlayerNum::P2, strength);
     }
+
     if (uses_menu_layout()) {
-        return menu_layout_pressed(MenuAction::Confirm, player_num, strength);
+        return menu_layout_pressed(input.menu_action, player_num, strength);
     }
+
+    if (player_num != PlayerNum::P1 && player_num != PlayerNum::P2 && player_num != PlayerNum::ALL) {
+        return false;
+    }
+
+    const auto& c = *global_data.config;
+    const auto member = input.member;
+
     if (player_num == PlayerNum::P1) {
-        return player_input_pressed(global_data.config->keys_1p.left_don, global_data.config->gamepad_1p.left_don,
-                                    PlayerNum::P1, strength) ||
-               check_key_pressed(TOUCH_L_DON, strength);
+        return player_input_pressed(c.keys_1p.*member, c.gamepad_1p.*member, PlayerNum::P1, strength) ||
+               check_key_pressed(input.touch_key, strength);
     }
 
     if (player_num == PlayerNum::P2) {
-        return player_input_pressed(global_data.config->keys_2p.left_don, global_data.config->gamepad_2p.left_don,
-                                    PlayerNum::P2, strength);
+        return player_input_pressed(c.keys_2p.*member, c.gamepad_2p.*member, PlayerNum::P2, strength);
     }
 
-    if (player_num != PlayerNum::ALL) {
-        return false;
-    }
-    std::vector<int> keys = global_data.config->keys_1p.left_don;
-    const auto& keys_2p = global_data.config->keys_2p.left_don;
+    std::vector<int> keys = c.keys_1p.*member;
+    const auto& keys_2p = c.keys_2p.*member;
     keys.insert(keys.end(), keys_2p.begin(), keys_2p.end());
-    std::vector<int> gamepad_buttons = global_data.config->gamepad_1p.left_don;
-    const auto& gp2 = global_data.config->gamepad_2p.left_don;
+
+    std::vector<int> gamepad_buttons = c.gamepad_1p.*member;
+    const auto& gp2 = c.gamepad_2p.*member;
     gamepad_buttons.insert(gamepad_buttons.end(), gp2.begin(), gp2.end());
-    return is_input_key_pressed(keys, gamepad_buttons, strength) || check_key_pressed(TOUCH_L_DON, strength);
+
+    return is_input_key_pressed(keys, gamepad_buttons, strength) || check_key_pressed(input.touch_key, strength);
+}
+
+bool is_l_don_pressed(PlayerNum player_num, float* strength) {
+    return drum_input_pressed(drum_inputs[1], player_num, strength);
 }
 
 bool is_r_don_pressed(PlayerNum player_num, float* strength) {
-    if (player_num == PlayerNum::ALL && separate_players()) {
-        return is_r_don_pressed(PlayerNum::P1, strength) || is_r_don_pressed(PlayerNum::P2, strength);
-    }
-    if (uses_menu_layout()) {
-        return menu_layout_pressed(MenuAction::Confirm, player_num, strength);
-    }
-    if (player_num == PlayerNum::P1) {
-        return player_input_pressed(global_data.config->keys_1p.right_don, global_data.config->gamepad_1p.right_don,
-                                    PlayerNum::P1, strength) ||
-               check_key_pressed(TOUCH_R_DON, strength);
-    }
-
-    if (player_num == PlayerNum::P2) {
-        return player_input_pressed(global_data.config->keys_2p.right_don, global_data.config->gamepad_2p.right_don,
-                                    PlayerNum::P2, strength);
-    }
-
-    if (player_num != PlayerNum::ALL) {
-        return false;
-    }
-    std::vector<int> keys = global_data.config->keys_1p.right_don;
-    const auto& keys_2p = global_data.config->keys_2p.right_don;
-    keys.insert(keys.end(), keys_2p.begin(), keys_2p.end());
-    std::vector<int> gamepad_buttons = global_data.config->gamepad_1p.right_don;
-    const auto& gp2 = global_data.config->gamepad_2p.right_don;
-    gamepad_buttons.insert(gamepad_buttons.end(), gp2.begin(), gp2.end());
-    return is_input_key_pressed(keys, gamepad_buttons, strength) || check_key_pressed(TOUCH_R_DON, strength);
+    return drum_input_pressed(drum_inputs[2], player_num, strength);
 }
 
 bool menu_left_pressed(PlayerNum p) {
@@ -423,63 +420,11 @@ bool menu_confirm_pressed(PlayerNum p) {
 }
 
 bool is_l_kat_pressed(PlayerNum player_num, float* strength) {
-    if (player_num == PlayerNum::ALL && separate_players()) {
-        return is_l_kat_pressed(PlayerNum::P1, strength) || is_l_kat_pressed(PlayerNum::P2, strength);
-    }
-    if (uses_menu_layout()) {
-        return menu_layout_pressed(MenuAction::Left, player_num, strength);
-    }
-    if (player_num == PlayerNum::P1) {
-        return player_input_pressed(global_data.config->keys_1p.left_kat, global_data.config->gamepad_1p.left_kat,
-                                    PlayerNum::P1, strength) ||
-               check_key_pressed(TOUCH_L_KAT, strength);
-    }
-
-    if (player_num == PlayerNum::P2) {
-        return player_input_pressed(global_data.config->keys_2p.left_kat, global_data.config->gamepad_2p.left_kat,
-                                    PlayerNum::P2, strength);
-    }
-
-    if (player_num != PlayerNum::ALL) {
-        return false;
-    }
-    std::vector<int> keys = global_data.config->keys_1p.left_kat;
-    const auto& keys_2p = global_data.config->keys_2p.left_kat;
-    keys.insert(keys.end(), keys_2p.begin(), keys_2p.end());
-    std::vector<int> gamepad_buttons = global_data.config->gamepad_1p.left_kat;
-    const auto& gp2 = global_data.config->gamepad_2p.left_kat;
-    gamepad_buttons.insert(gamepad_buttons.end(), gp2.begin(), gp2.end());
-    return is_input_key_pressed(keys, gamepad_buttons, strength) || check_key_pressed(TOUCH_L_KAT, strength);
+    return drum_input_pressed(drum_inputs[0], player_num, strength);
 }
 
 bool is_r_kat_pressed(PlayerNum player_num, float* strength) {
-    if (player_num == PlayerNum::ALL && separate_players()) {
-        return is_r_kat_pressed(PlayerNum::P1, strength) || is_r_kat_pressed(PlayerNum::P2, strength);
-    }
-    if (uses_menu_layout()) {
-        return menu_layout_pressed(MenuAction::Right, player_num, strength);
-    }
-    if (player_num == PlayerNum::P1) {
-        return player_input_pressed(global_data.config->keys_1p.right_kat, global_data.config->gamepad_1p.right_kat,
-                                    PlayerNum::P1, strength) ||
-               check_key_pressed(TOUCH_R_KAT, strength);
-    }
-
-    if (player_num == PlayerNum::P2) {
-        return player_input_pressed(global_data.config->keys_2p.right_kat, global_data.config->gamepad_2p.right_kat,
-                                    PlayerNum::P2, strength);
-    }
-
-    if (player_num != PlayerNum::ALL) {
-        return false;
-    }
-    std::vector<int> keys = global_data.config->keys_1p.right_kat;
-    const auto& keys_2p = global_data.config->keys_2p.right_kat;
-    keys.insert(keys.end(), keys_2p.begin(), keys_2p.end());
-    std::vector<int> gamepad_buttons = global_data.config->gamepad_1p.right_kat;
-    const auto& gp2 = global_data.config->gamepad_2p.right_kat;
-    gamepad_buttons.insert(gamepad_buttons.end(), gp2.begin(), gp2.end());
-    return is_input_key_pressed(keys, gamepad_buttons, strength) || check_key_pressed(TOUCH_R_KAT, strength);
+    return drum_input_pressed(drum_inputs[3], player_num, strength);
 }
 
 static float touch_drum_size() {
