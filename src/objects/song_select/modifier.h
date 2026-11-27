@@ -43,6 +43,7 @@ private:
     bool has_row(const std::string& name) const { return std::ranges::contains(mod_names, name); }
     bool has_neiro_row() const { return has_row("neiro"); }
     void load_neiro_names();
+    void step(int dir);
     void step_neiro(int dir);
     void step_offset(int dir);
     bool offset_dirty = false;
@@ -90,6 +91,6 @@ public:
     ModifierSelector& operator=(ModifierSelector&&) = default;
     void update(double current_ms);
     void confirm();
-    void left();
-    void right();
+    void left() { step(-1); }
+    void right() { step(1); }
 };

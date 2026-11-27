@@ -182,58 +182,29 @@ static int speed_step(int value, int dir) {
     return 30;
 }
 
-void ModifierSelector::left() {
+void ModifierSelector::step(int dir) {
     if (is_confirmed) {
         return;
     }
+
     const std::string& mod_name = mod_names[current_mod_index];
     if (row_greyed(mod_name)) {
         return;
     }
 
     if (mod_name == "speed") {
-        player->modifier_speed = speed_step(player->modifier_speed, -1);
-        start_text_animation(1);
+        player->modifier_speed = speed_step(player->modifier_speed, dir);
     } else if (mod_name == "offset") {
-        step_offset(-1);
-        start_text_animation(1);
+        step_offset(dir);
     } else if (mod_name == "neiro") {
-        step_neiro(-1);
-        start_text_animation(1);
+        step_neiro(dir);
     } else if (mod_name == "random") {
-        player->modifier_random = (player->modifier_random + 2) % 3;
-        start_text_animation(1);
+        player->modifier_random = (player->modifier_random + dir + 3) % 3;
     } else {
         set_bool(current_mod_index, !get_bool(current_mod_index));
-        start_text_animation(1);
-    }
-}
-
-void ModifierSelector::right() {
-    if (is_confirmed) {
-        return;
-    }
-    const std::string& mod_name = mod_names[current_mod_index];
-    if (row_greyed(mod_name)) {
-        return;
     }
 
-    if (mod_name == "speed") {
-        player->modifier_speed = speed_step(player->modifier_speed, +1);
-        start_text_animation(-1);
-    } else if (mod_name == "offset") {
-        step_offset(1);
-        start_text_animation(-1);
-    } else if (mod_name == "neiro") {
-        step_neiro(1);
-        start_text_animation(-1);
-    } else if (mod_name == "random") {
-        player->modifier_random = (player->modifier_random + 1) % 3;
-        start_text_animation(-1);
-    } else {
-        set_bool(current_mod_index, !get_bool(current_mod_index));
-        start_text_animation(-1);
-    }
+    start_text_animation(-dir);
 }
 
 std::string ModifierSelector::row_label(const std::string& n) const {
