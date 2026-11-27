@@ -292,115 +292,59 @@ static bool screen_fade_applies(Screens from, Screens to) {
 static LoopState* g_loop = nullptr;
 double g_frame_ms = 0.0;
 
+template<typename T>
+static std::unique_ptr<Screen> make_screen() {
+    return std::make_unique<T>();
+}
+
 static void populate_screens(std::unordered_map<Screens, std::unique_ptr<Screen>>& screens,
                              std::optional<Screens> except = std::nullopt) {
-    if (except != Screens::ENTRY) {
-        screens[Screens::ENTRY] = std::make_unique<EntryScreen>();
-    }
-    if (except != Screens::TITLE) {
-        screens[Screens::TITLE] = std::make_unique<TitleScreen>();
-    }
-    if (except != Screens::SONG_SELECT) {
-        screens[Screens::SONG_SELECT] = std::make_unique<SongSelectScreen>();
-    }
-    if (except != Screens::SONG_SELECT_2P) {
-        screens[Screens::SONG_SELECT_2P] = std::make_unique<SongSelect2PScreen>();
-    }
-    if (except != Screens::WAIWAI_SONG_SELECT) {
-        screens[Screens::WAIWAI_SONG_SELECT] = std::make_unique<WaiwaiSongSelectScreen>();
-    }
-    if (except != Screens::WAIWAI_GAME) {
-        screens[Screens::WAIWAI_GAME] = std::make_unique<WaiwaiGameScreen>();
-    }
-    if (except != Screens::WAIWAI_RESULT) {
-        screens[Screens::WAIWAI_RESULT] = std::make_unique<WaiwaiResultScreen>();
-    }
-    if (except != Screens::WAIWAI_TUTORIAL) {
-        screens[Screens::WAIWAI_TUTORIAL] = std::make_unique<WaiwaiTutorialScreen>();
-    }
-    if (except != Screens::WAIWAI_RETRY_GAME) {
-        screens[Screens::WAIWAI_RETRY_GAME] = std::make_unique<WaiwaiRetryGameScreen>();
-    }
-    if (except != Screens::AI_SELECT) {
-        screens[Screens::AI_SELECT] = std::make_unique<AISongSelectScreen>();
-    }
-    if (except != Screens::AI_GAME) {
-        screens[Screens::AI_GAME] = std::make_unique<AIGameScreen>();
-    }
-    if (except != Screens::AI_RESULT) {
-        screens[Screens::AI_RESULT] = std::make_unique<AIResultScreen>();
-    }
-    if (except != Screens::BATTLE_SELECT) {
-        screens[Screens::BATTLE_SELECT] = std::make_unique<BattleSongSelectScreen>();
-    }
-    if (except != Screens::BATTLE_GAME) {
-        screens[Screens::BATTLE_GAME] = std::make_unique<BattleGameScreen>();
-    }
-    if (except != Screens::BATTLE_RESULT) {
-        screens[Screens::BATTLE_RESULT] = std::make_unique<BattleResultScreen>();
-    }
-    if (except != Screens::LOADING) {
-        screens[Screens::LOADING] = std::make_unique<LoadingScreen>();
-    }
-    if (except != Screens::GAME) {
-        screens[Screens::GAME] = std::make_unique<GameScreen>();
-    }
-    if (except != Screens::GAME_2P) {
-        screens[Screens::GAME_2P] = std::make_unique<Game2PScreen>();
-    }
-    if (except != Screens::GAME_PRACTICE) {
-        screens[Screens::GAME_PRACTICE] = std::make_unique<PracticeGameScreen>();
-    }
-    if (except != Screens::PRACTICE_SELECT) {
-        screens[Screens::PRACTICE_SELECT] = std::make_unique<PracticeSongSelectScreen>();
-    }
-    if (except != Screens::RESULT) {
-        screens[Screens::RESULT] = std::make_unique<ResultScreen>();
-    }
-    if (except != Screens::RESULT_2P) {
-        screens[Screens::RESULT_2P] = std::make_unique<Result2PScreen>();
-    }
-    if (except != Screens::DAN_SELECT) {
-        screens[Screens::DAN_SELECT] = std::make_unique<DanSelectScreen>();
-    }
-    if (except != Screens::GAME_DAN) {
-        screens[Screens::GAME_DAN] = std::make_unique<DanGameScreen>();
-    }
-    if (except != Screens::DAN_RESULT) {
-        screens[Screens::DAN_RESULT] = std::make_unique<DanResultScreen>();
-    }
-    if (except != Screens::SETTINGS) {
-        screens[Screens::SETTINGS] = std::make_unique<SettingsScreen>();
-    }
-    if (except != Screens::INPUT_CALI) {
-        screens[Screens::INPUT_CALI] = std::make_unique<InputCaliScreen>();
-    }
-    if (except != Screens::GAME_OVER) {
-        screens[Screens::GAME_OVER] = std::make_unique<GameOverScreen>();
-    }
-    if (except != Screens::INPUT_TEST) {
-        screens[Screens::INPUT_TEST] = std::make_unique<InputTestScreen>();
-    }
-    if (except != Screens::RETRY_GAME) {
-        screens[Screens::RETRY_GAME] = std::make_unique<RetryGameScreen>();
-    }
-    if (except != Screens::ONBOARDING) {
-        screens[Screens::ONBOARDING] = std::make_unique<OnboardingScreen>();
-    }
-    if (except != Screens::TUTORIAL) {
-        screens[Screens::TUTORIAL] = std::make_unique<TutorialScreen>();
-    }
-    if (except != Screens::CAMPAIGN) {
-        screens[Screens::CAMPAIGN] = std::make_unique<CampaignScreen>();
-    }
-    if (except != Screens::KINOTAKE_RESULT) {
-        screens[Screens::KINOTAKE_RESULT] = std::make_unique<KinotakeResultScreen>();
-    }
-    if (except != Screens::TOTAL_RESULT) {
-        screens[Screens::TOTAL_RESULT] = std::make_unique<TotalResultScreen>();
-    }
-    if (except != Screens::REWARD_SHOP) {
-        screens[Screens::REWARD_SHOP] = std::make_unique<RewardShopScreen>();
+    static constexpr struct {
+        Screens id;
+        std::unique_ptr<Screen> (*create)();
+    } factories[] = {
+        {Screens::ENTRY, make_screen<EntryScreen>},
+        {Screens::TITLE, make_screen<TitleScreen>},
+        {Screens::SONG_SELECT, make_screen<SongSelectScreen>},
+        {Screens::SONG_SELECT_2P, make_screen<SongSelect2PScreen>},
+        {Screens::WAIWAI_SONG_SELECT, make_screen<WaiwaiSongSelectScreen>},
+        {Screens::WAIWAI_GAME, make_screen<WaiwaiGameScreen>},
+        {Screens::WAIWAI_RESULT, make_screen<WaiwaiResultScreen>},
+        {Screens::WAIWAI_TUTORIAL, make_screen<WaiwaiTutorialScreen>},
+        {Screens::WAIWAI_RETRY_GAME, make_screen<WaiwaiRetryGameScreen>},
+        {Screens::AI_SELECT, make_screen<AISongSelectScreen>},
+        {Screens::AI_GAME, make_screen<AIGameScreen>},
+        {Screens::AI_RESULT, make_screen<AIResultScreen>},
+        {Screens::BATTLE_SELECT, make_screen<BattleSongSelectScreen>},
+        {Screens::BATTLE_GAME, make_screen<BattleGameScreen>},
+        {Screens::BATTLE_RESULT, make_screen<BattleResultScreen>},
+        {Screens::LOADING, make_screen<LoadingScreen>},
+        {Screens::GAME, make_screen<GameScreen>},
+        {Screens::GAME_2P, make_screen<Game2PScreen>},
+        {Screens::GAME_PRACTICE, make_screen<PracticeGameScreen>},
+        {Screens::PRACTICE_SELECT, make_screen<PracticeSongSelectScreen>},
+        {Screens::RESULT, make_screen<ResultScreen>},
+        {Screens::RESULT_2P, make_screen<Result2PScreen>},
+        {Screens::DAN_SELECT, make_screen<DanSelectScreen>},
+        {Screens::GAME_DAN, make_screen<DanGameScreen>},
+        {Screens::DAN_RESULT, make_screen<DanResultScreen>},
+        {Screens::SETTINGS, make_screen<SettingsScreen>},
+        {Screens::INPUT_CALI, make_screen<InputCaliScreen>},
+        {Screens::GAME_OVER, make_screen<GameOverScreen>},
+        {Screens::INPUT_TEST, make_screen<InputTestScreen>},
+        {Screens::RETRY_GAME, make_screen<RetryGameScreen>},
+        {Screens::ONBOARDING, make_screen<OnboardingScreen>},
+        {Screens::TUTORIAL, make_screen<TutorialScreen>},
+        {Screens::CAMPAIGN, make_screen<CampaignScreen>},
+        {Screens::KINOTAKE_RESULT, make_screen<KinotakeResultScreen>},
+        {Screens::TOTAL_RESULT, make_screen<TotalResultScreen>},
+        {Screens::REWARD_SHOP, make_screen<RewardShopScreen>},
+    };
+
+    for (const auto& [id, create] : factories) {
+        if (except != id) {
+            screens[id] = create();
+        }
     }
 }
 

@@ -98,20 +98,40 @@ void SongSelectScreen::on_screen_start() {
 
 void SongSelectScreen::select_song(SongBox* song) {
     navigator.add_to_recent(song);
-    const auto player_index = static_cast<int>(global_data.player_num);
-    SessionData& session_data = global_data.session_data[player_index];
-    session_data.selected_song = song->path;
-    start_song_download(song->path);
-    session_data.selected_collection = song->collection;
-    session_data.selected_difficulty = static_cast<int>(player->selected_difficulty);
-    session_data.song_hash = song->hash_for(session_data.selected_difficulty);
-    session_data.genre_index = static_cast<int>(song->song_genre_index) - 1;
-    session_data.genre_label = song->song_genre_label;
-    global_data.last_difficulty[player_index] = session_data.selected_difficulty;
-    game_transition.emplace(song->text_name, song->text_subtitle, false);
-    if (exists(session_data.selected_song.parent_path() / "Loading.png")) {
-        game_transition->add_loading_graphic((session_data.selected_song.parent_path() / "Loading.png").string());
+    SongSelectPlayer* p2 = second_player();
+    int genre_index = static_cast<int>(song->song_genre_index) - 1;
+
+    if (p2) {
+        genre_index = std::max(0, genre_index);
+
+        for (auto* p : {player.get(), p2}) {
+            audio.play_sound(p->shared_start_voice, VolumePreset::VOICE);
+        }
     }
+
+    for (auto* p : {player.get(), p2}) {
+        if (!p) {
+            continue;
+        }
+
+        const auto player_index = static_cast<int>(p->player_num);
+        auto& session_data = global_data.session_data[player_index];
+        session_data.selected_song = song->path;
+        session_data.selected_collection = song->collection;
+        session_data.selected_difficulty = static_cast<int>(p->selected_difficulty);
+        session_data.song_hash = song->hash_for(session_data.selected_difficulty);
+        session_data.genre_index = genre_index;
+        session_data.genre_label = song->song_genre_label;
+        global_data.last_difficulty[player_index] = session_data.selected_difficulty;
+    }
+
+    start_song_download(song->path);
+    game_transition.emplace(song->text_name, song->text_subtitle, false);
+
+    if (exists(song->path.parent_path() / "Loading.png")) {
+        game_transition->add_loading_graphic((song->path.parent_path() / "Loading.png").string());
+    }
+
     game_transition->start();
 }
 
@@ -484,6 +504,22 @@ void SongSelectScreen::start_search() {
     set_keyboard_visible(true);
 }
 
+void SongSelectScreen::on_selection_state_changed(SongSelectState previous, double current_time) {
+    script->restart_text_fade();
+
+    if (previous == SongSelectState::SEARCHING) {
+        set_keyboard_visible(false);
+    }
+
+    if (state == SongSelectState::SONG_SELECTED) {
+        diff_select_timer = std::make_unique<Timer>(60, current_time, [this] { on_diff_select_timeout(); });
+    } else if (state == SongSelectState::BROWSING) {
+        diff_select_timer.reset();
+    } else if (state == SongSelectState::SEARCHING) {
+        start_search();
+    }
+}
+
 std::optional<Screens> SongSelectScreen::update() {
     if (auto next = Screen::update()) {
         return next;
@@ -554,17 +590,9 @@ std::optional<Screens> SongSelectScreen::update() {
     }
 
     if (state != prev_state) {
-        script->restart_text_fade();
-        if (prev_state == SongSelectState::SEARCHING) {
-            set_keyboard_visible(false);
-        }
-        if (state == SongSelectState::SONG_SELECTED) {
-            diff_select_timer = std::make_unique<Timer>(60, current_time, [this] { on_diff_select_timeout(); });
-        } else if (state == SongSelectState::BROWSING) {
-            diff_select_timer.reset();
-        } else if (state == SongSelectState::SEARCHING) {
-            start_search();
-        } else if (state == SongSelectState::DAN_SELECTED) {
+        on_selection_state_changed(prev_state, current_time);
+
+        if (state == SongSelectState::DAN_SELECTED) {
             dan_transition.emplace();
             dan_transition->start();
         } else if (state == SongSelectState::TUTORIAL_SELECTED) {

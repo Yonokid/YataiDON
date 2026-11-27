@@ -76,21 +76,7 @@ struct KeysConfig {
     bool gamepad_menu_layout = false;
 };
 
-struct Keys1PConfig {
-    std::vector<int> left_kat;
-    std::vector<int> left_don;
-    std::vector<int> right_don;
-    std::vector<int> right_kat;
-};
-
-struct Keys2PConfig {
-    std::vector<int> left_kat;
-    std::vector<int> left_don;
-    std::vector<int> right_don;
-    std::vector<int> right_kat;
-};
-
-struct GamepadConfig {
+struct DrumBindings {
     std::vector<int> left_kat;
     std::vector<int> left_don;
     std::vector<int> right_don;
@@ -141,10 +127,10 @@ struct Config {
     NetworkConfig network;
     PathsConfig paths;
     KeysConfig keys;
-    Keys1PConfig keys_1p;
-    Keys2PConfig keys_2p;
-    GamepadConfig gamepad_1p;
-    GamepadConfig gamepad_2p;
+    DrumBindings keys_1p;
+    DrumBindings keys_2p;
+    DrumBindings gamepad_1p;
+    DrumBindings gamepad_2p;
     MidiConfig midi;
     AudioConfig audio;
     VolumeConfig volume;
