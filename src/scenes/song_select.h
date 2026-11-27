@@ -53,6 +53,7 @@ protected:
     void update_selection_ui(double current_time, bool advance_timers);
     void update_diff_sort(double current_time);
     void start_search();
+    void on_selection_state_changed(SongSelectState previous, double current_time);
 
     std::optional<SearchBox> search_box;
 

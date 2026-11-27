@@ -1,8 +1,5 @@
 #include "song_select_2p.h"
 
-#include <algorithm>
-#include <filesystem>
-
 #include "../libs/input/input.h"
 #include "../libs/network/network.h"
 
@@ -10,10 +7,11 @@ void SongSelect2PScreen::on_screen_start() {
     SongSelectScreen::on_screen_start();
     player_2 = std::make_unique<SongSelectPlayer>(PlayerNum::P2);
     player_2->script = script.get();
-    player->solo = false;
-    player_2->solo = false;
-    player->shared_start_voice = player->own_start_voice();
-    player_2->shared_start_voice = player_2->own_start_voice();
+
+    for (auto* p : {player.get(), player_2.get()}) {
+        p->solo = false;
+        p->shared_start_voice = p->own_start_voice();
+    }
 }
 
 static void init_player_diffs(SongSelectPlayer* p, SongBox* song) {
@@ -65,53 +63,19 @@ void SongSelect2PScreen::handle_input_selecting() {
     bool ura_1p = player->is_ura;
     bool ura_2p = player_2->is_ura;
 
-    if (!player->is_ready) {
-        player->handle_input_selecting();
-    }
-    if (!player_2->is_ready) {
-        player_2->handle_input_selecting();
+    for (auto* p : {player.get(), player_2.get()}) {
+        if (!p->is_ready) {
+            p->handle_input_selecting();
+        }
     }
 
     if (player->is_ura != ura_1p && !player_2->is_ready) {
         player_2->sync_ura(player->is_ura);
     }
+
     if (player_2->is_ura != ura_2p && !player->is_ready) {
         player->sync_ura(player_2->is_ura);
     }
-}
-
-void SongSelect2PScreen::select_song(SongBox* song) {
-    navigator.add_to_recent(song);
-    audio.play_sound(player->shared_start_voice, VolumePreset::VOICE);
-    audio.play_sound(player_2->shared_start_voice, VolumePreset::VOICE);
-
-    const auto p1_index = static_cast<int>(PlayerNum::P1);
-    auto& sd1 = global_data.session_data[p1_index];
-    sd1.selected_song = song->path;
-    start_song_download(song->path);
-    sd1.selected_collection = song->collection;
-    sd1.selected_difficulty = static_cast<int>(player->selected_difficulty);
-    sd1.song_hash = song->hash_for(sd1.selected_difficulty);
-    sd1.genre_index = std::max(0, static_cast<int>(song->song_genre_index) - 1);
-    sd1.genre_label = song->song_genre_label;
-
-    const auto p2_index = static_cast<int>(PlayerNum::P2);
-    auto& sd2 = global_data.session_data[p2_index];
-    sd2.selected_song = song->path;
-    sd2.selected_collection = song->collection;
-    sd2.selected_difficulty = static_cast<int>(player_2->selected_difficulty);
-    sd2.song_hash = song->hash_for(sd2.selected_difficulty);
-    sd2.genre_index = std::max(0, static_cast<int>(song->song_genre_index) - 1);
-    sd2.genre_label = song->song_genre_label;
-
-    global_data.last_difficulty[p1_index] = sd1.selected_difficulty;
-    global_data.last_difficulty[p2_index] = sd2.selected_difficulty;
-
-    game_transition.emplace(song->text_name, song->text_subtitle, false);
-    if (exists(sd1.selected_song.parent_path() / "Loading.png")) {
-        game_transition->add_loading_graphic((sd1.selected_song.parent_path() / "Loading.png").string());
-    }
-    game_transition->start();
 }
 
 std::optional<Screens> SongSelect2PScreen::update() {
@@ -175,21 +139,10 @@ std::optional<Screens> SongSelect2PScreen::update() {
     }
 
     if (state != prev_state) {
-        script->restart_text_fade();
-        if (state == SongSelectState::SEARCHING) {
-            start_search();
-        } else if (state == SongSelectState::SONG_SELECTED) {
-            diff_select_timer = std::make_unique<Timer>(60, current_time, [this] { on_diff_select_timeout(); });
-        } else if (state == SongSelectState::BROWSING) {
-            diff_select_timer.reset();
-        }
+        on_selection_state_changed(prev_state, current_time);
     }
 
     return std::nullopt;
-}
-
-void SongSelect2PScreen::draw_overlays() {
-    SongSelectScreen::draw_overlays();
 }
 
 void SongSelect2PScreen::draw() {
@@ -201,11 +154,11 @@ void SongSelect2PScreen::draw() {
         if (script && script->has_box_bg()) {
             navigator.draw_diff_select_bg();
         }
-        if (player->selected_song) {
-            player->try_lua_selector(same_diff, navigator.get_diff_fade_in(), 0);
-        }
-        if (player_2->selected_song) {
-            player_2->try_lua_selector(same_diff, navigator.get_diff_fade_in(), 0);
+
+        for (auto* p : {player.get(), player_2.get()}) {
+            if (p->selected_song) {
+                p->try_lua_selector(same_diff, navigator.get_diff_fade_in(), 0);
+            }
         }
     }
     if (screen_init) {

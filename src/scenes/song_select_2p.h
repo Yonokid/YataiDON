@@ -5,12 +5,10 @@ class SongSelect2PScreen : public SongSelectScreen {
 private:
     void handle_input_browsing(double current_ms) override;
     void handle_input_selecting() override;
-    void draw_overlays() override;
 
 protected:
     std::unique_ptr<SongSelectPlayer> player_2;
 
-    void select_song(SongBox* song) override;
     void on_select_timeout() override;
     SongSelectPlayer* second_player() override { return player_2.get(); }
     void release_players() override {
