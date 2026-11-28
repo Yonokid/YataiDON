@@ -1088,8 +1088,10 @@ void Chara3D::update(double current_ms) {
             if (!beat_synced) {
                 ms_per_beat = (kf - 1) * 1000.0 / 60.0;
             } else if (base == static_cast<int>(AnimIndex::DON_NORMAL)) {
-                ms_per_beat *= 3;
-            } else if (base == static_cast<int>(AnimIndex::DON_SABI)) {
+                ms_per_beat *= 4;
+            } else if (base == static_cast<int>(AnimIndex::DON_NORM_LOOP)) {
+                ms_per_beat *= 2;
+            } else if (base == static_cast<int>(AnimIndex::DON_SABI)) || (base == static_cast<int>(AnimIndex::DON_SABI_START)) {
                 ms_per_beat *= 8;
             }
             if (base == static_cast<int>(AnimIndex::DON_BALLOON_LOOP)) {
